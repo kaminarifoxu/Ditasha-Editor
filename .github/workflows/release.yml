@@ -29,9 +29,9 @@ jobs:
       - name: Store build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: GANOMABI-Windows-x64
+          name: DITASHA-Editor-Windows-x64
           path: |
-            release/GANOMABI-Asset-Studio-*-Windows-x64.exe
+            release/DITASHA-Editor.exe
             release/*.sha256
       - name: Publish new version to GitHub Releases
         shell: pwsh
@@ -48,6 +48,6 @@ jobs:
             Write-Host "Release $tag already exists; keeping its assets unchanged."
             exit 0
           }
-          $exe = "release/GANOMABI-Asset-Studio-$version-Windows-x64.exe"
-          gh release create $tag $exe "$exe.sha256" --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "GANOMABI Asset Studio $version" --notes-file RELEASE_NOTES.md
+          $exe = "release/DITASHA-Editor.exe"
+          gh release create $tag $exe "$exe.sha256" --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "DITASHA Editor $version" --notes-file RELEASE_NOTES.md
           if ($LASTEXITCODE -ne 0) { throw 'GitHub release publication failed.' }

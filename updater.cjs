@@ -16,15 +16,16 @@ function isNewer(remote,local){const a=versionParts(remote),b=versionParts(local
 function trustedURL(value,asset=false){
  const u=new URL(value);
  if(u.protocol!=='https:'||u.username||u.password||u.port)throw Error('Alamat update tidak valid.');
- if(asset){if(u.hostname!=='github.com'||!u.pathname.startsWith(`/${REPOSITORY}/releases/download/`))throw Error('File update harus dari Releases repo GANOMABI.');}
+ if(asset){if(u.hostname!=='github.com'||!u.pathname.startsWith(`/${REPOSITORY}/releases/download/`))throw Error('File update harus dari Releases repo DITASHA.');}
  else if(!['github.com','api.github.com','release-assets.githubusercontent.com','objects.githubusercontent.com'].includes(u.hostname))throw Error('Redirect update tidak valid.');
  return u.href;
 }
 function releaseInfo(release,local){
  if(release.draft||release.prerelease)return null;
  if(!isNewer(release.tag_name,local))return null;
- const version=release.tag_name.replace(/^v/,''),name=`GANOMABI-Asset-Studio-${version}-Windows-x64.exe`;
- const asset=release.assets?.find(a=>a.name===name&&a.state==='uploaded');
+ const version=release.tag_name.replace(/^v/,''),names=['DITASHA-Editor.exe',`GANOMABI-Asset-Studio-${version}-Windows-x64.exe`];
+ const asset=names.map(name=>release.assets?.find(a=>a.name===name&&a.state==='uploaded')).find(Boolean);
+ const name=asset?.name||names[0];
  if(!asset)throw Error(`Rilis ${version} belum memiliki file ${name}.`);
  if(!Number.isSafeInteger(asset.size)||asset.size<1024||asset.size>512*1024*1024)throw Error('Ukuran file update tidak valid.');
  const checksum=release.assets.find(a=>a.name===`${name}.sha256`&&a.state==='uploaded');
@@ -37,7 +38,7 @@ function createPortableUpdater({version,directory,fetcher,onState=()=>{}}){
  const config=path.join(directory,'preferences.json');
  try{state.autoDownload=JSON.parse(fs.readFileSync(config,'utf8')).autoDownload!==false;}catch{}
  function emit(fields){state={...state,...fields};onState({...state});return {...state};}
- async function request(url,{timeout=20000,...options}={}){trustedURL(url);const response=await fetcher(url,{...options,headers:{'User-Agent':`GANOMABI-Asset-Studio/${version}`,'Accept':'application/vnd.github+json',...options.headers},signal:AbortSignal.timeout(timeout)});if(response.url)trustedURL(response.url);return response;}
+ async function request(url,{timeout=20000,...options}={}){trustedURL(url);const response=await fetcher(url,{...options,headers:{'User-Agent':`DITASHA-Editor/${version}`,'Accept':'application/vnd.github+json',...options.headers},signal:AbortSignal.timeout(timeout)});if(response.url)trustedURL(response.url);return response;}
  async function download(){
   if(busy||!release||state.status==='ready')return {...state};busy=true;readyPath=null;const partial=path.join(directory,'update.part'),final=path.join(directory,release.name);
   try{

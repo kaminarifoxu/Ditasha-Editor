@@ -1,53 +1,35 @@
-# GANOMABI Asset Studio — Windows portable
+# DITASHA Editor
 
-© 2026 GANOMABI / amiinarii
+© 2026 Ditasha-Workshop
 
-Untuk Windows 10/11 64-bit. Buka GANOMABI-Asset-Studio-1.0.0-Windows-x64.exe.
-Tidak membutuhkan instalasi, Node.js, login, atau koneksi internet.
-Editor, logo, karakter, font, dan preview 3D disertakan dalam aplikasi.
+Editor YTD dan preview YDD GTA V Legacy untuk Windows 10/11 64-bit.
+Unduh DITASHA-Editor.exe dari Releases dan buka langsung tanpa instalasi.
+Logo, tema sakura, font, dan editor disertakan untuk penggunaan offline.
 
-Buka YDD/YTD melalui Buka file. Tambah PNG/JPG/WebP atau tekstur YTD sebagai
-layer. Gunakan 8 titik untuk resize, titik atas untuk rotate, klik kanan
-untuk crop/duplikat/urutan/hide/lock/delete. Tombol + membuat workspace baru.
-Ekspor PNG atau Simpan YTD membuka pilihan lokasi penyimpanan Windows.
-Perubahan tetap di memori selama aplikasi terbuka; ekspor sebelum menutup.
+## Fitur
 
-YDD Legacy: preview geometri statis + UV; bukan editor mesh dan belum ekspor YDD.
-YTD Legacy: BGRA/RGBA dan DXT1/3/5; ekspor BGRA tanpa kompresi, satu mipmap.
-UV biru adalah panduan dan tidak masuk ke ekspor tekstur.
-Akselerasi grafis diperlukan untuk preview 3D. GLB juga didukung.
+YDD: preview geometri statis, UV, wireframe dan foto 3D.
+YTD: DXT1/3/5, BGRA/RGBA; ekspor BGRA tanpa kompresi, satu mipmap.
+Layer gambar dan YTD: geser, resize 8 titik, rotate, crop, mirror,
+opacity, kuas, penghapus, urutan, duplikat, kunci, undo/redo dan tab.
+UV biru tidak ikut diekspor. Pengeditan mesh/ekspor YDD belum tersedia.
+Ekspor desain sebelum menutup; proyek tersimpan di memori selama aplikasi terbuka.
 
-Build dari kode sumber:
-1. Pasang Node.js LTS di Windows.
-2. Jalankan `npm ci` di folder ini.
-3. Jalankan `npm run build:win`.
-4. File portable ada di folder release.
+## Update
 
-Electron 44.5.1 / electron-builder 26.15.3. Kode aplikasi tidak diberi lisensi
-redistribusi umum; dependensi pihak ketiga mengikuti lisensinya masing-masing.
-Aplikasi belum ditandatangani dengan sertifikat penerbit.
+Aplikasi mengecek repo kaminarifoxu/FIVEM-YDD-YTD-EDITOR dan mengunduh rilis
+stabil terbaru otomatis dengan verifikasi SHA-256. Ekspor desain lalu pilih
+Pasang & mulai ulang. EXE lama dicadangkan sebagai .previous.
+Versi 1.1.0–1.2.1 perlu diganti manual satu kali ke DITASHA-Editor.exe.
 
-## Update aplikasi — versi 1.1.0
+## Build dan rilis
 
-Sumber update: https://github.com/kaminarifoxu/FIVEM-YDD-YTD-EDITOR/releases
+Jalankan npm ci, npm test, dan npm run build:win di Windows dengan Node.js LTS.
+Output: release/DITASHA-Editor.exe. Naikkan version di package.json dan
+package-lock.json, perbarui RELEASE_NOTES.md, lalu push ke main. GitHub
+Actions membangun EXE dan checksum serta menerbitkan rilis vX.Y.Z otomatis.
+Nama EXE tetap sama; versi ditentukan oleh tag rilis dan metadata aplikasi.
+Untuk rilis manual sertakan DITASHA-Editor.exe dan DITASHA-Editor.exe.sha256.
 
-Aplikasi mengecek Releases saat dibuka. Jika ada versi stabil yang lebih baru,
-file EXE diunduh otomatis dengan progres dan diverifikasi SHA-256. Pengaturan
-Unduh otomatis dapat dimatikan; tombol Cek update tetap tersedia di header.
-Saat unduhan selesai, ekspor desainmu lalu pilih Pasang & mulai ulang.
-EXE lama dicadangkan sebagai `<nama exe>.previous`, versi baru menggantinya di
-lokasi yang sama. Jika penggantian file gagal, versi lama dipulihkan.
-
-Untuk update berikutnya:
-1. Ubah `version` di package.json dan package-lock.json (contoh 1.2.0).
-2. Perbarui RELEASE_NOTES.md dengan maksimal empat poin perubahan utama.
-3. Push ke main. Workflow Windows menguji, membuat EXE + checksum, dan
-   menerbitkan GitHub Release v1.2.0 otomatis. Rilis yang sudah ada tidak ditimpa.
-4. Aplikasi pengguna mendeteksi rilis setelah GitHub Actions selesai.
-
-Jika menerbitkan rilis manual, gunakan tag vX.Y.Z dan lampirkan:
-`GANOMABI-Asset-Studio-X.Y.Z-Windows-x64.exe` serta file `.exe.sha256`.
-Kode di repo saja tidak menjadi update sebelum ada rilis dengan lampiran EXE.
-Versi 1.0.0 belum memiliki updater; unduh dan buka 1.1.0 sekali secara manual.
-Pengaturan updater disimpan internal di folder data aplikasi Windows, tidak
-memerlukan file konfigurasi di samping EXE. Internet diperlukan hanya untuk update.
+Electron 44.5.1 / electron-builder 26.15.3. Kode tidak diberi lisensi
+redistribusi umum; dependensi mengikuti lisensinya masing-masing.

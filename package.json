@@ -1,26 +1,27 @@
 {
   "name": "ganomabi-asset-studio",
-  "version": "1.1.0",
-  "description": "Editor tekstur YTD dan penampil model YDD GANOMABI",
-  "author": "GANOMABI / amiinarii",
+  "version": "1.2.2",
+  "description": "DITASHA Editor \u2014 editor tekstur YTD dan preview model YDD",
+  "author": "Ditasha-Workshop",
   "license": "UNLICENSED",
   "main": "main.cjs",
   "scripts": {
     "start": "electron .",
     "build:win": "electron-builder --win portable --x64",
-    "test": "node --test updater.test.cjs"
+    "test": "node --test updater.test.cjs ipc-trust.test.cjs"
   },
   "build": {
     "appId": "com.ganomabi.assetstudio",
-    "productName": "GANOMABI Asset Studio",
-    "copyright": "Copyright \u00a9 2026 GANOMABI / amiinarii",
+    "productName": "DITASHA-Editor",
+    "copyright": "Copyright \u00a9 2026 Ditasha-Workshop",
     "files": [
       "main.cjs",
       "ui/**/*",
       "icon.ico",
       "package.json",
       "preload.cjs",
-      "updater.cjs"
+      "updater.cjs",
+      "ipc-trust.cjs"
     ],
     "directories": {
       "output": "release"
@@ -31,7 +32,7 @@
       "signExecutable": false
     },
     "portable": {
-      "artifactName": "GANOMABI-Asset-Studio-${version}-Windows-x64.exe",
+      "artifactName": "DITASHA-Editor.exe",
       "useZip": true
     }
   },
