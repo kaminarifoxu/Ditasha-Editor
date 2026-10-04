@@ -113,7 +113,7 @@ let discardPending=null;
 function unsavedItems(){finishGesture();return tabs.flatMap(tab=>workspaceTextures(tab===activeTab?null:tab.state||{files:[]}).filter(textureUnsaved).map(t=>({name:t.name,tab:tab.name})));}
 function confirmDiscard(reason='close',items=unsavedItems()){
  if(discardPending)return Promise.resolve('cancel');
- const dialog=$('unsavedDialog');$('unsavedHeading').textContent=reason==='update'?'Pasang update aplikasi?':reason==='tab'?'Tutup tab ini?':reason==='file'?'Hapus file dari workspace?':'Tutup DITASHA Editor?';
+ const dialog=$('unsavedDialog');dialog.dataset.mode=reason==='update'&&!items.length?'install':'unsaved';dialog.querySelector('.unsavedTip').hidden=!items.length;$('unsavedBack').textContent=reason==='update'&&!items.length?'Nanti saja':'Kembali ke editor';$('unsavedHeading').textContent=reason==='update'?'Pasang update aplikasi?':reason==='tab'?'Tutup tab ini?':reason==='file'?'Hapus file dari workspace?':'Tutup DITASHA Editor?';
  $('unsavedDescription').textContent=items.length?'Ada perubahan yang belum disimpan. Ekspor PNG atau YTD sebelum melanjutkan agar hasil editmu tetap tersimpan.':'Update siap dipasang. Aplikasi akan ditutup dan versi terbaru dibuka kembali.';
  $('unsavedList').replaceChildren();for(const item of items){const row=document.createElement('li');row.textContent=item.name+(item.tab?' · '+item.tab:'');$('unsavedList').append(row);}
  $('unsavedDiscard').textContent=reason==='update'?'Pasang & mulai ulang':reason==='tab'?'Tutup tanpa menyimpan':reason==='file'?'Hapus tanpa menyimpan':'Tutup tanpa menyimpan';
