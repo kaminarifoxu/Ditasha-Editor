@@ -13,15 +13,25 @@ async function startReplacement({target,staged,parentPid,bootloaderPid,directory
  const script=replacementScript({target,staged,parentPid,bootloaderPid,logPath,handshakePath});
  const executable=path.join(process.env.SystemRoot||'C:\\Windows','System32','WindowsPowerShell','v1.0','powershell.exe');
  const env={...process.env};for(const key of Object.keys(env))if(key.startsWith('PORTABLE_'))delete env[key];
- // The helper must survive Electron/NSIS shutdown. On Windows, detached plus
- // windowsHide combines incompatible console creation flags. Let PowerShell
- // hide its own independent console instead.
+ // Match Cache Switcher's CREATE_NO_WINDOW startup through the Windows
+ // Process API. Node's detached flag produces a different console lifecycle.
+ env.DITASHA_UPDATER_COMMAND=Buffer.from(script,'utf16le').toString('base64');
+ const bootstrap=`$ErrorActionPreference='Stop'
+$info = New-Object System.Diagnostics.ProcessStartInfo
+$info.FileName = '${executable.replace(/'/g,"''")}'
+$info.Arguments = '-NoProfile -NonInteractive -EncodedCommand ' + $env:DITASHA_UPDATER_COMMAND
+$info.UseShellExecute = $false
+$info.CreateNoWindow = $true
+$info.WorkingDirectory = '${path.dirname(target).replace(/'/g,"''")}'
+$info.EnvironmentVariables.Remove('DITASHA_UPDATER_COMMAND')
+$helper = [System.Diagnostics.Process]::Start($info)
+$helper.Dispose()`;
  const output=await fs.open(path.join(directory,'helper-output.log'),'w');
- const child=spawn(executable,['-NoProfile','-NonInteractive','-WindowStyle','Hidden','-EncodedCommand',Buffer.from(script,'utf16le').toString('base64')],{cwd:path.dirname(target),env,detached:true,windowsHide:false,stdio:['ignore',output.fd,output.fd]});
+ const child=spawn(executable,['-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(bootstrap,'utf16le').toString('base64')],{cwd:path.dirname(target),env,detached:false,windowsHide:true,stdio:['ignore',output.fd,output.fd]});
  try{await new Promise((resolve,reject)=>{child.once('spawn',resolve);child.once('error',reject);});}finally{await output.close();}
  try {
   let started=false;
-  for(let i=0;i<150;i++){try{await fs.access(handshakePath);started=true;break;}catch{}if(child.exitCode!==null)break;await new Promise(resolve=>setTimeout(resolve,100));}
+  for(let i=0;i<150;i++){try{await fs.access(handshakePath);started=true;break;}catch{}if(child.exitCode!==null&&child.exitCode!==0)break;await new Promise(resolve=>setTimeout(resolve,100));}
   if(!started){const detail=await fs.readFile(path.join(directory,'helper-output.log'),'utf8').catch(()=>'');throw Error('Helper update tidak dapat berjalan (exit '+child.exitCode+'). '+detail.slice(-3000));}
  }catch(error){child.kill();throw error;}
  child.unref();return {logPath};
