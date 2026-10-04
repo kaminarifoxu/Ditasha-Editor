@@ -34,7 +34,7 @@ Untuk rilis manual sertakan DITASHA-Editor.exe dan DITASHA-Editor.exe.sha256.
 Electron 44.5.1 / electron-builder 26.15.3. Kode tidak diberi lisensi
 redistribusi umum; dependensi mengikuti lisensinya masing-masing.
 
-## Versi 1.3.0
+## Versi 1.3.1
 
 Loading screen DITASHA saat membuka aplikasi. YFT/YDR Legacy dapat dibuka
 sebagai geometri statis dengan UV jika tersedia; animasi dan fisika tidak

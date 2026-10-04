@@ -1,4 +1,4 @@
-DITASHA Editor 1.3.0
+DITASHA Editor 1.3.1
 
 - Loading screen bertema DITASHA dan indikator saat membuka file.
 - Preview geometri statis YFT/YDD/YDR Legacy dengan UV jika tersedia; YTD tetap untuk tekstur.
