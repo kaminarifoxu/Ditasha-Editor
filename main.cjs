@@ -43,7 +43,7 @@ else {
    if(result.canceled||!result.filePath)return {saved:false};
    await fs.writeFile(result.filePath,data);return {saved:true};
   });
-  ipcMain.handle('gano:update-state' ,event=>{trusted(event);return updater.getState();});
+  ipcMain.handle('gano:update-state' ,async event=>{trusted(event);const state=updater.getState();try{const report=JSON.parse((await fs.readFile(path.join(app.getPath('userData'),'updates','install.json'),'utf8')).replace(/^\uFEFF/,''));if(report.status==='error')state.installError=report.message;}catch{}return state;});
   ipcMain.handle('gano:update-check',event=>{trusted(event);return updater.check();});
   ipcMain.handle('gano:update-download',event=>{trusted(event);return updater.download();});
   ipcMain.handle('gano:update-auto',(event,enabled)=>{trusted(event);return updater.setAutoDownload(enabled);});
@@ -53,10 +53,21 @@ else {
    if(process.platform!=='win32'||!target){dialog.showMessageBoxSync(win,{type:'info',message:'Pemasangan otomatis tersedia saat menjalankan EXE portable Windows.'});return false;}
    const choice=await win.webContents.executeJavaScript("window.ditashaWorkspace.confirmDiscard('update')");
    if(choice!=='discard')return false;
-   const script=replacementScript({target,staged,parentPid:process.pid,logPath:path.join(app.getPath('userData'),'updates','install.log')});
+   const directory=path.join(app.getPath('userData'),'updates');
+   // Keep the helper and its working directory outside the portable extraction folder.
+   await fs.access(staged);await fs.access(target,require('node:fs').constants.W_OK);
+   const handshakePath=path.join(directory,'install.started'),logPath=path.join(directory,'install.json'),scriptPath=path.join(directory,'install.ps1');
+   await fs.rm(handshakePath,{force:true});
+   await fs.writeFile(scriptPath,'\ufeff'+replacementScript({target,staged,parentPid:process.pid,logPath,handshakePath}),'utf8');
    const executable=path.join(process.env.SystemRoot||'C:\\Windows','System32','WindowsPowerShell','v1.0','powershell.exe');
-   const child=spawn(executable,['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-EncodedCommand',Buffer.from(script,'utf16le').toString('base64')],{detached:true,windowsHide:true,stdio:'ignore'});
-   await new Promise((resolve,reject)=>{child.once('spawn',resolve);child.once('error',reject);});child.unref();allowQuit=true;app.quit();return true;
+   const child=spawn(executable,['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',scriptPath],{cwd:directory,detached:true,windowsHide:true,stdio:'ignore'});
+   await new Promise((resolve,reject)=>{child.once('spawn',resolve);child.once('error',reject);});
+   try {
+    let started=false;
+    for(let i=0;i<80;i++){try{await fs.access(handshakePath);started=true;break;}catch{}if(child.exitCode!==null)break;await new Promise(resolve=>setTimeout(resolve,100));}
+    if(!started)throw Error('Helper update tidak dapat berjalan. Aplikasi tetap terbuka; coba lagi atau ganti EXE secara manual.');
+   }catch(error){child.kill();throw error;}
+   child.unref();allowQuit=true;setTimeout(()=>app.quit(),150);return true;
   });
   win.webContents.once('did-finish-load',()=>{setTimeout(reveal,350);setTimeout(()=>updater.check(),2500);});
   win.loadFile(path.join(__dirname,'ui','index.html'));

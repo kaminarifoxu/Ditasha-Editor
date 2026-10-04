@@ -42,11 +42,11 @@ function createPortableUpdater({version,directory,fetcher,onState=()=>{}}){
  async function download(){
   if(busy||!release||state.status==='ready')return {...state};busy=true;readyPath=null;const partial=path.join(directory,'update.part'),final=path.join(directory,release.name);
   try{
-   await fsp.mkdir(directory,{recursive:true});emit({status:'downloading',progress:0,message:'Mengunduh update…'});
+   await fsp.mkdir(directory,{recursive:true});emit({status:'downloading',progress:0,downloadedBytes:0,totalBytes:release.size,message:'Mengunduh update…'});
    let expected=release.sha256;
    if(!expected){const sum=await request(release.checksumURL);if(!sum.ok)throw Error('Checksum tidak dapat diunduh.');const text=await sum.text();if(text.length>4096)throw Error('Checksum tidak valid.');expected=/^([a-f0-9]{64})(?:\s|$)/i.exec(text.trim())?.[1]?.toLowerCase();if(!expected)throw Error('Checksum tidak valid.');}
    const response=await request(release.url,{timeout:15*60*1000,headers:{Accept:'application/octet-stream'}});if(!response.ok||!response.body)throw Error('File update gagal diunduh.');
-   let total=0,last=0;const hash=crypto.createHash('sha256');const meter=new Transform({transform(chunk,_encoding,callback){total+=chunk.length;if(total>release.size){callback(Error('Ukuran unduhan melebihi rilis.'));return;}hash.update(chunk);const progress=Math.floor(total/release.size*100);if(progress!==last){last=progress;emit({progress,message:`Mengunduh update… ${progress}%`});}callback(null,chunk);}});
+   let total=0,last=0;const hash=crypto.createHash('sha256');const meter=new Transform({transform(chunk,_encoding,callback){total+=chunk.length;if(total>release.size){callback(Error('Ukuran unduhan melebihi rilis.'));return;}hash.update(chunk);const progress=Math.floor(total/release.size*100);if(progress!==last){last=progress;emit({progress,downloadedBytes:total,message:`Mengunduh update… ${progress}%`});}callback(null,chunk);}});
    const source=typeof response.body.getReader==='function'?Readable.fromWeb(response.body):response.body;
    await pipeline(source,meter,fs.createWriteStream(partial,{flags:'w'}));
    emit({status:'verifying',message:'Memverifikasi SHA-256…'});
@@ -70,7 +70,7 @@ function createPortableUpdater({version,directory,fetcher,onState=()=>{}}){
  async function setAutoDownload(enabled){if(typeof enabled!=='boolean')throw Error('Pilihan tidak valid.');await fsp.mkdir(directory,{recursive:true});await fsp.writeFile(config,JSON.stringify({autoDownload:enabled}),{mode:0o600});return emit({autoDownload:enabled});}
  return {check,download,setAutoDownload,getState:()=>({...state}),getReadyPath:()=>readyPath};
 }
-function replacementScript({target,staged,parentPid,logPath}){
+function replacementScript({target,staged,parentPid,logPath,handshakePath=logPath+'.started',restart=true}){
  const quote=s=>"'"+String(s).replace(/'/g,"''")+"'";
  return `$ErrorActionPreference = 'Stop'
 $target = ${quote(target)}
@@ -80,9 +80,18 @@ $next = $target + '.incoming'
 $log = ${quote(logPath)}
 $renamed = $false
 $installed = $false
+function Report($status, $message) {
+ @{status=$status;message=$message;target=$target} | ConvertTo-Json -Compress | Set-Content -LiteralPath $log -Encoding UTF8
+}
 try {
- $parent = Get-Process -Id ${Number(parentPid)} -ErrorAction SilentlyContinue
- if ($parent) { Wait-Process -Id ${Number(parentPid)} -Timeout 90 -ErrorAction Stop }
+ 'started' | Set-Content -LiteralPath ${quote(handshakePath)} -Encoding UTF8
+ Report 'installing' 'Menunggu aplikasi ditutup…'
+ # Polling tolerates the parent exiting between process lookup and waiting.
+ $deadline = (Get-Date).AddSeconds(90)
+ while (Get-Process -Id ${Number(parentPid)} -ErrorAction SilentlyContinue) {
+  if ((Get-Date) -gt $deadline) { throw 'Aplikasi belum tertutup setelah 90 detik.' }
+  Start-Sleep -Milliseconds 250
+ }
  # The portable NSIS wrapper may still be cleaning its extracted directory.
  for ($i=0; $i -lt 60; $i++) {
   try {
@@ -100,16 +109,17 @@ try {
  $env:PORTABLE_EXECUTABLE_FILE = $null
  $env:PORTABLE_EXECUTABLE_DIR = $null
  $env:PORTABLE_EXECUTABLE_APP_FILENAME = $null
- Start-Process -FilePath $target -WorkingDirectory ([System.IO.Path]::GetDirectoryName($target))
+ if (${restart?'$true':'$false'}) { Start-Process -FilePath $target -WorkingDirectory ([System.IO.Path]::GetDirectoryName($target)) }
  Remove-Item -LiteralPath $staged -Force -ErrorAction SilentlyContinue
- 'Update berhasil dipasang.' | Set-Content -LiteralPath $log
+ Report 'success' 'Update berhasil dipasang.'
 } catch {
- $_.Exception.Message | Set-Content -LiteralPath $log
+ $failure = $_.Exception.Message
+ Report 'error' $failure
  if ($renamed -and (Test-Path -LiteralPath $backup)) {
   if ($installed -and (Test-Path -LiteralPath $target)) { Remove-Item -LiteralPath $target -Force }
   Move-Item -LiteralPath $backup -Destination $target -Force
  }
- if (Test-Path -LiteralPath $target) { Start-Process -FilePath $target }
+ if (${restart?'$true':'$false'} -and (Test-Path -LiteralPath $target)) { Start-Process -FilePath $target }
 } finally {
  if (Test-Path -LiteralPath $next) { Remove-Item -LiteralPath $next -Force -ErrorAction SilentlyContinue }
 }`;
