@@ -21,7 +21,8 @@ const {spawn}=require('node:child_process');
    if(result&&report?.status==='success'){
     assert.equal(result.version,require('../package.json').version);
     assert.equal(result.target.toLowerCase(),target.toLowerCase());
-    assert.notEqual(result.runtime,result.oldRuntime,'Restart must extract a fresh runtime');
+    assert.notEqual(result.pid,result.oldPid,'Restart must launch a new Electron process');
+    assert.equal(result.staleRuntime,false,'NSIS must clean the old extraction before restart');
     assert(result.downloaded>1000000,'Real release was downloaded and verified');
     try{await fs.access(result.oldRuntime);}catch{try{await fs.unlink(target);console.log('PASS: real GitHub download, portable EXE replacement, fresh runtime restart and old runtime cleanup.');return;}catch{}}
    }
