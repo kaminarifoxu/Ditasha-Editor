@@ -1,15 +1,16 @@
 const { app, BrowserWindow, Menu, dialog, ipcMain, net } = require('electron');
 const path = require('node:path');
 const {isTrustedUpdateEvent}=require('./ipc-trust.cjs');
-const {spawn}=require('node:child_process');
+const {startReplacement}=require('./installer.cjs');
 const fs=require('node:fs/promises');
-const {createPortableUpdater,replacementScript}=require('./updater.cjs');
+const {createPortableUpdater}=require('./updater.cjs');
 let win,splash,updater,allowQuit=false,closingPrompt=false;
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) app.quit();
 else {
  app.on('second-instance', () => { if(win) { if(win.isMinimized())win.restore();win.focus(); } });
- app.whenReady().then(() => {
+ app.whenReady().then(async () => {
+  if(process.env.DITASHA_UPDATE_SMOKE_ROOT){await require('./update-probe.cjs').run(app,net);return;}
   // Preserve updater preferences when upgrading from GANOMABI Asset Studio.
   app.setPath('userData', path.join(app.getPath('appData'), 'GANOMABI Asset Studio'));
   app.setAppUserModelId('com.ganomabi.assetstudio');
@@ -47,28 +48,18 @@ else {
   ipcMain.handle('gano:update-check',event=>{trusted(event);return updater.check();});
   ipcMain.handle('gano:update-download',event=>{trusted(event);return updater.download();});
   ipcMain.handle('gano:update-auto',(event,enabled)=>{trusted(event);return updater.setAutoDownload(enabled);});
-  ipcMain.handle('gano:update-install',async event=>{
-   trusted(event);const staged=updater.getReadyPath(),target=process.env.PORTABLE_EXECUTABLE_FILE;
-   if(!staged)throw Error('Unduh update terlebih dahulu.');
-   if(process.platform!=='win32'||!target){dialog.showMessageBoxSync(win,{type:'info',message:'Pemasangan otomatis tersedia saat menjalankan EXE portable Windows.'});return false;}
+  const installUpdate=async(event,downloadFirst=false)=>{
+   trusted(event);const target=process.env.PORTABLE_EXECUTABLE_FILE;
+   if(process.platform!=='win32'||!target)throw Error('Gunakan EXE portable Windows untuk memasang update.');
    const choice=await win.webContents.executeJavaScript("window.ditashaWorkspace.confirmDiscard('update')");
    if(choice!=='discard')return false;
-   const directory=path.join(app.getPath('userData'),'updates');
-   // Keep the helper and its working directory outside the portable extraction folder.
-   await fs.access(staged);await fs.access(target,require('node:fs').constants.W_OK);
-   const handshakePath=path.join(directory,'install.started'),logPath=path.join(directory,'install.json'),scriptPath=path.join(directory,'install.ps1');
-   await fs.rm(handshakePath,{force:true});
-   await fs.writeFile(scriptPath,'\ufeff'+replacementScript({target,staged,parentPid:process.pid,logPath,handshakePath}),'utf8');
-   const executable=path.join(process.env.SystemRoot||'C:\\Windows','System32','WindowsPowerShell','v1.0','powershell.exe');
-   const child=spawn(executable,['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',scriptPath],{cwd:directory,detached:true,windowsHide:true,stdio:'ignore'});
-   await new Promise((resolve,reject)=>{child.once('spawn',resolve);child.once('error',reject);});
-   try {
-    let started=false;
-    for(let i=0;i<80;i++){try{await fs.access(handshakePath);started=true;break;}catch{}if(child.exitCode!==null)break;await new Promise(resolve=>setTimeout(resolve,100));}
-    if(!started)throw Error('Helper update tidak dapat berjalan. Aplikasi tetap terbuka; coba lagi atau ganti EXE secara manual.');
-   }catch(error){child.kill();throw error;}
-   child.unref();allowQuit=true;setTimeout(()=>app.quit(),150);return true;
-  });
+   if(downloadFirst){const state=await updater.download();if(state.status!=='ready')throw Error(state.message);}
+   const staged=updater.getReadyPath();if(!staged)throw Error('Unduh update terlebih dahulu.');
+   await startReplacement({target,staged,parentPid:process.pid,bootloaderPid:process.ppid,directory:path.join(app.getPath('userData'),'updates')});
+   allowQuit=true;setTimeout(()=>app.quit(),150);return true;
+  };
+  ipcMain.handle('gano:update-install',event=>installUpdate(event));
+  ipcMain.handle('gano:update-now',event=>installUpdate(event,true));
   win.webContents.once('did-finish-load',()=>{setTimeout(reveal,350);setTimeout(()=>updater.check(),2500);});
   win.loadFile(path.join(__dirname,'ui','index.html'));
   win.on('closed', () => {win=null;});

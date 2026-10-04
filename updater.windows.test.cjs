@@ -4,13 +4,16 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os');
 const {spawn}=require('node:child_process');
 const {replacementScript}=require('./updater.cjs');
-for(const fail of [false,true])test(`Windows helper ${fail?'keeps old EXE when staging fails':'replaces EXE after parent exits'}`,{skip:process.platform!=='win32',timeout:30000},async t=>{
+for(const mode of ['success','staging-failure','launch-failure'])test(`Windows helper ${mode}`,{skip:process.platform!=='win32',timeout:30000},async t=>{
+ const fail=mode!=='success';
  const directory=await fs.mkdtemp(path.join(os.tmpdir(),"Ditasha's update "));
  t.after(()=>fs.rm(directory,{recursive:true,force:true}));
  const target=path.join(directory,'DITASHA-Editor.exe'),staged=path.join(directory,'new.exe'),logPath=path.join(directory,'install.json'),script=path.join(directory,'install.ps1');
- await fs.writeFile(target,'MZ-old');if(!fail)await fs.writeFile(staged,'MZ-new');
+ await fs.writeFile(target,'MZ-old');if(mode!=='staging-failure')await fs.writeFile(staged,'MZ-new');
  const parent=spawn(process.execPath,['-e','setTimeout(()=>{},1500)'],{stdio:'ignore'});
- await fs.writeFile(script,'\ufeff'+replacementScript({target,staged,parentPid:parent.pid,logPath,restart:false}));
+ let source=replacementScript({target,staged,parentPid:parent.pid,logPath,restart:mode==='launch-failure'});
+ if(mode==='launch-failure')source=source.replace('try { Start-Process -FilePath $target -WorkingDirectory (Split-Path -Parent $target) -ErrorAction Stop }',"try { throw 'simulated launch failure' }").replace('Start-Process -FilePath $target -WorkingDirectory (Split-Path -Parent $target) -ErrorAction SilentlyContinue','Write-Output rollback');
+ await fs.writeFile(script,'\ufeff'+source);
  const helper=spawn('powershell.exe',['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',script],{cwd:directory});
  let output='';helper.stderr.on('data',b=>output+=b);
  const code=await new Promise((resolve,reject)=>{helper.on('error',reject);helper.on('exit',resolve);});

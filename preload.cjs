@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld('ganoUpdates',{
  check:()=>ipcRenderer.invoke('gano:update-check'),
  download:()=>ipcRenderer.invoke('gano:update-download'),
  install:()=>ipcRenderer.invoke('gano:update-install'),
+ updateNow:()=>ipcRenderer.invoke('gano:update-now'),
  setAutoDownload:enabled=>ipcRenderer.invoke('gano:update-auto',enabled),
  subscribe:callback=>{const listener=(_event,state)=>callback(state);ipcRenderer.on('gano:update-state',listener);return()=>ipcRenderer.removeListener('gano:update-state',listener);}
 });

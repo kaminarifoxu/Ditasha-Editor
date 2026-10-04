@@ -24,6 +24,9 @@ jobs:
         run: npm test
       - name: Build portable EXE
         run: npm run build:win
+      - name: Test real portable download and restart
+        run: node scripts/smoke-portable-update.cjs
+        timeout-minutes: 8
       - name: Generate SHA-256
         run: node scripts/checksum.cjs
       - name: Store build artifact
