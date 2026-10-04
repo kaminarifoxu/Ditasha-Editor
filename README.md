@@ -2,17 +2,17 @@
 
 © 2026 Ditasha-Workshop
 
-Editor YTD dan preview YDD GTA V Legacy untuk Windows 10/11 64-bit.
+Editor YTD dan preview YFT/YDD/YDR GTA V Legacy untuk Windows 10/11 64-bit.
 Unduh DITASHA-Editor.exe dari Releases dan buka langsung tanpa instalasi.
 Logo, tema sakura, font, dan editor disertakan untuk penggunaan offline.
 
 ## Fitur
 
-YDD: preview geometri statis, UV, wireframe dan foto 3D.
+YFT/YDD/YDR: preview geometri statis, UV, wireframe dan foto 3D.
 YTD: DXT1/3/5, BGRA/RGBA; ekspor BGRA tanpa kompresi, satu mipmap.
 Layer gambar dan YTD: geser, resize 8 titik, rotate, crop, mirror,
 opacity, kuas, penghapus, urutan, duplikat, kunci, undo/redo dan tab.
-UV biru tidak ikut diekspor. Pengeditan mesh/ekspor YDD belum tersedia.
+UV biru tidak ikut diekspor. Pengeditan mesh/ekspor YFT/YDD/YDR belum tersedia.
 Ekspor desain sebelum menutup; proyek tersimpan di memori selama aplikasi terbuka.
 
 ## Update
@@ -33,3 +33,15 @@ Untuk rilis manual sertakan DITASHA-Editor.exe dan DITASHA-Editor.exe.sha256.
 
 Electron 44.5.1 / electron-builder 26.15.3. Kode tidak diberi lisensi
 redistribusi umum; dependensi mengikuti lisensinya masing-masing.
+
+## Versi 1.3.0
+
+Loading screen DITASHA saat membuka aplikasi. YFT/YDR Legacy dapat dibuka
+sebagai geometri statis dengan UV jika tersedia; animasi dan fisika tidak
+ditampilkan. Kompatibilitas format baru diuji dengan resource sintetis.
+Dialog perubahan belum disimpan menampilkan daftar tekstur dari seluruh tab.
+Status tersimpan baru berubah setelah ekspor selesai ditulis; membatalkan
+dialog simpan tetap mempertahankan status perubahan. Source UI ada di src/
+dan dibangun ulang lewat npm run build:ui.
+
+Referensi struktur Legacy: https://github.com/dexyfex/CodeWalker

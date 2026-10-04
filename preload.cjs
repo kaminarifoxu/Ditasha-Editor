@@ -7,3 +7,8 @@ contextBridge.exposeInMainWorld('ganoUpdates',{
  setAutoDownload:enabled=>ipcRenderer.invoke('gano:update-auto',enabled),
  subscribe:callback=>{const listener=(_event,state)=>callback(state);ipcRenderer.on('gano:update-state',listener);return()=>ipcRenderer.removeListener('gano:update-state',listener);}
 });
+
+contextBridge.exposeInMainWorld('ditashaDesktop',{
+ ready:()=>ipcRenderer.send('ditasha:ready'),
+ saveExport:payload=>ipcRenderer.invoke('ditasha:save-export',payload)
+});

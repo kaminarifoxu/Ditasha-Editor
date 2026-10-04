@@ -1,8 +1,8 @@
-DITASHA Editor 1.2.2
+DITASHA Editor 1.3.0
 
-- Nama file portable sekarang DITASHA-Editor.exe.
-- Copyright © 2026 Ditasha-Workshop di aplikasi dan metadata EXE.
-- Updater mengenali nama rilis DITASHA yang baru dan memverifikasi SHA-256.
-- Termasuk perbaikan validasi update Windows dan tema minimalis sakura.
+- Loading screen bertema DITASHA dan indikator saat membuka file.
+- Preview geometri statis YFT/YDD/YDR Legacy dengan UV jika tersedia; YTD tetap untuk tekstur.
+- Dialog perubahan belum disimpan dengan daftar tekstur dan tab, termasuk saat tutup tab atau hapus file.
+- Status tersimpan diperbarui setelah ekspor PNG/YTD benar-benar selesai; batal simpan tidak menghapus peringatan.
 
-Versi 1.1.0–1.2.1 perlu diganti manual satu kali ke DITASHA-Editor.exe.
+Format model baru diuji dengan resource sintetis, belum file asli pengguna. Animasi, fisika, Enhanced dan ekspor mesh belum didukung.
