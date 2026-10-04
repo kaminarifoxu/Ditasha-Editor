@@ -1,0 +1,4 @@
+- Cek update saat aplikasi dibuka dan tombol Cek update di header.
+- Unduh otomatis dari GitHub Releases dengan progres; bisa dinonaktifkan.
+- Verifikasi SHA-256 sebelum pemasangan, ganti EXE di lokasi yang sama, dan cadangkan versi lama.
+- Tombol Pasang & mulai ulang dengan peringatan desain yang belum diekspor.
