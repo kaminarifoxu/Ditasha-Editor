@@ -13,7 +13,9 @@ async function startReplacement({target,staged,parentPid,bootloaderPid,directory
  const script=replacementScript({target,staged,parentPid,bootloaderPid,logPath,handshakePath});
  const executable=path.join(process.env.SystemRoot||'C:\\Windows','System32','WindowsPowerShell','v1.0','powershell.exe');
  const env={...process.env};for(const key of Object.keys(env))if(key.startsWith('PORTABLE_'))delete env[key];
- // EncodedCommand matches Cache Switcher and does not require script execution policy.
+ // Cache Switcher uses a new process group, not DETACHED_PROCESS.
+ // Node detached:true makes Windows PowerShell exit before executing the script.
+ // Unref with file-backed stdio lets the helper survive the editor exit.
  const output=await fs.open(path.join(directory,'helper-output.log'),'w');
  const child=spawn(executable,['-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(script,'utf16le').toString('base64')],{cwd:path.dirname(target),env,detached:false,windowsHide:true,stdio:['ignore',output.fd,output.fd]});
  try{await new Promise((resolve,reject)=>{child.once('spawn',resolve);child.once('error',reject);});}finally{await output.close();}

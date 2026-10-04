@@ -7,7 +7,7 @@ const {replacementScript}=require('./updater.cjs');
 for(const mode of ['success','staging-failure','launch-failure'])test(`Windows helper ${mode}`,{skip:process.platform!=='win32',timeout:30000},async t=>{
  const fail=mode!=='success';
  const directory=await fs.mkdtemp(path.join(os.tmpdir(),"Ditasha's update "));
- t.after(()=>fs.rm(directory,{recursive:true,force:true}));
+ t.after(()=>fs.rm(directory,{recursive:true,force:true,maxRetries:30,retryDelay:250}));
  const target=path.join(directory,'DITASHA-Editor.exe'),staged=path.join(directory,'new.exe'),logPath=path.join(directory,'install.json'),script=path.join(directory,'install.ps1');
  await fs.writeFile(target,'MZ-old');if(mode!=='staging-failure')await fs.writeFile(staged,'MZ-new');
  const parent=spawn(process.execPath,['-e','setTimeout(()=>{},1500)'],{stdio:'ignore'});
@@ -28,9 +28,10 @@ for(const mode of ['success','staging-failure','launch-failure'])test(`Windows h
 test('Windows production spawn starts helper and confirms handshake',{skip:process.platform!=='win32',timeout:30000},async t=>{
  const {startReplacement}=require('./installer.cjs');
  const directory=await fs.mkdtemp(path.join(os.tmpdir(),"Ditasha's spawn "));
- t.after(()=>fs.rm(directory,{recursive:true,force:true}));
+ t.after(()=>fs.rm(directory,{recursive:true,force:true,maxRetries:30,retryDelay:250}));
  const target=path.join(directory,'target.exe'),staged=path.join(directory,'staged.exe');
- await fs.copyFile(process.execPath,target);await fs.copyFile(process.execPath,staged);
+ const executable=path.join(process.env.SystemRoot,'System32','whoami.exe');
+ await fs.copyFile(executable,target);await fs.copyFile(executable,staged);
  const parent=spawn(process.execPath,['-e','setTimeout(()=>{},1500)'],{stdio:'ignore'});
  await startReplacement({target,staged,parentPid:parent.pid,bootloaderPid:parent.pid,directory});
  let report;
