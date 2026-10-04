@@ -15,7 +15,7 @@ async function startReplacement({target,staged,parentPid,bootloaderPid,directory
  const env={...process.env};for(const key of Object.keys(env))if(key.startsWith('PORTABLE_'))delete env[key];
  // EncodedCommand matches Cache Switcher and does not require script execution policy.
  const output=await fs.open(path.join(directory,'helper-output.log'),'w');
- const child=spawn(executable,['-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(script,'utf16le').toString('base64')],{cwd:path.dirname(target),env,detached:true,windowsHide:true,stdio:['ignore',output.fd,output.fd]});
+ const child=spawn(executable,['-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(script,'utf16le').toString('base64')],{cwd:path.dirname(target),env,detached:false,windowsHide:true,stdio:['ignore',output.fd,output.fd]});
  try{await new Promise((resolve,reject)=>{child.once('spawn',resolve);child.once('error',reject);});}finally{await output.close();}
  try {
   let started=false;
