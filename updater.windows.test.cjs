@@ -24,3 +24,16 @@ for(const mode of ['success','staging-failure','launch-failure'])test(`Windows h
  if(!fail)assert.equal(await fs.readFile(target+'.previous','utf8'),'MZ-old');
  await assert.rejects(fs.access(target+'.incoming'));
 });
+
+test('Windows production spawn starts helper and confirms handshake',{skip:process.platform!=='win32',timeout:30000},async t=>{
+ const {startReplacement}=require('./installer.cjs');
+ const directory=await fs.mkdtemp(path.join(os.tmpdir(),"Ditasha's spawn "));
+ t.after(()=>fs.rm(directory,{recursive:true,force:true}));
+ const target=path.join(directory,'target.exe'),staged=path.join(directory,'staged.exe');
+ await fs.copyFile(process.execPath,target);await fs.copyFile(process.execPath,staged);
+ const parent=spawn(process.execPath,['-e','setTimeout(()=>{},1500)'],{stdio:'ignore'});
+ await startReplacement({target,staged,parentPid:parent.pid,bootloaderPid:parent.pid,directory});
+ let report;
+ for(let i=0;i<80;i++){try{report=JSON.parse((await fs.readFile(path.join(directory,'install.json'),'utf8')).replace(/^\uFEFF/,''));}catch{}if(report?.status!=='installing'&&report)break;await new Promise(r=>setTimeout(r,100));}
+ assert.equal(report?.status,'success',JSON.stringify(report));
+});
