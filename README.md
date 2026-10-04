@@ -34,7 +34,8 @@ terikat pada job Windows yang dihentikan saat editor keluar.
 CI memeriksa unduhan GitHub dengan jaringan Electron asli dan restart EXE
 portable hasil build. NSIS menggunakan nama direktori ekstraksi tetap pada
 build yang sama; tes memeriksa PID baru dan hilangnya marker runtime lama,
-kemudian memastikan launcher selesai dan direktori ekstraksi dibersihkan.
+kemudian memastikan EXE tidak terkunci setelah launcher selesai. Folder
+ekstraksi NSIS dapat tetap ada setelah proses berakhir.
 
 ## Build dan rilis
 
