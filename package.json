@@ -8,7 +8,7 @@
   "scripts": {
     "start": "electron .",
     "build:win": "npm run build:ui && electron-builder --win portable --x64",
-    "test": "node --test updater.test.cjs updater.windows.test.cjs ipc-trust.test.cjs format.test.mjs",
+    "test": "node --test updater.test.cjs updater.windows.test.cjs ipc-trust.test.cjs format.test.mjs ui-updates.test.cjs",
     "build:ui": "esbuild src/app.js --bundle --minify --outfile=ui/app.js",
     "prestart": "npm run build:ui"
   },
