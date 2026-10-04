@@ -9,9 +9,10 @@ const {spawn}=require('node:child_process');
   await fs.copyFile(path.resolve('release/DITASHA-Editor.exe'),target);
   const child=spawn(target,[],{cwd:root,env:{...process.env,DITASHA_UPDATE_SMOKE_ROOT:root},stdio:'ignore'});
   const errors=[];child.on('error',e=>errors.push(e));
-  const deadline=Date.now()+6*60*1000;
+  const deadline=Date.now()+6*60*1000;let nextReport=0;
   while(Date.now()<deadline){
    if(errors.length)throw errors[0];
+   if(Date.now()>nextReport){nextReport=Date.now()+10000;for(const file of ['phase.json','helper/install.json','helper/helper-output.log','result.json']){try{console.log(file+': '+(await fs.readFile(path.join(root,file),'utf8')).slice(-3000));}catch{}}console.log('portable launcher exit:',child.exitCode);}
    try{throw Error(await fs.readFile(path.join(root,'failure.txt'),'utf8'));}catch(e){if(e.code!=='ENOENT')throw e;}
    let result,report;
    try{result=JSON.parse(await fs.readFile(path.join(root,'result.json'),'utf8'));report=JSON.parse((await fs.readFile(path.join(root,'helper','install.json'),'utf8')).replace(/^\uFEFF/,''));}catch{}
@@ -26,5 +27,5 @@ const {spawn}=require('node:child_process');
    await new Promise(r=>setTimeout(r,500));
   }
   throw Error('Portable update did not finish. Root: '+root);
- }finally{await fs.rm(root,{recursive:true,force:true,maxRetries:20,retryDelay:500});}
+ }finally{await fs.rm(root,{recursive:true,force:true,maxRetries:20,retryDelay:500}).catch(e=>console.error('Cleanup: '+e.message));}
 })().catch(e=>{console.error(e);process.exitCode=1;});
