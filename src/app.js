@@ -93,6 +93,7 @@ try {
     renderer.setSize(w, h);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
+    renderer.render(scene, camera);
   }).observe(viewport);
   renderer.setAnimationLoop(() => {
     controls.update();

@@ -250,7 +250,15 @@ module.exports = async function checkViewers(fixtures) {
     );
     pixels = await colors();
     if (pixels)
-      assert(pixels.green === 0 && pixels.red > 10, 'Hair alpha did not discard transparent cards');
+      assert(
+        pixels.green === 0 && pixels.red > 10,
+        'Hair alpha did not discard transparent cards · ' +
+          prefix +
+          ' · ' +
+          JSON.stringify(pixels) +
+          ' · face pixel ' +
+          JSON.stringify([...$('textureCanvas').getContext('2d').getImageData(0, 0, 1, 1).data]),
+      );
     const transparentHash = pixels?.hash;
     const setBlackRemoval = (enabled) => {
       const control = list.querySelector('[data-control="remove-black"]');
