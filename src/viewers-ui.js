@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mountPedAttachments } from './ped-attachments.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { readYtd, readYdd, readYdr, readYft } from './resource.js';
 import { imageData } from './converter.js';
@@ -57,6 +58,16 @@ export function mountViewers({ nav, download, toast, activate }) {
     maps = [],
     mapCache = new Map();
   scene.add(group);
+  const pedAttachments = mountPedAttachments({
+    scene,
+    container: modelRoot.querySelector('.tool-sidebar'),
+    prefix: 'mvPed',
+    toast,
+    hasBase: () => !!drawables.length,
+    onChange: (fit) => {
+      if (fit) fitModel();
+    },
+  });
   scene.add(new THREE.HemisphereLight(0xffffff, 0x526079, 2.5));
   const light = new THREE.DirectionalLight(0xffffff, 3);
   light.position.set(3, 5, 4);
@@ -334,6 +345,7 @@ export function mountViewers({ nav, download, toast, activate }) {
   function fitModel(axis = 'orbit') {
     if (!controls) return;
     const box = new THREE.Box3().setFromObject(group);
+    box.union(new THREE.Box3().setFromObject(pedAttachments.group));
     if (box.isEmpty()) return;
     const center = box.getCenter(new THREE.Vector3()),
       size = box.getSize(new THREE.Vector3()),
@@ -504,6 +516,7 @@ export function mountViewers({ nav, download, toast, activate }) {
       const ext = f.name.split('.').at(-1).toLowerCase(),
         next = { yft: readYft, ydd: readYdd, ydr: readYdr }[ext](await f.arrayBuffer()),
         loaded = await readTextures(files.filter((f) => textureExtensions.test(f.name)));
+      pedAttachments.clear();
       drawables = next;
       modelTextures = loaded;
       modelName = f.name;
@@ -546,8 +559,10 @@ export function mountViewers({ nav, download, toast, activate }) {
     if (bounds) bounds.visible = $('mvBounds').checked;
   };
   $('mvPoints').onchange = () => points.forEach((p) => (p.visible = $('mvPoints').checked));
-  $('mvWire').onchange = () =>
+  $('mvWire').onchange = () => {
     group.children.forEach((m) => (m.material.wireframe = $('mvWire').checked));
+    pedAttachments.setWireframe($('mvWire').checked);
+  };
   for (const [id, axis] of [
     ['mvFit', 'orbit'],
     ['mvFront', 'front'],

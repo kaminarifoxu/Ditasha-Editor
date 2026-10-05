@@ -163,3 +163,22 @@ Jalankan `npm run format` setelah mengubah kode, lalu `npm run format:check`,
 `npm test` dan `npm run build:ui` sebelum mengirim perubahan. Bundle
 `ui/app.js` dihasilkan otomatis; ubah sumber di `src/`. GitHub Actions
 memeriksa format, pengujian, viewer dan proses penggantian EXE sebelum rilis.
+
+## Rambut ped pada preview (1.8.0)
+
+Di **Texture & Model**, buka model muka/ped lalu buka **Rambut ped · YDD + YTD**
+di inspector kanan. Pilih **Tambah rambut YDD / YTD** dan satu file YDD rambut
+beserta YTD-nya (YTD boleh dimuat belakangan lewat **Ganti YTD rambut**).
+Pilih drawable rambut dan tekstur manual bila nama material tidak cocok.
+Atur posisi X (kanan), Y (atas), Z (depan), rotasi dan skala bila belum sejajar.
+Posisi memakai koordinat preview setelah konversi sumbu GTA.
+
+Rambut ditampilkan bersama muka dengan material terpisah: mengganti tekstur
+muka tidak mengubah tekstur rambut. Bisa ditampilkan/disembunyikan, dihapus,
+di-reset posisinya dan ikut dalam foto 3D. Panel yang sama tersedia di
+**Model viewer**. Model dasar baru mengosongkan rambut; pergantian tekstur
+dan drawable model dasar mempertahankan rambut. Hingga 8 model tambahan.
+
+Preview menggunakan geometri statis dan LOD tertinggi yang tersedia. Tidak
+ada pengikatan otomatis ke tulang kepala, animasi/skinning atau ekspor ped
+gabungan. Konfigurasi hanya tersimpan selama preview; tidak ikut ekspor YTD.

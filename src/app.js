@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mountTools } from './tools-ui.js';
+import { mountPedAttachments } from './ped-attachments.js';
 import { readDds } from './asset-tools.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -52,6 +53,16 @@ let renderer,
   controls,
   model = new THREE.Group();
 scene.add(model);
+const pedAttachments = mountPedAttachments({
+  scene,
+  container: document.querySelector('.inspector'),
+  prefix: 'ped',
+  toast,
+  hasBase: () => !!displayedModel,
+  onChange: (fit) => {
+    if (fit) frame();
+  },
+});
 scene.add(new THREE.HemisphereLight(0xffffff, 0x596679, 2));
 const key = new THREE.DirectionalLight(0xffeee5, 3);
 key.position.set(3, 6, 4);
@@ -97,6 +108,7 @@ function clearModel() {
 function frame() {
   if (!controls) return;
   let box = new THREE.Box3().setFromObject(model);
+  box.union(new THREE.Box3().setFromObject(pedAttachments.group));
   if (box.isEmpty()) return;
   const center = box.getCenter(new THREE.Vector3()),
     sz = box.getSize(new THREE.Vector3()),
@@ -236,6 +248,7 @@ function selectFile(f) {
     $('ytdExport').disabled = !f.resource;
   }
   if (f.drawables) {
+    if (displayedModel !== f) pedAttachments.clear();
     modelFile = f;
     f.uvTextures ??= f.drawables.map((d, i) => {
       const c = document.createElement('canvas');
@@ -261,6 +274,7 @@ function selectFile(f) {
     showDrawable(0);
   }
   if (f.gltf) {
+    if (displayedModel !== f) pedAttachments.clear();
     displayedModel = f;
     modelFile = null;
     clearModel();
@@ -559,6 +573,7 @@ $('reset').onclick = frame;
 $('wire').onclick = () => {
   wire = !wire;
   $('wire').classList.toggle('active', wire);
+  pedAttachments.setWireframe(wire);
   model.traverse((o) => {
     if (o.isMesh)
       for (const m of Array.isArray(o.material) ? o.material : [o.material]) m.wireframe = wire;
@@ -1391,6 +1406,7 @@ async function removeFile(f) {
   const ownsCurrent = (f.resource?.textures || f.textures || f.uvTextures || []).includes(current);
   files.splice(files.indexOf(f), 1);
   if (displayedModel === f) {
+    pedAttachments.clear();
     clearModel();
     displayedModel = null;
     modelFile = null;
@@ -1637,6 +1653,7 @@ function resetWorkspace() {
   dirty = false;
   files.splice(0);
   textures.splice(0);
+  pedAttachments.clear();
   clearModel();
   $('canvasStack').hidden = true;
   $('emptyTexture').hidden = false;
@@ -1667,6 +1684,7 @@ function switchTab(tab) {
     files.push(...state.files);
     wire = state.wire;
     $('wire').classList.toggle('active', wire);
+    pedAttachments.setWireframe(wire);
     $('uvToggle').checked = state.uv;
     $('apply').checked = state.apply;
     if (state.displayedModel) {

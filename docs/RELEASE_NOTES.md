@@ -1,8 +1,11 @@
-DITASHA Editor 1.7.1
+DITASHA Editor 1.8.0
 
-- Organize desktop runtime in electron/, automated tests in tests/, application icon in assets/, and release notes in docs/.
-- Format source, UI, tests and build scripts consistently with pinned Prettier and enforce formatting in GitHub Actions.
-- Update application entry point, packaged assets and smoke-test imports to match the new structure.
-- Document repository layout and contributor validation commands.
+- Add independent ped hair attachments to Texture & Model and Model viewer. Load one hair YDD with its YTD dictionaries, or replace hair YTD later.
+- Select hair drawable and automatic diffuse matching or an explicit texture. Face and hair materials remain independent even when texture names collide.
+- Configure preview-space X/Y/Z offsets, rotation, scale, visibility, reset and removal. Hair participates in wireframe and PNG snapshots.
+- Keep hair when editing face textures or changing base drawable/LOD; clear it when a new base model opens or the editor is cleared. Invalid imports retain the current preview.
+- Limit attachments to 8 models, 128 MB model bytes / decoded textures, 2 million vertices and 6 million indices.
+
+Static geometry only: no automatic head-bone attachment, skeleton animation/skinning or combined ped mesh export. Hair configuration lasts for the current preview and does not alter YTD exports.
 
 Copyright © 2026 Ditasha-Workshop.

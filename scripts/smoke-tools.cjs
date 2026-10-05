@@ -77,6 +77,13 @@ app.whenReady().then(async () => {
     }
     archiveReport.saves = archiveReport.saves.map((s) => ({ name: s.name, size: s.data.length }));
     const { viewerModel } = await import('../tests/viewer-format.test.mjs');
+    const { createYtd } = await import('../src/asset-tools.js');
+    const hairYtd = createYtd([
+      { name: 'cloth_diffuse', w: 1, h: 1, out: new Uint8Array([0, 255, 0, 255]) },
+    ]);
+    const faceYtd = createYtd([
+      { name: 'cloth_diffuse', w: 1, h: 1, out: new Uint8Array([255, 0, 0, 255]) },
+    ]);
     const viewerReport = await win.webContents.executeJavaScript(
       '(' +
         checkViewers.toString() +
@@ -84,6 +91,8 @@ app.whenReady().then(async () => {
         JSON.stringify({
           ytd: [...ytd],
           model: [...new Uint8Array(viewerModel)],
+          hairYtd: [...hairYtd],
+          faceYtd: [...faceYtd],
           requireWebgl: true,
         }) +
         ')',

@@ -29,6 +29,132 @@ module.exports = async function checkViewers(fixtures) {
     $(id).value = value;
     $(id).dispatchEvent(new Event('change'));
   };
+  async function checkHair(prefix, canvasSelector, fitId, baseTitleId, loadFaceTextures) {
+    const title = $(baseTitleId).textContent;
+    await input(
+      prefix + 'HairInput',
+      [
+        new File([new Uint8Array(fixtures.model)], 'hair.ydd'),
+        new File([new Uint8Array(fixtures.hairYtd)], 'hair.ytd'),
+      ],
+      () => !$(prefix + 'AddHair').disabled,
+    );
+    const list = $(prefix + 'HairList');
+    assert(
+      list.children.length === 1 && $(baseTitleId).textContent === title,
+      'Hair replaced face model',
+    );
+    assert(
+      list.textContent.includes('2 segitiga') && list.textContent.includes('Tekstur siap'),
+      'Hair geometry/material not ready',
+    );
+    const transform = (key, value) => {
+      const el = list.querySelector('[data-transform="' + key + '"]');
+      el.value = value;
+      el.dispatchEvent(new Event('change'));
+    };
+    transform('x', '1.5');
+    transform('z', '0.2');
+    transform('ry', '10');
+    transform('scale', '0.8');
+    $(fitId).click();
+    await loadFaceTextures();
+    assert(list.children.length === 1, 'Face YTD erased hair');
+    const colors = async () => {
+      await sleep(150);
+      const source = document.querySelector(canvasSelector);
+      if (!source) {
+        assert(!fixtures.requireWebgl, 'Hair preview WebGL missing');
+        return null;
+      }
+      const c = document.createElement('canvas');
+      c.width = source.width;
+      c.height = source.height;
+      c.getContext('2d').drawImage(source, 0, 0);
+      const data = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+      let green = 0,
+        red = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        if (
+          data[i + 3] &&
+          data[i + 1] > 30 &&
+          data[i + 1] > data[i] * 2 &&
+          data[i + 1] > data[i + 2] * 2
+        )
+          green++;
+        if (data[i + 3] && data[i] > 30 && data[i] > data[i + 1] * 2 && data[i] > data[i + 2] * 2)
+          red++;
+      }
+      return { green, red };
+    };
+    let pixels = await colors();
+    if (pixels)
+      assert(
+        pixels.green > 10 && pixels.red > 10,
+        'Hair/face materials not rendered independently: ' + JSON.stringify(pixels),
+      );
+    console.log('DITASHA_SNAPSHOT:' + prefix + '-hair-preview');
+    await sleep(350);
+    const visible = list.querySelector('input[type="checkbox"]');
+    visible.checked = false;
+    visible.dispatchEvent(new Event('change'));
+    pixels = await colors();
+    if (pixels) assert(pixels.green === 0 && pixels.red > 10, 'Hair visibility changed face');
+    visible.checked = true;
+    visible.dispatchEvent(new Event('change'));
+    await input(
+      prefix + 'HairInput',
+      [new File(['broken'], 'bad.ydd')],
+      () => !$(prefix + 'AddHair').disabled,
+    );
+    assert(
+      list.children.length === 1 && $(baseTitleId).textContent === title,
+      'Bad hair erased preview',
+    );
+    const textureInput = list.querySelector('[data-control="hair-textures"]');
+    const dt = new DataTransfer();
+    dt.items.add(new File(['broken'], 'bad.ytd'));
+    textureInput.files = dt.files;
+    textureInput.dispatchEvent(new Event('change'));
+    await wait(() => !$(prefix + 'AddHair').disabled, 'Hair texture operation did not finish');
+    pixels = await colors();
+    if (pixels) assert(pixels.green > 10, 'Bad YTD erased hair material');
+    const manual = list.querySelector('[data-control="Tekstur rambut"]');
+    manual.value = '0';
+    manual.dispatchEvent(new Event('change'));
+    const reset = [...list.querySelectorAll('button')].find(
+      (b) => b.textContent === 'Reset posisi',
+    );
+    reset.click();
+    assert(
+      list.querySelector('[data-transform="x"]').value === '0' &&
+        list.querySelector('[data-transform="scale"]').value === '1',
+      'Hair reset failed',
+    );
+    transform('scale', '0');
+    assert(
+      list.querySelector('[data-transform="scale"]').value === '1',
+      'Invalid hair scale accepted',
+    );
+    [...list.querySelectorAll('button')].find((b) => b.textContent === 'Hapus rambut').click();
+    assert(
+      list.children.length === 0 && $(baseTitleId).textContent === title,
+      'Remove hair erased face',
+    );
+  }
+  document.querySelector('[data-page="editor"]').click();
+  await input(
+    'fileInput',
+    [new File([new Uint8Array(fixtures.model)], 'face.ydd')],
+    () => $('fileLoading').hidden,
+  );
+  await checkHair('ped', '#viewport canvas', 'reset', 'modelTitle', () =>
+    input(
+      'fileInput',
+      [new File([new Uint8Array(fixtures.faceYtd)], 'face.ytd')],
+      () => $('fileLoading').hidden,
+    ),
+  );
   document.querySelector('[data-page="textureviewer"]').click();
   await input(
     'tvInput',
@@ -131,6 +257,33 @@ module.exports = async function checkViewers(fixtures) {
     assert(opaque > 100, '3D renderer produced no visible geometry');
   }
   console.log('DITASHA_SNAPSHOT:model-viewer');
+  await checkHair('mvPed', '#mvViewport canvas', 'mvFit', 'mvTitle', () =>
+    input(
+      'mvTextureInput',
+      [new File([new Uint8Array(fixtures.faceYtd)], 'face.ytd')],
+      () => !$('mvAddTextures').disabled,
+    ),
+  );
+  await input(
+    'mvPedHairInput',
+    [new File([new Uint8Array(fixtures.model)], 'hair.ydd')],
+    () => !$('mvPedAddHair').disabled,
+  );
+  change('mvLod', '1');
+  assert($('mvPedHairList').children.length === 1, 'LOD switch erased hair');
+  await input(
+    'mvInput',
+    [new File([new Uint8Array(fixtures.model)], 'new-face.ydd')],
+    () => !$('mvOpen').disabled,
+  );
+  assert(!$('mvPedHairList').children.length, 'New base retained old hair');
+  // Restore the expected title used by the invalid-model regression below.
+  await input(
+    'mvInput',
+    [new File([new Uint8Array(fixtures.model)], 'fixture.ydd')],
+    () => !$('mvOpen').disabled,
+  );
+
   await input(
     'mvTextureInput',
     [new File([new Uint8Array(fixtures.ytd)], 'extra.ytd')],
@@ -196,6 +349,6 @@ module.exports = async function checkViewers(fixtures) {
   return {
     saves,
     checks:
-      'Texture gallery, exact size/zoom, grid/list, search/background, PNG/DDS/bulk export and canceled save; model LOD/parts, external/embedded textures and invalid-file retention; folder sort, text/hex inspection, paired viewers and new RPF',
+      'Texture gallery, exact size/zoom, grid/list, search/background, PNG/DDS/bulk export and canceled save; model LOD/parts, external/embedded textures and invalid-file retention; ped hair YDD/YTD, independent rendered face/hair materials, transforms, visibility, invalid imports and reset/removal; folder sort, text/hex inspection, paired viewers and new RPF',
   };
 };
