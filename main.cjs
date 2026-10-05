@@ -40,8 +40,8 @@ else {
   ipcMain.handle('ditasha:open-donation',async event=>{trusted(event);await shell.openExternal('https://saweria.co/itsaminarii');return true;});
   ipcMain.handle('ditasha:save-export',async(event,payload)=>{
    trusted(event);const name=payload?.name,data=payload?.data;
-   if(typeof name!=='string'||path.basename(name)!==name||!/^.+\.(png|jpg|jpeg|webp|dds|ytd|glb|zip)$/i.test(name)||!(data instanceof Uint8Array)||data.byteLength>128*1024*1024)throw Error('Data ekspor tidak valid.');
-   const result=await dialog.showSaveDialog(win,{title:'Simpan hasil desain',defaultPath:path.join(app.getPath('downloads'),name),filters:[{name:'DITASHA '+name.split('.').pop().toUpperCase(),extensions:[name.split('.').pop().toLowerCase()]}]});
+   if(typeof name!=='string'||path.basename(name)!==name||name.length>240||/[\x00-\x1f<>:"\\|?*]/.test(name)||/[. ]$/.test(name)||/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(name)||!name||name==='.'||name==='..'||!(data instanceof Uint8Array)||data.byteLength>128*1024*1024)throw Error('Data ekspor tidak valid.');
+   const result=await dialog.showSaveDialog(win,{title:'Simpan hasil desain',defaultPath:path.join(app.getPath('downloads'),name),filters:[{name:'DITASHA '+name.split('.').pop().toUpperCase(),extensions:[name.includes('.')?name.split('.').pop().toLowerCase():'*']}]});
    if(result.canceled||!result.filePath)return {saved:false};
    await fs.writeFile(result.filePath,data);return {saved:true};
   });

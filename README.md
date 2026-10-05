@@ -81,3 +81,30 @@ Format references: [CodeWalker texture structures](https://github.com/dexyfex/Co
 ## Interface (1.5.0)
 
 The editor, converter, clothing pack maker, dialogs and loading screen use a consistent charcoal theme with soft violet accents. Use **Donasi**, beside **Cek update**, to open [Ditasha-Workshop on Saweria](https://saweria.co/itsaminarii) in your default browser. The desktop action only opens that fixed address.
+
+## Archive workspace (1.6.0)
+
+Open **Archive → Open archive** for GTA V RPF7, OIV or ZIP files. Browse folders,
+search paths and select an asset to extract it or open it in Texture & Model.
+Unencrypted RPF files use OPEN/NONE headers; ZIP/OIV supports Stored and Deflate.
+AES/NG archives and encrypted scripts require game encryption keys and are unsupported.
+
+Use **Add files**, **Replace file** or **Remove file**, then **Save archive copy**.
+RPF exports are rebuilt as OPEN RPF7. OIV/ZIP files are rebuilt as ZIP containers.
+Canceling a save leaves changes unsaved. Original files are not automatically overwritten.
+To edit a texture, open it in the editor, export the changed asset, then replace it
+in Archive. Nested archives export separately; replace the exported RPF in its parent.
+OIV metadata and installation instructions can be inspected; scripts are not executed.
+The existing assembly.xml is preserved. Update its references if package contents change.
+Empty directories are omitted during export.
+
+Archive directory browsing uses file slices rather than loading the whole archive.
+Extraction/rebuilt archives are limited to 128 MB. Replacements and editor imports
+are limited to 64 MB, and individual resource payloads in rebuilt RPFs must be under 16 MB.
+ZIP64, multipart, password-protected archives and symlinks are unsupported.
+
+Format references:
+- https://github.com/OpenIV-Team/OpenIV-PackageFormat/blob/master/specification/versions/2.2.md
+- https://github.com/dexyfex/CodeWalker/blob/master/CodeWalker.Core/GameFiles/RpfFile.cs
+
+This feature is implemented in DITASHA; OpenIV itself is not bundled.
