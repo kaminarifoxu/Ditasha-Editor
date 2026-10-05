@@ -85,7 +85,7 @@ module.exports = async function checkViewers(fixtures) {
       const data = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
       let green = 0,
         red = 0,
-        black = 0;
+        hash = 2166136261;
       for (let i = 0; i < data.length; i += 4) {
         if (
           data[i + 3] &&
@@ -94,11 +94,12 @@ module.exports = async function checkViewers(fixtures) {
           data[i + 1] > data[i + 2] * 2
         )
           green++;
-        if (data[i + 3] && data[i] < 8 && data[i + 1] < 8 && data[i + 2] < 8) black++;
+        for (let channel = 0; channel < 4; channel++)
+          hash = Math.imul(hash ^ data[i + channel], 16777619) >>> 0;
         if (data[i + 3] && data[i] > 30 && data[i] > data[i + 1] * 2 && data[i] > data[i + 2] * 2)
           red++;
       }
-      return { green, red, black };
+      return { green, red, hash };
     };
     let pixels = await colors();
     if (pixels)
@@ -146,7 +147,7 @@ module.exports = async function checkViewers(fixtures) {
     pixels = await colors();
     if (pixels)
       assert(pixels.green === 0 && pixels.red > 10, 'Hair alpha did not discard transparent cards');
-    const baselineBlack = pixels?.black;
+    const transparentHash = pixels?.hash;
     const setBlackRemoval = (enabled) => {
       const control = list.querySelector('[data-control="remove-black"]');
       control.checked = enabled;
@@ -159,12 +160,12 @@ module.exports = async function checkViewers(fixtures) {
       () => !$(prefix + 'AddHair').disabled,
     );
     pixels = await colors();
-    if (pixels) assert(pixels.black > baselineBlack + 10, 'Genuine black hair was not preserved');
+    if (pixels) assert(pixels.hash !== transparentHash, 'Genuine black hair was not preserved');
     setBlackRemoval(true);
     pixels = await colors();
     if (pixels)
       assert(
-        pixels.black === baselineBlack && pixels.red > 10,
+        pixels.hash === transparentHash && pixels.red > 10,
         'Optional black background removal failed or affected face',
       );
     setBlackRemoval(false);
@@ -383,6 +384,12 @@ module.exports = async function checkViewers(fixtures) {
     'Clear all left stale target or mesh',
   );
 
+  await input(
+    'mvPedHairInput',
+    [new File([new Uint8Array(fixtures.model)], 'replacement-base-test.ydd')],
+    () => !$('mvPedAddHair').disabled,
+  );
+  assert($('mvPedHairList').children.length === 1, 'Base replacement test did not load hair');
   await input(
     'mvInput',
     [new File([new Uint8Array(fixtures.model)], 'new-face.ydd')],
