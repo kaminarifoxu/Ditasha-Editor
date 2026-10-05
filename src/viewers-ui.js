@@ -365,6 +365,7 @@ export function mountViewers({ nav, download, toast, activate }) {
     camera.far = distance * 1000;
     camera.updateProjectionMatrix();
     controls.update();
+    renderer?.render(scene, camera);
   }
   function textureLookup(name, embedded) {
     return [...modelTextures, ...embedded].find(
