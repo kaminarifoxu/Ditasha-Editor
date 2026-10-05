@@ -26,7 +26,7 @@ async function readRpf(blob,name){
   if(directory){e.start=v.getUint32(p+8,true);e.count=v.getUint32(p+12,true);check(e.start+e.count<=count,'Invalid RPF folder range.');}
   else{e.offset=(u24(table,p+5)&0x7fffff)*512;e.packed=u24(table,p+2);e.size=resource?e.packed:v.getUint32(p+8,true);e.encrypted=resource?/\.ysc$/i.test(e.name):v.getUint32(p+12,true)!==0;e.sys=v.getUint32(p+8,true);e.gfx=v.getUint32(p+12,true);
    if(resource&&e.packed===0xffffff){const big=await bytes(blob,e.offset,16);e.packed=(big[7]+big[14]*256+big[5]*65536+big[2]*16777216);e.size=e.packed;}
-   check(e.offset>=align(16+table.length)&&e.offset+(e.packed||e.size)<=blob.size,'Invalid RPF file range.');check(!resource||e.packed>=16,'Invalid RPF resource size.');}
+   check(e.offset>=align(16+table.length)&&e.offset+(e.packed||e.size)<=blob.size,'Invalid RPF file range.');check(!resource||e.packed>=16,'Invalid RPF resource size.');if(!resource&&!e.packed&&!e.encrypted)e.source=blob.slice(e.offset,e.offset+e.size);}
   raw.push(e);
  }
  check(raw[0].directory,'RPF root is not a directory.');const entries=[],visited=new Set([0]),queue=[{e:raw[0],path:'',depth:0}];
@@ -46,7 +46,7 @@ async function readZip(blob,name){
 }
 // Rebuild an OPEN RPF7 with stored binaries and original RSC7 resource payloads.
 export function writeRpf(files){
- check(files.length>0&&files.length<=65534,'Select 1–65534 files for RPF.');unique(files);const root={name:'',directory:true,children:new Map()},all=[root];let total=0;
+ check(files.length<=65534,'Select up to 65534 files for RPF.');unique(files);const root={name:'',directory:true,children:new Map()},all=[root];let total=0;
  for(const file of files){safePath(file.name);check(file.data instanceof Uint8Array,'Invalid RPF file data.');total+=file.data.length;check(total<=MAX_EXPORT,'RPF exceeds 128 MB.');const parts=file.name.split('/');let dir=root;for(const part of parts.slice(0,-1)){let child=dir.children.get(part.toLowerCase());if(!child){child={name:part,directory:true,children:new Map()};dir.children.set(part.toLowerCase(),child);}check(child.directory,'File/folder path collision.');dir=child;}const part=parts.at(-1);check(!dir.children.has(part.toLowerCase()),'File/folder path collision.');const data=file.data,h=data.length>=16?view(data):null,resource=h?.getUint32(0,true)===0x37435352;check(!resource||(!/\.ysc$/i.test(part)&&data.length<0xffffff),'Encrypted scripts / resources over 16 MB cannot be rebuilt.');dir.children.set(part.toLowerCase(),{name:part,data,resource});}
  for(let i=0;i<all.length;i++){const e=all[i];if(!e.directory)continue;e.start=all.length;const children=[...e.children.values()].sort((a,b)=>a.name<b.name?-1:a.name>b.name?1:0);e.count=children.length;all.push(...children);}
  check(all.length<=65535,'Too many RPF directory entries.');const names=[];let namesLength=0;for(const e of all){e.nameOffset=namesLength;const n=encoder.encode(e.name+'\0');names.push(n);namesLength+=n.length;}check(namesLength<=65535,'RPF filename table exceeds 64 KB.');let cursor=align(16+all.length*16+align(namesLength));for(const e of all)if(!e.directory){e.offset=cursor;cursor+=align(e.data.length);}check(cursor<=MAX_EXPORT,'RPF output exceeds 128 MB.');const out=new Uint8Array(cursor),v=view(out);v.setUint32(0,0x52504637,true);v.setUint32(4,all.length,true);v.setUint32(8,align(namesLength),true);v.setUint32(12,0x4e45504f,true);let npos=16+all.length*16;for(const n of names){out.set(n,npos);npos+=n.length;}

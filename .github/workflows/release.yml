@@ -24,7 +24,7 @@ jobs:
         run: npm test
       - name: Build portable EXE
         run: npm run build:win
-      - name: Test archive workspace, converter, clothing pack and expanded viewer
+      - name: Test GTA V viewers, explorer, archive tools and converter
         run: npx electron scripts/smoke-tools.cjs
         timeout-minutes: 3
       - name: Test real portable download and restart

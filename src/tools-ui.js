@@ -1,3 +1,4 @@
+import {mountViewers} from './viewers-ui.js';
 import {mountArchives} from './archive-ui.js';
 import {conversionModes,accepts,convertFile,picturesToYtd} from './converter.js';
 import {zipFiles,MAX_EXPORT,safePath} from './asset-tools.js';
@@ -17,11 +18,12 @@ export function mountTools({download,toast,preview,confirmDiscard}){
  nav.after(root);
  for(const [id,title] of conversionModes){const o=document.createElement('option');o.value=id;o.textContent=title;$('conversionMode').append(o);}
  let page='editor',queue=[],pack=[],outputs=[],selection=null,busy=false,revision=0,savedRevision=0,buildVersion=1;
- const archives=mountArchives({nav,download,toast,preview,confirmDiscard,activate});
+ const viewers=mountViewers({nav,download,toast,activate});
+ const archives=mountArchives({nav,download,toast,preview,confirmDiscard,activate,viewers});
  const dirty=()=>pack.length&&revision!==savedRevision;
  const touch=()=>{revision++;$('toolSaved').textContent='Perubahan pack belum diekspor.';};
  const mode=()=>$('conversionMode').value;
- function activate(next){if(busy)return;if(page!==next)selection=null;page=next;$('workspaceLabel').textContent=next==='editor'?'Texture & Model':next==='pack'?'Clothing pack':next==='archives'?'Archive':'Converter';editor.hidden=next!=='editor';root.hidden=next==='editor'||next==='archives';archives.root.hidden=next!=='archives';nav.querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.page===next));if(next==='editor'||next==='archives'){home.append(viewer);return;}
+ function activate(next){if(busy)return;if(page!==next)selection=null;page=next;$('workspaceLabel').textContent=next==='editor'?'Texture & Model':next==='pack'?'Clothing pack':next==='archives'?'GTA V Explorer':next==='textureviewer'?'Texture viewer':next==='modelviewer'?'Model viewer':'Converter';editor.hidden=next!=='editor';root.hidden=!['converter','pack'].includes(next);archives.root.hidden=next!=='archives';viewers.textureRoot.hidden=next!=='textureviewer';viewers.modelRoot.hidden=next!=='modelviewer';nav.querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.page===next));if(!['converter','pack'].includes(next)){home.append(viewer);return;}
  const isPack=next==='pack';$('convertSettings').hidden=isPack;$('packSettings').hidden=!isPack;$('packFilter').hidden=!isPack;$('toolFolder').hidden=!isPack;$('toolEyebrow').textContent=isPack?'FIVEM RESOURCE':'BATCH CONVERTER';$('toolHeading').textContent=isPack?'Clothing pack':'Converter';$('toolEmptyTitle').textContent=isPack?'Drop clothing here':'Drop files here';$('toolEmptyHelp').textContent=isPack?'YDD + YTD. Add-on: sertakan YMT dan shop .meta. Import file atau folder resource.':'Tambahkan file untuk konversi lokal. Hasil dapat disimpan satu per satu atau sebagai ZIP.';$('toolRun').textContent=isPack?'Build pack ZIP':'Convert';$('toolSaved').hidden=!isPack;$('toolStatus').textContent=isPack?'Siap membangun pack.':outputs.length?'Hasil siap disimpan.':'Tambahkan file untuk konversi.';$('toolFileInput').accept=isPack?'.ydd,.ytd,.ymt,.yld,.meta':mode()==='glb'?'.ydd,.ydr,.yft,.obj,.stl':'.png,.jpg,.jpeg,.webp,.dds,.ytd';if(isPack)$('packViewer').append(viewer);else home.append(viewer);$('packViewer').hidden=!isPack;root.classList.toggle('is-pack',isPack);render();}
  nav.querySelectorAll('button').forEach(b=>b.onclick=()=>activate(b.dataset.page));
  function findings(messages){$('toolFindings').replaceChildren();for(const text of messages){const li=document.createElement('li');li.textContent=text;$('toolFindings').append(li);}}

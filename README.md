@@ -108,3 +108,40 @@ Format references:
 - https://github.com/dexyfex/CodeWalker/blob/master/CodeWalker.Core/GameFiles/RpfFile.cs
 
 This feature is implemented in DITASHA; OpenIV itself is not bundled.
+
+## GTA V viewers and Explorer (1.7.0)
+
+**Texture viewer** opens YTD dictionaries, DDS or images. Search textures, choose
+Grid/List and thumbnail sizes, inspect dimensions/format/mip count, change the alpha
+background, and view at original size or zoom. Export one texture as PNG/DDS or all
+textures in a ZIP. DDS exports use uncompressed RGBA and one mip level.
+
+**Model viewer** opens Legacy YFT/YDD/YDR models and available High/Medium/Low/Very-low
+LODs. Select drawables, show/hide individual model parts, toggle grid/wireframe/points/
+geometry bounds, use front/side/top cameras and save a PNG snapshot. Diffuse sampler
+references are matched by texture name against embedded textures and external YTDs.
+Use **+ Textures** to add dictionaries or images; remove external textures with ×.
+Missing diffuse textures are listed in the status. The viewer uses orbit/pan/zoom controls.
+
+**GTA V Explorer → Open folder** opens loose assets or a GTA V folder locally. It indexes
+file handles without loading every file. Folders are read-only. Double-click a model,
+texture or archive to open it. Explicit Texture Viewer/Model Viewer buttons are also
+available. Same-name YTD files in the same folder/archive are loaded with models.
+Sort by name/type/size in either direction, inspect UTF-8 text or paged hex, and copy
+names/relative paths. The inspector previews at most 1 MB (text: first 256 KB).
+**New RPF** creates an OPEN RPF7; add files, then export a copy. Turn off **Edit archive**
+for read-only archive browsing. Stored nested RPFs are browsed using file slices.
+
+Viewers are independently implemented in DITASHA; the uploaded OpenIV program has
+compiled binaries and configuration rather than source files. No OpenIV program,
+plugins, assets, shader database, or non-GTA-V game data are distributed in DITASHA.
+
+These viewers display static geometry and diffuse textures. They do not reproduce
+OpenIV's full feature set: skeleton animation/skinning, bone/physics fragment transforms,
+collision editing, damage simulation, advanced game shaders and native model writing
+are unsupported. Complex vehicles/skinned models can appear incomplete. Geometry
+bounds show mesh extents, not collision data. Encrypted/Enhanced assets remain unsupported.
+Each viewer file is limited to 64 MB; decoded textures to 128 MB; model buffers to
+2 million vertices and 6 million indices. Viewer rendering requires WebGL.
+
+Binary-layout reference: https://github.com/dexyfex/CodeWalker/blob/master/CodeWalker.Core/GameFiles/Resources/Drawable.cs
