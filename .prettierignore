@@ -1,0 +1,6 @@
+node_modules/
+release/
+ui/app.js
+package-lock.json
+ui/assets/
+assets/

@@ -1,38 +1,35 @@
 {
   "name": "ganomabi-asset-studio",
-  "version": "1.7.0",
-  "description": "DITASHA Editor \u2014 editor tekstur YTD dan preview model YDD",
+  "version": "1.7.1",
+  "description": "DITASHA Editor — editor tekstur YTD dan preview model YDD",
   "author": "Ditasha-Workshop",
   "license": "UNLICENSED",
-  "main": "main.cjs",
+  "main": "electron/main.cjs",
   "scripts": {
     "start": "electron .",
     "build:win": "npm run build:ui && electron-builder --win portable --x64",
-    "test": "node --test updater.test.cjs updater.windows.test.cjs ipc-trust.test.cjs format.test.mjs ui-updates.test.cjs asset-tools.test.mjs archives.test.mjs viewer-format.test.mjs",
+    "test": "node --test tests/updater.test.cjs tests/updater.windows.test.cjs tests/ipc-trust.test.cjs tests/format.test.mjs tests/ui-updates.test.cjs tests/asset-tools.test.mjs tests/archives.test.mjs tests/viewer-format.test.mjs",
     "build:ui": "esbuild src/app.js --bundle --minify --outfile=ui/app.js",
-    "prestart": "npm run build:ui"
+    "prestart": "npm run build:ui",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "build": {
     "appId": "com.ganomabi.assetstudio",
     "productName": "DITASHA-Editor",
-    "copyright": "Copyright \u00a9 2026 Ditasha-Workshop",
+    "copyright": "Copyright © 2026 Ditasha-Workshop",
     "files": [
-      "main.cjs",
+      "electron/**/*.cjs",
       "ui/**/*",
-      "icon.ico",
-      "package.json",
-      "preload.cjs",
-      "updater.cjs",
-      "ipc-trust.cjs",
-      "installer.cjs",
-      "update-probe.cjs"
+      "assets/icon.ico",
+      "package.json"
     ],
     "directories": {
       "output": "release"
     },
     "win": {
       "target": "portable",
-      "icon": "icon.ico",
+      "icon": "assets/icon.ico",
       "signExecutable": false
     },
     "portable": {
@@ -43,7 +40,8 @@
   "devDependencies": {
     "electron": "44.5.1",
     "electron-builder": "26.15.3",
-    "esbuild": "0.28.2"
+    "esbuild": "0.28.2",
+    "prettier": "3.9.9"
   },
   "dependencies": {
     "pako": "3.0.2",

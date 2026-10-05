@@ -1,1 +1,9 @@
-const fs=require('node:fs');const crypto=require('node:crypto');const path=require('node:path');const version=require('../package.json').version;const name=`DITASHA-Editor.exe`;const file=path.join(__dirname,'..','release',name);const hash=crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');fs.writeFileSync(file+'.sha256',`${hash}  ${name}\n`);console.log(`${hash}  ${name}`);
+const fs = require('node:fs');
+const crypto = require('node:crypto');
+const path = require('node:path');
+const version = require('../package.json').version;
+const name = `DITASHA-Editor.exe`;
+const file = path.join(__dirname, '..', 'release', name);
+const hash = crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+fs.writeFileSync(file + '.sha256', `${hash}  ${name}\n`);
+console.log(`${hash}  ${name}`);

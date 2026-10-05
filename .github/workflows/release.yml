@@ -20,7 +20,9 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Test updater
+      - name: Check code formatting
+        run: npm run format:check
+      - name: Test application
         run: npm test
       - name: Build portable EXE
         run: npm run build:win
@@ -61,5 +63,5 @@ jobs:
             exit 0
           }
           $exe = "release/DITASHA-Editor.exe"
-          gh release create $tag $exe "$exe.sha256" --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "DITASHA Editor $version" --notes-file RELEASE_NOTES.md
+          gh release create $tag $exe "$exe.sha256" --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "DITASHA Editor $version" --notes-file docs/RELEASE_NOTES.md
           if ($LASTEXITCODE -ne 0) { throw 'GitHub release publication failed.' }

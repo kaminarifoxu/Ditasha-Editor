@@ -26,7 +26,7 @@ EXE-nya diganti manual ke v1.3.3.
 
 Updater mengikuti alur [FiveM Cache Switcher](https://github.com/kaminarifoxu/Fivem-Cache-Switcher/blob/main/ganov/auto_updater.py):
 staging terpisah, penantian editor/peluncur, penggantian atomik `File.Replace`,
-dan rollback jika peluncuran gagal. `installer.cjs` menjalankan bootstrap
+dan rollback jika peluncuran gagal. `electron/installer.cjs` menjalankan bootstrap
 PowerShell yang membuat helper melalui Windows `ProcessStartInfo`. Ini membuat
 helper tetap berjalan setelah Electron keluar; proses anak langsung Node
 terikat pada job Windows yang dihentikan saat editor keluar.
@@ -41,7 +41,7 @@ ekstraksi NSIS dapat tetap ada setelah proses berakhir.
 
 Jalankan npm ci, npm test, dan npm run build:win di Windows dengan Node.js LTS.
 Output: release/DITASHA-Editor.exe. Naikkan version di package.json dan
-package-lock.json, perbarui RELEASE_NOTES.md, lalu push ke main. GitHub
+package-lock.json, perbarui docs/RELEASE_NOTES.md, lalu push ke main. GitHub
 Actions membangun EXE dan checksum serta menerbitkan rilis vX.Y.Z otomatis.
 Nama EXE tetap sama; versi ditentukan oleh tag rilis dan metadata aplikasi.
 Untuk rilis manual sertakan DITASHA-Editor.exe dan DITASHA-Editor.exe.sha256.
@@ -104,6 +104,7 @@ are limited to 64 MB, and individual resource payloads in rebuilt RPFs must be u
 ZIP64, multipart, password-protected archives and symlinks are unsupported.
 
 Format references:
+
 - https://github.com/OpenIV-Team/OpenIV-PackageFormat/blob/master/specification/versions/2.2.md
 - https://github.com/dexyfex/CodeWalker/blob/master/CodeWalker.Core/GameFiles/RpfFile.cs
 
@@ -145,3 +146,20 @@ Each viewer file is limited to 64 MB; decoded textures to 128 MB; model buffers 
 2 million vertices and 6 million indices. Viewer rendering requires WebGL.
 
 Binary-layout reference: https://github.com/dexyfex/CodeWalker/blob/master/CodeWalker.Core/GameFiles/Resources/Drawable.cs
+
+## Struktur kode
+
+| Folder      | Isi                                                               |
+| ----------- | ----------------------------------------------------------------- |
+| `electron/` | Main process, preload, IPC, updater dan installer Windows         |
+| `src/`      | Sumber editor, parser format, viewer, converter dan clothing pack |
+| `ui/`       | HTML, CSS, splash screen dan aset antarmuka                       |
+| `assets/`   | Ikon aplikasi untuk build Windows                                 |
+| `tests/`    | Pengujian format, arsip, keamanan IPC dan updater                 |
+| `scripts/`  | Pemeriksaan UI, pengujian EXE portable dan checksum               |
+| `docs/`     | Catatan rilis                                                     |
+
+Jalankan `npm run format` setelah mengubah kode, lalu `npm run format:check`,
+`npm test` dan `npm run build:ui` sebelum mengirim perubahan. Bundle
+`ui/app.js` dihasilkan otomatis; ubah sumber di `src/`. GitHub Actions
+memeriksa format, pengujian, viewer dan proses penggantian EXE sebelum rilis.

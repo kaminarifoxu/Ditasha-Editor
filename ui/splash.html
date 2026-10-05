@@ -1,4 +1,105 @@
 <!doctype html>
-<html lang="id"><head><meta charset="utf-8"><title>Memuat DITASHA Editor</title><link rel="stylesheet" href="style.css"><style>
-body{height:100vh;display:flex;align-items:center;justify-content:center;user-select:none;background:#17181b}.splash{width:100%;padding:44px}.splash-brand{display:flex;align-items:center;gap:16px}.splash img{width:58px;height:58px;object-fit:contain}.splash h1{font-size:23px;font-weight:500;margin:0 0 5px}.splash .tagline{font-size:11px;color:var(--muted);margin:0}.splash-line{height:2px;background:var(--line);margin:32px 0 18px;overflow:hidden;border-radius:3px}.splash-line:after{content:'';display:block;width:40%;height:100%;background:var(--accent);animation:prepare 1.6s ease-in-out infinite}.splash-status{display:flex;align-items:center;gap:9px;font-size:11px;color:var(--muted)}.splash .loadingSpinner{width:13px;height:13px}.splash footer{border:0;color:#777986;font-size:9px;padding:0;margin-top:36px;display:block}@keyframes prepare{0%{transform:translateX(-100%)}100%{transform:translateX(350%)}}@media(prefers-reduced-motion:reduce){.splash-line:after{animation:none}}
-</style></head><body><div class="splash"><div class="splash-brand"><img src="assets/ditasha-emblem.webp" alt="Logo DITASHA"><div><h1>DITASHA Editor</h1><p class="tagline">Create. Preview. Build.</p></div></div><div class="splash-line"></div><div class="splash-status"><span class="loadingSpinner"></span><span id="splashStatus">Menyiapkan workspace…</span></div><footer>© 2026 Ditasha-Workshop</footer></div></body></html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <title>Memuat DITASHA Editor</title>
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      body {
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        user-select: none;
+        background: #17181b;
+      }
+      .splash {
+        width: 100%;
+        padding: 44px;
+      }
+      .splash-brand {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+      .splash img {
+        width: 58px;
+        height: 58px;
+        object-fit: contain;
+      }
+      .splash h1 {
+        font-size: 23px;
+        font-weight: 500;
+        margin: 0 0 5px;
+      }
+      .splash .tagline {
+        font-size: 11px;
+        color: var(--muted);
+        margin: 0;
+      }
+      .splash-line {
+        height: 2px;
+        background: var(--line);
+        margin: 32px 0 18px;
+        overflow: hidden;
+        border-radius: 3px;
+      }
+      .splash-line:after {
+        content: '';
+        display: block;
+        width: 40%;
+        height: 100%;
+        background: var(--accent);
+        animation: prepare 1.6s ease-in-out infinite;
+      }
+      .splash-status {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .splash .loadingSpinner {
+        width: 13px;
+        height: 13px;
+      }
+      .splash footer {
+        border: 0;
+        color: #777986;
+        font-size: 9px;
+        padding: 0;
+        margin-top: 36px;
+        display: block;
+      }
+      @keyframes prepare {
+        0% {
+          transform: translateX(-100%);
+        }
+        100% {
+          transform: translateX(350%);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .splash-line:after {
+          animation: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="splash">
+      <div class="splash-brand">
+        <img src="assets/ditasha-emblem.webp" alt="Logo DITASHA" />
+        <div>
+          <h1>DITASHA Editor</h1>
+          <p class="tagline">Create. Preview. Build.</p>
+        </div>
+      </div>
+      <div class="splash-line"></div>
+      <div class="splash-status">
+        <span class="loadingSpinner"></span><span id="splashStatus">Menyiapkan workspace…</span>
+      </div>
+      <footer>© 2026 Ditasha-Workshop</footer>
+    </div>
+  </body>
+</html>
