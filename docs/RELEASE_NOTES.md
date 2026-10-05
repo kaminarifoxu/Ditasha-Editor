@@ -1,8 +1,8 @@
-DITASHA Editor 1.8.1
+DITASHA Editor 1.8.2
 
-- Fix YTD-only hair import: both the original Add Hair input and a new top-level YTD button can apply dictionaries to existing hair. Select the target when multiple hair models are loaded. Invalid YTD retains the previous preview.
-- Confirm the new editor workspace has opened after portable replacement, rather than reporting success as soon as the launcher starts. Restore the previous EXE if startup cannot be confirmed.
-- Remove the .previous backup after confirmed startup. Successfully started apps also clean leftovers from older updater versions.
-- Add tests for standalone hair YTD loading, multiple-hair targeting, startup acknowledgement, legacy backup cleanup and failed-start rollback. Verify portable download/replacement/restart and backup removal on Windows.
+- Add selected-hair and clear-all removal beside the YTD target selector; remove external hair YTD separately. Removal only changes the preview, never source files or face textures.
+- Apply a sole diffuse colour texture from a newly loaded hair YTD even when its variation name differs from the YDD material. Keep explicit selection for ambiguous dictionaries and warn about missing textures/UVs.
+- Render hair cards with alpha cutout by default, with adjustable alpha threshold and optional soft blending. Add an opt-in black-background removal control; disabled by default to preserve real black hair and source textures.
+- Test unmatched YTD fallback, auxiliary-map exclusion, transparency, repeated YTD replacement and independent face/hair removal in both viewers.
 
 Copyright © 2026 Ditasha-Workshop.

@@ -192,3 +192,9 @@ Setelah YDD rambut dimuat, YTD boleh dipilih sendiri melalui **Tambah rambut**
 atau **YTD ke rambut terpilih**. Gunakan **Tujuan YTD rambut** jika ada
 beberapa model rambut. YTD mengganti dictionary milik rambut terpilih saja;
 model, posisi dan material muka tetap dipertahankan.
+
+### Preview rambut (1.8.2)
+
+Pilih **Tujuan YTD rambut** sebelum menambahkan YTD. Diffuse tunggal diterapkan meskipun nama variasinya berbeda; untuk YTD dengan beberapa diffuse pilih **Tekstur rambut** secara manual. Normal/specular tidak dipilih sebagai fallback warna. Tekstur muka tetap terpisah.
+
+**Hapus rambut terpilih**, **Hapus semua rambut**, dan **Hapus YTD rambut** hanya membersihkan preview; file asli tetap aman. Hair cards memakai **Cutout** dengan **Batas alpha** yang dapat disesuaikan; **Blend** tersedia untuk alpha lembut. Jika gambar memiliki latar hitam tanpa alpha, **Hilangkan latar hitam** bisa dicentang, tetapi juga menghilangkan helai hitam. Biarkan mati untuk rambut hitam asli. Ini preview statis, bukan implementasi lengkap shader/bone GTA V.

@@ -79,7 +79,13 @@ app.whenReady().then(async () => {
     const { viewerModel } = await import('../tests/viewer-format.test.mjs');
     const { createYtd } = await import('../src/asset-tools.js');
     const hairYtd = createYtd([
-      { name: 'cloth_diffuse', w: 1, h: 1, out: new Uint8Array([0, 255, 0, 255]) },
+      { name: 'hair_diff_040_a_uni', w: 1, h: 1, out: new Uint8Array([0, 255, 0, 255]) },
+    ]);
+    const blackHairYtd = createYtd([
+      { name: 'hair_diff_black', w: 1, h: 1, out: new Uint8Array([0, 0, 0, 255]) },
+    ]);
+    const transparentHairYtd = createYtd([
+      { name: 'hair_diff_alpha', w: 1, h: 1, out: new Uint8Array([0, 255, 0, 0]) },
     ]);
     const faceYtd = createYtd([
       { name: 'cloth_diffuse', w: 1, h: 1, out: new Uint8Array([255, 0, 0, 255]) },
@@ -93,6 +99,8 @@ app.whenReady().then(async () => {
           model: [...new Uint8Array(viewerModel)],
           hairYtd: [...hairYtd],
           faceYtd: [...faceYtd],
+          blackHairYtd: [...blackHairYtd],
+          transparentHairYtd: [...transparentHairYtd],
           requireWebgl: true,
         }) +
         ')',

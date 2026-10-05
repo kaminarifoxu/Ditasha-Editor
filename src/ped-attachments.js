@@ -10,9 +10,29 @@ export function attachmentTexture(attachment, geometry) {
   const embedded = attachment.drawables[attachment.drawable].embeddedTextures || [];
   const available = [...attachment.textures, ...embedded];
   if (attachment.texture !== '') return available[Number(attachment.texture)] || null;
-  return (
-    available.find((t) => normalizeName(t.name) === normalizeName(geometry.diffuseTexture)) || null
+  const match = (textures) =>
+    textures.find((t) => normalizeName(t.name) === normalizeName(geometry.diffuseTexture));
+  const exact = match(attachment.textures);
+  if (exact) return exact;
+  // A newly supplied dictionary can use another variation's diffuse name.
+  // Never guess a normal/specular map as the sole colour texture.
+  const colors = attachment.textures.filter(
+    (t) =>
+      !/(?:^|[_ .-])(normal|norm|nrm|bump|spec|specular|s|n)(?:[_ .-]|$)/i.test(
+        normalizeName(t.name) || '',
+      ),
   );
+  if (colors.length === 1) return colors[0];
+  return match(embedded) || null;
+}
+
+export function hairTexturePixels(texture, removeBlack = false) {
+  const pixels = new Uint8ClampedArray(texture.out);
+  if (removeBlack) {
+    for (let i = 0; i < pixels.length; i += 4)
+      if (pixels[i] <= 8 && pixels[i + 1] <= 8 && pixels[i + 2] <= 8) pixels[i + 3] = 0;
+  }
+  return pixels;
 }
 
 export function validateAttachments(attachments) {
@@ -45,7 +65,7 @@ export function validateAttachments(attachments) {
 export function mountPedAttachments({ scene, container, prefix, toast, hasBase, onChange }) {
   const root = document.createElement('details');
   root.className = 'ped-attachments';
-  root.innerHTML = `<summary>Rambut ped · YDD + YTD</summary><p class="muted">Buka model muka dahulu. Rambut memakai tekstur sendiri; tekstur muka tetap terpisah.</p><button id="${prefix}AddHair">+ Tambah rambut YDD / YTD</button><input id="${prefix}HairInput" type="file" accept=".ydd,.ytd" multiple hidden><div id="${prefix}HairTargetRow" hidden><label>Tujuan YTD rambut<select id="${prefix}HairTarget"></select></label><button id="${prefix}AddHairTextures">+ YTD ke rambut terpilih</button></div><input id="${prefix}HairTextureInput" type="file" accept=".ytd" multiple hidden><div id="${prefix}HairList"></div><p id="${prefix}HairStatus" class="muted" role="status">Belum ada rambut tambahan.</p><p class="muted">Preview statis, tanpa pengikatan tulang kepala. Sesuaikan posisi bila perlu. Konfigurasi hanya berlaku selama preview; tidak mengubah file atau ekspor YTD.</p>`;
+  root.innerHTML = `<summary>Rambut ped · YDD + YTD</summary><p class="muted">Buka model muka dahulu. Rambut memakai tekstur sendiri; tekstur muka tetap terpisah.</p><button id="${prefix}AddHair">+ Tambah rambut YDD / YTD</button><input id="${prefix}HairInput" type="file" accept=".ydd,.ytd" multiple hidden><div id="${prefix}HairTargetRow" hidden><label>Tujuan YTD rambut<select id="${prefix}HairTarget"></select></label><button id="${prefix}AddHairTextures">+ YTD ke rambut terpilih</button><button id="${prefix}RemoveHair">Hapus rambut terpilih</button><button id="${prefix}ClearHair">Hapus semua rambut</button></div><input id="${prefix}HairTextureInput" type="file" accept=".ytd" multiple hidden><div id="${prefix}HairList"></div><p id="${prefix}HairStatus" class="muted" role="status">Belum ada rambut tambahan.</p><p class="muted">Preview statis, tanpa pengikatan tulang kepala. Sesuaikan posisi bila perlu. Konfigurasi hanya berlaku selama preview; tidak mengubah file atau ekspor YTD.</p>`;
   const layerInspector = container.querySelector('.layerinspector');
   if (layerInspector) container.insertBefore(root, layerInspector);
   else container.append(root);
@@ -88,7 +108,8 @@ export function mountPedAttachments({ scene, container, prefix, toast, hasBase, 
       geometry.setIndex(new THREE.BufferAttribute(g.indices, 1));
       geometry.computeVertexNormals();
       const t = attachmentTexture(a, g);
-      if (!t && g.diffuseTexture) missing.add(g.diffuseTexture);
+      if (!t) missing.add(g.diffuseTexture || 'material tanpa nama diffuse');
+      if (t && !g.uvs) missing.add('UV rambut tidak tersedia');
       let map = t && cache.get(t);
       if (t && !map) {
         const canvas = document.createElement('canvas');
@@ -96,7 +117,7 @@ export function mountPedAttachments({ scene, container, prefix, toast, hasBase, 
         canvas.height = t.h;
         canvas
           .getContext('2d')
-          .putImageData(new ImageData(new Uint8ClampedArray(t.out), t.w, t.h), 0, 0);
+          .putImageData(new ImageData(hairTexturePixels(t, a.removeBlack), t.w, t.h), 0, 0);
         map = new THREE.CanvasTexture(canvas);
         map.flipY = false;
         map.colorSpace = THREE.SRGBColorSpace;
@@ -112,8 +133,9 @@ export function mountPedAttachments({ scene, container, prefix, toast, hasBase, 
             map: map || null,
             side: THREE.DoubleSide,
             roughness: 0.75,
-            transparent: !!t,
-            alphaTest: t ? 0.05 : 0,
+            transparent: !!t && a.alphaMode === 'blend',
+            depthWrite: a.alphaMode !== 'blend',
+            alphaTest: t ? a.alphaCutoff : 0,
             wireframe,
           }),
         ),
@@ -123,6 +145,22 @@ export function mountPedAttachments({ scene, container, prefix, toast, hasBase, 
     a.warning = [...missing].length
       ? 'Tekstur belum cocok: ' + [...missing].join(', ')
       : 'Tekstur siap.';
+    if (
+      a.textures.length &&
+      d.lods[0].geometries.some((g) => {
+        const t = attachmentTexture(a, g);
+        return t && normalizeName(t.name) !== normalizeName(g.diffuseTexture);
+      })
+    )
+      a.warning += ' Diffuse dipasang dengan fallback/pilihan manual.';
+    if (
+      a.textures.length > 1 &&
+      a.texture === '' &&
+      d.lods[0].geometries.some(
+        (g) => !a.textures.some((t) => normalizeName(t.name) === normalizeName(g.diffuseTexture)),
+      )
+    )
+      a.warning += ' Pilih Tekstur rambut bila diffuse yang diinginkan belum tampil.';
     if (d.warnings?.length) a.warning += ' ' + d.warnings.join('; ');
     transform(a);
   }
@@ -224,7 +262,7 @@ export function mountPedAttachments({ scene, container, prefix, toast, hasBase, 
       select(
         'Tekstur rambut',
         [
-          ['', 'Otomatis · nama material'],
+          ['', 'Otomatis · diffuse YTD / material'],
           ...available.map((t, index) => [index, t.name + ' · ' + (t.dictionary || 'embedded')]),
         ],
         a.texture,
@@ -234,6 +272,48 @@ export function mountPedAttachments({ scene, container, prefix, toast, hasBase, 
           refresh();
         },
       );
+      select(
+        'Transparansi rambut',
+        [
+          ['cutout', 'Cutout · helai rambut'],
+          ['blend', 'Blend · alpha lembut'],
+        ],
+        a.alphaMode,
+        (value) => {
+          a.alphaMode = value;
+          build(a);
+          refresh();
+        },
+      );
+      const cutoff = document.createElement('input');
+      cutoff.type = 'number';
+      cutoff.min = '0';
+      cutoff.max = '1';
+      cutoff.step = '0.05';
+      cutoff.value = a.alphaCutoff;
+      cutoff.dataset.control = 'alpha-cutoff';
+      cutoff.onchange = () => {
+        if (busy) return;
+        const value = Number(cutoff.value);
+        if (cutoff.value === '' || !Number.isFinite(value) || value < 0 || value > 1) {
+          cutoff.value = a.alphaCutoff;
+          return;
+        }
+        a.alphaCutoff = value;
+        build(a);
+        refresh();
+      };
+      field('Batas alpha · 0–1', cutoff);
+      const black = document.createElement('input');
+      black.type = 'checkbox';
+      black.checked = a.removeBlack;
+      black.dataset.control = 'remove-black';
+      black.onchange = () => {
+        if (busy) return;
+        a.removeBlack = black.checked;
+        build(a);
+        refresh();
+      };
       const visible = document.createElement('input');
       visible.type = 'checkbox';
       visible.checked = a.visible;
@@ -244,6 +324,7 @@ export function mountPedAttachments({ scene, container, prefix, toast, hasBase, 
         }
       };
       field('Tampilkan rambut', visible);
+      field('Hilangkan latar hitam · juga menghapus helai hitam', black);
       const transforms = document.createElement('div');
       transforms.className = 'hair-transform';
       for (const [key, label] of [
@@ -298,6 +379,15 @@ export function mountPedAttachments({ scene, container, prefix, toast, hasBase, 
       for (const [label, action] of [
         ['Ganti YTD rambut', () => input.click()],
         [
+          'Hapus YTD rambut',
+          () => {
+            a.textures = [];
+            a.texture = '';
+            build(a);
+            refresh();
+          },
+        ],
+        [
           'Reset posisi',
           () => {
             Object.assign(a, { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0, scale: 1 });
@@ -305,17 +395,7 @@ export function mountPedAttachments({ scene, container, prefix, toast, hasBase, 
             refresh();
           },
         ],
-        [
-          'Hapus rambut',
-          () => {
-            dispose(a);
-            const selected = attachments[selectedHair];
-            attachments.splice(i, 1);
-            selectedHair = Math.max(0, attachments.indexOf(selected));
-            refresh();
-            onChange(false);
-          },
-        ],
+        ['Hapus rambut', () => removeHair(a)],
       ]) {
         const b = document.createElement('button');
         b.textContent = label;
@@ -334,7 +414,26 @@ export function mountPedAttachments({ scene, container, prefix, toast, hasBase, 
       ? attachments.length + ' rambut tambahan · preview saja.'
       : 'Belum ada rambut tambahan.';
   }
+  function removeHair(a) {
+    if (busy || !a) return;
+    const selected = attachments[selectedHair];
+    dispose(a);
+    attachments.splice(attachments.indexOf(a), 1);
+    selectedHair = Math.max(0, attachments.indexOf(selected));
+    refresh();
+    onChange(false);
+  }
   let generation = 0;
+  $('RemoveHair').onclick = () => removeHair(attachments[selectedHair]);
+  $('ClearHair').onclick = () => {
+    if (busy) return;
+    generation++;
+    attachments.forEach(dispose);
+    attachments = [];
+    selectedHair = 0;
+    refresh();
+    onChange(false);
+  };
   $('AddHair').onclick = () => {
     if (!hasBase()) toast('Buka model muka/ped terlebih dahulu.');
     else $('HairInput').click();
@@ -374,6 +473,9 @@ export function mountPedAttachments({ scene, container, prefix, toast, hasBase, 
         textures,
         drawable: 0,
         texture: '',
+        alphaMode: 'cutout',
+        alphaCutoff: 0.25,
+        removeBlack: false,
         visible: true,
         x: 0,
         y: 0,

@@ -84,7 +84,8 @@ module.exports = async function checkViewers(fixtures) {
       c.getContext('2d').drawImage(source, 0, 0);
       const data = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
       let green = 0,
-        red = 0;
+        red = 0,
+        black = 0;
       for (let i = 0; i < data.length; i += 4) {
         if (
           data[i + 3] &&
@@ -93,10 +94,11 @@ module.exports = async function checkViewers(fixtures) {
           data[i + 1] > data[i + 2] * 2
         )
           green++;
+        if (data[i + 3] && data[i] < 8 && data[i + 1] < 8 && data[i + 2] < 8) black++;
         if (data[i + 3] && data[i] > 30 && data[i] > data[i + 1] * 2 && data[i] > data[i + 2] * 2)
           red++;
       }
-      return { green, red };
+      return { green, red, black };
     };
     let pixels = await colors();
     if (pixels)
@@ -104,6 +106,73 @@ module.exports = async function checkViewers(fixtures) {
         pixels.green > 10 && pixels.red > 10,
         'Hair/face materials not rendered independently: ' + JSON.stringify(pixels),
       );
+    // A second YTD with a different name and colour must visibly replace the old diffuse.
+    await input(
+      prefix + 'HairTextureInput',
+      [new File([new Uint8Array(fixtures.faceYtd)], 'replacement.ytd')],
+      () => !$(prefix + 'AddHair').disabled,
+    );
+    pixels = await colors();
+    if (pixels)
+      assert(pixels.green === 0 && pixels.red > 10, 'Replacement YTD did not update hair pixels');
+    await input(
+      prefix + 'HairTextureInput',
+      [new File([new Uint8Array(fixtures.hairYtd)], 'hair-restored.ytd')],
+      () => !$(prefix + 'AddHair').disabled,
+    );
+    const mode = list.querySelector('[data-control="Transparansi rambut"]');
+    assert(mode.value === 'cutout', 'Hair did not default to alpha cutout');
+    const black = list.querySelector('[data-control="remove-black"]');
+    assert(!black.checked, 'Black hair removed by default');
+    black.checked = true;
+    black.dispatchEvent(new Event('change'));
+    pixels = await colors();
+    if (pixels) assert(pixels.green > 10, 'Black removal damaged colour texture');
+    [...list.querySelectorAll('button')].find((b) => b.textContent === 'Hapus YTD rambut').click();
+    assert(!list.textContent.includes('hair-restored.ytd'), 'External YTD not removed');
+    pixels = await colors();
+    if (pixels)
+      assert(pixels.green === 0 && pixels.red > 10, 'YTD removal erased face or retained hair map');
+    await input(
+      prefix + 'HairTextureInput',
+      [new File([new Uint8Array(fixtures.hairYtd)], 'hair-restored.ytd')],
+      () => !$(prefix + 'AddHair').disabled,
+    );
+    await input(
+      prefix + 'HairTextureInput',
+      [new File([new Uint8Array(fixtures.transparentHairYtd)], 'alpha.ytd')],
+      () => !$(prefix + 'AddHair').disabled,
+    );
+    pixels = await colors();
+    if (pixels)
+      assert(pixels.green === 0 && pixels.red > 10, 'Hair alpha did not discard transparent cards');
+    const baselineBlack = pixels?.black;
+    const setBlackRemoval = (enabled) => {
+      const control = list.querySelector('[data-control="remove-black"]');
+      control.checked = enabled;
+      control.dispatchEvent(new Event('change'));
+    };
+    setBlackRemoval(false);
+    await input(
+      prefix + 'HairTextureInput',
+      [new File([new Uint8Array(fixtures.blackHairYtd)], 'black.ytd')],
+      () => !$(prefix + 'AddHair').disabled,
+    );
+    pixels = await colors();
+    if (pixels) assert(pixels.black > baselineBlack + 10, 'Genuine black hair was not preserved');
+    setBlackRemoval(true);
+    pixels = await colors();
+    if (pixels)
+      assert(
+        pixels.black === baselineBlack && pixels.red > 10,
+        'Optional black background removal failed or affected face',
+      );
+    setBlackRemoval(false);
+    await input(
+      prefix + 'HairTextureInput',
+      [new File([new Uint8Array(fixtures.hairYtd)], 'hair-restored.ytd')],
+      () => !$(prefix + 'AddHair').disabled,
+    );
     console.log('DITASHA_SNAPSHOT:' + prefix + '-hair-preview');
     await sleep(350);
     const visible = list.querySelector('input[type="checkbox"]');
@@ -147,7 +216,7 @@ module.exports = async function checkViewers(fixtures) {
       list.querySelector('[data-transform="scale"]').value === '1',
       'Invalid hair scale accepted',
     );
-    [...list.querySelectorAll('button')].find((b) => b.textContent === 'Hapus rambut').click();
+    $(prefix + 'RemoveHair').click();
     assert(
       list.children.length === 0 && $(baseTitleId).textContent === title,
       'Remove hair erased face',
@@ -302,6 +371,18 @@ module.exports = async function checkViewers(fixtures) {
   );
   change('mvLod', '1');
   assert($('mvPedHairList').children.length === 2, 'LOD switch erased hair');
+  $('mvPedRemoveHair').click();
+  assert(
+    $('mvPedHairList').children.length === 1 &&
+      $('mvPedHairList').textContent.includes('second-hair.ydd'),
+    'Selected removal removed wrong hair',
+  );
+  $('mvPedClearHair').click();
+  assert(
+    !$('mvPedHairList').children.length && $('mvPedHairTargetRow').hidden,
+    'Clear all left stale target or mesh',
+  );
+
   await input(
     'mvInput',
     [new File([new Uint8Array(fixtures.model)], 'new-face.ydd')],
