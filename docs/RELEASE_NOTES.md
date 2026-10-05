@@ -1,8 +1,9 @@
-DITASHA Editor 1.8.3
+DITASHA Editor 1.9.0
 
-- Apply alpha cutout to the base ped in Texture & Model and Model Viewer, so transparent eyebrow/eyelash cards no longer render as solid rectangles.
-- Add Material ped controls: choose all or an individual mesh, Cutout/Blend/Opaque, alpha cutoff, optional black-background removal and reset. These settings affect preview only and keep face/hair settings separate.
-- Preserve per-part settings across texture replacement and viewer LOD rebuilds; reset on opening a different model. Replace existing model-viewer textures with newly supplied textures of the same name.
-- Verify base-model alpha, opaque override, black preservation/removal, per-part isolation, source/export preservation and independent hair rendering in the Windows renderer.
+- Simplify the workspace with consistent offline Flaticon Uicons, compact editing/viewer toolbars, quieter headings and smaller panel spacing.
+- Replace repeated action text with icons while preserving accessible names, keyboard focus, descriptive tooltips, active/disabled states and update badges. Keep workflow names, export formats and operational status visible.
+- Group hair actions into a compact row and move lengthy explanations into expandable hints. Preserve all warnings, material/hair controls, preview and export behavior.
+- Include Uicons attribution in the footer and Help, the supplied Flaticon License, and a fixed trusted IPC action for opening the credit page.
+- Verify the icon font, dynamic controls, update UI, both 3D viewers, converter, clothing pack, archives and portable update/restart on Windows.
 
-Copyright © 2026 Ditasha-Workshop.
+Copyright © 2026 Ditasha-Workshop. Uicons by Flaticon.

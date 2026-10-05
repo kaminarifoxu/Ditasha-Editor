@@ -152,6 +152,10 @@ module.exports = async function checkViewers(fixtures) {
     );
     const list = $(prefix + 'HairList');
     assert(
+      [...list.querySelectorAll('button')].every((b) => b.querySelector('.di-icon') && b.title),
+      'Dynamic hair actions lost icons or tooltips',
+    );
+    assert(
       list.querySelector('[data-control="Tekstur rambut"]').textContent.includes('hair-top.ytd'),
       'YTD-only or top texture input failed',
     );

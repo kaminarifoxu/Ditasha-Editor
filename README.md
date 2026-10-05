@@ -202,3 +202,7 @@ Pilih **Tujuan YTD rambut** sebelum menambahkan YTD. Diffuse tunggal diterapkan 
 ### Material ped, alis dan bulu mata (1.8.3)
 
 Di Texture & Model dan Model Viewer, buka **Material ped · alis & alpha**. Cutout memakai alpha tekstur secara default. Pilih **Bagian model** untuk mengubah alis/bulu mata saja, lalu atur **Batas alpha**, atau pilih **Blend** / **Opaque**. **Hilangkan latar hitam** tersedia untuk tekstur tanpa alpha, tetapi juga menghapus warna hitam asli pada bagian yang dipilih. **Reset material terpilih** mengembalikan Cutout 0,25 tanpa penghapusan hitam. Pengaturan hanya untuk preview, terpisah dari rambut tambahan, dan tidak mengubah gambar atau ekspor. YTD baru dengan nama tekstur sama menggantikan tekstur lama di Model Viewer.
+
+### UI minimal (1.9.0)
+
+Aksi kuas, hapus, duplikat, zoom, kamera, viewer dan arsip memakai Uicons Flaticon. Arahkan mouse ke ikon untuk tooltip; tombol tetap memiliki nama aksesibel dan fokus keyboard. Nama workspace, format ekspor dan status penting tetap terlihat. Penjelasan panjang tersedia pada bagian Petunjuk/Tentang yang dapat dibuka. Font ikon tertanam di aplikasi dan bekerja tanpa internet. Kredit: **Uicons by Flaticon** di footer dan Panduan; detail di [docs/ICONS.md](docs/ICONS.md).

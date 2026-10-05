@@ -2342,3 +2342,285 @@ progress {
   width: 100%;
   min-width: 0;
 }
+
+/* Compact workspace: actions use offline Uicons; labels remain accessible. */
+:root {
+  --header-height: 54px;
+  --nav-height: 44px;
+  --bg: #111214;
+  --panel: #17181b;
+  --raised: #202126;
+  --line: #292a30;
+}
+header {
+  padding: 0 18px;
+  gap: 8px;
+}
+.brand {
+  margin-right: 16px;
+  gap: 8px;
+}
+.brandicon {
+  width: 29px;
+  height: 29px;
+}
+.brandname {
+  font-size: 15px;
+}
+header .local {
+  visibility: hidden;
+  margin-left: auto;
+  width: 0;
+  overflow: hidden;
+}
+.workspace-nav {
+  gap: 12px;
+  padding: 0 18px;
+}
+.workspace-nav button {
+  padding: 0 10px;
+  font-size: 11px;
+  gap: 8px;
+}
+.workspace-nav .di-icon {
+  color: var(--muted);
+}
+.workspace-nav button.active .di-icon {
+  color: var(--accent);
+}
+main {
+  grid-template-columns: 212px minmax(300px, 1fr) 306px;
+}
+.files {
+  padding: 16px 12px;
+}
+.files > h2,
+.files > p.muted,
+.studio-signature,
+.sidebarbottom > p,
+.panelhead .eyebrow,
+.viewer-toolbar .eyebrow,
+.emptykicker {
+  display: none;
+}
+.sectiontitle {
+  margin-bottom: 10px;
+  letter-spacing: 0.07em;
+  font-size: 9px;
+}
+.files .uploadcard {
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 10px;
+  gap: 8px;
+  justify-content: flex-start;
+  border: 1px solid var(--line);
+  background: transparent;
+  margin: 4px 0 10px;
+}
+.files .uploadcard .control-label {
+  font-size: 11px;
+}
+.panelhead,
+.right .panelhead {
+  height: 58px;
+}
+.panelhead h2 {
+  font-size: 15px;
+}
+.toolbar {
+  gap: 5px;
+  padding: 9px 0;
+}
+.icon-control {
+  gap: 7px;
+}
+button.compact-icon,
+a.compact-icon {
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  padding: 7px;
+  position: relative;
+}
+.compact-icon > .control-label {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+#updateBadge {
+  position: absolute;
+  top: -4px;
+  right: -5px;
+  max-width: 20px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #171321;
+  font-size: 8px;
+  padding: 2px 4px;
+}
+.layeractions {
+  display: flex;
+  gap: 5px;
+}
+.layeractions .compact-icon {
+  flex: 1;
+}
+.modeltools {
+  display: flex;
+  gap: 6px;
+  padding: 10px 0;
+}
+.modeltools .compact-icon {
+  flex: 1;
+}
+.canvasoptions {
+  gap: 10px;
+}
+#toolHint {
+  display: none;
+}
+.inspector {
+  padding-top: 12px;
+}
+.inspector label {
+  margin: 9px 0;
+}
+.ped-attachments,
+.material-preview {
+  margin-top: 10px;
+  padding-top: 10px;
+}
+.ped-attachments summary,
+.material-preview summary {
+  font-size: 11px;
+}
+.hair-actions {
+  display: flex;
+  gap: 6px;
+}
+.hair-card {
+  padding: 10px;
+  margin: 8px 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.hair-card strong {
+  font-size: 11px;
+}
+.hair-transform {
+  gap: 6px;
+}
+.hair-card p.muted {
+  font-size: 10px;
+  margin: 0;
+}
+.hint-details {
+  margin: 10px 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+.hint-details summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  list-style: none;
+}
+.hint-details summary .di-icon {
+  width: 14px;
+  height: 14px;
+  flex-basis: 14px;
+}
+.hint-details summary .di-icon::before {
+  font-size: 14px;
+}
+.hint-details p {
+  line-height: 1.55;
+  font-size: 11px;
+}
+.signature-actions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.signature-actions small {
+  font-size: 9px;
+}
+.icon-credit {
+  font-size: 9px;
+  color: var(--muted);
+  text-decoration: none;
+  margin-top: 8px;
+  display: inline-block;
+}
+.icon-credit:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+#helpDialog a {
+  color: var(--accent);
+}
+.tool-buttons,
+.viewer-button-row {
+  gap: 6px;
+}
+.archive-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.archive-actions .compact-icon {
+  flex: 0 0 34px;
+}
+.tool-workspace .tool-sidebar,
+.asset-viewer .tool-sidebar,
+.archive-workspace .tool-sidebar {
+  padding: 18px 14px;
+}
+.tool-workspace h2,
+.asset-viewer h2,
+.archive-workspace h2 {
+  font-size: 17px;
+}
+.right.expanded-3d .modeltools button.compact-icon {
+  max-width: 40px;
+  flex: 0 0 40px;
+}
+@media (max-width: 1180px) {
+  main {
+    grid-template-columns: 185px minmax(260px, 1fr) 280px;
+  }
+}
+@media (max-width: 900px) {
+  .workspace-nav {
+    gap: 2px;
+    padding: 0 8px;
+    overflow-x: auto;
+  }
+  .workspace-nav button {
+    flex-shrink: 0;
+    padding: 0 8px;
+  }
+}
+@media (max-width: 760px) {
+  main {
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+  }
+  .files,
+  .right {
+    flex-shrink: 0;
+  }
+  .editor {
+    min-height: 560px;
+  }
+}

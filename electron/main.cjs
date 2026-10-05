@@ -145,6 +145,11 @@ else {
       if (!isTrustedUpdateEvent(event, win, path.join(__dirname, '..', 'ui', 'index.html')))
         throw Error('Untrusted update request');
     };
+    ipcMain.handle('ditasha:open-icon-credits', async (event) => {
+      trusted(event);
+      await shell.openExternal('https://www.flaticon.com/uicons');
+      return true;
+    });
     ipcMain.handle('ditasha:open-donation', async (event) => {
       trusted(event);
       await shell.openExternal('https://saweria.co/itsaminarii');

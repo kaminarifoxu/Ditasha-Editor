@@ -4,7 +4,8 @@ const path = require('node:path'),
   fs = require('node:fs/promises');
 const check = require('./tools-ui-checks.cjs'),
   checkArchives = require('./archive-ui-checks.cjs'),
-  checkViewers = require('./viewers-ui-checks.cjs');
+  checkViewers = require('./viewers-ui-checks.cjs'),
+  checkIcons = require('./ui-icons-checks.cjs');
 app.whenReady().then(async () => {
   let win;
   const captures = [];
@@ -38,6 +39,7 @@ app.whenReady().then(async () => {
       }
     });
     await win.loadFile(path.resolve('ui/index.html'));
+    const iconReport = await win.webContents.executeJavaScript('(' + checkIcons.toString() + ')()');
     const report = await win.webContents.executeJavaScript(
       '(' +
         check.toString() +
@@ -114,7 +116,7 @@ app.whenReady().then(async () => {
         ')',
     );
     await Promise.all(captures);
-    console.log('PASS: ' + JSON.stringify({ report, archiveReport, viewerReport }));
+    console.log('PASS: ' + JSON.stringify({ iconReport, report, archiveReport, viewerReport }));
     win.destroy();
     app.exit(0);
   } catch (e) {

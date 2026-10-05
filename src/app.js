@@ -1,3 +1,4 @@
+import { mountMinimalUi } from './ui-minimal.js';
 import * as THREE from 'three';
 import { mountTools } from './tools-ui.js';
 import { mountMaterialPreview } from './material-preview.js';
@@ -1847,4 +1848,5 @@ $('donate').addEventListener('click', async (e) => {
     toast('Saweria tidak dapat dibuka. Coba kembali atau buka saweria.co/itsaminarii di browser.');
   }
 });
+mountMinimalUi();
 window.ditashaDesktop?.ready?.();
