@@ -333,11 +333,13 @@ try {
  if ($cleaned) { Report 'success' 'Update berhasil. Editor terbuka kembali dan file previous dihapus.' }
  else { Report 'success' 'Update berhasil dan editor terbuka. Cadangan previous akan dibersihkan saat startup berikutnya.' }
 } catch {
- Report 'error' $_.Exception.Message
+ $failureMessage = $_.Exception.Message
+ Report 'error' $failureMessage
  Remove-Item Env:DITASHA_UPDATE_READY_PATH -ErrorAction SilentlyContinue
  Remove-Item Env:DITASHA_UPDATE_TOKEN -ErrorAction SilentlyContinue
  if (${restart ? '$true' : '$false'} -and -not $installed -and (Test-Path -LiteralPath $target)) {
-  Start-Process -FilePath $target -WorkingDirectory (Split-Path -Parent $target) -ErrorAction SilentlyContinue
+  try { Start-Process -FilePath $target -WorkingDirectory (Split-Path -Parent $target) -ErrorAction Stop }
+  catch { Report 'error' ($failureMessage + ' EXE lama dipulihkan, tetapi tidak dapat dibuka: ' + $_.Exception.Message) }
  }
 } finally {
  if ($ready) { Remove-Item -LiteralPath $ready -Force -ErrorAction SilentlyContinue }

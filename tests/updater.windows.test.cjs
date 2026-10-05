@@ -42,8 +42,8 @@ for (const mode of ['success', 'staging-failure', 'launch-failure', 'ready-failu
             "throw 'simulated launch failure'",
           )
           .replace(
-            'Start-Process -FilePath $target -WorkingDirectory (Split-Path -Parent $target) -ErrorAction SilentlyContinue',
-            'Write-Output rollback',
+            'try { Start-Process -FilePath $target -WorkingDirectory (Split-Path -Parent $target) -ErrorAction Stop }',
+            'try { Write-Output rollback }',
           );
       if (mode === 'ready-failure')
         source = source.replace(
