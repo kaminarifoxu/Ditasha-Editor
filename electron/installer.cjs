@@ -2,8 +2,17 @@
 const fs = require('node:fs/promises'),
   path = require('node:path');
 const { spawn } = require('node:child_process');
+const { randomUUID } = require('node:crypto');
 const { replacementScript } = require('./updater.cjs');
-async function startReplacement({ target, staged, parentPid, bootloaderPid, directory }) {
+async function startReplacement({
+  target,
+  staged,
+  parentPid,
+  bootloaderPid,
+  directory,
+  expectedVersion,
+  confirmRestart = true,
+}) {
   if (process.platform !== 'win32') throw Error('Pemasangan otomatis tersedia pada EXE Windows.');
   await fs.mkdir(directory, { recursive: true });
   await fs.access(staged);
@@ -11,7 +20,8 @@ async function startReplacement({ target, staged, parentPid, bootloaderPid, dire
   const probe = await fs.mkdtemp(path.join(path.dirname(target), '.ditasha-write-'));
   await fs.rm(probe, { recursive: true });
   const handshakePath = path.join(directory, 'install.started'),
-    logPath = path.join(directory, 'install.json');
+    logPath = path.join(directory, 'install.json'),
+    readyPath = confirmRestart ? path.join(directory, 'restart-ready.json') : null;
   await fs.rm(handshakePath, { force: true });
   const script = replacementScript({
     target,
@@ -20,6 +30,9 @@ async function startReplacement({ target, staged, parentPid, bootloaderPid, dire
     bootloaderPid,
     logPath,
     handshakePath,
+    readyPath,
+    readyToken: randomUUID(),
+    expectedVersion,
   });
   const executable = path.join(
     process.env.SystemRoot || 'C:\\Windows',

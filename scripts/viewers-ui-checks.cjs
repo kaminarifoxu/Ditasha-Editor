@@ -33,13 +33,24 @@ module.exports = async function checkViewers(fixtures) {
     const title = $(baseTitleId).textContent;
     await input(
       prefix + 'HairInput',
-      [
-        new File([new Uint8Array(fixtures.model)], 'hair.ydd'),
-        new File([new Uint8Array(fixtures.hairYtd)], 'hair.ytd'),
-      ],
+      [new File([new Uint8Array(fixtures.model)], 'hair.ydd')],
+      () => !$(prefix + 'AddHair').disabled,
+    );
+    await input(
+      prefix + 'HairInput',
+      [new File([new Uint8Array(fixtures.hairYtd)], 'hair.ytd')],
+      () => !$(prefix + 'AddHair').disabled,
+    );
+    await input(
+      prefix + 'HairTextureInput',
+      [new File([new Uint8Array(fixtures.hairYtd)], 'hair-top.ytd')],
       () => !$(prefix + 'AddHair').disabled,
     );
     const list = $(prefix + 'HairList');
+    assert(
+      list.querySelector('[data-control="Tekstur rambut"]').textContent.includes('hair-top.ytd'),
+      'YTD-only or top texture input failed',
+    );
     assert(
       list.children.length === 1 && $(baseTitleId).textContent === title,
       'Hair replaced face model',
@@ -273,8 +284,24 @@ module.exports = async function checkViewers(fixtures) {
     [new File([new Uint8Array(fixtures.model)], 'hair.ydd')],
     () => !$('mvPedAddHair').disabled,
   );
+  await input(
+    'mvPedHairInput',
+    [new File([new Uint8Array(fixtures.model)], 'second-hair.ydd')],
+    () => !$('mvPedAddHair').disabled,
+  );
+  change('mvPedHairTarget', '0');
+  await input(
+    'mvPedHairInput',
+    [new File([new Uint8Array(fixtures.hairYtd)], 'selected-hair.ytd')],
+    () => !$('mvPedAddHair').disabled,
+  );
+  assert(
+    $('mvPedHairList').children[0].textContent.includes('selected-hair.ytd') &&
+      !$('mvPedHairList').children[1].textContent.includes('selected-hair.ytd'),
+    'YTD applied to wrong hair',
+  );
   change('mvLod', '1');
-  assert($('mvPedHairList').children.length === 1, 'LOD switch erased hair');
+  assert($('mvPedHairList').children.length === 2, 'LOD switch erased hair');
   await input(
     'mvInput',
     [new File([new Uint8Array(fixtures.model)], 'new-face.ydd')],

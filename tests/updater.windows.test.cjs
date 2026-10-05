@@ -6,7 +6,7 @@ const fs = require('node:fs/promises'),
   os = require('node:os');
 const { spawn } = require('node:child_process');
 const { replacementScript } = require('../electron/updater.cjs');
-for (const mode of ['success', 'staging-failure', 'launch-failure'])
+for (const mode of ['success', 'staging-failure', 'launch-failure', 'ready-failure'])
   test(
     `Windows helper ${mode}`,
     { skip: process.platform !== 'win32', timeout: 30000 },
@@ -30,18 +30,26 @@ for (const mode of ['success', 'staging-failure', 'launch-failure'])
         staged,
         parentPid: parent.pid,
         logPath,
-        restart: mode === 'launch-failure',
+        restart: mode === 'launch-failure' || mode === 'ready-failure',
+        readyPath: mode === 'ready-failure' ? path.join(directory, 'restart-ready.json') : null,
+        readyToken: 'test-token',
+        readyTimeoutSeconds: 2,
       });
       if (mode === 'launch-failure')
         source = source
           .replace(
-            'try { Start-Process -FilePath $target -WorkingDirectory (Split-Path -Parent $target) -ErrorAction Stop }',
-            "try { throw 'simulated launch failure' }",
+            '$launch = Start-Process -FilePath $target -WorkingDirectory (Split-Path -Parent $target) -PassThru -ErrorAction Stop',
+            "throw 'simulated launch failure'",
           )
           .replace(
             'Start-Process -FilePath $target -WorkingDirectory (Split-Path -Parent $target) -ErrorAction SilentlyContinue',
             'Write-Output rollback',
           );
+      if (mode === 'ready-failure')
+        source = source.replace(
+          '$launch = Start-Process -FilePath $target -WorkingDirectory (Split-Path -Parent $target) -PassThru -ErrorAction Stop',
+          "$launch = Start-Process -FilePath 'whoami.exe' -PassThru -ErrorAction Stop",
+        );
       await fs.writeFile(script, '\ufeff' + source);
       const helper = spawn(
         'powershell.exe',
@@ -58,7 +66,7 @@ for (const mode of ['success', 'staging-failure', 'launch-failure'])
       const report = JSON.parse((await fs.readFile(logPath, 'utf8')).replace(/^\uFEFF/, ''));
       assert.equal(report.status, fail ? 'error' : 'success');
       assert.equal(await fs.readFile(target, 'utf8'), fail ? 'MZ-old' : 'MZ-new');
-      if (!fail) assert.equal(await fs.readFile(target + '.previous', 'utf8'), 'MZ-old');
+      await assert.rejects(fs.access(target + '.previous'));
       await assert.rejects(fs.access(target + '.incoming'));
     },
   );
@@ -84,6 +92,7 @@ test(
       parentPid: parent.pid,
       bootloaderPid: parent.pid,
       directory,
+      confirmRestart: false,
     });
     let report;
     for (let i = 0; i < 80; i++) {

@@ -4,6 +4,7 @@ const fs = require('node:fs/promises'),
   path = require('node:path');
 const { createPortableUpdater } = require('./updater.cjs');
 const { startReplacement } = require('./installer.cjs');
+const { completeUpdateStartup } = require('./update-startup.cjs');
 async function run(app, net) {
   const root = process.env.DITASHA_UPDATE_SMOKE_ROOT;
   const phase = async (name) =>
@@ -24,11 +25,30 @@ async function run(app, net) {
       state = JSON.parse(await fs.readFile(statePath, 'utf8'));
     } catch {}
     if (state) {
+      const { BrowserWindow } = require('electron');
+      const window = new BrowserWindow({
+        width: 1200,
+        height: 900,
+        show: false,
+        webPreferences: {
+          contextIsolation: true,
+          sandbox: true,
+          nodeIntegration: false,
+          backgroundThrottling: false,
+        },
+      });
+      await window.loadFile(path.join(__dirname, '..', 'ui', 'index.html'));
+      const workspaceReady = await window.webContents.executeJavaScript(
+        'Boolean(window.ditashaWorkspace && document.getElementById("open") && document.getElementById("pedHairInput"))',
+      );
+      if (!workspaceReady) throw Error('Restarted editor workspace did not initialize.');
+      window.show();
       await phase('restarted');
       await fs.writeFile(
         path.join(root, 'result.json'),
         JSON.stringify({
           version: app.getVersion(),
+          workspaceReady,
           runtime: process.execPath,
           target: process.env.PORTABLE_EXECUTABLE_FILE,
           oldRuntime: state.runtime,
@@ -41,6 +61,12 @@ async function run(app, net) {
           downloaded: state.downloaded,
         }),
       );
+      await completeUpdateStartup({
+        target: process.env.PORTABLE_EXECUTABLE_FILE,
+        version: app.getVersion(),
+      });
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      window.destroy();
       app.quit();
       return;
     }
@@ -74,6 +100,7 @@ async function run(app, net) {
       parentPid: process.pid,
       bootloaderPid: process.ppid,
       directory: path.join(root, 'helper'),
+      expectedVersion: app.getVersion(),
     });
     await phase('quitting');
     app.quit();

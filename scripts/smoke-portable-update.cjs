@@ -56,6 +56,7 @@ const { spawn } = require('node:child_process');
       } catch {}
       if (report?.status === 'error') throw Error(report.message);
       if (result && report?.status === 'success') {
+        assert.equal(result.workspaceReady, true, 'Restart must open the editor workspace');
         assert.equal(result.version, require('../package.json').version);
         assert.equal(result.target.toLowerCase(), target.toLowerCase());
         assert.notEqual(result.pid, result.oldPid, 'Restart must launch a new Electron process');
@@ -64,11 +65,15 @@ const { spawn } = require('node:child_process');
           false,
           'NSIS must clean the old extraction before restart',
         );
+        await assert.rejects(
+          fs.access(target + '.previous'),
+          'Successful update must remove previous backup',
+        );
         assert(result.downloaded > 1000000, 'Real release was downloaded and verified');
         try {
           await fs.unlink(target);
           console.log(
-            'PASS: real GitHub download, portable EXE replacement, new process restart, fresh runtime marker and portable launcher exit.',
+            'PASS: real GitHub download, portable EXE replacement, new process restart, confirmed startup, previous backup cleanup, fresh runtime marker and portable launcher exit.',
           );
           return;
         } catch {}

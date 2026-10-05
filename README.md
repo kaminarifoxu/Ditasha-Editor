@@ -20,7 +20,10 @@ Ekspor desain sebelum menutup; proyek tersimpan di memori selama aplikasi terbuk
 Aplikasi mengecek GitHub Releases pada startup. Pilih **Update sekarang**
 untuk mengunduh rilis stabil, memverifikasi SHA-256, mengganti EXE, dan membuka
 aplikasi baru. Unduh otomatis dapat diaktifkan melalui pilihan di dialog.
-Ekspor desain sebelum melanjutkan. EXE lama dicadangkan sebagai `.previous`.
+Ekspor desain sebelum melanjutkan. EXE lama dicadangkan sementara sebagai `.previous`, lalu dihapus setelah
+workspace aplikasi baru berhasil terbuka. Jika startup update gagal, helper
+memulihkan EXE lama. Cadangan dari updater lama dibersihkan setelah startup
+aplikasi baru berhasil.
 Versi 1.3.2 dan sebelumnya yang updater-nya tidak berjalan perlu ditutup dan
 EXE-nya diganti manual ke v1.3.3.
 
@@ -182,3 +185,10 @@ dan drawable model dasar mempertahankan rambut. Hingga 8 model tambahan.
 Preview menggunakan geometri statis dan LOD tertinggi yang tersedia. Tidak
 ada pengikatan otomatis ke tulang kepala, animasi/skinning atau ekspor ped
 gabungan. Konfigurasi hanya tersimpan selama preview; tidak ikut ekspor YTD.
+
+### Perbaikan rambut dan updater (1.8.1)
+
+Setelah YDD rambut dimuat, YTD boleh dipilih sendiri melalui **Tambah rambut**
+atau **YTD ke rambut terpilih**. Gunakan **Tujuan YTD rambut** jika ada
+beberapa model rambut. YTD mengganti dictionary milik rambut terpilih saja;
+model, posisi dan material muka tetap dipertahankan.

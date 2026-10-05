@@ -45,7 +45,7 @@ export function validateAttachments(attachments) {
 export function mountPedAttachments({ scene, container, prefix, toast, hasBase, onChange }) {
   const root = document.createElement('details');
   root.className = 'ped-attachments';
-  root.innerHTML = `<summary>Rambut ped · YDD + YTD</summary><p class="muted">Buka model muka dahulu. Rambut memakai tekstur sendiri; tekstur muka tetap terpisah.</p><button id="${prefix}AddHair">+ Tambah rambut YDD / YTD</button><input id="${prefix}HairInput" type="file" accept=".ydd,.ytd" multiple hidden><div id="${prefix}HairList"></div><p id="${prefix}HairStatus" class="muted" role="status">Belum ada rambut tambahan.</p><p class="muted">Preview statis, tanpa pengikatan tulang kepala. Sesuaikan posisi bila perlu. Konfigurasi hanya berlaku selama preview; tidak mengubah file atau ekspor YTD.</p>`;
+  root.innerHTML = `<summary>Rambut ped · YDD + YTD</summary><p class="muted">Buka model muka dahulu. Rambut memakai tekstur sendiri; tekstur muka tetap terpisah.</p><button id="${prefix}AddHair">+ Tambah rambut YDD / YTD</button><input id="${prefix}HairInput" type="file" accept=".ydd,.ytd" multiple hidden><div id="${prefix}HairTargetRow" hidden><label>Tujuan YTD rambut<select id="${prefix}HairTarget"></select></label><button id="${prefix}AddHairTextures">+ YTD ke rambut terpilih</button></div><input id="${prefix}HairTextureInput" type="file" accept=".ytd" multiple hidden><div id="${prefix}HairList"></div><p id="${prefix}HairStatus" class="muted" role="status">Belum ada rambut tambahan.</p><p class="muted">Preview statis, tanpa pengikatan tulang kepala. Sesuaikan posisi bila perlu. Konfigurasi hanya berlaku selama preview; tidak mengubah file atau ekspor YTD.</p>`;
   const layerInspector = container.querySelector('.layerinspector');
   if (layerInspector) container.insertBefore(root, layerInspector);
   else container.append(root);
@@ -54,7 +54,8 @@ export function mountPedAttachments({ scene, container, prefix, toast, hasBase, 
   scene.add(group);
   let attachments = [],
     busy = false,
-    wireframe = false;
+    wireframe = false,
+    selectedHair = 0;
   function dispose(a) {
     a.object?.traverse((o) => {
       o.geometry?.dispose();
@@ -156,7 +157,31 @@ export function mountPedAttachments({ scene, container, prefix, toast, hasBase, 
     }
     return textures;
   }
+  async function replaceTextures(a, files) {
+    if (!a) throw Error('Tambah YDD rambut dahulu, lalu pilih YTD rambut.');
+    const token = generation;
+    const next = await readTextures(files);
+    if (!next.length) throw Error('YTD tidak berisi tekstur rambut.');
+    if (token !== generation || !attachments.includes(a)) return;
+    const candidate = { ...a, textures: next };
+    validateAttachments(attachments.map((item) => (item === a ? candidate : item)));
+    a.textures = next;
+    a.texture = '';
+    build(a);
+    refresh();
+  }
   function refresh() {
+    selectedHair = Math.min(selectedHair, Math.max(0, attachments.length - 1));
+    $('HairTargetRow').hidden = !attachments.length;
+    $('HairTarget').replaceChildren(
+      ...attachments.map((a, i) => {
+        const option = document.createElement('option');
+        option.value = i;
+        option.textContent = a.name;
+        return option;
+      }),
+    );
+    $('HairTarget').value = selectedHair;
     $('HairList').replaceChildren();
     attachments.forEach((a, i) => {
       const card = document.createElement('section');
@@ -267,18 +292,7 @@ export function mountPedAttachments({ scene, container, prefix, toast, hasBase, 
       input.onchange = () => {
         const files = [...input.files];
         input.value = '';
-        if (files.length)
-          operation(async () => {
-            const token = generation;
-            const next = await readTextures(files);
-            if (token !== generation || !attachments.includes(a)) return;
-            const candidate = { ...a, textures: next };
-            validateAttachments(attachments.map((item) => (item === a ? candidate : item)));
-            a.textures = next;
-            a.texture = '';
-            build(a);
-            refresh();
-          });
+        if (files.length) operation(() => replaceTextures(a, files));
       };
       card.append(input);
       for (const [label, action] of [
@@ -295,7 +309,9 @@ export function mountPedAttachments({ scene, container, prefix, toast, hasBase, 
           'Hapus rambut',
           () => {
             dispose(a);
+            const selected = attachments[selectedHair];
             attachments.splice(i, 1);
+            selectedHair = Math.max(0, attachments.indexOf(selected));
             refresh();
             onChange(false);
           },
@@ -323,6 +339,15 @@ export function mountPedAttachments({ scene, container, prefix, toast, hasBase, 
     if (!hasBase()) toast('Buka model muka/ped terlebih dahulu.');
     else $('HairInput').click();
   };
+  $('HairTarget').onchange = () => {
+    selectedHair = Number($('HairTarget').value);
+  };
+  $('AddHairTextures').onclick = () => $('HairTextureInput').click();
+  $('HairTextureInput').onchange = () => {
+    const files = [...$('HairTextureInput').files];
+    $('HairTextureInput').value = '';
+    if (files.length) operation(() => replaceTextures(attachments[selectedHair], files));
+  };
   $('HairInput').onchange = () => {
     const files = [...$('HairInput').files];
     $('HairInput').value = '';
@@ -331,6 +356,10 @@ export function mountPedAttachments({ scene, container, prefix, toast, hasBase, 
     operation(async () => {
       if (!hasBase()) throw Error('Buka model muka/ped terlebih dahulu.');
       const models = files.filter((f) => /\.ydd$/i.test(f.name));
+      if (!models.length && files.every((f) => /\.ytd$/i.test(f.name))) {
+        await replaceTextures(attachments[selectedHair], files);
+        return;
+      }
       if (models.length !== 1 || files.some((f) => !/\.(ydd|ytd)$/i.test(f.name)))
         throw Error('Pilih satu YDD rambut, beserta YTD opsional.');
       const f = models[0];
@@ -357,6 +386,7 @@ export function mountPedAttachments({ scene, container, prefix, toast, hasBase, 
       validateAttachments([...attachments, a]);
       build(a);
       attachments.push(a);
+      selectedHair = attachments.length - 1;
       root.open = true;
       refresh();
       onChange(true);

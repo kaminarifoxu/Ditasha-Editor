@@ -2,6 +2,7 @@ const { app, BrowserWindow, Menu, dialog, ipcMain, net, shell } = require('elect
 const path = require('node:path');
 const { isTrustedUpdateEvent } = require('./ipc-trust.cjs');
 const { startReplacement } = require('./installer.cjs');
+const { completeUpdateStartup } = require('./update-startup.cjs');
 const fs = require('node:fs/promises');
 const { createPortableUpdater } = require('./updater.cjs');
 let win,
@@ -105,9 +106,22 @@ else {
       win.show();
       if (splash && !splash.isDestroyed()) splash.close();
     };
+    let startupConfirmed = false;
     ipcMain.on('ditasha:ready', (event) => {
       if (isTrustedUpdateEvent(event, win, path.join(__dirname, '..', 'ui', 'index.html')))
-        setTimeout(reveal, 350);
+        setTimeout(async () => {
+          reveal();
+          if (startupConfirmed) return;
+          startupConfirmed = true;
+          try {
+            await completeUpdateStartup({
+              target: process.env.PORTABLE_EXECUTABLE_FILE,
+              version: app.getVersion(),
+            });
+          } catch (error) {
+            console.error('Update startup confirmation:', error.message);
+          }
+        }, 350);
     });
     win.webContents.on('did-fail-load', (_event, code, message) => {
       if (code !== -3) {
@@ -214,6 +228,7 @@ else {
         parentPid: process.pid,
         bootloaderPid: process.ppid,
         directory: path.join(app.getPath('userData'), 'updates'),
+        expectedVersion: updater.getState().availableVersion,
       });
       allowQuit = true;
       setTimeout(() => app.quit(), 150);

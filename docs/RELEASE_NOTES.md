@@ -1,11 +1,8 @@
-DITASHA Editor 1.8.0
+DITASHA Editor 1.8.1
 
-- Add independent ped hair attachments to Texture & Model and Model viewer. Load one hair YDD with its YTD dictionaries, or replace hair YTD later.
-- Select hair drawable and automatic diffuse matching or an explicit texture. Face and hair materials remain independent even when texture names collide.
-- Configure preview-space X/Y/Z offsets, rotation, scale, visibility, reset and removal. Hair participates in wireframe and PNG snapshots.
-- Keep hair when editing face textures or changing base drawable/LOD; clear it when a new base model opens or the editor is cleared. Invalid imports retain the current preview.
-- Limit attachments to 8 models, 128 MB model bytes / decoded textures, 2 million vertices and 6 million indices.
-
-Static geometry only: no automatic head-bone attachment, skeleton animation/skinning or combined ped mesh export. Hair configuration lasts for the current preview and does not alter YTD exports.
+- Fix YTD-only hair import: both the original Add Hair input and a new top-level YTD button can apply dictionaries to existing hair. Select the target when multiple hair models are loaded. Invalid YTD retains the previous preview.
+- Confirm the new editor workspace has opened after portable replacement, rather than reporting success as soon as the launcher starts. Restore the previous EXE if startup cannot be confirmed.
+- Remove the .previous backup after confirmed startup. Successfully started apps also clean leftovers from older updater versions.
+- Add tests for standalone hair YTD loading, multiple-hair targeting, startup acknowledgement, legacy backup cleanup and failed-start rollback. Verify portable download/replacement/restart and backup removal on Windows.
 
 Copyright © 2026 Ditasha-Workshop.

@@ -243,6 +243,10 @@ function replacementScript({
   logPath,
   handshakePath = logPath + '.started',
   restart = true,
+  readyPath = null,
+  readyToken = '',
+  expectedVersion = '',
+  readyTimeoutSeconds = 60,
 }) {
   const quote = (s) => "'" + String(s).replace(/'/g, "''") + "'";
   return `$ErrorActionPreference = 'Stop'
@@ -252,6 +256,10 @@ $backup = $target + '.previous'
 $next = $target + '.incoming'
 $log = ${quote(logPath)}
 $installed = $false
+$launch = $null
+$ready = ${readyPath ? quote(readyPath) : '$null'}
+$token = ${quote(readyToken)}
+$expectedVersion = ${quote(expectedVersion || '')}
 function Report($status, $message) {
  @{status=$status;message=$message;target=$target} | ConvertTo-Json -Compress | Set-Content -LiteralPath $log -Encoding UTF8
 }
@@ -280,21 +288,61 @@ try {
  if (-not $installed) { throw 'EXE tidak bisa diganti. Periksa izin folder atau antivirus.' }
  Get-ChildItem Env: | Where-Object { $_.Name -like 'PORTABLE_*' } | ForEach-Object { Remove-Item ('Env:' + $_.Name) }
  if (${restart ? '$true' : '$false'}) {
-  try { Start-Process -FilePath $target -WorkingDirectory (Split-Path -Parent $target) -ErrorAction Stop }
-  catch {
+  try {
+   if ($ready) {
+    Remove-Item -LiteralPath $ready -Force -ErrorAction SilentlyContinue
+    $env:DITASHA_UPDATE_READY_PATH = $ready
+    $env:DITASHA_UPDATE_TOKEN = $token
+   } else {
+    Remove-Item Env:DITASHA_UPDATE_READY_PATH -ErrorAction SilentlyContinue
+    Remove-Item Env:DITASHA_UPDATE_TOKEN -ErrorAction SilentlyContinue
+   }
+   Report 'installing' 'Membuka kembali editor dan menunggu workspace siap…'
+   $launch = Start-Process -FilePath $target -WorkingDirectory (Split-Path -Parent $target) -PassThru -ErrorAction Stop
+   if ($ready) {
+    $deadline = (Get-Date).AddSeconds(${Math.max(1, Number(readyTimeoutSeconds) || 60)})
+    $confirmed = $false
+    while ((Get-Date) -lt $deadline) {
+     try {
+      $marker = Get-Content -LiteralPath $ready -Raw -ErrorAction Stop | ConvertFrom-Json
+      if ($marker.token -eq $token -and $marker.target -eq $target -and (-not $expectedVersion -or $marker.version -eq $expectedVersion)) { $confirmed = $true; break }
+     } catch {}
+     if ($launch.HasExited -and $launch.ExitCode -ne 0) { throw 'Aplikasi baru gagal dibuka.' }
+     Start-Sleep -Milliseconds 100
+    }
+    if (-not $confirmed) { throw 'Workspace aplikasi baru belum siap. Update dibatalkan dan EXE lama dipulihkan.' }
+   }
+  } catch {
+   if ($launch -and -not $launch.HasExited) {
+    try { & taskkill.exe /PID $launch.Id /T /F 2>$null | Out-Null } catch {}
+    WaitForProcess $launch.Id
+   }
    [System.IO.File]::Replace($backup, $target, $next, $true)
    $installed = $false
    throw
   }
  }
  Remove-Item -LiteralPath $staged -Force -ErrorAction SilentlyContinue
- Report 'success' 'Update berhasil dipasang dan aplikasi baru dijalankan.'
+ $cleaned = $false
+ for ($attempt=0; $attempt -lt 40; $attempt++) {
+  try {
+   if (Test-Path -LiteralPath $backup) { Remove-Item -LiteralPath $backup -Force -ErrorAction Stop }
+   $cleaned = $true; break
+  } catch { Start-Sleep -Milliseconds 250 }
+ }
+ if ($cleaned) { Report 'success' 'Update berhasil. Editor terbuka kembali dan file previous dihapus.' }
+ else { Report 'success' 'Update berhasil dan editor terbuka. Cadangan previous akan dibersihkan saat startup berikutnya.' }
 } catch {
  Report 'error' $_.Exception.Message
+ Remove-Item Env:DITASHA_UPDATE_READY_PATH -ErrorAction SilentlyContinue
+ Remove-Item Env:DITASHA_UPDATE_TOKEN -ErrorAction SilentlyContinue
  if (${restart ? '$true' : '$false'} -and -not $installed -and (Test-Path -LiteralPath $target)) {
   Start-Process -FilePath $target -WorkingDirectory (Split-Path -Parent $target) -ErrorAction SilentlyContinue
  }
 } finally {
+ if ($ready) { Remove-Item -LiteralPath $ready -Force -ErrorAction SilentlyContinue }
+ Remove-Item Env:DITASHA_UPDATE_READY_PATH -ErrorAction SilentlyContinue
+ Remove-Item Env:DITASHA_UPDATE_TOKEN -ErrorAction SilentlyContinue
  Remove-Item -LiteralPath $next -Force -ErrorAction SilentlyContinue
 }`;
 }
