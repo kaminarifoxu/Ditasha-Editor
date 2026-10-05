@@ -24,6 +24,9 @@ jobs:
         run: npm test
       - name: Build portable EXE
         run: npm run build:win
+      - name: Test converter, clothing pack and expanded viewer
+        run: npx electron scripts/smoke-tools.cjs
+        timeout-minutes: 3
       - name: Test real portable download and restart
         run: node scripts/smoke-portable-update.cjs
         timeout-minutes: 8
@@ -36,6 +39,12 @@ jobs:
           path: |
             release/DITASHA-Editor.exe
             release/*.sha256
+      - name: Store UI screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: DITASHA-Editor-UI-QA
+          path: release/qa/*.png
       - name: Publish new version to GitHub Releases
         shell: pwsh
         env:

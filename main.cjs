@@ -39,8 +39,8 @@ else {
   const trusted=event=>{if(!isTrustedUpdateEvent(event,win,path.join(__dirname,'ui','index.html')))throw Error('Untrusted update request');};
   ipcMain.handle('ditasha:save-export',async(event,payload)=>{
    trusted(event);const name=payload?.name,data=payload?.data;
-   if(typeof name!=='string'||path.basename(name)!==name||!/^.+\.(png|ytd)$/i.test(name)||!(data instanceof Uint8Array)||data.byteLength>128*1024*1024)throw Error('Data ekspor tidak valid.');
-   const result=await dialog.showSaveDialog(win,{title:'Simpan hasil desain',defaultPath:path.join(app.getPath('downloads'),name),filters:[{name:name.toLowerCase().endsWith('.ytd')?'Tekstur YTD':'Gambar PNG',extensions:[name.split('.').pop().toLowerCase()]}]});
+   if(typeof name!=='string'||path.basename(name)!==name||!/^.+\.(png|jpg|jpeg|webp|dds|ytd|glb|zip)$/i.test(name)||!(data instanceof Uint8Array)||data.byteLength>128*1024*1024)throw Error('Data ekspor tidak valid.');
+   const result=await dialog.showSaveDialog(win,{title:'Simpan hasil desain',defaultPath:path.join(app.getPath('downloads'),name),filters:[{name:'DITASHA '+name.split('.').pop().toUpperCase(),extensions:[name.split('.').pop().toLowerCase()]}]});
    if(result.canceled||!result.filePath)return {saved:false};
    await fs.writeFile(result.filePath,data);return {saved:true};
   });
