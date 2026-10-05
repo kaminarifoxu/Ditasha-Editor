@@ -66,6 +66,7 @@ export function mountViewers({ nav, download, toast, activate }) {
     hasBase: () => !!drawables.length,
     onChange: (fit) => {
       if (fit) fitModel();
+      renderer?.render(scene, camera);
     },
   });
   scene.add(new THREE.HemisphereLight(0xffffff, 0x526079, 2.5));

@@ -61,6 +61,7 @@ const pedAttachments = mountPedAttachments({
   hasBase: () => !!displayedModel,
   onChange: (fit) => {
     if (fit) frame();
+    else renderer?.render(scene, camera);
   },
 });
 scene.add(new THREE.HemisphereLight(0xffffff, 0x596679, 2));
@@ -119,6 +120,7 @@ function frame() {
   camera.far = d * 1000;
   camera.updateProjectionMatrix();
   controls.update();
+  renderer?.render(scene, camera);
 }
 function applyTexture() {
   if (mapped) {
@@ -142,6 +144,7 @@ function applyTexture() {
       }
     }
   });
+  renderer?.render(scene, camera);
 }
 function showDrawable(index) {
   if (!modelFile) return;
