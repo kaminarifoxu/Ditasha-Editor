@@ -2317,3 +2317,28 @@ progress {
   width: 100%;
   min-width: 0;
 }
+
+.material-preview {
+  border-top: 1px solid var(--line);
+  margin-top: 12px;
+  padding-top: 12px;
+}
+.material-preview summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.material-preview > label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0;
+}
+.material-preview > label.check {
+  flex-direction: row;
+  align-items: center;
+}
+.material-preview select,
+.material-preview input[type='number'] {
+  width: 100%;
+  min-width: 0;
+}

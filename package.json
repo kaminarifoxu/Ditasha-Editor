@@ -1,6 +1,6 @@
 {
   "name": "ganomabi-asset-studio",
-  "version": "1.8.2",
+  "version": "1.8.3",
   "description": "DITASHA Editor \u2014 editor tekstur YTD dan preview model YDD",
   "author": "Ditasha-Workshop",
   "license": "UNLICENSED",
@@ -8,7 +8,7 @@
   "scripts": {
     "start": "electron .",
     "build:win": "npm run build:ui && electron-builder --win portable --x64",
-    "test": "node --test tests/updater.test.cjs tests/updater.windows.test.cjs tests/ipc-trust.test.cjs tests/format.test.mjs tests/ui-updates.test.cjs tests/asset-tools.test.mjs tests/archives.test.mjs tests/viewer-format.test.mjs tests/ped-attachments.test.mjs tests/update-startup.test.cjs",
+    "test": "node --test tests/updater.test.cjs tests/updater.windows.test.cjs tests/ipc-trust.test.cjs tests/format.test.mjs tests/ui-updates.test.cjs tests/asset-tools.test.mjs tests/archives.test.mjs tests/viewer-format.test.mjs tests/ped-attachments.test.mjs tests/update-startup.test.cjs tests/material-preview.test.mjs",
     "build:ui": "esbuild src/app.js --bundle --minify --outfile=ui/app.js",
     "prestart": "npm run build:ui",
     "format": "prettier --write .",

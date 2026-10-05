@@ -87,6 +87,12 @@ app.whenReady().then(async () => {
     const transparentHairYtd = createYtd([
       { name: 'hair_diff_alpha', w: 1, h: 1, out: new Uint8Array([0, 255, 0, 0]) },
     ]);
+    const pedAlphaYtd = createYtd([
+      { name: 'cloth_diffuse', w: 1, h: 1, out: new Uint8Array([0, 255, 0, 0]) },
+    ]);
+    const pedBlackYtd = createYtd([
+      { name: 'cloth_diffuse', w: 1, h: 1, out: new Uint8Array([0, 0, 0, 255]) },
+    ]);
     const faceYtd = createYtd([
       { name: 'cloth_diffuse', w: 1, h: 1, out: new Uint8Array([255, 0, 0, 255]) },
     ]);
@@ -99,6 +105,8 @@ app.whenReady().then(async () => {
           model: [...new Uint8Array(viewerModel)],
           hairYtd: [...hairYtd],
           faceYtd: [...faceYtd],
+          pedAlphaYtd: [...pedAlphaYtd],
+          pedBlackYtd: [...pedBlackYtd],
           blackHairYtd: [...blackHairYtd],
           transparentHairYtd: [...transparentHairYtd],
           requireWebgl: true,

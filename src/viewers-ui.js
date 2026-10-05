@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mountMaterialPreview } from './material-preview.js';
 import { mountPedAttachments } from './ped-attachments.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { readYtd, readYdd, readYdr, readYft } from './resource.js';
@@ -68,6 +69,11 @@ export function mountViewers({ nav, download, toast, activate }) {
       if (fit) fitModel();
       renderer?.render(scene, camera);
     },
+  });
+  const pedMaterials = mountMaterialPreview({
+    container: modelRoot.querySelector('.tool-sidebar'),
+    prefix: 'mvPed',
+    onChange: () => renderer?.render(scene, camera),
   });
   scene.add(new THREE.HemisphereLight(0xffffff, 0x526079, 2.5));
   const light = new THREE.DirectionalLight(0xffffff, 3);
@@ -324,6 +330,7 @@ export function mountViewers({ nav, download, toast, activate }) {
         : 'Save canceled.';
     });
   function disposeModel() {
+    pedMaterials.clear(false);
     group.traverse((o) => {
       o.geometry?.dispose();
       for (const m of Array.isArray(o.material) ? o.material : [o.material]) m?.dispose();
@@ -419,7 +426,7 @@ export function mountViewers({ nav, download, toast, activate }) {
       vertices = 0;
     const missing = new Set(),
       parts = new Map();
-    for (const g of level.geometries) {
+    for (const [index, g] of level.geometries.entries()) {
       const geometry = new THREE.BufferGeometry();
       geometry.setAttribute('position', new THREE.BufferAttribute(g.positions, 3));
       if (g.uvs) geometry.setAttribute('uv', new THREE.BufferAttribute(g.uvs, 2));
@@ -437,7 +444,13 @@ export function mountViewers({ nav, download, toast, activate }) {
         alphaTest: t ? 0.05 : 0,
       });
       const mesh = new THREE.Mesh(geometry, material);
-      mesh.name = g.name;
+      mesh.name =
+        'Part ' +
+        (g.part + 1) +
+        ' · mesh ' +
+        (index + 1) +
+        ' · ' +
+        (g.diffuseTexture || 'tanpa diffuse');
       const p = new THREE.Points(
         geometry,
         new THREE.PointsMaterial({ color: 0xb2a2ff, size: 0.025, sizeAttenuation: true }),
@@ -508,6 +521,7 @@ export function mountViewers({ nav, download, toast, activate }) {
       (d.warnings?.length ? ' · ' + d.warnings.join('; ') : '') +
       (!renderer ? ' · WebGL unavailable.' : '');
     modelOptions();
+    pedMaterials.setMeshes(group.children.filter((mesh) => mesh.isMesh));
     fitModel();
   }
   async function openModels(files) {
@@ -519,6 +533,7 @@ export function mountViewers({ nav, download, toast, activate }) {
         next = { yft: readYft, ydd: readYdd, ydr: readYdr }[ext](await f.arrayBuffer()),
         loaded = await readTextures(files.filter((f) => textureExtensions.test(f.name)));
       pedAttachments.clear();
+      pedMaterials.clear();
       drawables = next;
       modelTextures = loaded;
       modelName = f.name;
@@ -538,9 +553,11 @@ export function mountViewers({ nav, download, toast, activate }) {
     if (files.length)
       operation('model', async () => {
         const next = await readTextures(files);
-        if ([...modelTextures, ...next].reduce((n, t) => n + t.out.length, 0) > MAX_EXPORT)
+        const names = new Set(next.map((t) => t.name.toLowerCase()));
+        const merged = [...modelTextures.filter((t) => !names.has(t.name.toLowerCase())), ...next];
+        if (merged.reduce((n, t) => n + t.out.length, 0) > MAX_EXPORT)
           throw Error('Model textures exceed 128 MB.');
-        modelTextures.push(...next);
+        modelTextures = merged;
         if (drawables.length) renderModel();
       });
     e.target.value = '';
@@ -616,9 +633,14 @@ export function mountViewers({ nav, download, toast, activate }) {
       else
         operation('model', async () => {
           const next = await readTextures(files);
-          if ([...modelTextures, ...next].reduce((n, t) => n + t.out.length, 0) > MAX_EXPORT)
+          const names = new Set(next.map((t) => t.name.toLowerCase()));
+          const merged = [
+            ...modelTextures.filter((t) => !names.has(t.name.toLowerCase())),
+            ...next,
+          ];
+          if (merged.reduce((n, t) => n + t.out.length, 0) > MAX_EXPORT)
             throw Error('Model textures exceed 128 MB.');
-          modelTextures.push(...next);
+          modelTextures = merged;
           if (drawables.length) renderModel();
         });
     },

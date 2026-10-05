@@ -198,3 +198,7 @@ model, posisi dan material muka tetap dipertahankan.
 Pilih **Tujuan YTD rambut** sebelum menambahkan YTD. Diffuse tunggal diterapkan meskipun nama variasinya berbeda; untuk YTD dengan beberapa diffuse pilih **Tekstur rambut** secara manual. Normal/specular tidak dipilih sebagai fallback warna. Tekstur muka tetap terpisah.
 
 **Hapus rambut terpilih**, **Hapus semua rambut**, dan **Hapus YTD rambut** hanya membersihkan preview; file asli tetap aman. Hair cards memakai **Cutout** dengan **Batas alpha** yang dapat disesuaikan; **Blend** tersedia untuk alpha lembut. Jika gambar memiliki latar hitam tanpa alpha, **Hilangkan latar hitam** bisa dicentang, tetapi juga menghilangkan helai hitam. Biarkan mati untuk rambut hitam asli. Ini preview statis, bukan implementasi lengkap shader/bone GTA V.
+
+### Material ped, alis dan bulu mata (1.8.3)
+
+Di Texture & Model dan Model Viewer, buka **Material ped · alis & alpha**. Cutout memakai alpha tekstur secara default. Pilih **Bagian model** untuk mengubah alis/bulu mata saja, lalu atur **Batas alpha**, atau pilih **Blend** / **Opaque**. **Hilangkan latar hitam** tersedia untuk tekstur tanpa alpha, tetapi juga menghapus warna hitam asli pada bagian yang dipilih. **Reset material terpilih** mengembalikan Cutout 0,25 tanpa penghapusan hitam. Pengaturan hanya untuk preview, terpisah dari rambut tambahan, dan tidak mengubah gambar atau ekspor. YTD baru dengan nama tekstur sama menggantikan tekstur lama di Model Viewer.

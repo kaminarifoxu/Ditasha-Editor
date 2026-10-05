@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mountTools } from './tools-ui.js';
+import { mountMaterialPreview } from './material-preview.js';
 import { mountPedAttachments } from './ped-attachments.js';
 import { readDds } from './asset-tools.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -64,6 +65,11 @@ const pedAttachments = mountPedAttachments({
     else renderer?.render(scene, camera);
   },
 });
+const pedMaterials = mountMaterialPreview({
+  container: document.querySelector('.inspector'),
+  prefix: 'ped',
+  onChange: () => renderer?.render(scene, camera),
+});
 scene.add(new THREE.HemisphereLight(0xffffff, 0x596679, 2));
 const key = new THREE.DirectionalLight(0xffeee5, 3);
 key.position.set(3, 6, 4);
@@ -96,6 +102,7 @@ try {
   toast('WebGL tidak tersedia. Gunakan browser dengan akselerasi hardware untuk preview 3D.');
 }
 function clearModel() {
+  pedMaterials.clear();
   model.traverse((o) => {
     if (o.isMesh) {
       o.geometry.dispose();
@@ -144,6 +151,7 @@ function applyTexture() {
       }
     }
   });
+  pedMaterials.apply();
   renderer?.render(scene, camera);
 }
 function showDrawable(index) {
@@ -152,23 +160,29 @@ function showDrawable(index) {
   displayedModel = modelFile;
   clearModel();
   const d = modelFile.drawables[index];
-  for (const g of d.geometries) {
+  for (const [index, g] of d.geometries.entries()) {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(g.positions, 3));
     if (g.uvs) geo.setAttribute('uv', new THREE.BufferAttribute(g.uvs, 2));
     geo.setIndex(new THREE.BufferAttribute(g.indices, 1));
     geo.computeVertexNormals();
-    model.add(
-      new THREE.Mesh(
-        geo,
-        new THREE.MeshStandardMaterial({
-          color: 0xb3bbc8,
-          roughness: 0.75,
-          metalness: 0,
-          side: THREE.DoubleSide,
-        }),
-      ),
+    const mesh = new THREE.Mesh(
+      geo,
+      new THREE.MeshStandardMaterial({
+        color: 0xb3bbc8,
+        roughness: 0.75,
+        metalness: 0,
+        side: THREE.DoubleSide,
+      }),
     );
+    mesh.name =
+      'Part ' +
+      ((g.part ?? 0) + 1) +
+      ' · mesh ' +
+      (index + 1) +
+      ' · ' +
+      (g.diffuseTexture || 'tanpa diffuse');
+    model.add(mesh);
   }
   modelReady();
   drawGuide();
@@ -190,6 +204,11 @@ function modelReady() {
   $('modelStats').textContent =
     `${Math.round(tris).toLocaleString('id-ID')} segitiga · ${verts.toLocaleString('id-ID')} vertex`;
   applyTexture();
+  const meshes = [];
+  model.traverse((o) => {
+    if (o.isMesh) meshes.push(o);
+  });
+  pedMaterials.setMeshes(meshes);
   frame();
 }
 function makeCanvas(t) {

@@ -29,6 +29,110 @@ module.exports = async function checkViewers(fixtures) {
     $(id).value = value;
     $(id).dispatchEvent(new Event('change'));
   };
+  async function checkPedMaterial(prefix, canvasSelector, loadTexture) {
+    const id = (suffix) => prefix + 'Material' + suffix;
+    const snapshot = async () => {
+      await sleep(150);
+      const source = document.querySelector(canvasSelector);
+      if (!source) {
+        assert(!fixtures.requireWebgl, 'Ped WebGL missing');
+        return null;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = source.width;
+      canvas.height = source.height;
+      canvas.getContext('2d').drawImage(source, 0, 0);
+      const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+      let hash = 2166136261,
+        opaque = 0;
+      for (let i = 0; i < pixels.length; i++) {
+        hash = Math.imul(hash ^ pixels[i], 16777619) >>> 0;
+        if (i % 4 === 3 && pixels[i]) opaque++;
+      }
+      return { hash, opaque };
+    };
+    assert(
+      $(id('Mode')).value === 'cutout' && !$(id('Black')).checked,
+      'Ped alpha defaults incorrect',
+    );
+    assert($(id('Part')).options.length === 3, 'Ped meshes not available separately');
+    await loadTexture(fixtures.pedAlphaYtd, 'ped-alpha.ytd');
+    const empty = await snapshot();
+    change(id('Mode'), 'opaque');
+    let visible = await snapshot();
+    if (empty)
+      assert(
+        visible.hash !== empty.hash && visible.opaque > empty.opaque + 10,
+        'Ped opaque override did not render alpha cards',
+      );
+    change(id('Mode'), 'cutout');
+    visible = await snapshot();
+    if (empty) assert(visible.hash === empty.hash, 'Base ped ignored diffuse alpha');
+    change(id('Cutoff'), '2');
+    assert($(id('Cutoff')).value === '0.25', 'Invalid alpha threshold accepted');
+    const first = $(id('Part')).options[1].value,
+      second = $(id('Part')).options[2].value;
+    change(id('Part'), first);
+    change(id('Mode'), 'opaque');
+    visible = await snapshot();
+    if (empty) assert(visible.opaque > empty.opaque + 10, 'Individual ped material did not render');
+    change(id('Part'), second);
+    assert($(id('Mode')).value === 'cutout', 'Per-mesh alpha changed another part');
+    change(id('Part'), 'all');
+    change(id('Mode'), 'cutout');
+    await loadTexture(fixtures.pedBlackYtd, 'ped-black.ytd');
+    const black = await snapshot();
+    if (empty) assert(black.opaque > empty.opaque + 10, 'Base black material removed by default');
+    change(id('Part'), first);
+    $(id('Black')).checked = true;
+    $(id('Black')).dispatchEvent(new Event('change'));
+    visible = await snapshot();
+    if (empty)
+      assert(
+        visible.opaque > empty.opaque + 10,
+        'Per-part black removal changed shared texture on another mesh',
+      );
+    change(id('Part'), second);
+    assert(!$(id('Black')).checked, 'Per-part black removal changed other part settings');
+    change(id('Part'), 'all');
+    $(id('Black')).checked = true;
+    $(id('Black')).dispatchEvent(new Event('change'));
+    visible = await snapshot();
+    if (empty)
+      assert(visible.hash === empty.hash, 'Ped black background did not become transparent');
+    if (prefix === 'ped') {
+      const pixel = $('textureCanvas').getContext('2d').getImageData(0, 0, 1, 1).data;
+      assert(
+        pixel[3] === 255 && pixel[0] === 0,
+        'Preview black removal changed editor/export pixels',
+      );
+    }
+    $(id('Black')).checked = false;
+    $(id('Black')).dispatchEvent(new Event('change'));
+    visible = await snapshot();
+    if (black)
+      assert(visible.hash === black.hash, 'Disabling black removal failed to restore source');
+    change(id('Part'), first);
+    change(id('Mode'), 'blend');
+    change(id('Cutoff'), '0.4');
+    await loadTexture(fixtures.faceYtd, 'ped-restored.ytd');
+    assert(
+      $(id('Part')).value === first &&
+        $(id('Mode')).value === 'blend' &&
+        $(id('Cutoff')).value === '0.4',
+      'Replacing YTD reset per-part settings',
+    );
+    change(id('Part'), 'all');
+    $(id('Reset')).click();
+    assert(
+      $(id('Mode')).value === 'cutout' &&
+        $(id('Cutoff')).value === '0.25' &&
+        !$(id('Black')).checked,
+      'Ped reset failed',
+    );
+    console.log('DITASHA_SNAPSHOT:' + prefix + '-material-alpha');
+    await sleep(350);
+  }
   async function checkHair(prefix, canvasSelector, fitId, baseTitleId, loadFaceTextures) {
     const title = $(baseTitleId).textContent;
     await input(
@@ -240,6 +344,13 @@ module.exports = async function checkViewers(fixtures) {
         $('dimensions').textContent.includes('1'),
     ),
   );
+  await checkPedMaterial('ped', '#viewport canvas', (bytes, name) =>
+    input(
+      'fileInput',
+      [new File([new Uint8Array(bytes)], name)],
+      () => $('fileLoading').hidden && $('textureTitle').textContent === 'cloth_diffuse',
+    ),
+  );
   document.querySelector('[data-page="textureviewer"]').click();
   await input(
     'tvInput',
@@ -349,6 +460,13 @@ module.exports = async function checkViewers(fixtures) {
       () => !$('mvAddTextures').disabled,
     ),
   );
+  await checkPedMaterial('mvPed', '#mvViewport canvas', (bytes, name) =>
+    input(
+      'mvTextureInput',
+      [new File([new Uint8Array(bytes)], name)],
+      () => !$('mvAddTextures').disabled,
+    ),
+  );
   await input(
     'mvPedHairInput',
     [new File([new Uint8Array(fixtures.model)], 'hair.ydd')],
@@ -396,6 +514,10 @@ module.exports = async function checkViewers(fixtures) {
     () => !$('mvOpen').disabled,
   );
   assert(!$('mvPedHairList').children.length, 'New base retained old hair');
+  assert(
+    $('mvPedMaterialMode').value === 'cutout' && !$('mvPedMaterialBlack').checked,
+    'New base retained old material overrides',
+  );
   // Restore the expected title used by the invalid-model regression below.
   await input(
     'mvInput',
