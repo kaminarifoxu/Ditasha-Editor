@@ -334,7 +334,7 @@ try {
  else { Report 'success' 'Update berhasil dan editor terbuka. Cadangan previous akan dibersihkan saat startup berikutnya.' }
 } catch {
  $failureMessage = $_.Exception.Message
- Report 'error' $failureMessage
+ Report 'error' $_.Exception.Message
  Remove-Item Env:DITASHA_UPDATE_READY_PATH -ErrorAction SilentlyContinue
  Remove-Item Env:DITASHA_UPDATE_TOKEN -ErrorAction SilentlyContinue
  if (${restart ? '$true' : '$false'} -and -not $installed -and (Test-Path -LiteralPath $target)) {
