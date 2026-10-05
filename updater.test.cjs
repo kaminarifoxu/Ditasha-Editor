@@ -13,3 +13,12 @@ test('checksum sidecar fallback',async t=>{const {directory}=await fixture(t);co
 test('portable install script waits, quotes paths, rolls back and restarts',()=>{const script=replacementScript({target:"C:\\Foxu's folder\\Gano.exe",staged:'C:\\Temp\\new.exe',parentPid:123,logPath:'C:\\Temp\\log.txt'});assert(script.includes("Foxu''s folder"));assert(script.includes('WaitForProcess 123'));assert(script.includes("Report 'error' $_.Exception.Message"));assert(script.includes("$backup = $target + '.previous'"));assert(script.includes('[System.IO.File]::Replace($backup, $target, $next, $true)'));assert(script.includes("$_.Name -like 'PORTABLE_*'"));});
 
 test('DITASHA filename is preferred and has a matching checksum',()=>{const old=release();const asset={...old.assets[0],name:'DITASHA-Editor.exe',browser_download_url:'https://github.com/kaminarifoxu/FIVEM-YDD-YTD-EDITOR/releases/download/v1.2.0/DITASHA-Editor.exe'};const sum={name:'DITASHA-Editor.exe.sha256',state:'uploaded',browser_download_url:asset.browser_download_url+'.sha256'};const info=releaseInfo({...old,assets:[...old.assets,asset,sum]},'1.1.0');assert.equal(info.name,'DITASHA-Editor.exe');assert.equal(info.checksumURL,sum.browser_download_url);});
+
+// Repo rename changes browser_download_url even for historical release assets.
+test('renamed DITASHA repository accepts canonical releases and keeps legacy assets trusted',()=>{
+ const renamed=release();renamed.assets[0].browser_download_url=renamed.assets[0].browser_download_url.replace('FIVEM-YDD-YTD-EDITOR','Ditasha-Editor');
+ assert.equal(releaseInfo(renamed,'1.1.0').url,renamed.assets[0].browser_download_url);
+ assert.equal(releaseInfo(release(),'1.1.0').version,'1.2.0');
+ assert.throws(()=>trustedURL('https://github.com/kaminarifoxu/Ditasha-Editor-fake/releases/download/v1/app.exe',true));
+ assert.throws(()=>trustedURL('https://github.com/other/Ditasha-Editor/releases/download/v1/app.exe',true));
+});

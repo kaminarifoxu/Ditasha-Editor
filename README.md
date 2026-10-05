@@ -77,3 +77,7 @@ Choose **Clothing pack**, import clothing files or a complete resource folder, a
 The build ZIP includes a resource folder, `stream/`, `fxmanifest.lua`, a README and a JSON inventory with notes and findings. Build saves are tracked: canceling a save leaves the pack unsaved. Pack changes stay in memory until exported; importing the exported folder restores its assets. Validate the result on your FiveM server for collection compatibility and conflicts. New YMT compilation, automatic slot splitting, reservations, ped outfit simulation, DCT/grzy project import and Enhanced output are not implemented. Batch/ZIP exports are limited to 128 MB, with a 64 MB input file limit.
 
 Format references: [CodeWalker texture structures](https://github.com/dexyfex/CodeWalker/blob/master/CodeWalker.Core/GameFiles/Resources/Texture.cs), [Microsoft DDS header](https://learn.microsoft.com/en-us/windows/win32/direct3ddds/dds-header), [FiveM resource manifest](https://docs.fivem.net/docs/scripting-reference/resource-manifest/), [FiveM data files](https://docs.fivem.net/docs/game-references/data-files/).
+
+## Interface (1.5.0)
+
+The editor, converter, clothing pack maker, dialogs and loading screen use a consistent charcoal theme with soft violet accents. Use **Donasi**, beside **Cek update**, to open [Ditasha-Workshop on Saweria](https://saweria.co/itsaminarii) in your default browser. The desktop action only opens that fixed address.

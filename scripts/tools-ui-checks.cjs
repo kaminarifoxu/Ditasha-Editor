@@ -2,7 +2,8 @@
 module.exports=async function checkTools(fixtures){
  const $=id=>document.getElementById(id),assert=(ok,msg)=>{if(!ok)throw Error(msg);},sleep=ms=>new Promise(r=>setTimeout(r,ms));
  const wait=async(test,msg)=>{const end=Date.now()+15000;while(Date.now()<end){if(test())return;await sleep(30);}throw Error(msg+' · '+$('toolStatus')?.textContent);};
- let canceled=false,saves=[];window.ditashaDesktop={saveExport:async payload=>{if(canceled)return {saved:false};saves.push({name:payload.name,size:payload.data.length,magic:[...payload.data.slice(0,4)]});return {saved:true};}};
+ let canceled=false,saves=[],donationOpened=false;window.ditashaDesktop={openDonation:async()=>{donationOpened=true;},saveExport:async payload=>{if(canceled)return {saved:false};saves.push({name:payload.name,size:payload.data.length,magic:[...payload.data.slice(0,4)]});return {saved:true};}};
+ assert($('donate').getAttribute('href')==='https://saweria.co/itsaminarii','Incorrect donation URL');assert($('openUpdates').nextElementSibling===$('donate'),'Donation is not next to update');$('donate').click();await sleep(30);assert(donationOpened,'Donation did not call desktop browser action');
  const add=async files=>{const dt=new DataTransfer();for(const f of files)dt.items.add(f);$('toolFileInput').files=dt.files;$('toolFileInput').dispatchEvent(new Event('change'));await wait(()=>!$('toolAdd').disabled,'Import did not finish');};
  const change=(id,value)=>{$(id).value=value;$(id).dispatchEvent(new Event('change'));};
  const c=document.createElement('canvas');c.width=c.height=2;const ctx=c.getContext('2d');ctx.fillStyle='#ee7799';ctx.fillRect(0,0,2,2);const png=new File([await new Promise(r=>c.toBlob(r))],'test_texture.png',{type:'image/png'});
@@ -17,5 +18,5 @@ module.exports=async function checkTools(fixtures){
  canceled=true;$('toolRun').click();await wait(()=>!$('toolAdd').disabled,'Canceled build did not finish');assert(window.ditashaWorkspace.unsavedItems().some(e=>e.name.startsWith('Clothing pack')),'Canceled save marked pack saved');canceled=false;$('toolRun').click();await wait(()=>!$('toolAdd').disabled,'Pack build did not finish');assert(!window.ditashaWorkspace.unsavedItems().some(e=>e.name.startsWith('Clothing pack')),'Saved pack remains dirty');assert(saves.at(-1).name==='ditasha_clothing-v1.zip','Wrong build version after canceled save');
  $('packNote').value='Changed';$('packNote').dispatchEvent(new Event('input'));$('toolClear').click();await wait(()=>$('unsavedDialog').open,'Clear bypassed unsaved guard');$('unsavedBack').click();await sleep(50);assert($('toolCount').textContent.startsWith('2 file'),'Cancel cleared pack');
  document.querySelector('[data-page="editor"]').click();assert(!document.querySelector('main').hidden&&document.querySelector('main .right'),'Viewer not restored to editor');
- return {saves,checks:'image/YTD/DDS/GLB exports, ZIP export, clothing validation/preview/build, canceled save, unsaved clear guard, expanded 3D/Escape and editor restoration'};
+ return {saves,checks:'donation URL, adjacent placement and desktop browser action, image/YTD/DDS/GLB exports, ZIP export, clothing validation/preview/build, canceled save, unsaved clear guard, expanded 3D/Escape and editor restoration'};
 };

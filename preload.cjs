@@ -11,5 +11,6 @@ contextBridge.exposeInMainWorld('ganoUpdates',{
 
 contextBridge.exposeInMainWorld('ditashaDesktop',{
  ready:()=>ipcRenderer.send('ditasha:ready'),
+ openDonation:()=>ipcRenderer.invoke('ditasha:open-donation'),
  saveExport:payload=>ipcRenderer.invoke('ditasha:save-export',payload)
 });

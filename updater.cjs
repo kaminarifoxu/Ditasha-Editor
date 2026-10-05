@@ -5,7 +5,8 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const {Readable, Transform} = require('node:stream');
 const {pipeline} = require('node:stream/promises');
-const REPOSITORY = 'kaminarifoxu/FIVEM-YDD-YTD-EDITOR';
+const REPOSITORY = 'kaminarifoxu/Ditasha-Editor';
+const RELEASE_REPOSITORIES=[REPOSITORY,'kaminarifoxu/FIVEM-YDD-YTD-EDITOR'];
 const API = `https://api.github.com/repos/${REPOSITORY}/releases/latest`;
 function versionParts(value) {
  const match=/^v?(\d+)\.(\d+)\.(\d+)$/.exec(String(value));
@@ -16,7 +17,7 @@ function isNewer(remote,local){const a=versionParts(remote),b=versionParts(local
 function trustedURL(value,asset=false){
  const u=new URL(value);
  if(u.protocol!=='https:'||u.username||u.password||u.port)throw Error('Alamat update tidak valid.');
- if(asset){if(u.hostname!=='github.com'||!u.pathname.startsWith(`/${REPOSITORY}/releases/download/`))throw Error('File update harus dari Releases repo DITASHA.');}
+ if(asset){if(u.hostname!=='github.com'||!RELEASE_REPOSITORIES.some(repo=>u.pathname.startsWith(`/${repo}/releases/download/`)))throw Error('File update harus dari Releases repo DITASHA.');}
  else if(!['github.com','api.github.com','release-assets.githubusercontent.com','objects.githubusercontent.com'].includes(u.hostname))throw Error('Redirect update tidak valid.');
  return u.href;
 }

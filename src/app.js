@@ -130,4 +130,5 @@ function expand3d(expanded){viewer.classList.toggle('expanded-3d',expanded);expa
 expandButton.onclick=()=>expand3d(!viewer.classList.contains('expanded-3d'));
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&viewer.classList.contains('expanded-3d')){e.preventDefault();e.stopImmediatePropagation();expand3d(false);}},true);
 window.ditashaWorkspace={unsavedItems:()=>[...unsavedItems(),...tools.unsavedItems()],confirmDiscard:reason=>confirmDiscard(reason,[...unsavedItems(),...tools.unsavedItems()])};
+$('donate').addEventListener('click',async e=>{if(!window.ditashaDesktop?.openDonation)return;e.preventDefault();try{await window.ditashaDesktop.openDonation();}catch{toast('Saweria tidak dapat dibuka. Coba kembali atau buka saweria.co/itsaminarii di browser.');}});
 window.ditashaDesktop?.ready?.();

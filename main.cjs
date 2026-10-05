@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, dialog, ipcMain, net } = require('electron');
+const { app, BrowserWindow, Menu, dialog, ipcMain, net, shell } = require('electron');
 const path = require('node:path');
 const {isTrustedUpdateEvent}=require('./ipc-trust.cjs');
 const {startReplacement}=require('./installer.cjs');
@@ -14,9 +14,9 @@ else {
   // Preserve updater preferences when upgrading from GANOMABI Asset Studio.
   app.setPath('userData', path.join(app.getPath('appData'), 'GANOMABI Asset Studio'));
   app.setAppUserModelId('com.ganomabi.assetstudio');
-  splash=new BrowserWindow({width:520,height:380,frame:false,resizable:false,show:false,backgroundColor:'#101522',icon:path.join(__dirname,'icon.ico'),webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true}});
+  splash=new BrowserWindow({width:520,height:380,frame:false,resizable:false,show:false,backgroundColor:'#101113',icon:path.join(__dirname,'icon.ico'),webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true}});
   splash.setMenu(null);splash.once('ready-to-show',()=>splash?.show());splash.on('closed',()=>splash=null);splash.loadFile(path.join(__dirname,'ui','splash.html'));
-  win = new BrowserWindow({width:1500,height:950,minWidth:800,minHeight:600,title:'DITASHA Editor',backgroundColor:'#101522',icon:path.join(__dirname,'icon.ico'),show:false,autoHideMenuBar:true,webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true,preload:path.join(__dirname,'preload.cjs')}});
+  win = new BrowserWindow({width:1500,height:950,minWidth:800,minHeight:600,title:'DITASHA Editor',backgroundColor:'#101113',icon:path.join(__dirname,'icon.ico'),show:false,autoHideMenuBar:true,webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true,preload:path.join(__dirname,'preload.cjs')}});
   Menu.setApplicationMenu(null);
   win.webContents.setWindowOpenHandler(() => ({action:'deny'}));
   win.webContents.on('will-navigate', e => e.preventDefault());
@@ -37,6 +37,7 @@ else {
   win.webContents.on('did-fail-load',(_event,code,message)=>{if(code!==-3){reveal();dialog.showMessageBox(win,{type:'error',message:'Editor gagal dimuat.',detail:message});}});
   updater=createPortableUpdater({version:app.getVersion(),directory:path.join(app.getPath('userData'),'updates'),fetcher:(...args)=>net.fetch(...args),onState:state=>{if(win&&!win.isDestroyed())win.webContents.send('gano:update-state',state);}});
   const trusted=event=>{if(!isTrustedUpdateEvent(event,win,path.join(__dirname,'ui','index.html')))throw Error('Untrusted update request');};
+  ipcMain.handle('ditasha:open-donation',async event=>{trusted(event);await shell.openExternal('https://saweria.co/itsaminarii');return true;});
   ipcMain.handle('ditasha:save-export',async(event,payload)=>{
    trusted(event);const name=payload?.name,data=payload?.data;
    if(typeof name!=='string'||path.basename(name)!==name||!/^.+\.(png|jpg|jpeg|webp|dds|ytd|glb|zip)$/i.test(name)||!(data instanceof Uint8Array)||data.byteLength>128*1024*1024)throw Error('Data ekspor tidak valid.');
