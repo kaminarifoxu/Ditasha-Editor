@@ -143,16 +143,20 @@ module.exports = async function checkViewers(fixtures) {
     );
   }
   document.querySelector('[data-page="editor"]').click();
+  await wait(() => $('fileLoading').hidden, 'Previous editor import not finished');
   await input(
     'fileInput',
     [new File([new Uint8Array(fixtures.model)], 'face.ydd')],
-    () => $('fileLoading').hidden,
+    () => $('fileLoading').hidden && $('modelTitle').textContent === 'face.ydd',
   );
   await checkHair('ped', '#viewport canvas', 'reset', 'modelTitle', () =>
     input(
       'fileInput',
       [new File([new Uint8Array(fixtures.faceYtd)], 'face.ytd')],
-      () => $('fileLoading').hidden,
+      () =>
+        $('fileLoading').hidden &&
+        $('textureTitle').textContent === 'cloth_diffuse' &&
+        $('dimensions').textContent.includes('1'),
     ),
   );
   document.querySelector('[data-page="textureviewer"]').click();

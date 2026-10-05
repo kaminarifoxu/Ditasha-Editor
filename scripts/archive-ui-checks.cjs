@@ -102,7 +102,13 @@ module.exports = async function checkArchives(fixtures) {
   assert(saves.at(-1).name === 'mod-extracted.zip', 'Extract all export missing');
   select('content/test.ytd');
   $('archivePreview').click();
-  await wait(() => !document.querySelector('main').hidden, 'Asset did not open editor');
+  await wait(
+    () =>
+      !document.querySelector('main').hidden &&
+      $('fileLoading').hidden &&
+      $('textureTitle').textContent === 'test_texture',
+    'Asset did not finish opening editor',
+  );
   assert(document.querySelector('main .right'), 'Viewer not restored after archive preview');
   document.querySelector('[data-page="archives"]').click();
   await input('archiveInput', [new File(['invalid'], 'bad.rpf')]);
