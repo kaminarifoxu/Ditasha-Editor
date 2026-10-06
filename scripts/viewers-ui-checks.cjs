@@ -174,17 +174,19 @@ module.exports = async function checkViewers(fixtures) {
       [new File([blob], 'background.png', { type: 'image/png' })],
       () => !$('psTransparent').checked,
     );
-    await sleep(150);
-    const corner = canvas.getContext('2d').getImageData(0, 0, 1, 1).data;
-    assert(corner[2] === 238 && corner[3] === 255, 'Background image not composed');
+    await wait(() => {
+      const pixel = canvas.getContext('2d').getImageData(0, 0, 1, 1).data;
+      return pixel[2] === 238 && pixel[3] === 255;
+    }, 'Background image not composed');
     await input('psLogoInput', [new File([blob], 'logo.png', { type: 'image/png' })], () => true);
     await sleep(150);
     $('psClearBackground').click();
     $('psTransparent').checked = true;
     $('psTransparent').dispatchEvent(new Event('input'));
-    await sleep(150);
-    const logoPixel = canvas.getContext('2d').getImageData(55, 30, 1, 1).data;
-    assert(logoPixel[2] === 238 && logoPixel[3] === 255, 'Logo image not composed');
+    await wait(() => {
+      const pixel = canvas.getContext('2d').getImageData(55, 30, 1, 1).data;
+      return pixel[2] === 238 && pixel[3] === 255;
+    }, 'Logo image not composed');
     console.log('DITASHA_SNAPSHOT:' + prefix + '-photoshoot');
     await sleep(200);
     const before = saves.length;
