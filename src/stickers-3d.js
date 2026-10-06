@@ -7,7 +7,6 @@ export function mountStickers3D({
   viewport,
   camera,
   container,
-  toolbar,
   getMeshes,
   render,
   toast,
@@ -22,7 +21,7 @@ export function mountStickers3D({
   const open = document.createElement('button');
   open.id = 'addPng3d';
   open.textContent = 'PNG 3D';
-  toolbar.append(open);
+
   const root = document.createElement('details');
   root.className = 'stickers-3d';
   root.innerHTML = `<summary>Tattoo 3D <span id="stickerCount" class="badge">0</span></summary>
@@ -38,6 +37,7 @@ export function mountStickers3D({
     <p id="stickerStatus" role="status" class="muted">Tambah PNG untuk mulai.</p>
     <div class="tattoo-actions"><button id="stickerRemove" disabled>Hapus tattoo</button><button id="stickerClear" disabled>Reset kontrol</button></div>
     <details class="tattoo-help"><summary>Cara pakai</summary><p>Tarik tattoo, atau pilih Pindahkan lalu klik permukaan baru. Perubahan masuk ke layer 2D setelah kontrol dilepas. Hapus tattoo menghapus layer; Reset kontrol mempertahankan layer. Ekspor YTD untuk menyimpan.</p></details>`;
+  root.querySelector('.tattoo-actions').before(open);
   container.prepend(root);
   const $ = (id) => root.querySelector('#' + id),
     assets = [],

@@ -2851,16 +2851,12 @@ a.compact-icon {
   padding: 6px 9px;
 }
 main.texture-mode-3d {
-  grid-template-columns: 210px minmax(430px, 1fr) 330px;
+  grid-template-columns: 230px minmax(430px, 1fr) 330px;
 }
 .texture-mode-3d .editor {
   grid-column: 3;
   grid-row: 1;
   padding: 0 12px;
-}
-.texture-mode-3d .documentbar {
-  flex-wrap: wrap;
-  padding: 6px 0;
 }
 .texture-mode-3d .editor .toolbar {
   flex-wrap: wrap;
@@ -2870,16 +2866,23 @@ main.texture-mode-3d {
   grid-row: 1;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 240px;
-  grid-template-rows: 70px minmax(260px, 1fr) auto;
+  grid-template-rows: auto 50px auto minmax(260px, 1fr);
   gap: 0 12px;
   overflow: hidden;
 }
-.texture-mode-3d .right:not(.expanded-3d) > .panelhead {
+.texture-mode-3d .right > .documentbar {
   grid-column: 1 / -1;
+  min-width: 0;
+  padding: 6px 0;
+}
+.texture-mode-3d .right:not(.expanded-3d) > .panelhead {
+  grid-column: 1;
+  grid-row: 2;
+  height: 50px;
 }
 .texture-mode-3d .right:not(.expanded-3d) #viewport {
   grid-column: 1;
-  grid-row: 2;
+  grid-row: 4;
   height: 100%;
 }
 .texture-mode-3d .right:not(.expanded-3d) .modeltools {
@@ -2888,25 +2891,102 @@ main.texture-mode-3d {
 }
 .texture-mode-3d .right:not(.expanded-3d) .inspector {
   grid-column: 2;
-  grid-row: 2 / 4;
+  grid-row: 2 / 5;
   overflow: auto;
-  padding-top: 0;
+  padding-top: 12px;
 }
 @media (max-width: 1250px) {
   main.texture-mode-3d {
-    grid-template-columns: 170px minmax(320px, 1fr) 290px;
+    grid-template-columns: 210px minmax(320px, 1fr) 290px;
   }
+  .texture-mode-3d .right:not(.expanded-3d) {
+    grid-template-columns: minmax(0, 1fr) 210px;
+  }
+}
+@media (max-width: 1050px) {
   .texture-mode-3d .right:not(.expanded-3d) {
     display: flex;
     overflow: auto;
   }
   .texture-mode-3d .right:not(.expanded-3d) #viewport {
-    min-height: 380px;
-    height: 50vh;
+    min-height: 300px;
+    height: 45vh;
   }
   .texture-mode-3d .right:not(.expanded-3d) .inspector {
     overflow: visible;
   }
+  .documentbar {
+    flex-wrap: wrap;
+  }
+}
+
+/* Camera actions sit above the viewport; PNG belongs to the tattoo card. */
+.right > .modeltools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 0 0 10px;
+  border: 0;
+}
+.right > .modeltools button.compact-icon,
+.right > .modeltools #photoshoot {
+  flex: 0 0 auto;
+  width: auto;
+  padding: 6px 10px;
+  min-width: 32px;
+}
+.right > .modeltools #expand3d {
+  margin-left: auto;
+}
+.stickers-3d #addPng3d {
+  width: 100%;
+  margin-bottom: 4px;
+  background: var(--accent-soft);
+  border-color: #51496b;
+}
+.sidebar-inspector {
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  margin-top: 14px;
+}
+.sidebar-inspector > details {
+  margin: 0 0 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.sidebar-inspector summary {
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+}
+.sidebar-inspector label {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin: 9px 0;
+}
+.sidebar-inspector select,
+.sidebar-inspector #layerName {
+  width: 100%;
+  margin-top: 6px;
+  font-size: 11px;
+  padding: 8px;
+}
+.sidebar-inspector .layerinspector {
+  margin: 0;
+  padding-top: 10px;
+  border: 0;
+}
+.sidebar-inspector .layerinspector > .sectiontitle {
+  display: none;
+}
+.sidebar-inspector .ped-attachments button {
+  max-width: 100%;
+}
+.sidebar-inspector .muted {
+  font-size: 10px;
+  line-height: 1.6;
 }
 
 /* Compact tattoo controls keep actions separate from texture/material settings. */

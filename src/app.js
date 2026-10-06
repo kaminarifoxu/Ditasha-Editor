@@ -58,9 +58,15 @@ let renderer,
   controls,
   model = new THREE.Group();
 scene.add(model);
+const sidebarInspector = document.createElement('div');
+sidebarInspector.className = 'sidebar-inspector';
+document
+  .querySelector('.files')
+  .insertBefore(sidebarInspector, document.querySelector('.sidebarbottom'));
+sidebarInspector.append(document.querySelector('.layerinspector'));
 const pedAttachments = mountPedAttachments({
   scene,
-  container: document.querySelector('.inspector'),
+  container: sidebarInspector,
   prefix: 'ped',
   toast,
   hasBase: () => !!displayedModel,
@@ -69,6 +75,11 @@ const pedAttachments = mountPedAttachments({
     else renderer?.render(scene, camera);
   },
 });
+const layerDetails = document.createElement('details');
+layerDetails.className = 'sidebar-layer';
+layerDetails.innerHTML = '<summary>Edit layer</summary>';
+sidebarInspector.append(layerDetails);
+layerDetails.append(sidebarInspector.querySelector('.layerinspector'));
 const pedMaterials = mountMaterialPreview({
   container: document.querySelector('.inspector'),
   prefix: 'ped',
@@ -172,7 +183,6 @@ const stickers3d = mountStickers3D({
   viewport,
   camera,
   container: document.querySelector('.inspector'),
-  toolbar: document.querySelector('.modeltools'),
   getMeshes: () => {
     const meshes = [];
     model.traverseVisible((o) => {
@@ -1919,6 +1929,7 @@ expandButton.textContent = 'Perbesar 3D';
 expandButton.setAttribute('aria-expanded', 'false');
 document.querySelector('.modeltools').append(expandButton);
 const viewer = document.querySelector('.right');
+viewer.insertBefore(document.querySelector('.modeltools'), viewport);
 function expand3d(expanded) {
   viewer.classList.toggle('expanded-3d', expanded);
   expandButton.textContent = expanded ? 'Kembali · Esc' : 'Perbesar 3D';
@@ -1951,6 +1962,8 @@ document.querySelector('.documentbar').append(editModes);
 function textureEditMode(value) {
   expand3d(false);
   document.querySelector('main').classList.toggle('texture-mode-3d', value === '3d');
+  const tabHost = document.querySelector(value === '3d' ? '.right' : '.editor');
+  tabHost.prepend(document.querySelector('.documentbar'));
   for (const key of ['2d', '3d']) {
     $('editTexture' + key).classList.toggle('active', key === value);
     $('editTexture' + key).setAttribute('aria-pressed', String(key === value));

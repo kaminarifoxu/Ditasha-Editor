@@ -220,3 +220,7 @@ Model viewer mendukung impor beberapa model, pemilihan extra/livery YFT, kontrol
 ### Edit tattoo 2D dan 3D (v1.13.0)
 
 Pilih tekstur tujuan, impor **PNG 3D**, lalu klik permukaan model. Tattoo langsung masuk ke layer UV pada kanvas. Tarik tattoo terpilih atau gunakan **Pindahkan tattoo** untuk memindahkannya; perubahan memakai layer yang sama. **Edit 3D** memperbesar model dengan kanvas live di sampingnya, **Edit 2D** mengembalikan kanvas utama. Simpan lewat ekspor YTD; Undo/Redo dan hapus stiker tersedia. BC7 YTD Legacy kini bisa dibaca.
+
+### Tata letak workspace (v1.13.2)
+
+Tab dokumen dan pilihan Edit 2D / Edit 3D berada di atas area utama yang aktif. Toolbar kamera, wireframe, foto dan Photoshoot berada di atas preview 3D. Tambah PNG tersedia langsung di panel Tattoo 3D. Rambut ped dan Edit Layer berada di sidebar kiri, dengan panel yang dapat dilipat agar daftar file dan layer tetap mudah dijangkau.
