@@ -86,7 +86,11 @@ module.exports = async function checkViewers(fixtures) {
       if (after[i + 2] > 70 && after[i + 2] > after[i] * 2 && after[i + 2] > after[i + 1] * 2)
         blue++;
     assert(blue > 10, '3D PNG decal did not render');
-    assert($('textureCanvas').toDataURL() === original2d, '3D PNG altered 2D texture');
+    assert(
+      $('textureCanvas').toDataURL() !== original2d,
+      'PNG placement did not automatically update 2D texture',
+    );
+    const placed = $('textureCanvas').toDataURL();
     $('stickerSize').value = 30;
     $('stickerSize').dispatchEvent(new Event('input'));
     $('stickerRotation').value = 25;
@@ -105,20 +109,92 @@ module.exports = async function checkViewers(fixtures) {
     $('psClose').click();
     await sleep(50);
     $('stickerBake').click();
-    assert($('stickerList').children.length === 0, 'Baked decal overlay was retained');
+    assert($('stickerList').children.length === 1, 'Projected tattoo lost its movable controls');
     const baked = $('textureCanvas').toDataURL();
     assert(baked !== original2d, '3D PNG failed to update texture canvas');
     $('undo').click();
     assert(
-      $('textureCanvas').toDataURL() === original2d,
-      'Undo failed to restore pre-projection texture',
+      $('textureCanvas').toDataURL() === placed,
+      'Undo failed to restore pre-adjustment texture',
     );
     $('redo').click();
     assert($('textureCanvas').toDataURL() === baked, 'Redo failed to restore baked texture');
     $('undo').click();
-    $('stickerClear').click();
-    assert($('textureCanvas').toDataURL() === original2d, 'Decal cleanup changed texture');
     $('undo').click();
+    assert($('textureCanvas').toDataURL() === original2d, 'Placement undo failed');
+    $('redo').click();
+    $('stickerMove').click();
+    const movedX = rect.left + (xsum / count / sample.width) * rect.width + 8;
+    const movedY = rect.top + (ysum / count / sample.height) * rect.height;
+    $('viewport').dispatchEvent(
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        button: 0,
+        clientX: movedX,
+        clientY: movedY,
+      }),
+    );
+    assert($('stickerList').children.length === 1, 'Moving created a duplicate tattoo');
+    assert($('textureCanvas').toDataURL() !== placed, 'Moving tattoo did not update its UV layer');
+    const moved = $('textureCanvas').toDataURL();
+    $('viewport').dispatchEvent(
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        button: 0,
+        pointerId: 7,
+        clientX: movedX,
+        clientY: movedY,
+      }),
+    );
+    $('viewport').dispatchEvent(
+      new PointerEvent('pointermove', {
+        bubbles: true,
+        pointerId: 7,
+        clientX: movedX - 5,
+        clientY: movedY,
+      }),
+    );
+    $('viewport').dispatchEvent(
+      new PointerEvent('pointerup', {
+        bubbles: true,
+        pointerId: 7,
+        clientX: movedX - 5,
+        clientY: movedY,
+      }),
+    );
+    assert($('textureCanvas').toDataURL() !== moved, 'Dragging tattoo did not update its UV layer');
+    assert(
+      $('layers').querySelectorAll('.layeritem').length === 2,
+      'Moving left duplicate tattoo layers',
+    );
+    $('stickerRemove').click();
+    assert(
+      $('textureCanvas').toDataURL() === original2d,
+      'Removing tattoo retained projected pixels',
+    );
+    $('stickerClear').click();
+    $('editTexture3d').click();
+    await sleep(100);
+    assert(
+      $('viewport').getBoundingClientRect().width > rect.width,
+      '3D edit mode did not enlarge the model',
+    );
+    assert($('textureCanvas').getBoundingClientRect().width > 0, '3D mode hid the live 2D canvas');
+    console.log('DITASHA_SNAPSHOT:texture-edit-3d');
+    await sleep(100);
+    assert(
+      document.querySelector('main').classList.contains('texture-mode-3d') &&
+        $('editTexture3d').getAttribute('aria-pressed') === 'true',
+      '3D edit mode failed',
+    );
+    $('editTexture2d').click();
+    assert(
+      !document.querySelector('main').classList.contains('texture-mode-3d'),
+      '2D edit mode failed',
+    );
+    // Restore original dimensions before subsequent face/hair checks.
+    $('canvasW').value = $('canvasH').value = '1';
+    $('confirmSize').click();
   }
   async function checkPhotoshoot(prefix) {
     $(prefix === 'ped' ? 'photoshoot' : 'mvPhotoshoot').click();
@@ -803,6 +879,12 @@ module.exports = async function checkViewers(fixtures) {
     () => !$('mvOpen').disabled,
   );
   assert($('mvTextures').textContent.includes('vehicle_mask'), 'A8 vehicle YTD failed in viewer');
+  await input(
+    'mvTextureInput',
+    [new File([new Uint8Array(fixtures.bc7Ytd)], 'bc7.ytd')],
+    () => !$('mvOpen').disabled,
+  );
+  assert($('mvTextures').textContent.includes('bc7_diffuse'), 'BC7 vehicle YTD failed in viewer');
   const beforeExtra = $('mvStatus').textContent;
   await input(
     'mvExtraInput',

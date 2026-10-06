@@ -1,3 +1,9 @@
+DITASHA Editor 1.13.0
+
+- Automatically project placed PNG/tattoo into a real UV layer. Move it by dragging the selected tattoo or clicking Pindahkan tattoo and a new surface point. Update the same layer after movement, size, rotation or opacity changes; removal deletes its active texture layer, with Undo/Redo support.
+- Add Edit 2D/Edit 3D layouts. The 3D layout gives the model more space and retains a live 2D canvas. Texture selection is required for automatic projection; annotations retain their original target texture.
+- Support legacy BC7 YTD textures (FourCC 20374342) and BC7 FourCC DDS with bounded decoding and RGBA export. Raise per-import model selection to 64 files within existing drawable/vertex budgets.
+
 DITASHA Editor 1.12.0
 
 - Apply PNG placed on the 3D surface to a real texture layer through UV projection, including separated UV islands. Resize, rotate and adjust opacity before applying; Undo/Redo and YTD export use the resulting texture.

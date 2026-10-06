@@ -609,12 +609,29 @@ export function mountViewers({ nav, download, toast, activate }) {
   }
   async function parseModels(files) {
     const out = [];
-    if (files.length > 32) throw Error('Maksimum 32 file model per impor.');
+    let vertexTotal = 0;
+    if (files.reduce((sum, file) => sum + file.size, 0) > 256 * 1024 * 1024)
+      throw Error('Total file model per impor maksimal 256 MB.');
+    if (files.length > 64)
+      throw Error(
+        'Maksimum 64 file model per impor. Pilih model utama dan tambahkan extra secara bertahap.',
+      );
     for (const f of files) {
       if (!modelExtensions.test(f.name) || f.size > 64 * 1024 * 1024)
         throw Error('Choose YFT, YDD or YDR up to 64 MB.');
       const ext = f.name.split('.').at(-1).toLowerCase();
       const data = { yft: readYft, ydd: readYdd, ydr: readYdr }[ext](await f.arrayBuffer());
+      vertexTotal += data.reduce(
+        (sum, drawable) =>
+          sum +
+          drawable.lods.reduce(
+            (n, lod) =>
+              n + lod.geometries.reduce((n, geometry) => n + geometry.positions.length / 3, 0),
+            0,
+          ),
+        0,
+      );
+      if (vertexTotal > 2000000) throw Error('Gabungan model melebihi 2 juta vertex.');
       out.push({ name: f.name, data });
     }
     return out;

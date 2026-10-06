@@ -170,8 +170,8 @@ export function readDds(buffer, name = 'texture') {
   if (!w || !h || w > 8192 || h > 8192 || w * h > 16777216)
     throw Error('Dimensi DDS tidak didukung.');
   if (flags & 4) {
-    if (![0x31545844, 0x33545844, 0x35545844].includes(four))
-      throw Error('DDS mendukung DXT1, DXT3, DXT5 atau RGBA/BGRA 32-bit.');
+    if (![0x31545844, 0x33545844, 0x35545844, 0x20374342].includes(four))
+      throw Error('DDS mendukung DXT1, DXT3, DXT5, BC7 FourCC atau RGBA/BGRA 32-bit.');
     const length = Math.ceil(w / 4) * Math.ceil(h / 4) * (four === 0x31545844 ? 8 : 16);
     if (buffer.byteLength < 128 + length) throw Error('Data DDS terpotong.');
     const bytes = new Uint8Array(buffer, 128, length);

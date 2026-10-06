@@ -216,3 +216,7 @@ Atur sudut masing-masing panel, arah depan, tinggi kamera, dan ukuran model. Tam
 ### Kendaraan dan PNG pada 3D (v1.11.0)
 
 Model viewer mendukung impor beberapa model, pemilihan extra/livery YFT, kontrol setiap mesh, dan pemilihan tekstur/UV untuk diffuse preview. Error YTD `Format tekstur 1c belum didukung` ditangani dengan decoder A8. Di Texture & Model, **PNG 3D** menempatkan PNG pada permukaan mesh. Atur ukuran/rotasi/opacity, lalu **Terapkan ke tekstur** untuk membuat layer UV di kanvas 2D yang bisa di-Undo/Redo dan diekspor ke YTD. Versi 1.12.0 juga menerapkan transform bone pada rigid parts kendaraan. Lihat [cara pakai dan batas preview](docs/VEHICLE_PREVIEW.md).
+
+### Edit tattoo 2D dan 3D (v1.13.0)
+
+Pilih tekstur tujuan, impor **PNG 3D**, lalu klik permukaan model. Tattoo langsung masuk ke layer UV pada kanvas. Tarik tattoo terpilih atau gunakan **Pindahkan tattoo** untuk memindahkannya; perubahan memakai layer yang sama. **Edit 3D** memperbesar model dengan kanvas live di sampingnya, **Edit 2D** mengembalikan kanvas utama. Simpan lewat ekspor YTD; Undo/Redo dan hapus stiker tersedia. BC7 YTD Legacy kini bisa dibaca.

@@ -1,3 +1,4 @@
+import { decodeBC7 } from 'tex-decoder/build/esm/bc7.js';
 import { Matrix4, Quaternion, Vector3 } from 'three';
 import { deflateRaw, Inflate } from 'pako';
 export const pageSize = (f) =>
@@ -126,6 +127,12 @@ export function decodeTexture(r, p) {
         out[d + 3] = [22, 33].includes(format) ? 255 : r.bytes[s + 3];
       }
     return { name, w, h, p, out, format: 'RGBA', mipLevels: r.bytes[p + 93] || 1 };
+  }
+  if (format === 0x20374342) {
+    const length = Math.ceil(w / 4) * Math.ceil(h / 4) * 16;
+    if (data + length > r.bytes.length) throw Error('Compressed BC7 texture buffer is truncated.');
+    out.set(decodeBC7(r.bytes.subarray(data, data + length), w, h));
+    return { name, w, h, p, out, format: 'BC7', mipLevels: r.bytes[p + 93] || 1 };
   }
   if (![DXT1, DXT3, DXT5].includes(format))
     throw Error('Format tekstur ' + format.toString(16) + ' belum didukung.');

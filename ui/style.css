@@ -2839,3 +2839,72 @@ a.compact-icon {
   width: 100%;
   padding: 6px;
 }
+
+.texture-edit-modes {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.texture-edit-modes button {
+  font-size: 11px;
+  padding: 6px 9px;
+}
+main.texture-mode-3d {
+  grid-template-columns: 210px minmax(430px, 1fr) 330px;
+}
+.texture-mode-3d .editor {
+  grid-column: 3;
+  grid-row: 1;
+  padding: 0 12px;
+}
+.texture-mode-3d .documentbar {
+  flex-wrap: wrap;
+  padding: 6px 0;
+}
+.texture-mode-3d .editor .toolbar {
+  flex-wrap: wrap;
+}
+.texture-mode-3d .right:not(.expanded-3d) {
+  grid-column: 2;
+  grid-row: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  grid-template-rows: 70px minmax(260px, 1fr) auto;
+  gap: 0 12px;
+  overflow: hidden;
+}
+.texture-mode-3d .right:not(.expanded-3d) > .panelhead {
+  grid-column: 1 / -1;
+}
+.texture-mode-3d .right:not(.expanded-3d) #viewport {
+  grid-column: 1;
+  grid-row: 2;
+  height: 100%;
+}
+.texture-mode-3d .right:not(.expanded-3d) .modeltools {
+  grid-column: 1;
+  grid-row: 3;
+}
+.texture-mode-3d .right:not(.expanded-3d) .inspector {
+  grid-column: 2;
+  grid-row: 2 / 4;
+  overflow: auto;
+  padding-top: 0;
+}
+@media (max-width: 1250px) {
+  main.texture-mode-3d {
+    grid-template-columns: 170px minmax(320px, 1fr) 290px;
+  }
+  .texture-mode-3d .right:not(.expanded-3d) {
+    display: flex;
+    overflow: auto;
+  }
+  .texture-mode-3d .right:not(.expanded-3d) #viewport {
+    min-height: 380px;
+    height: 50vh;
+  }
+  .texture-mode-3d .right:not(.expanded-3d) .inspector {
+    overflow: visible;
+  }
+}

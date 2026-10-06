@@ -106,17 +106,38 @@ try {
   toast('WebGL tidak tersedia. Gunakan browser dengan akselerasi hardware untuk preview 3D.');
 }
 const stickers3d = mountStickers3D({
-  getTextureSize: () => (current && !current.isUV ? { w: current.w, h: current.h } : null),
-  addTextureLayer: (source, name) => {
+  getTextureSize: () =>
+    current && !current.isUV ? { w: current.w, h: current.h, texture: current } : null,
+  addTextureLayer: (source, name, binding) => {
+    if (binding && binding.texture !== current)
+      throw Error('Pilih kembali tekstur tempat tattoo ini dipasang.');
     initLayers(current);
     remember();
-    current.layers.push(makeLayer(source, 'PNG 3D · ' + name));
-    current.selected = current.layers.length - 1;
+    const id = binding?.id || crypto.randomUUID();
+    const layer = { ...makeLayer(source, 'PNG 3D · ' + name), projectionId: id };
+    const index = current.layers.findIndex((l) => l.projectionId === id);
+    if (index < 0) current.layers.push(layer);
+    else current.layers[index] = layer;
+    current.selected = index < 0 ? current.layers.length - 1 : index;
+    $('apply').checked = true;
     setMode('move');
     renderComposite(true);
     renderLayers();
     renderTextures();
     drawGuide();
+    applyTexture();
+    return { texture: current, id };
+  },
+  removeTextureLayer: (binding) => {
+    if (binding.texture !== current) return;
+    const index = current.layers.findIndex((l) => l.projectionId === binding.id);
+    if (index < 0) return;
+    remember();
+    current.layers.splice(index, 1);
+    current.selected = Math.min(current.selected, current.layers.length - 1);
+    renderComposite(true);
+    renderLayers();
+    renderTextures();
     applyTexture();
   },
   scene,
@@ -1378,6 +1399,7 @@ $('duplicateLayer').onclick = () => {
   remember();
   current.layers.splice(current.selected + 1, 0, {
     ...l,
+    projectionId: undefined,
     name: l.name + ' copy',
     source: copyCanvas(l.source),
   });
@@ -1886,6 +1908,28 @@ document.addEventListener(
   },
   true,
 );
+const editModes = document.createElement('div');
+editModes.className = 'texture-edit-modes';
+editModes.setAttribute('role', 'group');
+editModes.setAttribute('aria-label', 'Mode edit tekstur');
+editModes.innerHTML =
+  '<button id="editTexture2d" aria-pressed="true" class="active">Edit 2D</button><button id="editTexture3d" aria-pressed="false">Edit 3D</button>';
+document.querySelector('.documentbar').append(editModes);
+function textureEditMode(value) {
+  expand3d(false);
+  document.querySelector('main').classList.toggle('texture-mode-3d', value === '3d');
+  for (const key of ['2d', '3d']) {
+    $('editTexture' + key).classList.toggle('active', key === value);
+    $('editTexture' + key).setAttribute('aria-pressed', String(key === value));
+  }
+  if (value === '3d') document.querySelector('.stickers-3d').open = true;
+  setTimeout(() => {
+    fitCanvas();
+    renderer?.render(scene, camera);
+  }, 20);
+}
+$('editTexture2d').onclick = () => textureEditMode('2d');
+$('editTexture3d').onclick = () => textureEditMode('3d');
 window.ditashaWorkspace = {
   unsavedItems: () => [...unsavedItems(), ...tools.unsavedItems()],
   confirmDiscard: (reason) => confirmDiscard(reason, [...unsavedItems(), ...tools.unsavedItems()]),

@@ -1,6 +1,6 @@
 {
   "name": "ganomabi-asset-studio",
-  "version": "1.12.0",
+  "version": "1.13.0",
   "description": "DITASHA Editor \u2014 editor tekstur YTD dan preview model YDD",
   "author": "Ditasha-Workshop",
   "license": "UNLICENSED",
@@ -45,6 +45,7 @@
   },
   "dependencies": {
     "pako": "3.0.2",
+    "tex-decoder": "2.0.0",
     "three": "0.186.1"
   }
 }

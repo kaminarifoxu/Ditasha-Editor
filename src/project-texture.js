@@ -2,7 +2,16 @@ import * as THREE from 'three';
 
 // Rasterize each source triangle in texture space, then sample the projector in
 // world space. Separate UV islands therefore receive the same continuous image.
-export function projectTexture(meshes, projector, size, image, width, height, opacity = 1) {
+export function projectTexture(
+  meshes,
+  projector,
+  size,
+  image,
+  width,
+  height,
+  opacity = 1,
+  side = 1,
+) {
   const output = new Uint8ClampedArray(width * height * 4);
   const inverse = projector.clone().invert();
   const p = new THREE.Vector3(),
@@ -26,7 +35,7 @@ export function projectTexture(meshes, projector, size, image, width, height, op
         .subVectors(b, a)
         .cross(new THREE.Vector3().subVectors(c, a));
       // Do not project through the model onto its back side.
-      if (normal.z <= 0) continue;
+      if (normal.z * side <= 0) continue;
       if (
         ['x', 'y', 'z'].some(
           (axis, k) =>

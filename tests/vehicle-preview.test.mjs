@@ -132,3 +132,44 @@ test('Rigid vehicle parts use hierarchical bone transforms without mutating shar
   r.v.setInt16(3400, 1, true);
   assert.throws(() => readYdd(pack(r)), /Cyclic/);
 });
+
+export function bc7Ytd() {
+  const r = new Resource(
+    createYtd([{ name: 'bc7_diffuse', w: 4, h: 4, out: new Uint8Array(64) }]).buffer,
+    13,
+  );
+  const p = r.list(48, r.u16(56))[0],
+    data = r.ptr(p + 112);
+  const block = new Uint8Array(16);
+  let bit = 0;
+  const write = (value, count) => {
+    for (let i = 0; i < count; i++, bit++) block[bit >> 3] |= ((value >> i) & 1) << (bit & 7);
+  };
+  // BC7 mode 6, equal endpoints (opaque red), independent endpoint p-bits.
+  write(64, 7);
+  for (const value of [127, 127, 0, 0, 0, 0, 127, 127]) write(value, 7);
+  write(1, 1);
+  write(1, 1);
+  r.v.setUint32(p + 88, 0x20374342, true);
+  r.bytes.set(block, data);
+  return pack(r);
+}
+test('BC7 YTD decodes RGBA and exports editable pixels; truncated blocks are rejected', () => {
+  const r = readYtd(bc7Ytd()),
+    t = r.textures[0];
+  assert.equal(t.format, 'BC7');
+  for (let i = 0; i < t.out.length; i += 4)
+    assert.deepEqual([...t.out.slice(i, i + 4)], [255, 1, 1, 255]);
+  const edited = t.out.slice();
+  edited.set([20, 30, 40, 50], 0);
+  assert.deepEqual(
+    [
+      ...readYtd(
+        createYtd([{ name: t.name, w: t.w, h: t.h, out: edited }]).buffer,
+      ).textures[0].out.slice(0, 4),
+    ],
+    [20, 30, 40, 50],
+  );
+  r.v.setBigUint64(t.p + 112, BigInt(0x60000000 + r.bytes.length - r.sys - 8), true);
+  assert.throws(() => readYtd(pack(r)), /truncated/);
+});

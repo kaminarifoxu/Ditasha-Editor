@@ -56,3 +56,23 @@ test('Projection crosses separated UV islands and avoids the back face', () => {
     /UV/,
   );
 });
+
+test('Double-sided visible back faces can receive a tattoo without projecting onto the front', () => {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute(
+    'position',
+    new THREE.Float32BufferAttribute([0, 0, 0, 0, 1, 0, 1, 0, 0], 3),
+  );
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 0, 1, 1, 0], 2));
+  const pixels = projectTexture(
+    [new THREE.Mesh(geometry)],
+    new THREE.Matrix4(),
+    new THREE.Vector3(2, 2, 1),
+    { width: 1, height: 1, data: new Uint8ClampedArray([4, 5, 6, 255]) },
+    10,
+    10,
+    1,
+    -1,
+  );
+  assert.deepEqual([...pixels.slice(0, 4)], [4, 5, 6, 255]);
+});
