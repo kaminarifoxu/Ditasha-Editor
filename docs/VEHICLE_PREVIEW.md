@@ -29,3 +29,5 @@ Tests use synthetic valid resources for A8 padded rows, truncation, secondary di
 Rigid parts memakai transform bone hierarkis. Preview ini belum mendukung pose/animasi skinning atau semua transform physics fragment. Untuk memverifikasi kendaraan tertentu yang tetap rusak, sertakan YFT beserta YTD-nya.
 
 Legacy BC7 YTD (format `20374342`) kini didekode ke RGBA untuk preview/edit/ekspor. DDS BC7 FourCC juga didukung; DDS DX10 tetap belum didukung. Impor model maksimal 64 file dan total 256 MB, dengan batas 64 drawable tambahan dan 2 juta vertex gabungan.
+
+Versi 1.13.1 membatasi proyeksi ke mesh yang diklik dan memakai interpolasi PNG dengan padding tepi UV. Saat mengatur tattoo, layer lama disembunyikan dari material preview sementara; kanvas yang sudah tersimpan tetap utuh hingga sinkronisasi. Tekstur editor tidak memakai mipmap agar batas atlas tidak bercampur. Gunakan input angka di samping slider untuk ukuran, rotasi dan opacity. UV bertumpuk/degenerat atau UV dengan kepadatan sangat rendah tetap membatasi hasil proyeksi; kirim YDD/YTD dan PNG sumber untuk memeriksa model tertentu.

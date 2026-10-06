@@ -1,3 +1,10 @@
+DITASHA Editor 1.13.1
+
+- Hide the previously baked layer from the temporary 3D material while moving/resizing/rotating the tattoo. This prevents doubled opaque tattoo previews; preserve the saved 2D layer until synchronization or restore it on cancellation.
+- Project onto the mesh clicked by the user, use interpolated surface normals, alpha-weighted bilinear PNG sampling and UV-edge texel padding. Disable mipmaps on the editing texture to reduce atlas-edge bleeding; enable supported anisotropic filtering.
+- Compact the tattoo panel with separate action rows, an ellipsized file list, exact numeric size/rotation/opacity controls and collapsible instructions.
+- Test transparent-edge sampling, UV gutters, a curved neck UV wrap seam and low-opacity preview regression alongside the Windows viewer/update tests.
+
 DITASHA Editor 1.13.0
 
 - Automatically project placed PNG/tattoo into a real UV layer. Move it by dragging the selected tattoo or clicking Pindahkan tattoo and a new surface point. Update the same layer after movement, size, rotation or opacity changes; removal deletes its active texture layer, with Undo/Redo support.

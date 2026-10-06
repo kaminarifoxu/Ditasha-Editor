@@ -36,7 +36,8 @@ let current = null,
   zoom = 1,
   brush = false,
   dirty = false,
-  mapped = null;
+  mapped = null,
+  projectionPreview = null;
 let toastTimer;
 let mode = 'move',
   gesture = null,
@@ -128,6 +129,33 @@ const stickers3d = mountStickers3D({
     applyTexture();
     return { texture: current, id };
   },
+  previewTextureLayer: (binding) => {
+    if (!binding) {
+      if (!projectionPreview) return;
+      projectionPreview = null;
+      applyTexture();
+      return;
+    }
+    if (binding.texture !== current) return;
+    if (projectionPreview?.id === binding.id && projectionPreview.revision === current.revision)
+      return;
+    const source = document.createElement('canvas');
+    source.width = current.w;
+    source.height = current.h;
+    drawLayers(
+      source.getContext('2d'),
+      current.layers.filter((l) => l.projectionId !== binding.id),
+      current.w,
+      current.h,
+    );
+    projectionPreview = {
+      id: binding.id,
+      texture: current,
+      revision: current.revision,
+      canvas: source,
+    };
+    applyTexture();
+  },
   removeTextureLayer: (binding) => {
     if (binding.texture !== current) return;
     const index = current.layers.findIndex((l) => l.projectionId === binding.id);
@@ -190,9 +218,14 @@ function applyTexture() {
     mapped = null;
   }
   if (current && $('apply').checked && (!current.isUV || current.layers?.some((l) => l.visible))) {
-    mapped = new THREE.CanvasTexture(canvas);
+    mapped = new THREE.CanvasTexture(
+      projectionPreview?.texture === current ? projectionPreview.canvas : canvas,
+    );
     if (mapped) {
       mapped.flipY = false;
+      mapped.generateMipmaps = false;
+      mapped.minFilter = THREE.LinearFilter;
+      mapped.anisotropy = Math.min(8, renderer?.capabilities.getMaxAnisotropy() || 1);
       mapped.colorSpace = THREE.SRGBColorSpace;
     }
   }

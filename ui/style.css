@@ -2908,3 +2908,100 @@ main.texture-mode-3d {
     overflow: visible;
   }
 }
+
+/* Compact tattoo controls keep actions separate from texture/material settings. */
+.stickers-3d {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+.stickers-3d > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.tattoo-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 8px 0;
+}
+.tattoo-actions button {
+  min-width: 0;
+  font-size: 10px;
+  padding: 7px 5px;
+}
+#stickerList {
+  max-height: 100px;
+  overflow: auto;
+  margin-bottom: 10px;
+}
+#stickerList button {
+  display: block;
+  width: 100%;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  text-align: left;
+  margin-bottom: 4px;
+  padding: 8px;
+}
+.tattoo-controls {
+  padding: 9px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.inspector .tattoo-control {
+  margin: 0 0 10px;
+}
+.inspector .tattoo-control:last-child {
+  margin-bottom: 0;
+}
+.tattoo-control > span {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 10px;
+}
+.tattoo-control > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 46px 9px;
+  gap: 5px;
+  align-items: center;
+}
+.tattoo-control input[type='range'] {
+  width: 100%;
+  margin: 0;
+  min-width: 0;
+}
+.tattoo-control input[type='number'] {
+  width: 46px;
+  padding: 4px;
+  text-align: center;
+  font-size: 11px;
+  min-width: 0;
+  appearance: textfield;
+}
+.tattoo-control input::-webkit-inner-spin-button {
+  display: none;
+}
+#stickerBake {
+  width: 100%;
+  margin-top: 10px;
+}
+.stickers-3d #stickerStatus {
+  font-size: 10px;
+  line-height: 1.5;
+  margin: 9px 0;
+}
+.tattoo-help {
+  border-top: 1px solid var(--line);
+  padding-top: 9px;
+  font-size: 10px;
+}
+.tattoo-help summary {
+  font-size: 10px;
+  color: var(--muted);
+}

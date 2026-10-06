@@ -91,10 +91,26 @@ module.exports = async function checkViewers(fixtures) {
       'PNG placement did not automatically update 2D texture',
     );
     const placed = $('textureCanvas').toDataURL();
+    // A low-opacity adjustment must hide the previously baked opaque tattoo.
+    $('stickerOpacity').value = 1;
+    $('stickerOpacity').dispatchEvent(new Event('input'));
+    await sleep(100);
+    context.drawImage(source, 0, 0);
+    const faint = context.getImageData(0, 0, sample.width, sample.height).data;
+    let oldBlue = 0;
+    for (let i = 0; i < faint.length; i += 4)
+      if (faint[i + 2] > 70 && faint[i + 2] > faint[i] * 2 && faint[i + 2] > faint[i + 1] * 2)
+        oldBlue++;
+    assert(oldBlue < 10, 'Preview showed an old opaque tattoo beneath the adjusted tattoo');
+    assert($('textureCanvas').toDataURL() === placed, 'Temporary preview modified the saved layer');
+    $('stickerOpacity').value = 100;
+    $('stickerOpacity').dispatchEvent(new Event('input'));
+
     $('stickerSize').value = 30;
     $('stickerSize').dispatchEvent(new Event('input'));
-    $('stickerRotation').value = 25;
-    $('stickerRotation').dispatchEvent(new Event('input'));
+    $('stickerRotationNumber').value = 25;
+    $('stickerRotationNumber').dispatchEvent(new Event('input'));
+    assert($('stickerRotation').value === '25', 'Numeric rotation failed to update its slider');
     console.log('DITASHA_SNAPSHOT:png-3d-sticker');
     await sleep(200);
     $('photoshoot').click();

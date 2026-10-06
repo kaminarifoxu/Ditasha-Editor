@@ -14,6 +14,7 @@ export function mountStickers3D({
   getTextureSize,
   addTextureLayer,
   removeTextureLayer,
+  previewTextureLayer,
 }) {
   const group = new THREE.Group();
   group.name = 'PNG stickers 3D';
@@ -24,7 +25,19 @@ export function mountStickers3D({
   toolbar.append(open);
   const root = document.createElement('details');
   root.className = 'stickers-3d';
-  root.innerHTML = `<summary>PNG di permukaan 3D</summary><input id="stickerInput" type="file" accept="image/png" hidden><p id="stickerStatus" role="status" class="muted">Tambah PNG, lalu klik permukaan model.</p><button id="stickerPlace" disabled>Tempatkan PNG</button><button id="stickerMove" disabled>Pindahkan tattoo</button><div id="stickerList"></div><label>Ukuran<input id="stickerSize" type="range" min="1" max="80" value="20"></label><label>Rotasi<input id="stickerRotation" type="range" min="-180" max="180" value="0"></label><label>Opacity<input id="stickerOpacity" type="range" min="1" max="100" value="100"></label><button id="stickerBake" disabled>Sinkronkan ke tekstur</button><div class="viewer-button-row"><button id="stickerRemove" disabled>Hapus stiker</button><button id="stickerClear" disabled>Hapus semua</button></div><p class="muted">Klik atau tarik tattoo untuk memindahkan. Setelah penempatan, perubahan otomatis masuk ke layer UV pada kanvas 2D dan bisa disimpan ke YTD.</p>`;
+  root.innerHTML = `<summary>Tattoo 3D <span id="stickerCount" class="badge">0</span></summary>
+    <input id="stickerInput" type="file" accept="image/png" hidden>
+    <div class="tattoo-actions"><button id="stickerPlace" disabled>Salinan</button><button id="stickerMove" disabled>Pindahkan</button></div>
+    <div id="stickerList" aria-label="Tattoo yang dipasang"></div>
+    <div class="tattoo-controls">
+      <label class="tattoo-control"><span>Ukuran</span><div><input aria-label="Ukuran tattoo" id="stickerSize" type="range" min="1" max="80" value="20"><input aria-label="Ukuran tattoo persen" id="stickerSizeNumber" type="number" min="1" max="80" value="20"><span>%</span></div></label>
+      <label class="tattoo-control"><span>Rotasi</span><div><input aria-label="Rotasi tattoo" id="stickerRotation" type="range" min="-180" max="180" value="0"><input aria-label="Rotasi tattoo derajat" id="stickerRotationNumber" type="number" min="-180" max="180" value="0"><span>°</span></div></label>
+      <label class="tattoo-control"><span>Opacity</span><div><input aria-label="Opacity tattoo" id="stickerOpacity" type="range" min="1" max="100" value="100"><input aria-label="Opacity tattoo persen" id="stickerOpacityNumber" type="number" min="1" max="100" value="100"><span>%</span></div></label>
+    </div>
+    <button id="stickerBake" disabled>Sinkronkan 2D</button>
+    <p id="stickerStatus" role="status" class="muted">Tambah PNG untuk mulai.</p>
+    <div class="tattoo-actions"><button id="stickerRemove" disabled>Hapus tattoo</button><button id="stickerClear" disabled>Reset kontrol</button></div>
+    <details class="tattoo-help"><summary>Cara pakai</summary><p>Tarik tattoo, atau pilih Pindahkan lalu klik permukaan baru. Perubahan masuk ke layer 2D setelah kontrol dilepas. Hapus tattoo menghapus layer; Reset kontrol mempertahankan layer. Ekspor YTD untuk menyimpan.</p></details>`;
   container.prepend(root);
   const $ = (id) => root.querySelector('#' + id),
     assets = [],
@@ -48,10 +61,12 @@ export function mountStickers3D({
       : items.length + ' stiker 3D';
   }
   function refresh() {
+    $('stickerCount').textContent = items.length;
     $('stickerList').replaceChildren();
     for (const item of items) {
       const b = document.createElement('button');
       b.textContent = item.name;
+      b.title = item.name;
       b.classList.toggle('active', item === selected);
       b.onclick = () => {
         selected = item;
@@ -62,6 +77,10 @@ export function mountStickers3D({
       };
       $('stickerList').append(b);
     }
+    for (const id of ['stickerSize', 'stickerRotation', 'stickerOpacity']) {
+      $(id + 'Number').value = $(id).value;
+      $(id).disabled = $(id + 'Number').disabled = !asset && !selected;
+    }
     $('stickerRemove').disabled = !selected;
     $('stickerBake').disabled = !selected;
     $('stickerMove').disabled = !selected;
@@ -69,6 +88,7 @@ export function mountStickers3D({
     $('stickerPlace').disabled = !asset;
   }
   function rebuild(item) {
+    previewTextureLayer(item.binding || null);
     item.meshes.forEach((mesh) => {
       group.remove(mesh);
       mesh.geometry.dispose();
@@ -76,7 +96,7 @@ export function mountStickers3D({
     });
     item.meshes = [];
     const box = new THREE.Box3();
-    const targets = getMeshes().filter((m) => m.visible);
+    const targets = item.target ? [item.target] : getMeshes().filter((m) => m.visible);
     targets.forEach((m) => {
       m.updateWorldMatrix(true, false);
       m.geometry.computeBoundingBox();
@@ -176,12 +196,12 @@ export function mountStickers3D({
     return ray.intersectObjects(targets, false)[0];
   }
   function locate(item, hit) {
-    const normal = hit.face.normal
-      .clone()
-      .applyMatrix3(new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld))
-      .normalize();
-    item.side = normal.dot(ray.ray.direction) > 0 ? -1 : 1;
-    if (item.side < 0) normal.negate();
+    const matrix = new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld);
+    const faceNormal = hit.face.normal.clone().applyMatrix3(matrix).normalize();
+    const normal = (hit.normal || hit.face.normal).clone().applyMatrix3(matrix).normalize();
+    item.target = hit.object;
+    item.side = faceNormal.dot(ray.ray.direction) > 0 ? -1 : 1;
+    if (normal.dot(ray.ray.direction) > 0) normal.negate();
     item.point = hit.point.clone();
     item.normal = normal;
     rebuild(item);
@@ -200,7 +220,7 @@ export function mountStickers3D({
       context.scale(1, -1);
       context.drawImage(item.asset.bitmap, 0, 0);
       const pixels = projectTexture(
-        getMeshes(),
+        item.target ? [item.target] : getMeshes(),
         item.projector,
         item.projectorSize,
         context.getImageData(0, 0, source.width, source.height),
@@ -213,9 +233,10 @@ export function mountStickers3D({
       layer.width = dimensions.w;
       layer.height = dimensions.h;
       layer.getContext('2d').putImageData(new ImageData(pixels, layer.width, layer.height), 0, 0);
+      previewTextureLayer(null);
       item.binding = addTextureLayer(layer, item.name, item.binding);
       item.meshes.forEach((m) => (m.visible = false));
-      $('stickerStatus').textContent = 'Tattoo tersinkron ke kanvas 2D · belum diekspor ke YTD';
+      $('stickerStatus').textContent = 'Layer 2D diperbarui · belum diekspor.';
       render();
       return true;
     } catch (error) {
@@ -247,6 +268,7 @@ export function mountStickers3D({
           point: selected.point.clone(),
           normal: selected.normal.clone(),
           side: selected.side,
+          target: selected.target,
           changed: false,
         };
         if (event.isTrusted) viewport.setPointerCapture?.(event.pointerId);
@@ -304,8 +326,14 @@ export function mountStickers3D({
     const drag = dragging;
     dragging = null;
     if (event.type === 'pointercancel') {
-      Object.assign(drag.item, { point: drag.point, normal: drag.normal, side: drag.side });
+      Object.assign(drag.item, {
+        point: drag.point,
+        normal: drag.normal,
+        side: drag.side,
+        target: drag.target,
+      });
       rebuild(drag.item);
+      previewTextureLayer(null);
       if (drag.item.binding) drag.item.meshes.forEach((m) => (m.visible = false));
       render();
     } else if (drag.changed) sync(drag.item);
@@ -329,18 +357,30 @@ export function mountStickers3D({
     ['stickerSize', 'size'],
     ['stickerRotation', 'rotation'],
     ['stickerOpacity', 'opacity'],
-  ])
-    $(id).oninput = () => {
-      if (selected) {
-        selected[key] = Number($(id).value);
-        rebuild(selected);
-      }
-    };
-  for (const id of ['stickerSize', 'stickerRotation', 'stickerOpacity'])
-    $(id).onchange = () => selected && sync(selected);
+  ]) {
+    for (const control of [id, id + 'Number']) {
+      $(control).oninput = () => {
+        const value = Number($(control).value);
+        if (!Number.isFinite(value) || $(control).value === '') return;
+        const clamped = Math.max(Number($(id).min), Math.min(Number($(id).max), value));
+        $(id).value = clamped;
+        if (control === id) $(id + 'Number').value = clamped;
+        if (selected) {
+          selected[key] = clamped;
+          rebuild(selected);
+        }
+        $('stickerStatus').textContent = 'Preview · Lepaskan kontrol untuk sinkronkan 2D.';
+      };
+      $(control).onchange = () => {
+        $(id + 'Number').value = $(id).value;
+        if (selected) sync(selected);
+      };
+    }
+  }
   $('stickerBake').onclick = () => selected && sync(selected);
   $('stickerRemove').onclick = () => {
     if (!selected) return;
+    previewTextureLayer(null);
     if (selected.binding) removeTextureLayer(selected.binding);
     selected.meshes.forEach((m) => {
       group.remove(m);
@@ -356,6 +396,7 @@ export function mountStickers3D({
     render();
   };
   function clear() {
+    previewTextureLayer(null);
     generation++;
     dragging = null;
     moving = false;
