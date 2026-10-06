@@ -1,9 +1,9 @@
-DITASHA Editor 1.9.0
+DITASHA Editor 1.10.0
 
-- Simplify the workspace with consistent offline Flaticon Uicons, compact editing/viewer toolbars, quieter headings and smaller panel spacing.
-- Replace repeated action text with icons while preserving accessible names, keyboard focus, descriptive tooltips, active/disabled states and update badges. Keep workflow names, export formats and operational status visible.
-- Group hair actions into a compact row and move lengthy explanations into expandable hints. Preserve all warnings, material/hair controls, preview and export behavior.
-- Include Uicons attribution in the footer and Help, the supplied Flaticon License, and a fixed trusted IPC action for opening the credit page.
-- Verify the icon font, dynamic controls, update UI, both 3D viewers, converter, clothing pack, archives and portable update/restart on Windows.
+- Add Photoshoot to Texture & Model, the Model viewer, and the shared Clothing pack preview: three views of the active model with its textures, ped material alpha and attached hair.
+- Include ped left/front/right and clothing front/back/front presets, independent angle sliders, front direction, camera elevation and model framing.
+- Compose a catalog with a custom background image or color, optional transparency, logo, product title and caption. Export PNG at 1920 × 1080, 2048 × 1152 or 3000 × 2000.
+- Use an isolated render scene without grid, wireframe or vertex helpers. Keep the source model and editing settings intact. Three angles use one model; skeleton posing/animation and separate model slots are not included.
+- Validate the actual three-panel render with independent face/hair textures, alpha, background/logo composition and canceled/successful PNG saves in both workspaces. Verify portable update/restart on Windows.
 
 Copyright © 2026 Ditasha-Workshop. Uicons by Flaticon.

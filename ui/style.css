@@ -2624,3 +2624,136 @@ a.compact-icon {
     min-height: 560px;
   }
 }
+
+/* Three-angle product photoshoot studio. */
+.photoshoot-dialog {
+  width: min(1380px, 96vw);
+  max-width: 96vw;
+  max-height: 94vh;
+  padding: 0;
+  border: 1px solid var(--line, #34343d);
+  border-radius: 14px;
+  background: #17181c;
+  color: #ececf1;
+}
+.photoshoot-dialog::backdrop {
+  background: #050609cc;
+}
+.ps-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #303139;
+}
+.ps-header h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+.ps-layout {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  min-height: 480px;
+}
+.ps-settings {
+  padding: 16px;
+  max-height: calc(94vh - 90px);
+  overflow: auto;
+  border-right: 1px solid #303139;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ps-settings label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 11px;
+  color: #acabb9;
+}
+.ps-settings label.check {
+  flex-direction: row;
+  align-items: center;
+}
+.ps-colors {
+  display: flex;
+  gap: 16px;
+}
+.ps-colors input {
+  width: 80px;
+  height: 32px;
+  padding: 3px;
+}
+.ps-assets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.ps-settings p {
+  line-height: 1.7;
+  font-size: 11px;
+}
+#psAngles {
+  display: grid;
+  gap: 10px;
+}
+#psAngles output {
+  align-self: flex-end;
+  font-size: 10px;
+}
+.ps-output {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  gap: 16px;
+}
+.ps-canvas-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: repeating-conic-gradient(#272830 0% 25%, #202127 0% 50%) 50% / 20px 20px;
+  border-radius: 8px;
+}
+#psCanvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 72vh;
+  object-fit: contain;
+}
+.ps-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.ps-footer p {
+  font-size: 12px;
+  color: #acabb9;
+}
+@media (max-width: 760px) {
+  .ps-layout {
+    grid-template-columns: 190px minmax(0, 1fr);
+  }
+  .ps-output {
+    padding: 10px;
+  }
+  .ps-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+.modeltools {
+  flex-wrap: wrap;
+}
+.modeltools #photoshoot {
+  flex-basis: 100%;
+  font-size: 11px;
+}
+.right.expanded-3d .modeltools #photoshoot {
+  flex-basis: auto;
+  padding: 0 12px;
+}

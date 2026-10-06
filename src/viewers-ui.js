@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mountPhotoshoot } from './photoshoot.js';
 import { mountMaterialPreview } from './material-preview.js';
 import { mountPedAttachments } from './ped-attachments.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -646,5 +647,20 @@ export function mountViewers({ nav, download, toast, activate }) {
     },
     true,
   );
+  mountPhotoshoot({
+    container: modelRoot.querySelector('.viewer-toolbar .viewer-button-row'),
+    id: 'mvPhotoshoot',
+    download,
+    toast,
+    getSource: () =>
+      drawables.length && renderer
+        ? {
+            objects: [group, pedAttachments.group],
+            camera,
+            target: controls.target,
+            name: modelName,
+          }
+        : null,
+  });
   return { textureRoot, modelRoot, openTextures, openModels };
 }

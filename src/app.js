@@ -1,4 +1,5 @@
 import { mountMinimalUi } from './ui-minimal.js';
+import { mountPhotoshoot } from './photoshoot.js';
 import * as THREE from 'three';
 import { mountTools } from './tools-ui.js';
 import { mountMaterialPreview } from './material-preview.js';
@@ -1811,6 +1812,21 @@ function confirmDiscard(reason = 'close', items = unsavedItems()) {
   return discardPending;
 }
 const tools = mountTools({ download, toast, preview: loadFiles, confirmDiscard });
+mountPhotoshoot({
+  container: document.querySelector('.modeltools'),
+  id: 'photoshoot',
+  download,
+  toast,
+  getSource: () =>
+    displayedModel && renderer
+      ? {
+          objects: [model, pedAttachments.group],
+          camera,
+          target: controls.target,
+          name: displayedModel.name || 'Model & texture',
+        }
+      : null,
+});
 const expandButton = document.createElement('button');
 expandButton.id = 'expand3d';
 expandButton.textContent = 'Perbesar 3D';
@@ -1827,7 +1843,11 @@ expandButton.onclick = () => expand3d(!viewer.classList.contains('expanded-3d'))
 document.addEventListener(
   'keydown',
   (e) => {
-    if (e.key === 'Escape' && viewer.classList.contains('expanded-3d')) {
+    if (
+      e.key === 'Escape' &&
+      viewer.classList.contains('expanded-3d') &&
+      !document.querySelector('dialog[open]')
+    ) {
       e.preventDefault();
       e.stopImmediatePropagation();
       expand3d(false);

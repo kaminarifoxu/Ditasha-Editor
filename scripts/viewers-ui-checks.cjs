@@ -29,6 +29,99 @@ module.exports = async function checkViewers(fixtures) {
     $(id).value = value;
     $(id).dispatchEvent(new Event('change'));
   };
+  async function checkPhotoshoot(prefix) {
+    $(prefix === 'ped' ? 'photoshoot' : 'mvPhotoshoot').click();
+    assert($('photoshootDialog').open, 'Photoshoot failed to open');
+    const canvas = $('psCanvas');
+    assert(canvas.width === 1920 && canvas.height === 1080, 'Wrong photoshoot dimensions');
+    $('psTransparent').checked = true;
+    $('psTransparent').dispatchEvent(new Event('input'));
+    await sleep(200);
+    const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+    const panels = [
+      { red: 0, green: 0 },
+      { red: 0, green: 0 },
+      { red: 0, green: 0 },
+    ];
+    for (let y = 160; y < 950; y += 2)
+      for (let x = 0; x < 1920; x += 2) {
+        const i = (y * 1920 + x) * 4,
+          p = panels[Math.min(2, Math.floor(x / 640))];
+        if (!pixels[i + 3]) continue;
+        if (pixels[i] > 60 && pixels[i] > pixels[i + 1] * 1.5) p.red++;
+        if (pixels[i + 1] > 60 && pixels[i + 1] > pixels[i] * 1.5) p.green++;
+      }
+    assert(
+      panels.every((p) => p.red > 10 && p.green > 10),
+      'Three-angle photoshoot lost face/hair textures: ' + JSON.stringify(panels),
+    );
+    assert(pixels[3] === 0, 'Transparent background became opaque');
+    $('psPreset').value = 'clothing';
+    $('psPreset').dispatchEvent(new Event('change'));
+    await sleep(150);
+    assert($('psAngle1').value === '180', 'Clothing preset has no back view');
+    $('psFront').value = 'x';
+    $('psFront').dispatchEvent(new Event('input'));
+    await sleep(100);
+    assert($('psStatus').textContent.includes('PNG'), 'Alternate model orientation failed');
+    $('psFront').value = 'camera';
+    $('psFront').dispatchEvent(new Event('input'));
+    $('psPreset').value = 'ped';
+    $('psPreset').dispatchEvent(new Event('change'));
+    $('psTitle').value = 'DITASHA · Catalog';
+    $('psTitle').dispatchEvent(new Event('input'));
+    $('psCaption').value = 'Three views · Ditasha-Workshop';
+    $('psCaption').dispatchEvent(new Event('input'));
+    const image = document.createElement('canvas');
+    image.width = image.height = 16;
+    const ctx = image.getContext('2d');
+    ctx.fillStyle = '#3344ee';
+    ctx.fillRect(0, 0, 16, 16);
+    const blob = await new Promise((resolve) => image.toBlob(resolve, 'image/png'));
+    await input(
+      'psBackgroundInput',
+      [new File([blob], 'background.png', { type: 'image/png' })],
+      () => !$('psTransparent').checked,
+    );
+    await sleep(150);
+    const corner = canvas.getContext('2d').getImageData(0, 0, 1, 1).data;
+    assert(corner[2] === 238 && corner[3] === 255, 'Background image not composed');
+    await input('psLogoInput', [new File([blob], 'logo.png', { type: 'image/png' })], () => true);
+    await sleep(150);
+    $('psClearBackground').click();
+    $('psTransparent').checked = true;
+    $('psTransparent').dispatchEvent(new Event('input'));
+    await sleep(150);
+    const logoPixel = canvas.getContext('2d').getImageData(55, 30, 1, 1).data;
+    assert(logoPixel[2] === 238 && logoPixel[3] === 255, 'Logo image not composed');
+    console.log('DITASHA_SNAPSHOT:' + prefix + '-photoshoot');
+    await sleep(200);
+    const before = saves.length;
+    canceled = true;
+    $('psExport').click();
+    await wait(
+      () => !$('psExport').disabled && saves.length > before,
+      'Canceled photoshoot export hung',
+    );
+    assert($('psStatus').textContent.includes('dibatalkan'), 'Canceled export reported success');
+    canceled = false;
+    $('psExport').click();
+    await wait(
+      () => !$('psExport').disabled && saves.length > before + 1,
+      'Photoshoot PNG not saved',
+    );
+    assert(
+      saves.at(-1).name === 'ditasha-photoshoot.png' &&
+        saves.at(-1).magic.join(',') === '137,80,78,71',
+      'Invalid photoshoot PNG',
+    );
+    $('psClearLogo').click();
+    $('psTitle').value = '';
+    $('psCaption').value = '';
+    $('psClose').click();
+    await sleep(50);
+    assert(!$('photoshootDialog').open, 'Photoshoot failed to close');
+  }
   async function checkPedMaterial(prefix, canvasSelector, loadTexture) {
     const id = (suffix) => prefix + 'Material' + suffix;
     const snapshot = async () => {
@@ -290,6 +383,7 @@ module.exports = async function checkViewers(fixtures) {
       [new File([new Uint8Array(fixtures.hairYtd)], 'hair-restored.ytd')],
       () => !$(prefix + 'AddHair').disabled,
     );
+    await checkPhotoshoot(prefix);
     console.log('DITASHA_SNAPSHOT:' + prefix + '-hair-preview');
     await sleep(350);
     const visible = list.querySelector('input[type="checkbox"]');
@@ -602,6 +696,6 @@ module.exports = async function checkViewers(fixtures) {
   return {
     saves,
     checks:
-      'Texture gallery, exact size/zoom, grid/list, search/background, PNG/DDS/bulk export and canceled save; model LOD/parts, external/embedded textures and invalid-file retention; ped hair YDD/YTD, independent rendered face/hair materials, transforms, visibility, invalid imports and reset/removal; folder sort, text/hex inspection, paired viewers and new RPF',
+      'Photoshoot three views with face/hair, background/logo, transparent PNG and canceled/successful saves in both workspaces; texture gallery, exact size/zoom, grid/list, search/background, PNG/DDS/bulk export and canceled save; model LOD/parts, external/embedded textures and invalid-file retention; ped hair YDD/YTD, independent rendered face/hair materials, transforms, visibility, invalid imports and reset/removal; folder sort, text/hex inspection, paired viewers and new RPF',
   };
 };
