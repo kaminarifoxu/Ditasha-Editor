@@ -81,8 +81,7 @@ function createStudio(download, toast) {
     background = null,
     logo = null,
     pending = 0,
-    busy = false,
-    closed = true;
+    busy = false;
   const materials = [];
   const versions = { background: 0, logo: 0 };
   function clear() {
@@ -105,7 +104,7 @@ function createStudio(download, toast) {
     ctx.fillText(text, x, y);
   }
   function render() {
-    if (closed) return;
+    if (!dialog.open) return;
     const canvas = $('psCanvas'),
       [width, height] = $('psSize').value.split('x').map(Number);
     canvas.width = width;
@@ -282,7 +281,8 @@ function createStudio(download, toast) {
     if (busy) e.preventDefault();
   });
   dialog.addEventListener('close', () => {
-    closed = true;
+    // A queued close event can arrive after this reusable dialog has reopened.
+    if (dialog.open) return;
     clearTimeout(pending);
     clear();
   });
@@ -331,7 +331,6 @@ function createStudio(download, toast) {
         group.add(copy);
       });
       $('psSource').textContent = source.name || 'Model aktif';
-      closed = false;
       resetAngles();
       if (!dialog.open) dialog.showModal();
       render();

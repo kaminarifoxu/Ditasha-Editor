@@ -125,6 +125,9 @@ module.exports = async function checkViewers(fixtures) {
     assert($('photoshootDialog').open, 'Photoshoot failed to open');
     const canvas = $('psCanvas');
     assert(canvas.width === 1920 && canvas.height === 1080, 'Wrong photoshoot dimensions');
+    // Reopen immediately: a queued close event must not clear the new session.
+    $('psClose').click();
+    $(prefix === 'ped' ? 'photoshoot' : 'mvPhotoshoot').click();
     $('psTransparent').checked = true;
     $('psTransparent').dispatchEvent(new Event('input'));
     await sleep(200);
