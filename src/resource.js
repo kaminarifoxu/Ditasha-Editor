@@ -89,7 +89,29 @@ export function decodeTexture(r, p) {
   const out = new Uint8ClampedArray(w * h * 4),
     v = r.v;
   const name = r.str(r.ptr(p + 40)) || 'texture';
-  if (format === 21 || format === 32) {
+  if ([28, 50, 51].includes(format)) {
+    const channels = format === 51 ? 2 : 1;
+    const stride = r.u16(p + 86) || w * channels;
+    if (stride < w * channels || data + (h - 1) * stride + w * channels > r.bytes.length)
+      throw Error('Texture pixel buffer is truncated.');
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const s = data + y * stride + x * channels,
+          d = (y * w + x) * 4;
+        out[d] = out[d + 1] = out[d + 2] = format === 28 ? 255 : r.bytes[s];
+        out[d + 3] = format === 28 ? r.bytes[s] : format === 51 ? r.bytes[s + 1] : 255;
+      }
+    return {
+      name,
+      w,
+      h,
+      p,
+      out,
+      format: { 28: 'A8', 50: 'L8', 51: 'A8L8' }[format],
+      mipLevels: r.bytes[p + 93] || 1,
+    };
+  }
+  if ([21, 22, 32, 33].includes(format)) {
     const stride = r.u16(p + 86) || w * 4;
     if (stride < w * 4 || data + (h - 1) * stride + w * 4 > r.bytes.length)
       throw Error('Texture pixel buffer is truncated.');
@@ -97,10 +119,10 @@ export function decodeTexture(r, p) {
       for (let x = 0; x < w; x++) {
         let s = data + y * stride + x * 4,
           d = (y * w + x) * 4;
-        out[d] = r.bytes[s + (format === 21 ? 2 : 0)];
+        out[d] = r.bytes[s + (format <= 22 ? 2 : 0)];
         out[d + 1] = r.bytes[s + 1];
-        out[d + 2] = r.bytes[s + (format === 21 ? 0 : 2)];
-        out[d + 3] = r.bytes[s + 3];
+        out[d + 2] = r.bytes[s + (format <= 22 ? 0 : 2)];
+        out[d + 3] = [22, 33].includes(format) ? 255 : r.bytes[s + 3];
       }
     return { name, w, h, p, out, format: 'RGBA', mipLevels: r.bytes[p + 93] || 1 };
   }
@@ -304,16 +326,18 @@ function shaderInfo(r, d) {
     }
     const diffuse =
       refs.find((t) => t.hash === nameHash('DiffuseSampler')) ||
-      refs.find((t) => t.hash === nameHash('TextureSampler'));
+      refs.find((t) => t.hash === nameHash('TextureSampler')) ||
+      refs.find((t) => t.hash === nameHash('DiffuseSampler2'));
     bindings.push({
       diffuseTexture: diffuse?.name || null,
       textureNames: refs.map((t) => t.name).filter(Boolean),
+      textureSamplers: refs,
       shaderHash: r.u32(shader + 8),
     });
   }
   return { bindings, embeddedTextures, warnings };
 }
-function readDrawables(r, drawables) {
+function readDrawables(r, drawables, metadata = new Map()) {
   const cache = new Map(),
     shaderCache = new Map();
   let vertices = 0,
@@ -362,10 +386,12 @@ function readDrawables(r, drawables) {
       return value;
     };
     const positions = new Float32Array(count * 3),
-      uvs = offsets[6] ? new Float32Array(count * 2) : null;
+      uvs = offsets[6] ? new Float32Array(count * 2) : null,
+      uvs2 = offsets[7] ? new Float32Array(count * 2) : null;
     for (let i = 0; i < count; i++) {
       positions.set([get(i, 0, 0), get(i, 0, 2), -get(i, 0, 1)], i * 3);
       if (uvs) uvs.set([get(i, 6, 0), get(i, 6, 1)], i * 2);
+      if (uvs2) uvs2.set([get(i, 7, 0), get(i, 7, 1)], i * 2);
     }
     const ic = r.u32(ib + 8),
       ip = r.ptr(ib + 16);
@@ -384,47 +410,63 @@ function readDrawables(r, drawables) {
       indices[i] = r.u16(ip + i * 2);
       if (indices[i] >= count) throw Error('Index model tidak valid.');
     }
-    const result = { positions, uvs, indices };
+    const result = { positions, uvs, uvs2, indices };
     cache.set(g, result);
     return result;
   }
   return drawables
     .map((d, di) => {
-      const lods = [],
-        key = r.ptr(d + 16);
-      if (!shaderCache.has(key)) shaderCache.set(key, shaderInfo(r, d));
-      const info = shaderCache.get(key);
-      for (const [i, offset] of [80, 88, 96, 104].entries()) {
-        const pointer = r.ptr(d + offset);
-        if (pointer === null) continue;
-        const geometries = [];
-        for (const [mi, m] of r.list(pointer, r.u16(pointer + 8)).entries()) {
-          const mapping = r.ptr(m + 32);
-          const geometryCount = r.u16(m + 16),
-            geometryArray = r.ptr(m + 8);
-          if (geometryCount > 4096 || (geometryCount && geometryArray === null))
-            throw Error('Invalid geometry list.');
-          for (let gi = 0; gi < geometryCount; gi++) {
-            const g = r.ptr(geometryArray + gi * 8);
-            if (g === null) continue;
-            const data = geometry(g);
-            if (!data) continue;
-            const shaderIndex = mapping === null ? 0 : r.u16(mapping + gi * 2),
-              binding = info.bindings[shaderIndex];
-            geometries.push({
-              ...data,
-              name: 'Part ' + (mi + 1) + ' / Mesh ' + (gi + 1),
-              part: mi,
-              shaderIndex,
-              diffuseTexture: binding?.diffuseTexture || null,
-            });
+      const details = metadata.get(d) || {};
+      try {
+        const lods = [],
+          shaderDrawable = r.ptr(d + 16) === null ? (details.shaderParent ?? d) : d,
+          key = r.ptr(shaderDrawable + 16);
+        if (!shaderCache.has(key)) shaderCache.set(key, shaderInfo(r, shaderDrawable));
+        const info = shaderCache.get(key);
+        for (const [i, offset] of [80, 88, 96, 104].entries()) {
+          const pointer = r.ptr(d + offset);
+          if (pointer === null) continue;
+          const geometries = [];
+          for (const [mi, m] of r.list(pointer, r.u16(pointer + 8)).entries()) {
+            const mapping = r.ptr(m + 32);
+            const geometryCount = r.u16(m + 16),
+              geometryArray = r.ptr(m + 8);
+            if (geometryCount > 4096 || (geometryCount && geometryArray === null))
+              throw Error('Invalid geometry list.');
+            for (let gi = 0; gi < geometryCount; gi++) {
+              const g = r.ptr(geometryArray + gi * 8);
+              if (g === null) continue;
+              const data = geometry(g);
+              if (!data) continue;
+              const shaderIndex = mapping === null ? 0 : r.u16(mapping + gi * 2),
+                binding = info.bindings[shaderIndex];
+              geometries.push({
+                ...data,
+                name: 'Part ' + (mi + 1) + ' / Mesh ' + (gi + 1),
+                part: mi,
+                shaderIndex,
+                diffuseTexture: binding?.diffuseTexture || null,
+                textureNames: binding?.textureNames || [],
+                textureSamplers: binding?.textureSamplers || [],
+              });
+            }
           }
+          if (geometries.length)
+            lods.push({ name: ['High', 'Medium', 'Low', 'Very low'][i], geometries });
         }
-        if (geometries.length)
-          lods.push({ name: ['High', 'Medium', 'Low', 'Very low'][i], geometries });
+        if (!lods.length) return null;
+        return {
+          name: details.name || 'Drawable ' + (di + 1),
+          geometries: lods[0].geometries,
+          lods,
+          ...info,
+          fragmentChild: details.fragmentChild || false,
+        };
+      } catch (e) {
+        if (!details.fragmentChild) throw e;
+        (r.fragmentWarnings ||= []).push(details.name + ': ' + e.message);
+        return null;
       }
-      if (!lods.length) return null;
-      return { name: 'Drawable ' + (di + 1), geometries: lods[0].geometries, lods, ...info };
     })
     .filter(Boolean);
 }
@@ -440,15 +482,41 @@ export function readYdr(buffer) {
 }
 export function readYft(buffer) {
   const r = new Resource(buffer, 162),
-    offsets = [];
+    offsets = [],
+    metadata = new Map();
   const main = r.ptr(48);
   if (main !== null) offsets.push(main);
   const count = r.u32(72);
   if (count) offsets.push(...r.list(56, count));
   const cloth = r.ptr(248);
   if (cloth !== null) offsets.push(cloth);
+  // FragType.PhysicsLODGroup (0xF0), LOD1 (0x10), Children (0xD0/0x11D).
+  // Pristine and damaged child drawables are separate inspection choices, not stacked.
+  const physics = r.ptr(240),
+    physicsLod = physics === null ? null : r.ptr(physics + 16);
+  if (physicsLod !== null) {
+    const children = r.list(physicsLod + 208, r.bytes[physicsLod + 285]);
+    children.forEach((child, index) => {
+      for (const [offset, label] of [
+        [160, 'Pristine'],
+        [168, 'Damaged'],
+      ]) {
+        const d = r.ptr(child + offset);
+        if (d === null || offsets.includes(d)) continue;
+        offsets.push(d);
+        metadata.set(d, {
+          name: `Fragment ${index + 1} · bone ${r.u16(child + 18)} · ${label}`,
+          shaderParent: main,
+          fragmentChild: true,
+        });
+      }
+    });
+  }
   if (!offsets.length) throw Error('YFT tidak memiliki drawable yang dapat ditampilkan.');
-  return requireGeometry(readDrawables(r, [...new Set(offsets)]));
+  const result = requireGeometry(readDrawables(r, [...new Set(offsets)], metadata));
+  if (r.fragmentWarnings?.length)
+    result[0].warnings = [...result[0].warnings, ...r.fragmentWarnings];
+  return result;
 }
 
 function requireGeometry(drawables) {

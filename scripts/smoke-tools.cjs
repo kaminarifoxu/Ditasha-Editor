@@ -98,6 +98,7 @@ app.whenReady().then(async () => {
     const faceYtd = createYtd([
       { name: 'cloth_diffuse', w: 1, h: 1, out: new Uint8Array([255, 0, 0, 255]) },
     ]);
+    const { alphaYtd, fragmentYft } = await import('../tests/vehicle-preview.test.mjs');
     const viewerReport = await win.webContents.executeJavaScript(
       '(' +
         checkViewers.toString() +
@@ -111,6 +112,8 @@ app.whenReady().then(async () => {
           pedBlackYtd: [...pedBlackYtd],
           blackHairYtd: [...blackHairYtd],
           transparentHairYtd: [...transparentHairYtd],
+          alphaYtd: [...new Uint8Array(alphaYtd())],
+          fragmentYft: [...new Uint8Array(fragmentYft())],
           requireWebgl: true,
         }) +
         ')',

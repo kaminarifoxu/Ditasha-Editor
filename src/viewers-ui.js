@@ -35,7 +35,7 @@ export function mountViewers({ nav, download, toast, activate }) {
   const modelRoot = document.createElement('section');
   modelRoot.className = 'asset-viewer model-viewer';
   modelRoot.hidden = true;
-  modelRoot.innerHTML = `<aside class="tool-sidebar"><span class="eyebrow">GTA V LEGACY</span><h2>Model viewer</h2><div class="viewer-button-row"><button id="mvOpen" class="primary">Open model</button><button id="mvAddTextures">+ Textures</button></div><input id="mvInput" type="file" accept=".yft,.ydd,.ydr,.ytd" multiple hidden><input id="mvTextureInput" type="file" accept=".ytd,.dds,.png,.jpg,.jpeg,.webp" multiple hidden><div class="viewer-options"><label>Drawable<select id="mvDrawable" disabled></select></label><label>Level of detail<select id="mvLod" disabled></select></label><label class="check"><input id="mvGrid" type="checkbox" checked>Grid</label><label class="check"><input id="mvWire" type="checkbox">Wireframe</label><label class="check"><input id="mvBounds" type="checkbox">Geometry bounds</label><label class="check"><input id="mvPoints" type="checkbox">Vertex points</label></div><h3>Visible parts</h3><div class="viewer-button-row"><button id="mvShowAll">Show all</button><button id="mvHideAll">Hide all</button></div><div id="mvParts"></div><h3>Loaded textures</h3><div id="mvTextures"></div><p class="muted">Static geometry and diffuse materials. Skeleton animation, damage physics and mesh editing are not supported.</p></aside><section class="viewer-content"><div class="viewer-toolbar"><div><span class="eyebrow">MODEL PREVIEW</span><h2 id="mvTitle">No model loaded</h2></div><div class="viewer-button-row"><button id="mvFit">Fit model</button><button id="mvFront">Front</button><button id="mvSide">Side</button><button id="mvTop">Top</button><button id="mvSnapshot" disabled>Save PNG</button></div></div><div id="mvViewport"><p id="mvEmpty" class="muted">Open a YFT, YDD or YDR model. Drag to orbit; right-drag to pan; scroll to zoom.</p></div><p id="mvStatus" class="muted" role="status">Ready.</p></section>`;
+  modelRoot.innerHTML = `<aside class="tool-sidebar"><span class="eyebrow">GTA V LEGACY</span><h2>Model viewer</h2><div class="viewer-button-row"><button id="mvOpen" class="primary">Open model</button><button id="mvAddTextures">+ Textures</button></div><input id="mvInput" type="file" accept=".yft,.ydd,.ydr,.ytd" multiple hidden><button id="mvAddModels">Tambah extra / livery YFT</button><input id="mvExtraInput" type="file" accept=".yft,.ydd,.ydr" multiple hidden><div id="mvModels"></div><input id="mvTextureInput" type="file" accept=".ytd,.dds,.png,.jpg,.jpeg,.webp" multiple hidden><div class="viewer-options"><label>Drawable<select id="mvDrawable" disabled></select></label><label>Level of detail<select id="mvLod" disabled></select></label><label class="check"><input id="mvGrid" type="checkbox" checked>Grid</label><label class="check"><input id="mvWire" type="checkbox">Wireframe</label><label class="check"><input id="mvBounds" type="checkbox">Geometry bounds</label><label class="check"><input id="mvPoints" type="checkbox">Vertex points</label></div><h3>Visible parts</h3><div class="viewer-button-row"><button id="mvShowAll">Show all</button><button id="mvHideAll">Hide all</button></div><div id="mvParts"></div><details class="material-binding"><summary>Material &amp; livery</summary><label>Mesh<select id="mvMaterialMesh"></select></label><label>Tekstur<select id="mvMaterialTexture"><option value="">Otomatis</option></select></label><label>UV<select id="mvMaterialUv"><option value="0">UV 1</option><option value="1">UV 2</option></select></label><p class="muted">Pilih tekstur untuk mesh yang dipilih. Livery YFT terpisah ditambahkan lewat Extra; ini preview material statis.</p></details><h3>Loaded textures</h3><div id="mvTextures"></div><p class="muted">Static geometry and diffuse materials. Skeleton animation, damage physics and mesh editing are not supported.</p></aside><section class="viewer-content"><div class="viewer-toolbar"><div><span class="eyebrow">MODEL PREVIEW</span><h2 id="mvTitle">No model loaded</h2></div><div class="viewer-button-row"><button id="mvFit">Fit model</button><button id="mvFront">Front</button><button id="mvSide">Side</button><button id="mvTop">Top</button><button id="mvSnapshot" disabled>Save PNG</button></div></div><div id="mvViewport"><p id="mvEmpty" class="muted">Open a YFT, YDD or YDR model. Drag to orbit; right-drag to pan; scroll to zoom.</p></div><p id="mvStatus" class="muted" role="status">Ready.</p></section>`;
   nav.after(textureRoot);
   textureRoot.after(modelRoot);
   let textures = [],
@@ -49,6 +49,12 @@ export function mountViewers({ nav, download, toast, activate }) {
     modelTextures = [],
     drawable = 0,
     lod = 0;
+  let extraDrawables = [],
+    extraSerial = 0,
+    materialSelection = '';
+  const hiddenMeshes = new Set(),
+    materialOverrides = new Map();
+  let renderedMeshes = [];
   const scene = new THREE.Scene(),
     camera = new THREE.PerspectiveCamera(40, 1, 0.01, 10000);
   let renderer,
@@ -123,6 +129,8 @@ export function mountViewers({ nav, download, toast, activate }) {
       } else {
         $('mvDrawable').disabled = $('mvLod').disabled = !drawables.length;
         $('mvSnapshot').disabled = !renderer || !drawables.length;
+        $('mvMaterialUv').disabled = !renderedMeshes.find((e) => e.key === materialSelection)
+          ?.geometry.uvs2;
       }
     }
   }
@@ -382,16 +390,18 @@ export function mountViewers({ nav, download, toast, activate }) {
         name?.replace(/\.(dds|png|jpe?g|webp)$/i, '').toLowerCase(),
     );
   }
-  function materialMap(t) {
+  function materialMap(t, channel = 0) {
     if (!t) return null;
-    if (mapCache.has(t)) return mapCache.get(t);
+    if (mapCache.get(t)?.has(channel)) return mapCache.get(t).get(channel);
     const canvas = textureCanvas(t),
       map = new THREE.CanvasTexture(canvas);
     map.flipY = false;
+    map.channel = channel;
     map.colorSpace = THREE.SRGBColorSpace;
     map.wrapS = map.wrapT = THREE.RepeatWrapping;
     maps.push(map);
-    mapCache.set(t, map);
+    if (!mapCache.has(t)) mapCache.set(t, new Map());
+    mapCache.get(t).set(channel, map);
     return map;
   }
   function modelOptions() {
@@ -422,49 +432,82 @@ export function mountViewers({ nav, download, toast, activate }) {
     if (!d) return;
     initRenderer();
     const level = d.lods[lod],
-      embedded = d.embeddedTextures || [];
+      activeExtras = extraDrawables.filter((e) => e.visible),
+      embedded = [d, ...activeExtras.map((e) => e.data)].flatMap((e) => e.embeddedTextures || []);
+    renderedMeshes = [];
+    const sources = [
+      { data: d, level, key: 'base:' + drawable, name: modelName },
+      ...activeExtras.map((e) => ({
+        data: e.data,
+        level: e.data.lods[0],
+        key: 'extra:' + e.id,
+        name: e.name,
+        transform: e.transform,
+      })),
+    ];
     let triangles = 0,
       vertices = 0;
     const missing = new Set(),
       parts = new Map();
-    for (const [index, g] of level.geometries.entries()) {
-      const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute('position', new THREE.BufferAttribute(g.positions, 3));
-      if (g.uvs) geometry.setAttribute('uv', new THREE.BufferAttribute(g.uvs, 2));
-      geometry.setIndex(new THREE.BufferAttribute(g.indices, 1));
-      geometry.computeVertexNormals();
-      const t = textureLookup(g.diffuseTexture, embedded);
-      if (g.diffuseTexture && !t) missing.add(g.diffuseTexture);
-      const material = new THREE.MeshStandardMaterial({
-        color: t ? 0xffffff : 0xb3bbc8,
-        map: materialMap(t),
-        side: THREE.DoubleSide,
-        roughness: 0.75,
-        wireframe: $('mvWire').checked,
-        transparent: !!t,
-        alphaTest: t ? 0.05 : 0,
-      });
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.name =
-        'Part ' +
-        (g.part + 1) +
-        ' · mesh ' +
-        (index + 1) +
-        ' · ' +
-        (g.diffuseTexture || 'tanpa diffuse');
-      const p = new THREE.Points(
-        geometry,
-        new THREE.PointsMaterial({ color: 0xb2a2ff, size: 0.025, sizeAttenuation: true }),
-      );
-      p.visible = $('mvPoints').checked;
-      mesh.add(p);
-      points.push(p);
-      if (!parts.has(g.part)) parts.set(g.part, []);
-      parts.get(g.part).push(mesh);
-      group.add(mesh);
-      triangles += g.indices.length / 3;
-      vertices += g.positions.length / 3;
-    }
+    for (const source of sources)
+      for (const [index, g] of source.level.geometries.entries()) {
+        const meshKey = source.key + ':' + index,
+          override = materialOverrides.get(meshKey);
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.BufferAttribute(g.positions, 3));
+        if (g.uvs) geometry.setAttribute('uv', new THREE.BufferAttribute(g.uvs, 2));
+        if (g.uvs2) geometry.setAttribute('uv1', new THREE.BufferAttribute(g.uvs2, 2));
+        geometry.setIndex(new THREE.BufferAttribute(g.indices, 1));
+        geometry.computeVertexNormals();
+        const available = [...modelTextures, ...embedded];
+        const t = override
+          ? available.find((t) => t.name === override.name && t.dictionary === override.dictionary)
+          : textureLookup(g.diffuseTexture, embedded);
+        if (g.diffuseTexture && !t) missing.add(g.diffuseTexture);
+        const material = new THREE.MeshStandardMaterial({
+          color: t ? 0xffffff : 0xb3bbc8,
+          map: materialMap(t, override?.channel === 1 && g.uvs2 ? 1 : 0),
+          side: THREE.DoubleSide,
+          roughness: 0.75,
+          wireframe: $('mvWire').checked,
+          transparent: !!t,
+          alphaTest: t ? 0.05 : 0,
+        });
+        const mesh = new THREE.Mesh(geometry, material);
+        if (source.transform) {
+          const t = source.transform;
+          mesh.position.set(t.x || 0, t.y || 0, t.z || 0);
+          mesh.rotation.set(
+            ...['rx', 'ry', 'rz'].map((key) => THREE.MathUtils.degToRad(t[key] || 0)),
+          );
+          mesh.scale.setScalar(t.scale || 1);
+        }
+        mesh.name =
+          source.name +
+          ' · Part ' +
+          (g.part + 1) +
+          ' · mesh ' +
+          (index + 1) +
+          ' · ' +
+          (g.diffuseTexture || 'tanpa diffuse');
+        const p = new THREE.Points(
+          geometry,
+          new THREE.PointsMaterial({ color: 0xb2a2ff, size: 0.025, sizeAttenuation: true }),
+        );
+        p.visible = $('mvPoints').checked;
+        mesh.add(p);
+        points.push(p);
+        mesh.userData.bindingKey = meshKey;
+        mesh.visible = !hiddenMeshes.has(meshKey);
+        renderedMeshes.push({ mesh, key: meshKey, geometry: g });
+        const partKey =
+          source.key === 'base:' + drawable ? g.part : source.name + ' · Part ' + (g.part + 1);
+        if (!parts.has(partKey)) parts.set(partKey, []);
+        parts.get(partKey).push(mesh);
+        group.add(mesh);
+        triangles += g.indices.length / 3;
+        vertices += g.positions.length / 3;
+      }
     const box = new THREE.Box3().setFromObject(group),
       size = Math.max(...box.getSize(new THREE.Vector3()).toArray(), 1);
     grid = new THREE.GridHelper(size * 3, 24, 0x716985, 0x34343d);
@@ -480,13 +523,47 @@ export function mountViewers({ nav, download, toast, activate }) {
       label.className = 'check';
       const input = document.createElement('input');
       input.type = 'checkbox';
-      input.checked = true;
-      input.onchange = () => meshes.forEach((m) => (m.visible = input.checked));
+      input.checked = meshes.every((m) => m.visible);
+      input.onchange = () => {
+        meshes.forEach((m) => {
+          m.visible = input.checked;
+          if (input.checked) hiddenMeshes.delete(m.userData.bindingKey);
+          else hiddenMeshes.add(m.userData.bindingKey);
+        });
+        meshRows.querySelectorAll('input').forEach((i) => (i.checked = input.checked));
+        renderer?.render(scene, camera);
+      };
+      const meshRows = document.createElement('details');
+      meshRows.className = 'mesh-parts';
+      const summary = document.createElement('summary');
+      summary.textContent = 'Mesh / extra';
+      meshRows.append(summary);
+      meshes.forEach((m) => {
+        const row = document.createElement('label');
+        row.className = 'check';
+        const toggle = document.createElement('input');
+        toggle.type = 'checkbox';
+        toggle.checked = m.visible;
+        toggle.onchange = () => {
+          m.visible = toggle.checked;
+          if (toggle.checked) hiddenMeshes.delete(m.userData.bindingKey);
+          else hiddenMeshes.add(m.userData.bindingKey);
+          input.checked = meshes.every((m) => m.visible);
+          renderer?.render(scene, camera);
+        };
+        row.append(toggle, document.createTextNode(m.name));
+        meshRows.append(row);
+      });
       label.append(
         input,
-        document.createTextNode('Part ' + (index + 1) + ' · ' + meshes.length + ' meshes'),
+        document.createTextNode(
+          (typeof index === 'number' ? 'Part ' + (index + 1) : index) +
+            ' · ' +
+            meshes.length +
+            ' meshes',
+        ),
       );
-      $('mvParts').append(label);
+      $('mvParts').append(label, meshRows);
     }
     $('mvTextures').replaceChildren();
     for (const t of [...embedded, ...modelTextures]) {
@@ -501,6 +578,9 @@ export function mountViewers({ nav, download, toast, activate }) {
         remove.setAttribute('aria-label', 'Remove texture ' + t.name);
         remove.onclick = () => {
           if (modelBusy) return;
+          for (const [key, binding] of materialOverrides)
+            if (binding.name === t.name && binding.dictionary === t.dictionary)
+              materialOverrides.delete(key);
           modelTextures.splice(modelTextures.indexOf(t), 1);
           renderModel();
         };
@@ -508,6 +588,8 @@ export function mountViewers({ nav, download, toast, activate }) {
         $('mvTextures').append(row);
       } else $('mvTextures').append(p);
     }
+    renderExtras();
+    renderBindings();
     $('mvTitle').textContent = modelName;
     $('mvEmpty').hidden = !!renderer;
     $('mvStatus').textContent =
@@ -525,23 +607,213 @@ export function mountViewers({ nav, download, toast, activate }) {
     pedMaterials.setMeshes(group.children.filter((mesh) => mesh.isMesh));
     fitModel();
   }
+  async function parseModels(files) {
+    const out = [];
+    if (files.length > 32) throw Error('Maksimum 32 file model per impor.');
+    for (const f of files) {
+      if (!modelExtensions.test(f.name) || f.size > 64 * 1024 * 1024)
+        throw Error('Choose YFT, YDD or YDR up to 64 MB.');
+      const ext = f.name.split('.').at(-1).toLowerCase();
+      const data = { yft: readYft, ydd: readYdd, ydr: readYdr }[ext](await f.arrayBuffer());
+      out.push({ name: f.name, data });
+    }
+    return out;
+  }
+  function extraBudget(extras, base) {
+    if (extras.length > 64) throw Error('Maksimum 64 drawable tambahan.');
+    const size = [...base, ...extras.map((e) => e.data)].reduce(
+      (sum, d) =>
+        sum +
+        d.lods.reduce(
+          (sum, l) => sum + l.geometries.reduce((n, g) => n + g.positions.length / 3, 0),
+          0,
+        ),
+      0,
+    );
+    if (size > 2000000) throw Error('Gabungan model melebihi 2 juta vertex.');
+  }
+  function renderExtras() {
+    $('mvModels').replaceChildren();
+    for (const extra of extraDrawables) {
+      const row = document.createElement('div');
+      row.className = 'viewer-button-row';
+      const label = document.createElement('label');
+      label.className = 'check';
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = extra.visible;
+      checkbox.onchange = () => {
+        extra.visible = checkbox.checked;
+        renderModel();
+      };
+      label.append(checkbox, document.createTextNode(extra.name));
+      const remove = document.createElement('button');
+      remove.textContent = '×';
+      remove.setAttribute('aria-label', 'Hapus extra ' + extra.name);
+      remove.onclick = () => {
+        extraDrawables = extraDrawables.filter((e) => e !== extra);
+        renderModel();
+      };
+      row.append(label, remove);
+      $('mvModels').append(row);
+      const transform = document.createElement('details');
+      transform.className = 'extra-transform';
+      const summary = document.createElement('summary');
+      summary.textContent = 'Posisi / rotasi';
+      transform.append(summary);
+      for (const [key, caption] of [
+        ['x', 'X'],
+        ['y', 'Y'],
+        ['z', 'Z'],
+        ['rx', 'Rotasi X'],
+        ['ry', 'Rotasi Y'],
+        ['rz', 'Rotasi Z'],
+        ['scale', 'Skala'],
+      ]) {
+        const label = document.createElement('label');
+        label.textContent = caption;
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.step = key.startsWith('r') ? '1' : '0.01';
+        input.value = extra.transform?.[key] ?? (key === 'scale' ? 1 : 0);
+        input.setAttribute('aria-label', caption + ' ' + extra.name);
+        input.onchange = () => {
+          const value = Number(input.value);
+          if (
+            !Number.isFinite(value) ||
+            Math.abs(value) > 10000 ||
+            (key === 'scale' && (value < 0.01 || value > 100))
+          ) {
+            input.value = extra.transform?.[key] ?? (key === 'scale' ? 1 : 0);
+            return;
+          }
+          extra.transform ||= {};
+          extra.transform[key] = value;
+          renderModel();
+        };
+        label.append(input);
+        transform.append(label);
+      }
+      $('mvModels').append(transform);
+    }
+  }
+  function renderBindings() {
+    $('mvMaterialMesh').replaceChildren(
+      ...renderedMeshes.map(({ mesh, key }) => {
+        const o = document.createElement('option');
+        o.value = key;
+        o.textContent = mesh.name;
+        return o;
+      }),
+    );
+    if (!renderedMeshes.some((e) => e.key === materialSelection))
+      materialSelection = renderedMeshes[0]?.key || '';
+    $('mvMaterialMesh').value = materialSelection;
+    const available = [...modelTextures, ...sourcesTextures()];
+    const auto = document.createElement('option');
+    auto.value = '';
+    auto.textContent = 'Otomatis';
+    $('mvMaterialTexture').replaceChildren(
+      auto,
+      ...available.map((t, i) => {
+        const o = document.createElement('option');
+        o.value = i;
+        o.textContent = t.name + ' · ' + (t.dictionary || 'embedded');
+        return o;
+      }),
+    );
+    const override = materialOverrides.get(materialSelection),
+      selected = override
+        ? available.findIndex(
+            (t) => t.name === override.name && t.dictionary === override.dictionary,
+          )
+        : -1;
+    $('mvMaterialTexture').value = selected < 0 ? '' : String(selected);
+    $('mvMaterialUv').value = String(override?.channel || 0);
+    $('mvMaterialUv').disabled = !renderedMeshes.find((e) => e.key === materialSelection)?.geometry
+      .uvs2;
+  }
+  function sourcesTextures() {
+    return [drawables[drawable], ...extraDrawables.filter((e) => e.visible).map((e) => e.data)]
+      .filter(Boolean)
+      .flatMap((d) => d.embeddedTextures || []);
+  }
+  $('mvMaterialMesh').onchange = () => {
+    materialSelection = $('mvMaterialMesh').value;
+    renderBindings();
+  };
+  function bindTexture() {
+    const value = $('mvMaterialTexture').value;
+    if (value === '') materialOverrides.delete(materialSelection);
+    else {
+      const t = [...modelTextures, ...sourcesTextures()][Number(value)];
+      if (t)
+        materialOverrides.set(materialSelection, {
+          name: t.name,
+          dictionary: t.dictionary,
+          channel: Number($('mvMaterialUv').value),
+        });
+    }
+    renderModel();
+  }
+  $('mvMaterialTexture').onchange = $('mvMaterialUv').onchange = bindTexture;
   async function openModels(files) {
     activate('modelviewer');
     await operation('model', async () => {
-      const f = files.find((f) => modelExtensions.test(f.name));
-      if (!f || f.size > 64 * 1024 * 1024) throw Error('Choose YFT, YDD or YDR up to 64 MB.');
-      const ext = f.name.split('.').at(-1).toLowerCase(),
-        next = { yft: readYft, ydd: readYdd, ydr: readYdr }[ext](await f.arrayBuffer()),
-        loaded = await readTextures(files.filter((f) => textureExtensions.test(f.name)));
+      const candidates = files.filter((f) => modelExtensions.test(f.name));
+      candidates.sort(
+        (a, b) =>
+          Number(/(?:_hi|csign|livery)/i.test(a.name)) -
+          Number(/(?:_hi|csign|livery)/i.test(b.name)),
+      );
+      const parsed = await parseModels(candidates);
+      if (!parsed.length) throw Error('Choose YFT, YDD or YDR up to 64 MB.');
+      const loaded = await readTextures(files.filter((f) => textureExtensions.test(f.name)));
+      const extras = parsed.slice(1).flatMap((f) =>
+        f.data.map((d) => ({
+          id: ++extraSerial,
+          name: f.name + ' · ' + d.name,
+          data: d,
+          visible: false,
+        })),
+      );
+      extraBudget(extras, parsed[0].data);
       pedAttachments.clear();
       pedMaterials.clear();
-      drawables = next;
+      hiddenMeshes.clear();
+      materialOverrides.clear();
+      drawables = parsed[0].data;
+      extraDrawables = extras;
       modelTextures = loaded;
-      modelName = f.name;
+      modelName = parsed[0].name;
       drawable = lod = 0;
       renderModel();
     });
   }
+  $('mvAddModels').onclick = () => {
+    if (!drawables.length) return toast('Buka model utama dahulu.');
+    $('mvExtraInput').click();
+  };
+  $('mvExtraInput').onchange = (e) => {
+    const files = [...e.target.files];
+    e.target.value = '';
+    if (!files.length) return;
+    operation('model', async () => {
+      if (!drawables.length) throw Error('Buka model utama dahulu.');
+      const parsed = await parseModels(files),
+        next = parsed.flatMap((f) =>
+          f.data.map((d) => ({
+            id: ++extraSerial,
+            name: f.name + ' · ' + d.name,
+            data: d,
+            visible: false,
+          })),
+        );
+      extraBudget([...extraDrawables, ...next], drawables);
+      extraDrawables.push(...next);
+      renderModel();
+    });
+  };
   $('mvOpen').onclick = () => $('mvInput').click();
   $('mvAddTextures').onclick = () => $('mvTextureInput').click();
   $('mvInput').onchange = (e) => {
@@ -566,6 +838,12 @@ export function mountViewers({ nav, download, toast, activate }) {
   $('mvDrawable').onchange = () => {
     drawable = Number($('mvDrawable').value);
     lod = 0;
+    let extraDrawables = [],
+      extraSerial = 0,
+      materialSelection = '';
+    const hiddenMeshes = new Set(),
+      materialOverrides = new Map();
+    let renderedMeshes = [];
     renderModel();
   };
   $('mvLod').onchange = () => {

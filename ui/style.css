@@ -2757,3 +2757,85 @@ a.compact-icon {
   flex-basis: auto;
   padding: 0 12px;
 }
+.material-binding,
+.stickers-3d {
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+  margin-top: 12px;
+}
+.material-binding summary,
+.stickers-3d summary,
+.mesh-parts summary {
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+}
+.material-binding label,
+.stickers-3d label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.material-binding p,
+.stickers-3d p {
+  font-size: 11px;
+  line-height: 1.7;
+}
+.mesh-parts {
+  margin: 6px 0 12px;
+  padding-left: 12px;
+}
+.mesh-parts label {
+  overflow-wrap: anywhere;
+  font-size: 10px;
+  align-items: flex-start;
+}
+#mvModels .viewer-button-row {
+  justify-content: space-between;
+  margin-top: 8px;
+}
+#mvModels .check {
+  overflow-wrap: anywhere;
+  font-size: 10px;
+}
+#stickerList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0;
+}
+.placing-sticker {
+  cursor: crosshair;
+}
+.modeltools #addPng3d {
+  flex-basis: 100%;
+  font-size: 11px;
+}
+.right.expanded-3d .modeltools #addPng3d {
+  flex-basis: auto;
+  padding: 0 12px;
+}
+.extra-transform {
+  margin: 6px 0 12px;
+}
+.extra-transform summary {
+  cursor: pointer;
+  font-size: 10px;
+  color: var(--muted);
+}
+.extra-transform label {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 30%;
+  margin: 6px 3% 0 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+.extra-transform input {
+  width: 100%;
+  padding: 6px;
+}

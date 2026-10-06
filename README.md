@@ -212,3 +212,7 @@ Aksi kuas, hapus, duplikat, zoom, kamera, viewer dan arsip memakai Uicons Flatic
 Buka model ped, rambut, baju, celana, atau vest di **Texture & Model** atau **Model viewer**, lalu pasang YTD/teksturnya. Klik **Photoshoot** di toolbar 3D (juga tersedia pada preview Clothing pack). Studio memakai model aktif beserta rambut dan materialnya dalam tiga sudut: preset ped kiri/depan/kanan, atau pakaian depan/belakang/depan. Ini tiga tampilan model yang sama, bukan tiga slot model berbeda.
 
 Atur sudut masing-masing panel, arah depan, tinggi kamera, dan ukuran model. Tambahkan background PNG/JPG/WebP, logo, judul, dan caption. Background dapat berupa warna atau transparan. Pilih resolusi hingga 3000 × 2000 lalu **Simpan PNG** untuk katalog/Discord. Grid, wireframe, dan penanda vertex tidak ikut difoto; pengaturan editor asli tidak diubah. Mode ini menggunakan preview mesh statis yang tersedia; tidak menambahkan pose/animasi ped.
+
+### Kendaraan dan PNG pada 3D (v1.11.0)
+
+Model viewer mendukung impor beberapa model, pemilihan extra/livery YFT, kontrol setiap mesh, dan pemilihan tekstur/UV untuk diffuse preview. Error YTD `Format tekstur 1c belum didukung` ditangani dengan decoder A8. Di Texture & Model, **PNG 3D** menempelkan stiker pada permukaan mesh, tanpa mengubah kanvas 2D; bisa diatur ukuran/rotasi/opacity dan ikut difoto atau Photoshoot. Stiker 3D belum dibake ke YTD. Lihat [cara pakai dan batas preview](docs/VEHICLE_PREVIEW.md).

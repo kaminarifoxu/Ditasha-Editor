@@ -1,0 +1,111 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { deflateRaw } from 'pako';
+import { Resource, readYtd, readYdd, readYft } from '../src/resource.js';
+import { createYtd, hashName } from '../src/asset-tools.js';
+import { viewerModel } from './viewer-format.test.mjs';
+function pack(r, version) {
+  const bytes = deflateRaw(r.bytes),
+    out = new Uint8Array(16 + bytes.length);
+  out.set(r.header);
+  if (version) new DataView(out.buffer).setUint32(4, version, true);
+  out.set(bytes, 16);
+  return out.buffer;
+}
+function textureResource() {
+  return new Resource(
+    createYtd([{ name: 'vehicle_mask', w: 3, h: 2, out: new Uint8Array(24).fill(140) }]).buffer,
+    13,
+  );
+}
+export function alphaYtd() {
+  const r = textureResource(),
+    p = r.list(48, r.u16(56))[0],
+    data = r.ptr(p + 112);
+  r.v.setUint32(p + 88, 28, true);
+  r.v.setUint16(p + 86, 4, true);
+  r.bytes.set([0, 128, 255, 222, 64, 255, 1, 222], data);
+  return pack(r);
+}
+test('Vehicle A8 masks decode alpha, padded rows and truncation safely', () => {
+  const r = readYtd(alphaYtd()),
+    t = r.textures[0];
+  assert.equal(t.format, 'A8');
+  assert.deepEqual(
+    [...t.out].filter((_, i) => i % 4 === 3),
+    [0, 128, 255, 64, 255, 1],
+  );
+  assert.ok([...t.out].every((v, i) => i % 4 === 3 || v === 255));
+  const p = r.list(48, r.u16(56))[0];
+  r.v.setUint16(p + 86, 65535, true);
+  assert.throws(() => readYtd(pack(r)), /truncated/);
+});
+test('XRGB ignores unused alpha; luminance masks preserve channels', () => {
+  for (const [format, expected] of [
+    [22, [140, 140, 140, 255]],
+    [50, [140, 140, 140, 255]],
+    [51, [140, 140, 140, 140]],
+  ]) {
+    const r = textureResource(),
+      p = r.list(48, r.u16(56))[0];
+    r.v.setUint32(p + 88, format, true);
+    assert.deepEqual([...readYtd(pack(r)).textures[0].out.slice(0, 4)], expected);
+  }
+});
+test('Vehicle secondary diffuse sampler and UV2 are retained', () => {
+  const r = new Resource(viewerModel, 165);
+  r.v.setUint32(2256, hashName('DiffuseSampler2'), true);
+  r.v.setUint32(1728, 193, true);
+  r.v.setBigUint64(1736, 6n | (5n << 24n) | (5n << 28n), true);
+  for (const [vb, at] of [
+    [1408, 0],
+    [1472, 128],
+  ]) {
+    r.v.setUint16(vb + 8, 28, true);
+    for (let i = 0; i < 3; i++)
+      for (const [offset, value] of [
+        [0, i === 1 ? 1 : 0],
+        [4, 0],
+        [8, i === 2 ? 1 : 0],
+        [12, 0.1],
+        [16, 0.2],
+        [20, 0.3],
+        [24, 0.7],
+      ])
+        r.v.setFloat32(4096 + at + i * 28 + offset, value, true);
+  }
+  const [d] = readYdd(pack(r));
+  assert.equal(d.geometries[0].diffuseTexture, 'cloth_diffuse');
+  assert.equal(d.geometries[0].textureSamplers[0].hash, hashName('DiffuseSampler2'));
+  assert.ok(Math.abs(d.geometries[0].uvs2[0] - 0.3) < 1e-6);
+});
+export function fragmentYft() {
+  const r = new Resource(viewerModel, 165),
+    ptr = (at, to) => r.v.setBigUint64(at, BigInt(0x50000000 + to), true);
+  // Reuse the validated drawable at 128; empty separate drawable container with shared LOD geometry.
+  ptr(48, 128);
+  r.v.setUint32(72, 0, true);
+  ptr(240, 3000);
+  ptr(3016, 3056);
+  ptr(3056 + 208, 3376);
+  r.bytes[3056 + 285] = 1;
+  ptr(3376, 3392);
+  ptr(3392 + 160, 3680);
+  ptr(3680 + 80, 512);
+  r.v.setUint16(3392 + 18, 1234, true);
+  return pack(r, 162);
+}
+test('YFT physics child drawables are inspectable and inherit parent shader bindings', () => {
+  const d = readYft(fragmentYft());
+  assert.equal(d.length, 2);
+  assert.match(d[1].name, /Fragment 1.*1234.*Pristine/);
+  assert.equal(d[1].fragmentChild, true);
+  assert.equal(d[1].geometries[0].diffuseTexture, 'cloth_diffuse');
+});
+test('Unsupported physics child retains main YFT with an explicit warning', () => {
+  const r = new Resource(fragmentYft(), 162);
+  r.v.setBigUint64(3680 + 80, 0x90000000n, true);
+  const drawables = readYft(pack(r));
+  assert.equal(drawables.length, 1);
+  assert.ok(drawables[0].warnings.some((w) => /Fragment 1.*Pointer/.test(w)));
+});

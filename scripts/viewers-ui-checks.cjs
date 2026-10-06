@@ -29,6 +29,84 @@ module.exports = async function checkViewers(fixtures) {
     $(id).value = value;
     $(id).dispatchEvent(new Event('change'));
   };
+  async function checkSticker3d() {
+    const original2d = $('textureCanvas').toDataURL();
+    const source = document.querySelector('#viewport canvas');
+    if (!source) {
+      assert(!fixtures.requireWebgl, 'No WebGL for decal test');
+      return;
+    }
+    const sample = document.createElement('canvas');
+    sample.width = source.width;
+    sample.height = source.height;
+    const context = sample.getContext('2d');
+    context.drawImage(source, 0, 0);
+    const pixels = context.getImageData(0, 0, sample.width, sample.height).data;
+    let xsum = 0,
+      ysum = 0,
+      count = 0;
+    for (let y = 0; y < sample.height; y += 2)
+      for (let x = 0; x < sample.width; x += 2) {
+        const i = (y * sample.width + x) * 4;
+        if (pixels[i] > 60 && pixels[i] > pixels[i + 1] * 2 && pixels[i] > pixels[i + 2] * 2) {
+          xsum += x;
+          ysum += y;
+          count++;
+        }
+      }
+    assert(count > 10, 'No surface to test PNG placement');
+    const image = document.createElement('canvas');
+    image.width = image.height = 32;
+    const ctx = image.getContext('2d');
+    ctx.fillStyle = '#0000ff';
+    ctx.fillRect(0, 0, 32, 32);
+    const blob = await new Promise((resolve) => image.toBlob(resolve, 'image/png'));
+    await input(
+      'stickerInput',
+      [new File([blob], 'logo.png', { type: 'image/png' })],
+      () => $('stickerPlace').getAttribute('aria-pressed') === 'true',
+    );
+    const rect = $('viewport').getBoundingClientRect();
+    $('viewport').dispatchEvent(
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        button: 0,
+        clientX: rect.left + (xsum / count / sample.width) * rect.width,
+        clientY: rect.top + (ysum / count / sample.height) * rect.height,
+      }),
+    );
+    assert($('stickerList').children.length === 1, 'PNG was not projected onto 3D surface');
+    await sleep(150);
+    context.drawImage(source, 0, 0);
+    const after = context.getImageData(0, 0, sample.width, sample.height).data;
+    let blue = 0;
+    for (let i = 0; i < after.length; i += 4)
+      if (after[i + 2] > 70 && after[i + 2] > after[i] * 2 && after[i + 2] > after[i + 1] * 2)
+        blue++;
+    assert(blue > 10, '3D PNG decal did not render');
+    assert($('textureCanvas').toDataURL() === original2d, '3D PNG altered 2D texture');
+    $('stickerSize').value = 30;
+    $('stickerSize').dispatchEvent(new Event('input'));
+    $('stickerRotation').value = 25;
+    $('stickerRotation').dispatchEvent(new Event('input'));
+    console.log('DITASHA_SNAPSHOT:png-3d-sticker');
+    await sleep(200);
+    $('photoshoot').click();
+    assert($('photoshootDialog').open, 'Decal photoshoot did not open');
+    const photo = $('psCanvas'),
+      data = photo.getContext('2d').getImageData(0, 0, photo.width, photo.height).data;
+    let photoBlue = 0;
+    for (let i = 0; i < data.length; i += 4)
+      if (data[i + 2] > 70 && data[i + 2] > data[i] * 2 && data[i + 2] > data[i + 1] * 2)
+        photoBlue++;
+    assert(photoBlue > 10, 'Photoshoot omitted PNG sticker');
+    $('psClose').click();
+    await sleep(50);
+    $('stickerRemove').click();
+    assert($('stickerList').children.length === 0, 'PNG sticker could not be removed');
+    $('stickerClear').click();
+    assert($('textureCanvas').toDataURL() === original2d, 'Decal cleanup changed texture');
+  }
   async function checkPhotoshoot(prefix) {
     $(prefix === 'ped' ? 'photoshoot' : 'mvPhotoshoot').click();
     assert($('photoshootDialog').open, 'Photoshoot failed to open');
@@ -383,6 +461,7 @@ module.exports = async function checkViewers(fixtures) {
       [new File([new Uint8Array(fixtures.hairYtd)], 'hair-restored.ytd')],
       () => !$(prefix + 'AddHair').disabled,
     );
+    if (prefix === 'ped') await checkSticker3d();
     await checkPhotoshoot(prefix);
     console.log('DITASHA_SNAPSHOT:' + prefix + '-hair-preview');
     await sleep(350);
@@ -507,7 +586,7 @@ module.exports = async function checkViewers(fixtures) {
     () => !$('mvOpen').disabled,
   );
   assert(
-    $('mvLod').options.length === 2 && $('mvParts').children.length === 2,
+    $('mvLod').options.length === 2 && $('mvParts').querySelectorAll(':scope > label').length === 2,
     'LOD / part selection missing',
   );
   assert($('mvStatus').textContent.includes('2 triangles'), 'Model stats wrong');
@@ -524,7 +603,8 @@ module.exports = async function checkViewers(fixtures) {
   );
   change('mvLod', '1');
   assert(
-    $('mvStatus').textContent.includes('Medium') && $('mvParts').children.length === 1,
+    $('mvStatus').textContent.includes('Medium') &&
+      $('mvParts').querySelectorAll(':scope > label').length === 1,
     'LOD did not switch',
   );
   for (const id of ['mvGrid', 'mvWire', 'mvBounds', 'mvPoints']) {
@@ -693,9 +773,99 @@ module.exports = async function checkViewers(fixtures) {
     saves.at(-1).name === 'untitled-edited.rpf' && saves.at(-1).magic.join(',') === '55,70,80,82',
     'New RPF export invalid',
   );
+  document.querySelector('[data-page="modelviewer"]').click();
+  await input(
+    'mvInput',
+    [new File([new Uint8Array(fixtures.model)], 'vehicle.ydd')],
+    () => !$('mvOpen').disabled,
+  );
+  await input(
+    'mvTextureInput',
+    [new File([new Uint8Array(fixtures.alphaYtd)], 'vehicle.ytd')],
+    () => !$('mvOpen').disabled,
+  );
+  assert($('mvTextures').textContent.includes('vehicle_mask'), 'A8 vehicle YTD failed in viewer');
+  const beforeExtra = $('mvStatus').textContent;
+  await input(
+    'mvExtraInput',
+    [new File([new Uint8Array(fixtures.fragmentYft)], 'coq_livery1.yft')],
+    () => !$('mvOpen').disabled,
+  );
+  assert(
+    $('mvModels').querySelectorAll('input[type=checkbox]').length === 2,
+    'YFT livery/fragment drawables not added',
+  );
+  assert(
+    [...$('mvModels').querySelectorAll('input[type=checkbox]')].every((i) => !i.checked),
+    'Variants stacked automatically',
+  );
+  const extra = $('mvModels').querySelector('input[type=checkbox]');
+  extra.checked = true;
+  extra.dispatchEvent(new Event('change'));
+  assert($('mvStatus').textContent !== beforeExtra, 'Extra YFT geometry not combined with vehicle');
+  assert($('mvParts').querySelector('.mesh-parts input'), 'Individual mesh controls missing');
+  const offsetInput = $('mvModels').querySelector('.extra-transform input');
+  offsetInput.value = '0.75';
+  offsetInput.dispatchEvent(new Event('change'));
+  assert(
+    $('mvModels').querySelector('.extra-transform input').value === '0.75',
+    'Extra transform not retained',
+  );
+  const image = document.createElement('canvas');
+  image.width = image.height = 16;
+  const ctx = image.getContext('2d');
+  ctx.fillStyle = '#0000ff';
+  ctx.fillRect(0, 0, 16, 16);
+  const blob = await new Promise((resolve) => image.toBlob(resolve, 'image/png'));
+  await input(
+    'mvTextureInput',
+    [new File([blob], 'manual_livery.png', { type: 'image/png' })],
+    () => !$('mvOpen').disabled,
+  );
+  $('mvMaterialMesh').value =
+    $('mvMaterialMesh').options[$('mvMaterialMesh').options.length - 1].value;
+  $('mvMaterialMesh').dispatchEvent(new Event('change'));
+  const choice = [...$('mvMaterialTexture').options].find((o) =>
+    o.textContent.includes('manual_livery.png'),
+  );
+  assert(choice, 'Manual livery texture not available');
+  $('mvMaterialTexture').value = choice.value;
+  $('mvMaterialTexture').dispatchEvent(new Event('change'));
+  assert(
+    $('mvMaterialTexture').selectedOptions[0].textContent.includes('manual_livery.png'),
+    'Material override lost',
+  );
+  await sleep(150);
+  const viewerCanvas = document.querySelector('#mvViewport canvas'),
+    actual = document.createElement('canvas');
+  actual.width = viewerCanvas.width;
+  actual.height = viewerCanvas.height;
+  actual.getContext('2d').drawImage(viewerCanvas, 0, 0);
+  const materialPixels = actual
+    .getContext('2d')
+    .getImageData(0, 0, actual.width, actual.height).data;
+  let materialBlue = 0;
+  for (let i = 0; i < materialPixels.length; i += 4)
+    if (
+      materialPixels[i + 2] > 70 &&
+      materialPixels[i + 2] > materialPixels[i] * 2 &&
+      materialPixels[i + 2] > materialPixels[i + 1] * 2
+    )
+      materialBlue++;
+  assert(materialBlue > 10, 'Manual livery assignment did not change rendered mesh');
+  console.log('DITASHA_SNAPSHOT:vehicle-material-extra');
+  await sleep(200);
+  const retained = $('mvModels').textContent;
+  await input('mvExtraInput', [new File(['broken'], 'bad.yft')], () => !$('mvOpen').disabled);
+  assert($('mvModels').textContent === retained, 'Invalid extra destroyed vehicle state');
+  $('mvModels').querySelector('button').click();
+  assert(
+    $('mvModels').querySelectorAll('input[type=checkbox]').length === 1,
+    'Extra YFT not removable',
+  );
   return {
     saves,
     checks:
-      'Photoshoot three views with face/hair, background/logo, transparent PNG and canceled/successful saves in both workspaces; texture gallery, exact size/zoom, grid/list, search/background, PNG/DDS/bulk export and canceled save; model LOD/parts, external/embedded textures and invalid-file retention; ped hair YDD/YTD, independent rendered face/hair materials, transforms, visibility, invalid imports and reset/removal; folder sort, text/hex inspection, paired viewers and new RPF',
+      'Vehicle A8 YTD, separate YFT livery/fragment choices, individual meshes, manual texture assignment and invalid extra retention; PNG decals render and enter Photoshoot without touching 2D; Photoshoot three views with face/hair, background/logo, transparent PNG and canceled/successful saves in both workspaces; texture gallery, exact size/zoom, grid/list, search/background, PNG/DDS/bulk export and canceled save; model LOD/parts, external/embedded textures and invalid-file retention; ped hair YDD/YTD, independent rendered face/hair materials, transforms, visibility, invalid imports and reset/removal; folder sort, text/hex inspection, paired viewers and new RPF',
   };
 };

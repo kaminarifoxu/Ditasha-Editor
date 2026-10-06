@@ -1,5 +1,6 @@
 import { mountMinimalUi } from './ui-minimal.js';
 import { mountPhotoshoot } from './photoshoot.js';
+import { mountStickers3D } from './stickers-3d.js';
 import * as THREE from 'three';
 import { mountTools } from './tools-ui.js';
 import { mountMaterialPreview } from './material-preview.js';
@@ -104,7 +105,24 @@ try {
 } catch {
   toast('WebGL tidak tersedia. Gunakan browser dengan akselerasi hardware untuk preview 3D.');
 }
+const stickers3d = mountStickers3D({
+  scene,
+  viewport,
+  camera,
+  container: document.querySelector('.inspector'),
+  toolbar: document.querySelector('.modeltools'),
+  getMeshes: () => {
+    const meshes = [];
+    model.traverseVisible((o) => {
+      if (o.isMesh) meshes.push(o);
+    });
+    return meshes;
+  },
+  render: () => renderer?.render(scene, camera),
+  toast,
+});
 function clearModel() {
+  stickers3d.clear();
   pedMaterials.clear();
   model.traverse((o) => {
     if (o.isMesh) {
@@ -1820,7 +1838,7 @@ mountPhotoshoot({
   getSource: () =>
     displayedModel && renderer
       ? {
-          objects: [model, pedAttachments.group],
+          objects: [model, pedAttachments.group, stickers3d.group],
           camera,
           target: controls.target,
           name: displayedModel.name || 'Model & texture',
