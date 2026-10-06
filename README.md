@@ -215,4 +215,4 @@ Atur sudut masing-masing panel, arah depan, tinggi kamera, dan ukuran model. Tam
 
 ### Kendaraan dan PNG pada 3D (v1.11.0)
 
-Model viewer mendukung impor beberapa model, pemilihan extra/livery YFT, kontrol setiap mesh, dan pemilihan tekstur/UV untuk diffuse preview. Error YTD `Format tekstur 1c belum didukung` ditangani dengan decoder A8. Di Texture & Model, **PNG 3D** menempelkan stiker pada permukaan mesh, tanpa mengubah kanvas 2D; bisa diatur ukuran/rotasi/opacity dan ikut difoto atau Photoshoot. Stiker 3D belum dibake ke YTD. Lihat [cara pakai dan batas preview](docs/VEHICLE_PREVIEW.md).
+Model viewer mendukung impor beberapa model, pemilihan extra/livery YFT, kontrol setiap mesh, dan pemilihan tekstur/UV untuk diffuse preview. Error YTD `Format tekstur 1c belum didukung` ditangani dengan decoder A8. Di Texture & Model, **PNG 3D** menempatkan PNG pada permukaan mesh. Atur ukuran/rotasi/opacity, lalu **Terapkan ke tekstur** untuk membuat layer UV di kanvas 2D yang bisa di-Undo/Redo dan diekspor ke YTD. Versi 1.12.0 juga menerapkan transform bone pada rigid parts kendaraan. Lihat [cara pakai dan batas preview](docs/VEHICLE_PREVIEW.md).

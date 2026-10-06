@@ -1,3 +1,4 @@
+import { Matrix4, Quaternion, Vector3 } from 'three';
 import { deflateRaw, Inflate } from 'pako';
 export const pageSize = (f) =>
   512 *
@@ -337,6 +338,53 @@ function shaderInfo(r, d) {
   }
   return { bindings, embeddedTextures, warnings };
 }
+// DrawableModel rigid parts are stored in bone-local coordinates, not world space.
+function drawableBones(r, drawable) {
+  const skeleton = r.ptr(drawable + 24);
+  if (skeleton === null) return [];
+  const bones = r.ptr(skeleton + 32),
+    parents = r.ptr(skeleton + 56),
+    count = r.u16(skeleton + 94);
+  if (!count) return [];
+  if (count > 1024 || bones === null || bones + count * 80 > r.bytes.length)
+    throw Error('Invalid skeleton bones.');
+  const result = [],
+    visiting = new Set();
+  function bone(index) {
+    if (result[index]) return result[index];
+    if (visiting.has(index)) throw Error('Cyclic skeleton hierarchy.');
+    visiting.add(index);
+    const at = bones + index * 80;
+    const values = [0, 4, 8, 12, 16, 20, 24, 32, 36, 40].map((offset) => r.f32(at + offset));
+    if (!values.every(Number.isFinite)) throw Error('Invalid bone transform.');
+    const q = new Quaternion(...values.slice(0, 4));
+    if (q.lengthSq() < 1e-12) throw Error('Invalid bone rotation.');
+    const matrix = new Matrix4().compose(
+      new Vector3(...values.slice(4, 7)),
+      q.normalize(),
+      new Vector3(...values.slice(7)),
+    );
+    const parent = r.v.getInt16(parents === null ? at + 50 : parents + index * 2, true);
+    if (parent >= count) throw Error('Invalid bone parent.');
+    if (parent >= 0) matrix.premultiply(bone(parent));
+    visiting.delete(index);
+    return (result[index] = matrix);
+  }
+  for (let i = 0; i < count; i++) bone(i);
+  return result;
+}
+function rigidGeometry(data, matrix) {
+  if (!matrix) return data;
+  const positions = data.positions.slice(),
+    point = new Vector3();
+  for (let i = 0; i < positions.length; i += 3) {
+    // Undo GTA -> Three basis, transform in GTA coordinates, then restore basis.
+    point.set(positions[i], -positions[i + 2], positions[i + 1]).applyMatrix4(matrix);
+    positions.set([point.x, point.z, -point.y], i);
+  }
+  return { ...data, positions };
+}
+
 function readDrawables(r, drawables, metadata = new Map()) {
   const cache = new Map(),
     shaderCache = new Map();
@@ -418,6 +466,7 @@ function readDrawables(r, drawables, metadata = new Map()) {
     .map((d, di) => {
       const details = metadata.get(d) || {};
       try {
+        const bones = drawableBones(r, d);
         const lods = [],
           shaderDrawable = r.ptr(d + 16) === null ? (details.shaderParent ?? d) : d,
           key = r.ptr(shaderDrawable + 16);
@@ -429,6 +478,9 @@ function readDrawables(r, drawables, metadata = new Map()) {
           const geometries = [];
           for (const [mi, m] of r.list(pointer, r.u16(pointer + 8)).entries()) {
             const mapping = r.ptr(m + 32);
+            const skeletonBinding = r.u32(m + 40);
+            const boneIndex = skeletonBinding >>> 24;
+            const rigid = ((skeletonBinding >>> 8) & 255) === 0;
             const geometryCount = r.u16(m + 16),
               geometryArray = r.ptr(m + 8);
             if (geometryCount > 4096 || (geometryCount && geometryArray === null))
@@ -441,7 +493,8 @@ function readDrawables(r, drawables, metadata = new Map()) {
               const shaderIndex = mapping === null ? 0 : r.u16(mapping + gi * 2),
                 binding = info.bindings[shaderIndex];
               geometries.push({
-                ...data,
+                ...rigidGeometry(data, rigid ? bones[boneIndex] : null),
+                boneIndex,
                 name: 'Part ' + (mi + 1) + ' / Mesh ' + (gi + 1),
                 part: mi,
                 shaderIndex,

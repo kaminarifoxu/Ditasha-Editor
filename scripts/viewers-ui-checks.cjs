@@ -30,6 +30,8 @@ module.exports = async function checkViewers(fixtures) {
     $(id).dispatchEvent(new Event('change'));
   };
   async function checkSticker3d() {
+    $('canvasW').value = $('canvasH').value = '128';
+    $('confirmSize').click();
     const original2d = $('textureCanvas').toDataURL();
     const source = document.querySelector('#viewport canvas');
     if (!source) {
@@ -102,10 +104,21 @@ module.exports = async function checkViewers(fixtures) {
     assert(photoBlue > 10, 'Photoshoot omitted PNG sticker');
     $('psClose').click();
     await sleep(50);
-    $('stickerRemove').click();
-    assert($('stickerList').children.length === 0, 'PNG sticker could not be removed');
+    $('stickerBake').click();
+    assert($('stickerList').children.length === 0, 'Baked decal overlay was retained');
+    const baked = $('textureCanvas').toDataURL();
+    assert(baked !== original2d, '3D PNG failed to update texture canvas');
+    $('undo').click();
+    assert(
+      $('textureCanvas').toDataURL() === original2d,
+      'Undo failed to restore pre-projection texture',
+    );
+    $('redo').click();
+    assert($('textureCanvas').toDataURL() === baked, 'Redo failed to restore baked texture');
+    $('undo').click();
     $('stickerClear').click();
     assert($('textureCanvas').toDataURL() === original2d, 'Decal cleanup changed texture');
+    $('undo').click();
   }
   async function checkPhotoshoot(prefix) {
     $(prefix === 'ped' ? 'photoshoot' : 'mvPhotoshoot').click();

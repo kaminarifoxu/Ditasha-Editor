@@ -16,7 +16,7 @@ YFT physics child drawables pristine/damaged dapat diperiksa sebagai pilihan Dra
 
 Pada **Texture & Model**, klik **PNG 3D**, pilih PNG lalu klik permukaan model. Stiker diproyeksikan ke mesh menggunakan geometri 3D, sehingga tidak bergantung pada sambungan UV kanvas 2D. Atur ukuran, rotasi dan opacity di **PNG di permukaan 3D**. Pilih stiker dalam daftar, hapus satu atau semuanya; klik **Tempatkan PNG** untuk menambah salinan. Esc membatalkan penempatan. Rotasi kamera tetap bekerja setelah penempatan.
 
-Stiker tidak mengubah layer/kanvas 2D. Ia ikut pada foto model dan Photoshoot. Ini masih **preview 3D**, belum dibake ke UV atau diekspor ke YTD; berpindah model/drawable membersihkan stiker. Maksimal 16 stiker, 16 MP per PNG, 32 MP total gambar dan 20 MB per file. Model dengan kulit/pose dianimasikan belum didukung oleh preview.
+**Terapkan ke tekstur** memproyeksikan PNG mengikuti UV model ke layer transparan di kanvas 2D. Sambungan UV yang terpisah tetap menerima bagian gambar yang sesuai. Hasil bisa di-Undo/Redo dan ikut ekspor YTD; stiker preview dihapus setelah penerapan. Pilih tekstur tujuan yang sesuai sebelum menerapkan. UV bertumpuk dapat menampilkan gambar di beberapa bagian model karena bagian tersebut memakai piksel yang sama. Berpindah model/drawable membersihkan stiker yang belum diterapkan. Maksimal 16 stiker, 16 MP per PNG, 32 MP total gambar dan 20 MB per file. Model dengan kulit/pose dianimasikan belum didukung oleh preview.
 
 ## References and validation
 
@@ -25,3 +25,5 @@ Stiker tidak mengubah layer/kanvas 2D. Ia ikut pada foto model dan Photoshoot. I
 - Three.js bundled `DecalGeometry` provides the surface projection.
 
 Tests use synthetic valid resources for A8 padded rows, truncation, secondary diffuse sampler, UV2 and physics child inheritance. Native renderer checks cover importing/removing extra YFTs, material assignment, invalid import retention, actual decal pixels, unchanged 2D data, and decal inclusion in Photoshoot. User vehicle packs have not been supplied, so compatibility with a specific pack still requires its original YFT/YTD files.
+
+Rigid parts memakai transform bone hierarkis. Preview ini belum mendukung pose/animasi skinning atau semua transform physics fragment. Untuk memverifikasi kendaraan tertentu yang tetap rusak, sertakan YFT beserta YTD-nya.

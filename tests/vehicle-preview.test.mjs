@@ -109,3 +109,26 @@ test('Unsupported physics child retains main YFT with an explicit warning', () =
   assert.equal(drawables.length, 1);
   assert.ok(drawables[0].warnings.some((w) => /Fragment 1.*Pointer/.test(w)));
 });
+
+test('Rigid vehicle parts use hierarchical bone transforms without mutating shared geometry', () => {
+  const r = new Resource(viewerModel, 165);
+  const ptr = (at, to) => r.v.setBigUint64(at, BigInt(0x50000000 + to), true);
+  ptr(128 + 24, 3000);
+  ptr(3000 + 32, 3200);
+  ptr(3000 + 56, 3400);
+  r.v.setUint16(3000 + 94, 2, true);
+  for (let i = 0; i < 2; i++) {
+    const at = 3200 + i * 80;
+    r.v.setFloat32(at + 12, 1, true);
+    for (const offset of [32, 36, 40]) r.v.setFloat32(at + offset, 1, true);
+    r.v.setInt16(3400 + i * 2, i - 1, true);
+  }
+  r.v.setFloat32(3200 + 16, 2, true);
+  r.v.setFloat32(3280 + 20, 3, true);
+  r.v.setUint32(648 + 40, 1 << 24, true);
+  const model = readYdd(pack(r))[0];
+  assert.deepEqual([...model.geometries[0].positions.slice(0, 3)], [2, 0, -0]);
+  assert.deepEqual([...model.geometries[1].positions.slice(0, 3)], [2, 0, -3]);
+  r.v.setInt16(3400, 1, true);
+  assert.throws(() => readYdd(pack(r)), /Cyclic/);
+});

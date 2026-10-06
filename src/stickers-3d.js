@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { projectTexture } from './project-texture.js';
 import { DecalGeometry } from 'three/addons/geometries/DecalGeometry.js';
 
 export function mountStickers3D({
@@ -10,6 +11,8 @@ export function mountStickers3D({
   getMeshes,
   render,
   toast,
+  getTextureSize,
+  addTextureLayer,
 }) {
   const group = new THREE.Group();
   group.name = 'PNG stickers 3D';
@@ -20,7 +23,7 @@ export function mountStickers3D({
   toolbar.append(open);
   const root = document.createElement('details');
   root.className = 'stickers-3d';
-  root.innerHTML = `<summary>PNG di permukaan 3D</summary><input id="stickerInput" type="file" accept="image/png" hidden><p id="stickerStatus" role="status" class="muted">Tambah PNG, lalu klik permukaan model.</p><button id="stickerPlace" disabled>Tempatkan PNG</button><div id="stickerList"></div><label>Ukuran<input id="stickerSize" type="range" min="1" max="80" value="20"></label><label>Rotasi<input id="stickerRotation" type="range" min="-180" max="180" value="0"></label><label>Opacity<input id="stickerOpacity" type="range" min="1" max="100" value="100"></label><div class="viewer-button-row"><button id="stickerRemove" disabled>Hapus stiker</button><button id="stickerClear" disabled>Hapus semua</button></div><p class="muted">Stiker 3D untuk preview, foto PNG, dan Photoshoot. Belum dibake ke YTD. Stiker dibersihkan saat ganti model/drawable.</p>`;
+  root.innerHTML = `<summary>PNG di permukaan 3D</summary><input id="stickerInput" type="file" accept="image/png" hidden><p id="stickerStatus" role="status" class="muted">Tambah PNG, lalu klik permukaan model.</p><button id="stickerPlace" disabled>Tempatkan PNG</button><div id="stickerList"></div><label>Ukuran<input id="stickerSize" type="range" min="1" max="80" value="20"></label><label>Rotasi<input id="stickerRotation" type="range" min="-180" max="180" value="0"></label><label>Opacity<input id="stickerOpacity" type="range" min="1" max="100" value="100"></label><button id="stickerBake" disabled>Terapkan ke tekstur</button><div class="viewer-button-row"><button id="stickerRemove" disabled>Hapus stiker</button><button id="stickerClear" disabled>Hapus semua</button></div><p class="muted">Atur PNG di 3D, lalu Terapkan ke tekstur untuk membuat layer UV yang dapat di-undo dan disimpan ke YTD.</p>`;
   container.append(root);
   const $ = (id) => root.querySelector('#' + id),
     assets = [],
@@ -55,6 +58,7 @@ export function mountStickers3D({
       $('stickerList').append(b);
     }
     $('stickerRemove').disabled = !selected;
+    $('stickerBake').disabled = !selected;
     $('stickerClear').disabled = !items.length;
     $('stickerPlace').disabled = !asset;
   }
@@ -82,6 +86,9 @@ export function mountStickers3D({
       (width * item.asset.bitmap.height) / item.asset.bitmap.width,
       width * 0.4,
     );
+    projector.updateMatrixWorld();
+    item.projector = projector.matrixWorld.clone();
+    item.projectorSize = size;
     for (const mesh of targets) {
       const geometry = new DecalGeometry(mesh, item.point, projector.rotation, size);
       if (!geometry.getAttribute('position').count) {
@@ -215,6 +222,40 @@ export function mountStickers3D({
         rebuild(selected);
       }
     };
+  $('stickerBake').onclick = () => {
+    if (!selected) return;
+    try {
+      const dimensions = getTextureSize();
+      if (!dimensions) throw Error('Pilih tekstur yang akan diedit terlebih dahulu.');
+      const source = document.createElement('canvas');
+      source.width = selected.asset.bitmap.width;
+      source.height = selected.asset.bitmap.height;
+      const context = source.getContext('2d');
+      context.translate(0, source.height);
+      context.scale(1, -1);
+      context.drawImage(selected.asset.bitmap, 0, 0);
+      const pixels = projectTexture(
+        getMeshes(),
+        selected.projector,
+        selected.projectorSize,
+        context.getImageData(0, 0, source.width, source.height),
+        dimensions.w,
+        dimensions.h,
+        selected.opacity / 100,
+      );
+      const layer = document.createElement('canvas');
+      layer.width = dimensions.w;
+      layer.height = dimensions.h;
+      layer.getContext('2d').putImageData(new ImageData(pixels, layer.width, layer.height), 0, 0);
+      addTextureLayer(layer, selected.name);
+      $('stickerRemove').onclick();
+      toast(
+        'PNG diterapkan ke layer tekstur. Gunakan Undo untuk membatalkan, lalu ekspor YTD untuk menyimpan.',
+      );
+    } catch (error) {
+      toast(error.message);
+    }
+  };
   $('stickerRemove').onclick = () => {
     if (!selected) return;
     selected.meshes.forEach((m) => {

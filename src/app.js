@@ -106,6 +106,19 @@ try {
   toast('WebGL tidak tersedia. Gunakan browser dengan akselerasi hardware untuk preview 3D.');
 }
 const stickers3d = mountStickers3D({
+  getTextureSize: () => (current && !current.isUV ? { w: current.w, h: current.h } : null),
+  addTextureLayer: (source, name) => {
+    initLayers(current);
+    remember();
+    current.layers.push(makeLayer(source, 'PNG 3D · ' + name));
+    current.selected = current.layers.length - 1;
+    setMode('move');
+    renderComposite(true);
+    renderLayers();
+    renderTextures();
+    drawGuide();
+    applyTexture();
+  },
   scene,
   viewport,
   camera,
