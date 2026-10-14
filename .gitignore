@@ -6,6 +6,11 @@ font-source.css
 /ui/app.js
 
 /ui/resource-worker.js
+/ui/code-editor.js
+/ui/code-editor.css
+/ui/code-worker.js
+/ui/assets/MONACO-LICENSE.txt
+/ui/assets/MONACO-THIRD-PARTY.txt
 
 __pycache__/
 *.pyc

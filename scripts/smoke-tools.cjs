@@ -132,9 +132,49 @@ app.whenReady().then(async () => {
         JSON.stringify({ ytd: [...ytd], model: [...new Uint8Array(viewerModel)] }) +
         ')',
     );
+    await win.loadFile(path.resolve('ui/index.html'));
+    const inlineModel = new Uint8Array(viewerModel).slice();
+    const inlineHeader = new DataView(inlineModel.buffer);
+    inlineHeader.setUint32(8, (inlineHeader.getUint32(8, true) & 0x0fffffff) | 0xa0000000, true);
+    inlineHeader.setUint32(12, (inlineHeader.getUint32(12, true) & 0x0fffffff) | 0x50000000, true);
+    const inlineArchive = writeRpf([
+      { name: 'car.ydd', data: inlineModel },
+      { name: 'car.ytd', data: ytd },
+      { name: 'alternate.ytd', data: ytd },
+      { name: 'fxmanifest.lua', data: new TextEncoder().encode('fx_version "cerulean"\r\n') },
+    ]);
+    const inlineReport = await win.webContents.executeJavaScript(
+      '(' +
+        require('./explorer-preview-ui-checks.cjs').toString() +
+        ')(' +
+        JSON.stringify({ archive: [...inlineArchive] }) +
+        ')',
+    );
+    const { openArchive } = await import('../src/archives.js');
+    const inlineSave = inlineReport.saves.find((s) => s.name.endsWith('.rpf'));
+    const editedArchive = await openArchive(
+      new Blob([new Uint8Array(inlineSave.data)]),
+      inlineSave.name,
+    );
+    const editedScript = editedArchive.entries.find((e) => e.name === 'fxmanifest.lua');
+    if (
+      !new TextDecoder()
+        .decode(await editedArchive.extract(editedScript))
+        .includes('-- edited offline')
+    )
+      throw Error('Code editor changes did not survive RPF export');
+    inlineReport.saves = inlineReport.saves.map((s) => ({ name: s.name, size: s.data.length }));
     await Promise.all(captures);
     console.log(
-      'PASS: ' + JSON.stringify({ iconReport, report, archiveReport, viewerReport, offlineReport }),
+      'PASS: ' +
+        JSON.stringify({
+          iconReport,
+          report,
+          archiveReport,
+          viewerReport,
+          offlineReport,
+          inlineReport,
+        }),
     );
     win.destroy();
     app.exit(0);

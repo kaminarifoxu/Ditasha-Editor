@@ -15,7 +15,20 @@ opacity, kuas, penghapus, urutan, duplikat, kunci, undo/redo dan tab.
 UV biru tidak ikut diekspor. Pengeditan mesh/ekspor YFT/YDD/YDR belum tersedia.
 Ekspor desain sebelum menutup; proyek tersimpan di memori selama aplikasi terbuka.
 
-## Update
+## GTA V Explorer & editor kode
+
+Klik dua kali YFT/YDD/YDR untuk preview 3D langsung di Explorer; daftar file tetap terlihat.
+YTD dengan nama yang sama dipasangkan otomatis. Untuk YTD lain, pilih di toolbar preview,
+lalu klik Reload selected model. Model GTA V Legacy dan batas viewer yang ada tetap berlaku.
+
+Klik dua kali Lua/JS/TS/JSON/XML/meta/teks untuk membuka Monaco secara offline.
+Pilih **Apply to archive**, lalu **Save archive copy** untuk menyimpan perubahan ke RPF/ZIP/OIV baru.
+File dari Open folder tidak ditimpa; gunakan **Save file copy**. Batas teks 2 MB, UTF-8 saja.
+Monaco adalah komponen editor dari VS Code, bukan VS Code lengkap; tidak ada terminal,
+extension VS Code, atau eksekusi skrip. Lisensi Microsoft dan pemberitahuan pihak ketiga
+disertakan di assets aplikasi.
+
+## Update aplikasi
 
 Aplikasi mengecek GitHub Releases pada startup. Pilih **Update sekarang**
 untuk mengunduh rilis stabil, memverifikasi SHA-256, mengganti EXE, dan membuka

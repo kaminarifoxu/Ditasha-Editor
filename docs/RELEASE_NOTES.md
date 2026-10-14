@@ -1,3 +1,12 @@
+DITASHA Editor 1.18.0 — Inline Explorer preview and offline code editor
+
+- Open YFT/YDD/YDR models directly inside GTA V Explorer, keeping the file list and current workspace visible. Double-click a model or use Model viewer; orbit, zoom, change LOD and inspect parts without switching pages.
+- Pair a matching YTD automatically or choose another dictionary in the preview toolbar and reload the selected model. The existing model viewer, resource worker and GPU preview settings are reused.
+- Add an offline Monaco code editor (the editor component used by VS Code) for Lua, JS/TS, JSON, XML/meta, configuration and text files. Double-click a supported text file or choose Edit code / text. This is not the complete VS Code application: extensions, terminals and script execution are not included.
+- Apply text edits to the in-memory archive, then Save archive copy; the source archive is never overwritten. Folder files can be edited for export as a separate file copy only. Track unsaved buffers and confirm before discarding them.
+- Limit text documents to 2 MB and valid UTF-8; reject binary/NUL data and preserve UTF-8 BOM. Bundle editor assets, worker and Microsoft MIT/third-party notices locally.
+- Add browser and Windows Electron smoke checks for inline preview, code editing, cancel/discard behavior and byte-level exported RPF round trips, alongside existing viewer and updater regression tests.
+
 DITASHA Editor 1.17.1 — Workspace redesign and Discord Activity
 
 - Replace horizontal navigation with a dedicated left workspace rail, collapsing to accessible icons on smaller desktop windows. Keep Vehicle workshop immediately after GTA V Explorer; move Rig ped, GPU controls and Settings into the rail.

@@ -91,8 +91,12 @@ export function mountTools({ download, toast, preview, confirmDiscard, onVehicle
     viewers.textureRoot.hidden = next !== 'textureviewer';
     vehicles.root.hidden = next !== 'vehicles';
     const vehicleMode = next === 'vehicles';
-    (vehicleMode ? vehicles.host : modelHome).append(viewers.modelRoot);
-    viewers.modelRoot.hidden = !['modelviewer', 'vehicles'].includes(next);
+    const explorerMode = next === 'archives' && archives.previewVisible();
+    (vehicleMode ? vehicles.host : explorerMode ? archives.previewHost : modelHome).append(
+      viewers.modelRoot,
+    );
+    viewers.modelRoot.classList.toggle('explorer-embedded', explorerMode);
+    viewers.modelRoot.hidden = !explorerMode && !['modelviewer', 'vehicles'].includes(next);
     viewers.vehicleControls.hidden = !vehicleMode;
     viewers.modelRoot.querySelector('.tool-sidebar > h2').textContent = vehicleMode
       ? 'Kendaraan'

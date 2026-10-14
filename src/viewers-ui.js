@@ -832,14 +832,20 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
     'mvMaterialFlipV',
   ])
     $(id).onchange = bindTexture;
-  async function openModels(files) {
+  async function openModels(files, options = {}) {
     if (
       workshop.unsavedItems().length &&
       confirmDiscard &&
       (await confirmDiscard('file', workshop.unsavedItems())) !== 'discard'
     )
       return;
-    activate(getActivePage?.() === 'vehicles' ? 'vehicles' : 'modelviewer');
+    activate(
+      options.page === 'archives'
+        ? 'archives'
+        : getActivePage?.() === 'vehicles'
+          ? 'vehicles'
+          : 'modelviewer',
+    );
     await operation('model', async () => {
       const candidates = files.filter((f) => modelExtensions.test(f.name));
       candidates.sort(

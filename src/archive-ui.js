@@ -1,6 +1,8 @@
 import { folderArchive, sortEntries, hexPage } from './explorer.js';
 import { openArchive, writeRpf } from './archives.js';
 import { safePath, zipFiles, MAX_EXPORT } from './asset-tools.js';
+import { mountCodeEditor } from './code-editor-ui.js';
+import { MAX_CODE_BYTES } from './code-text.js';
 export function mountArchives({
   nav,
   download,
@@ -29,6 +31,19 @@ export function mountArchives({
   inspector.innerHTML =
     '<span class="eyebrow">FILE INSPECTOR</span><h2 id="inspectorTitle"></h2><div class="viewer-button-row"><button id="inspectorText">Text</button><button id="inspectorHex">Hex</button><button id="inspectorPrevious">← Previous</button><button id="inspectorNext">Next →</button></div><p id="inspectorInfo" class="muted"></p><pre id="inspectorContent"></pre><button id="inspectorClose">Close</button>';
   document.body.append(inspector);
+  const code = mountCodeEditor({ download, confirmDiscard, toast });
+  const codeButton = document.createElement('button');
+  codeButton.id = 'archiveCodeEditor';
+  codeButton.textContent = 'Edit code / text';
+  codeButton.disabled = true;
+  $('archiveInspect').after(codeButton);
+  const previewPanel = document.createElement('section');
+  previewPanel.className = 'explorer-preview';
+  previewPanel.hidden = true;
+  previewPanel.innerHTML =
+    '<div class="explorer-preview-bar"><strong>3D preview</strong><label>Textures <select id="archivePreviewTextures"><option value="">Auto (matching YTD)</option></select></label><button id="archivePreviewReload">Reload selected model</button><button id="archivePreviewClose">Close preview</button></div><div class="explorer-preview-host"></div>';
+  root.querySelector('.archive-center').append(previewPanel);
+  const previewHost = previewPanel.querySelector('.explorer-preview-host');
   let inspectData = new Uint8Array(),
     inspectOffset = 0,
     inspectMode = 'hex';
@@ -41,6 +56,7 @@ export function mountArchives({
     saved = 0;
   const dirty = () => revision !== saved,
     items = () => [
+      ...code.unsavedItems(),
       ...(dirty() ? [{ name: 'Archive · ' + state.archive.name }] : []),
       ...stack
         .filter((s) => s.revision !== s.saved)
@@ -51,7 +67,9 @@ export function mountArchives({
   const extract = async (e) => state.replacements.get(e.name) || (await state.archive.extract(e));
   function lock(on) {
     busy = on;
-    root.querySelectorAll('button,input').forEach((e) => (e.disabled = on));
+    root.querySelectorAll('button,input,select').forEach((e) => {
+      if (!e.closest('.asset-viewer')) e.disabled = on;
+    });
     nav.querySelectorAll('button').forEach((e) => (e.disabled = on));
     if (!on) render();
   }
@@ -125,6 +143,7 @@ export function mountArchives({
         if (/\.rpf$/i.test(e.name)) $('archiveNested').click();
         else if (/\.(yft|ydd|ydr)$/i.test(e.name)) $('archiveModelViewer').click();
         else if (/\.(ytd|dds|png|jpg|jpeg|webp)$/i.test(e.name)) $('archiveTextureViewer').click();
+        else if (!codeButton.disabled) codeButton.click();
         else $('archiveInspect').click();
       };
       cell.append(b);
@@ -153,6 +172,16 @@ export function mountArchives({
     $('archivePreview').disabled =
       !editable || !/\.(ytd|ydd|ydr|yft|dds|png|jpg|jpeg|webp|glb)$/i.test(e.name);
     $('archiveNested').disabled = !editable || !/\.rpf$/i.test(e.name);
+    codeButton.disabled =
+      !editable || !/\.(lua|js|ts|json|xml|meta|txt|cfg|ini|csv|html|css|md)$/i.test(e.name);
+    $('archivePreviewReload').disabled = $('archiveModelViewer').disabled;
+    const textureSelect = $('archivePreviewTextures'),
+      previousTexture = textureSelect.value;
+    textureSelect.replaceChildren(new Option('Auto (matching YTD)', ''));
+    for (const entry of files.filter((f) => /\.ytd$/i.test(f.name) && !f.encrypted))
+      textureSelect.add(new Option(entry.name, entry.name));
+    if ([...textureSelect.options].some((o) => o.value === previousTexture))
+      textureSelect.value = previousTexture;
   }
   async function packageInfo() {
     const manifest =
@@ -193,6 +222,7 @@ export function mountArchives({
     if (!nested && items().length && (await confirmDiscard('archive', items())) !== 'discard')
       return;
     const archive = Array.isArray(file) ? folderArchive(file) : await openArchive(file, file.name);
+    closePreview();
     if (nested) {
       stack.push({ state, revision, saved, folder });
     } else stack = [];
@@ -238,6 +268,7 @@ export function mountArchives({
   $('archiveNew').onclick = () =>
     run(async () => {
       if (items().length && (await confirmDiscard('archive', items())) !== 'discard') return;
+      closePreview();
       state = {
         archive: {
           name: 'untitled.rpf',
@@ -263,6 +294,7 @@ export function mountArchives({
     run(async () => {
       if (dirty() && (await confirmDiscard('archive', items())) !== 'discard') return;
       const previous = stack.pop();
+      closePreview();
       ({ state, revision, saved, folder } = previous);
       selection = null;
       $('archiveStatus').textContent = 'Parent archive restored.';
@@ -312,12 +344,17 @@ export function mountArchives({
     const selected = selection;
     const paired = /\.(ydd|ydr|yft)$/i.test(selected.name)
       ? list().find(
-          (e) => e.name.toLowerCase() === selected.name.replace(/\.[^.]+$/, '.ytd').toLowerCase(),
+          (e) =>
+            !e.encrypted &&
+            ($('archivePreviewTextures').value
+              ? e.name === $('archivePreviewTextures').value
+              : e.name.toLowerCase() === selected.name.replace(/\.[^.]+$/, '.ytd').toLowerCase()),
         )
       : null;
     const files = [];
     for (const e of [selected, ...(paired ? [paired] : [])]) {
-      if (e.size > 64 * 1024 * 1024) throw Error('Viewer file limit: 64 MB.');
+      if ((state.replacements.get(e.name)?.length ?? e.size) > 64 * 1024 * 1024)
+        throw Error('Viewer file limit: 64 MB.');
       files.push(new File([await extract(e)], e.name.split('/').at(-1)));
     }
     return files;
@@ -331,8 +368,50 @@ export function mountArchives({
   $('archiveModelViewer').onclick = () =>
     run(async () => {
       const files = await viewerFiles();
-      lock(false);
-      await viewers.openModels(files);
+      previewPanel.hidden = false;
+      root.classList.add('has-preview');
+      await viewers.openModels(files, { page: 'archives' });
+    });
+  function closePreview() {
+    previewPanel.hidden = true;
+    root.classList.remove('has-preview');
+    if (previewHost.contains(viewers.modelRoot)) {
+      viewers.modelRoot.hidden = true;
+      viewers.modelRoot.classList.remove('explorer-embedded');
+      document.body.append(viewers.modelRoot);
+    }
+  }
+  $('archivePreviewClose').onclick = closePreview;
+  $('archivePreviewReload').onclick = () => $('archiveModelViewer').click();
+  codeButton.onclick = () =>
+    run(async () => {
+      const target = selection,
+        owner = state;
+      if ((state.replacements.get(target.name)?.length ?? target.size) > MAX_CODE_BYTES)
+        throw Error('Code editor limit: 2 MB.');
+      await code.open({
+        name: target.name,
+        data: await extract(target),
+        editable: state.archive.kind !== 'Folder' && $('archiveEdit').checked,
+        onApply: async (data) => {
+          if (state !== owner || state.removed.has(target.name))
+            throw Error('Archive has changed. Reopen the file.');
+          if (
+            [...state.replacements].reduce(
+              (n, [p, d]) => n + (p === target.name ? 0 : d.length),
+              0,
+            ) +
+              data.length >
+            MAX_EXPORT
+          )
+            throw Error('Edited file data limit: 128 MB.');
+          state.replacements.set(target.name, data);
+          revision++;
+          render();
+          await packageInfo();
+          $('archiveStatus').textContent = 'Code applied. Save archive copy to persist changes.';
+        },
+      });
     });
   function inspect() {
     if (inspectMode === 'text') {
@@ -521,5 +600,5 @@ export function mountArchives({
     },
     true,
   );
-  return { root, unsavedItems: items };
+  return { root, unsavedItems: items, previewHost, previewVisible: () => !previewPanel.hidden };
 }
