@@ -237,7 +237,7 @@ Livery studio menyediakan enam slot manual, pola/teks/PNG, area atlas UV, layer 
 
 Open **Vehicle workshop**, immediately after **GTA V Explorer**, for vehicle YFT/YTD previews, extra parts, material/livery binding, mesh transforms, visual badge masking, lightbar previews and exports. **Debadge native** and **Strobo donor** open their respective offline engine workflows. The general Model viewer remains available for other assets; switching between these workspaces preserves the loaded scene. Auto rig ped is available through **Rig ped** in the header. Native requirements and limits are described in [Native build](docs/NATIVE_BUILD.md).
 
-### Workspace & Discord Activity (v1.17.0)
+### Workspace & Discord Activity (v1.17.1)
 
 The workspace navigation is now on the left. Auto rig ped, GPU and Settings are in the lower navigation section; Vehicle workshop follows GTA V Explorer. Settings contains persistent Midnight/Light themes, Comfortable/Compact density, and Discord Activity preferences.
 

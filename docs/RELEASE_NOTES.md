@@ -1,4 +1,4 @@
-DITASHA Editor 1.17.0 — Workspace redesign and Discord Activity
+DITASHA Editor 1.17.1 — Workspace redesign and Discord Activity
 
 - Replace horizontal navigation with a dedicated left workspace rail, collapsing to accessible icons on smaller desktop windows. Keep Vehicle workshop immediately after GTA V Explorer; move Rig ped, GPU controls and Settings into the rail.
 - Restyle the editor, file/layer panels, converter, clothing builder, viewers, Explorer, vehicle studio, native build dialogs, photoshoot, update/unsaved dialogs and loading screen with a consistent visual system.
