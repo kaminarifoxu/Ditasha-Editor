@@ -145,6 +145,14 @@ else {
       if (!isTrustedUpdateEvent(event, win, path.join(__dirname, '..', 'ui', 'index.html')))
         throw Error('Untrusted update request');
     };
+    require('./native-build.cjs').registerNativeBuild({
+      app,
+      ipcMain,
+      dialog,
+      shell,
+      win,
+      trusted,
+    });
     ipcMain.handle('ditasha:open-icon-credits', async (event) => {
       trusted(event);
       await shell.openExternal('https://www.flaticon.com/uicons');

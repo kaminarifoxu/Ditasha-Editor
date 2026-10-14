@@ -146,6 +146,67 @@ module.exports = async function checkOfflineStudio(fixtures) {
   assert(masked.data.slice(0, 4).join(',') === '82,83,67,55', 'Invalid native resource');
   $('mvShowAll').click();
   console.log('DITASHA_SNAPSHOT:vehicle-workshop');
+  const nativeCalls = [];
+  let nativeState = {
+    status: 'idle',
+    running: false,
+    message: 'Siap',
+    engine: 'blender.exe',
+    report: null,
+  };
+  window.ditashaNative = {
+    state: async () => nativeState,
+    pick: async (kind) => ({ id: kind + '-token', name: kind + '.yft' }),
+    start: async (payload) => {
+      nativeCalls.push(payload);
+      if (payload.mode === 'debadge_analyze')
+        nativeState = {
+          ...nativeState,
+          status: 'success',
+          report: {
+            ok: true,
+            mode: payload.mode,
+            candidates: [{ name: 'front_badge', faces: 12 }],
+          },
+        };
+      return nativeState;
+    },
+    cancel: async () => true,
+    reveal: async () => true,
+    docs: async () => true,
+  };
+  $('openNativeBuild').click();
+  change('nbMode', 'debadge');
+  $('nativeBuildDialog').querySelector('[data-pick="vehicle"]').click();
+  await sleep(30);
+  $('nbAnalyze').click();
+  await wait(
+    () => $('nbCandidates').querySelector('input') && !$('nbRun').disabled,
+    'Native badge analysis UI failed',
+  );
+  $('nbCandidates').querySelector('input').checked = true;
+  $('nbRun').click();
+  await wait(
+    () => nativeCalls.some((c) => c.mode === 'debadge') && !$('nbRun').disabled,
+    'Native build UI did not dispatch',
+  );
+  assert(
+    nativeCalls.find((c) => c.mode === 'debadge').selected[0] === 'front_badge',
+    'Native candidate selection was lost before build',
+  );
+  assert(
+    nativeCalls.find((c) => c.mode === 'debadge').inputs.vehicle === 'vehicle-token',
+    'Renderer did not use picker token',
+  );
+  window.ditashaNative.start = async () => {
+    throw Error('Engine tidak tersedia untuk tes');
+  };
+  $('nbRun').click();
+  await wait(
+    () => $('nbStatus').textContent.includes('Engine tidak tersedia'),
+    'Native engine error was hidden',
+  );
+  $('nbClose').click();
   return {
     saves: saves.map((s) => ({ name: s.name, size: s.data.length })),
     slots: 6,

@@ -19,3 +19,12 @@ contextBridge.exposeInMainWorld('ditashaDesktop', {
   openDonation: () => ipcRenderer.invoke('ditasha:open-donation'),
   saveExport: (payload) => ipcRenderer.invoke('ditasha:save-export', payload),
 });
+
+contextBridge.exposeInMainWorld('ditashaNative', {
+  state: () => ipcRenderer.invoke('ditasha:native-state'),
+  pick: (kind) => ipcRenderer.invoke('ditasha:native-pick', kind),
+  docs: (kind) => ipcRenderer.invoke('ditasha:native-doc', kind),
+  start: (payload) => ipcRenderer.invoke('ditasha:native-start', payload),
+  cancel: () => ipcRenderer.invoke('ditasha:native-cancel'),
+  reveal: () => ipcRenderer.invoke('ditasha:native-reveal'),
+});

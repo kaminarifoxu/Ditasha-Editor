@@ -228,3 +228,7 @@ Tab dokumen dan pilihan Edit 2D / Edit 3D berada di atas area utama yang aktif. 
 ### Offline livery & vehicle studio (v1.14.0)
 
 Livery studio menyediakan enam slot manual, pola/teks/PNG, area atlas UV, layer 2D/3D, proyek JSON dan ekspor PNG ZIP. Vehicle workshop menambahkan pemilihan/transform mesh, kandidat badge, lightbar preview, scene GLB, proyek JSON dan masking visual native dengan perlindungan shared buffer. Preview GPU memiliki profil kualitas dan render saat diperlukan; pembacaan model/YTD memakai worker. Lihat [panduan dan batas ekspor](docs/OFFLINE_STUDIO.md) sebelum membawa hasil ke game. Part baru/lightbar belum ditulis sebagai YFT/modkit.
+
+### Native game build (v1.15.0)
+
+**Game build** menghubungkan Blender/Sollumz/Muto yang dipasang terpisah untuk auto rig ped, penghapusan face badge pada LOD, serta transfer siren rigid dari donor YFT beserta patch metadata. Memerlukan setup engine dan provider native Windows; berbeda dari preview tanpa Blender. Lihat [setup, input yang didukung, dan status pengujian native](docs/NATIVE_BUILD.md). Ekspor biner/in-game belum diverifikasi end-to-end pada aset pengguna.

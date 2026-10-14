@@ -1,3 +1,13 @@
+DITASHA Editor 1.15.0 — Native engine bridge
+
+- Add Game build with a separately installed Blender/Sollumz/Muto engine: dependency probe, file pickers, background jobs, progress logs, cancellation, timeout and isolated output folders.
+- Route humanoid GLB/FBX/OBJ through Muto's marker → skeleton → weights → GTA rest → validation → addon-resource pipeline. Current templates require Blender 5.x; 5.2 is recommended.
+- Analyze badge/emblem candidates and remove selected material faces across LOD meshes with shared-data isolation before Sollumz native export.
+- Transfer compatible rigid siren parts/bones from a donor YFT and create linked carcols/carvariations/vehicles metadata and a patch manifest. Reject skinned/missing-texture donors and bone/tag conflicts.
+- Test metadata, job validation and candidate-selection UI; verify rigging (128 bones, four-weight maximum) and selective badge/siren geometry operations using real Blender.
+
+Requirements/limits: Blender and the GPL add-ons are installed separately; native binary output requires Sollumz's Windows provider. Native binary export and in-game behavior have not yet been verified end-to-end on user assets. Siren donor transfer supports a constrained rigid/embedded-texture workflow, not every vehicle. Read docs/NATIVE_BUILD.md before use.
+
 DITASHA Editor 1.14.0 — Offline studio
 
 - Add Livery studio with six manual slots, stripe/checker/chevron/text, transparent PNG import, drag/numeric transforms, manual UV rectangles, an editable 2D/3D texture layer, PNG ZIP exports and JSON projects.

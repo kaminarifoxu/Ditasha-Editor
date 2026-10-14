@@ -3255,3 +3255,55 @@ main.texture-mode-3d {
   margin: 4px 0;
   font-size: 11px;
 }
+
+.native-build-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(260px, 1fr) 280px;
+  gap: 24px;
+}
+.native-build-layout > * {
+  min-width: 0;
+}
+.native-build-layout button {
+  font-size: 11px;
+  margin: 4px 0;
+}
+.native-build-layout aside > button {
+  width: 100%;
+}
+.native-build-layout h3 {
+  margin-top: 0;
+}
+.native-links,
+.native-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+#nbLog {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 350px;
+  overflow: auto;
+  font-size: 10px;
+}
+#nbReport p,
+#nbOutput {
+  overflow-wrap: anywhere;
+}
+#nbCandidates {
+  max-height: 220px;
+  overflow: auto;
+}
+#openNativeBuild {
+  font-size: 11px;
+  margin-right: 6px;
+}
+@media (max-width: 1050px) {
+  .native-build-layout {
+    grid-template-columns: 200px minmax(240px, 1fr);
+  }
+  .native-build-layout > aside:last-child {
+    grid-column: 1 / -1;
+  }
+}

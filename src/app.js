@@ -1,3 +1,4 @@
+import { mountNativeBuild } from './native-build-ui.js';
 import { decodeResource } from './resource-client.js';
 import { mountLivery } from './livery.js';
 import { managePreview, mountPerformance } from './performance.js';
@@ -41,7 +42,7 @@ let current = null,
   dirty = false,
   mapped = null,
   projectionPreview = null;
-let toastTimer, livery;
+let toastTimer, livery, nativeBuild;
 let mode = 'move',
   gesture = null,
   cropRect = null,
@@ -1979,12 +1980,14 @@ window.ditashaWorkspace = {
     ...unsavedItems(),
     ...tools.unsavedItems(),
     ...(livery?.unsavedItems() || []),
+    ...(nativeBuild?.unsavedItems() || []),
   ],
   confirmDiscard: (reason) =>
     confirmDiscard(reason, [
       ...unsavedItems(),
       ...tools.unsavedItems(),
       ...(livery?.unsavedItems() || []),
+      ...(nativeBuild?.unsavedItems() || []),
     ]),
 };
 $('donate').addEventListener('click', async (e) => {
@@ -2017,6 +2020,7 @@ livery = mountLivery({
     return { identity: current, w: current.w, h: current.h, name: current.name, canvas: base };
   },
 });
+nativeBuild = mountNativeBuild({ toast });
 mountPerformance();
 mountMinimalUi();
 window.ditashaDesktop?.ready?.();
