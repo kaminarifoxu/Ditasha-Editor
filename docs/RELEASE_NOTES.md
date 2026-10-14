@@ -1,3 +1,12 @@
+DITASHA Editor 1.17.0 — Workspace redesign and Discord Activity
+
+- Replace horizontal navigation with a dedicated left workspace rail, collapsing to accessible icons on smaller desktop windows. Keep Vehicle workshop immediately after GTA V Explorer; move Rig ped, GPU controls and Settings into the rail.
+- Restyle the editor, file/layer panels, converter, clothing builder, viewers, Explorer, vehicle studio, native build dialogs, photoshoot, update/unsaved dialogs and loading screen with a consistent visual system.
+- Add persistent Midnight/Light themes and Comfortable/Compact density settings. Preserve document controls, file exports and 3D tools; fix legacy small-window rules that displaced panels and actions.
+- Add local Discord Rich Presence over desktop IPC: startup connection, active-workspace updates, session timestamp, reconnect, ping/pong, bounded frames, throttling and clearing on disable/exit. File names, paths, Discord tokens and account data are not published by this integration.
+- Add Settings for Application ID, Activity toggle, workspace visibility, connection status and setup instructions. No Discord application ID is bundled yet; create a DITASHA Editor application in Discord Developer Portal and enter its public ID once. A publisher can set package.json discordApplicationId for future builds.
+- Verify workspace/theme/preferences, existing editor/viewer/native preview workflows, and Discord framing/settings/lifecycle with simulated peers. Windows CI also exercises real local named-pipe transport. A live Discord profile cannot be verified until an Application ID is configured.
+
 DITASHA Editor 1.16.1 — Extra drawable texture matching
 
 - Resolve source YTD names correctly for extra/livery drawable labels that include a drawable suffix. Cover duplicate-name collisions in both base and extra models.

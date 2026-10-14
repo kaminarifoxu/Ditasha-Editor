@@ -1,0 +1,836 @@
+/* DITASHA workspace system: navigation, work surfaces and dialogs. */
+body.workspace-shell {
+  --rail-width: 188px;
+  --header-height: 64px;
+  --nav-height: 0px;
+  --bg: #101217;
+  --panel: #181b22;
+  --raised: #222631;
+  --field: #12151c;
+  --line: #2b303c;
+  --border: var(--line);
+  --text: #eef0f7;
+  --muted: #969eaf;
+  --accent: #b6a5ff;
+  --accent-soft: #302b48;
+  --canvas-surround: #12151b;
+  font-size: 12px;
+  background: var(--bg);
+}
+.workspace-shell[data-theme='light'] {
+  color-scheme: light;
+  --bg: #eef0f5;
+  --panel: #ffffff;
+  --raised: #f3f4f8;
+  --field: #f7f8fb;
+  --line: #dde1eb;
+  --text: #222735;
+  --muted: #687187;
+  --accent: #7054cf;
+  --accent-soft: #eee9fc;
+  --canvas-surround: #e1e5ee;
+}
+.workspace-shell [hidden] {
+  display: none !important;
+}
+.workspace-shell button,
+.workspace-shell .donation-button {
+  min-height: 34px;
+  border-radius: 8px;
+  background: var(--raised);
+  border-color: var(--line);
+  color: var(--text);
+  box-shadow: none;
+}
+.workspace-shell button:hover:not(:disabled),
+.workspace-shell .donation-button:hover {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
+  color: var(--text);
+}
+.workspace-shell button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #171326;
+  font-weight: 600;
+}
+.workspace-shell[data-theme='light'] button.primary {
+  color: white;
+}
+.workspace-shell button.active:not([data-page]),
+.workspace-shell .texture-edit-modes button.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--line));
+}
+.workspace-shell button:focus-visible,
+.workspace-shell a:focus-visible,
+.workspace-shell input:focus-visible,
+.workspace-shell select:focus-visible,
+.workspace-shell summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.workspace-shell input:not([type='checkbox']):not([type='range']):not([type='color']),
+.workspace-shell select,
+.workspace-shell textarea {
+  background: var(--field);
+  border: 1px solid var(--line);
+  color: var(--text);
+  border-radius: 7px;
+  min-height: 34px;
+}
+.workspace-shell input[type='checkbox'],
+.workspace-shell input[type='range'] {
+  accent-color: var(--accent);
+}
+.workspace-shell label,
+.workspace-shell .muted {
+  color: var(--muted);
+}
+.workspace-shell label.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.workspace-shell h2,
+.workspace-shell h3 {
+  color: var(--text);
+  letter-spacing: -0.025em;
+}
+.workspace-shell h2 {
+  font-weight: 600;
+}
+.workspace-shell .eyebrow,
+.workspace-shell .sectiontitle {
+  color: var(--muted);
+  font-weight: 600;
+  letter-spacing: 0.11em;
+}
+.workspace-shell header {
+  height: var(--header-height);
+  padding: 0 20px 0 16px;
+  gap: 10px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+.workspace-shell header .brand {
+  width: calc(var(--rail-width) - 26px);
+  flex-shrink: 0;
+  margin: 0;
+}
+.workspace-shell .brandicon {
+  height: 34px;
+  width: 34px;
+}
+.workspace-shell .brandname {
+  font-size: 15px;
+  letter-spacing: 0.06em;
+}
+.workspace-shell .crumb {
+  font-size: 11px;
+}
+.workspace-shell #workspaceLabel {
+  color: var(--text);
+}
+.workspace-shell header .local {
+  margin-left: auto;
+}
+.workspace-shell .workspace-nav {
+  position: fixed;
+  inset: var(--header-height) auto 0 0;
+  width: var(--rail-width);
+  height: auto;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 5px;
+  padding: 22px 12px 12px;
+  background: var(--panel);
+  border: 0;
+  border-right: 1px solid var(--line);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.workspace-shell .workspace-nav button {
+  position: relative;
+  width: 100%;
+  flex: 0 0 auto;
+  justify-content: flex-start;
+  min-height: 41px;
+  padding: 10px 12px;
+  gap: 10px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  text-align: left;
+  white-space: nowrap;
+}
+.workspace-shell .workspace-nav button.active {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 16%, var(--line));
+  background: var(--accent-soft);
+}
+.workspace-shell .workspace-nav button.active::after {
+  display: none;
+}
+.workspace-shell .workspace-nav button.active::before {
+  content: '';
+  position: absolute;
+  left: -13px;
+  top: 12px;
+  bottom: 12px;
+  width: 3px;
+  background: var(--accent);
+  border-radius: 3px;
+}
+.workspace-shell .workspace-nav svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.workspace-shell .nav-section-title {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  padding: 0 12px 8px;
+}
+.workspace-shell .nav-section-title:not(:first-child) {
+  margin-top: 22px;
+}
+.workspace-shell #previewPerformance::before {
+  content: '◇';
+  width: 18px;
+  text-align: center;
+  color: var(--accent);
+  font-size: 21px;
+}
+.workspace-shell #openNativeBuild {
+  margin: 0;
+}
+.workspace-shell .nav-bottom {
+  margin-top: auto;
+  padding-top: 28px;
+}
+.workspace-shell .nav-bottom small {
+  display: block;
+  padding: 14px 8px 0;
+  font-size: 9px;
+  color: var(--muted);
+  text-align: center;
+}
+.workspace-shell .connection-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-left: auto;
+  background: var(--muted);
+}
+.workspace-shell .connection-dot[data-status='connected'] {
+  background: #66cba0;
+}
+.workspace-shell .connection-dot[data-status='error'] {
+  background: #ed99aa;
+}
+.workspace-shell > main,
+.workspace-shell > .tool-workspace,
+.workspace-shell > .asset-viewer,
+.workspace-shell > .archive-workspace,
+.workspace-shell > .vehicle-workspace {
+  width: calc(100% - var(--rail-width));
+  margin-left: var(--rail-width);
+  height: calc(100dvh - var(--header-height));
+  min-height: 0;
+}
+.workspace-shell > main {
+  display: grid;
+  grid-template-columns: 205px minmax(260px, 1fr) 304px;
+}
+.workspace-shell > main.texture-mode-3d {
+  grid-template-columns: 205px minmax(340px, 1fr) 300px;
+}
+.workspace-shell .files,
+.workspace-shell .tool-sidebar,
+.workspace-shell .tool-details {
+  padding: 20px 16px;
+  background: var(--panel);
+  border-color: var(--line);
+}
+.workspace-shell .files {
+  padding: 20px 14px;
+}
+.workspace-shell .editor {
+  background: var(--bg);
+  padding: 0 18px;
+  min-width: 0;
+}
+.workspace-shell .right {
+  background: var(--panel);
+  padding: 0 16px 16px;
+  border-color: var(--line);
+}
+.workspace-shell .panelhead {
+  height: 66px;
+  flex-shrink: 0;
+}
+.workspace-shell .panelhead h2 {
+  font-size: 16px;
+}
+.workspace-shell .documentbar {
+  padding: 12px 0 0;
+  border-color: var(--line);
+  gap: 8px;
+}
+.workspace-shell .documenttab {
+  border-radius: 7px 7px 0 0;
+}
+.workspace-shell .toolbar {
+  padding: 12px 0;
+  gap: 5px;
+  border-color: var(--line);
+  flex-wrap: wrap;
+}
+.workspace-shell .canvasoptions {
+  padding-bottom: 12px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.workspace-shell #toolHint {
+  font-size: 10px;
+  color: var(--muted);
+}
+.workspace-shell .canvasarea {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background-color: var(--canvas-surround);
+}
+.workspace-shell .empty {
+  padding: 28px 16px;
+}
+.workspace-shell .empty h3 {
+  font-weight: 500;
+  font-size: 23px;
+  letter-spacing: -0.04em;
+}
+.workspace-shell .empty p {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.8;
+}
+.workspace-shell .empty-symbol {
+  background: var(--accent-soft);
+  border: 1px solid var(--line);
+  color: var(--accent);
+  border-radius: 16px;
+  width: 54px;
+  height: 54px;
+  margin-bottom: 15px;
+}
+.workspace-shell .texturestrip {
+  margin-top: 10px;
+}
+.workspace-shell footer {
+  padding: 12px 0;
+  border-color: var(--line);
+}
+.workspace-shell .badge {
+  color: var(--muted);
+  border: 1px solid var(--line);
+  background: var(--raised);
+  border-radius: 6px;
+  font-size: 9px;
+}
+.workspace-shell .filecard,
+.workspace-shell .layerrow {
+  border-radius: 8px;
+  border-color: var(--line);
+  background: var(--field);
+}
+.workspace-shell .filecard.active,
+.workspace-shell .layerrow.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.workspace-shell .modeltools {
+  padding: 8px 0 12px;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.workspace-shell #viewport {
+  background: radial-gradient(ellipse at 50% 35%, #2a2e3c, #171b24);
+  border-radius: 12px;
+  border-color: var(--line);
+}
+.workspace-shell .inspector {
+  padding-top: 18px;
+}
+.workspace-shell .sidebar-inspector,
+.workspace-shell .layerpanel {
+  border-color: var(--line);
+}
+.workspace-shell .ped-attachments,
+.workspace-shell .material-preview,
+.workspace-shell .material-binding,
+.workspace-shell .vehicle-workshop,
+.workspace-shell .workshop-section,
+.workspace-shell .extra-transform {
+  border: 1px solid var(--line);
+  background: var(--field);
+  border-radius: 9px;
+  padding: 10px 12px;
+  margin: 6px 0;
+}
+.workspace-shell summary {
+  color: var(--text);
+  font-weight: 500;
+  cursor: pointer;
+}
+.workspace-shell details[open] > summary {
+  margin-bottom: 10px;
+}
+.workspace-shell .viewer-content,
+.workspace-shell .archive-center {
+  padding: 22px;
+  background: var(--bg);
+}
+.workspace-shell .viewer-toolbar {
+  gap: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+.workspace-shell .viewer-toolbar h2 {
+  font-size: 19px;
+}
+.workspace-shell #mvViewport,
+.workspace-shell .texture-preview {
+  border-radius: 12px;
+  border-color: var(--line);
+}
+.workspace-shell .viewer-options {
+  border: 1px solid var(--line);
+  padding: 12px;
+  border-radius: 9px;
+  background: var(--field);
+}
+.workspace-shell .asset-viewer .tool-sidebar {
+  gap: 10px;
+}
+.workspace-shell .asset-viewer .tool-sidebar h3 {
+  margin: 12px 0 4px;
+  font-size: 11px;
+}
+.workspace-shell #mvTextures .viewer-button-row {
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line);
+  justify-content: space-between;
+}
+.workspace-shell #mvTextures p {
+  overflow-wrap: anywhere;
+  flex: 1;
+  min-width: 0;
+}
+.workspace-shell .vehicle-workspace-head {
+  padding: 18px 22px;
+  background: var(--panel);
+  border-color: var(--line);
+}
+.workspace-shell .vehicle-workspace-head h2 {
+  font-size: 20px;
+}
+.workspace-shell .vehicle-viewer-host > .asset-viewer {
+  height: 100%;
+}
+.workspace-shell .tool-workspace {
+  grid-template-columns: 240px minmax(220px, 1fr) 250px;
+}
+.workspace-shell .archive-workspace {
+  grid-template-columns: 220px minmax(240px, 1fr) 270px;
+}
+.workspace-shell .archive-toolbar,
+.workspace-shell .archive-path,
+.workspace-shell .tool-bottom {
+  border-color: var(--line);
+}
+.workspace-shell .tool-bottom {
+  background: var(--panel);
+  padding-top: 16px;
+}
+.workspace-shell dialog {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 28px 100px #0006;
+}
+.workspace-shell dialog::backdrop {
+  background: #080a10b8;
+  backdrop-filter: blur(7px);
+}
+.workspace-shell .studio-dialog-head,
+.workspace-shell .ps-header {
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 20px;
+}
+.workspace-shell dialog h2 {
+  font-size: 23px;
+  font-weight: 600;
+}
+.workspace-shell .studio-dialog-head > button,
+.workspace-shell .ps-header > button {
+  flex-shrink: 0;
+}
+.workspace-shell .native-build-layout {
+  grid-template-columns: 210px minmax(300px, 1fr) 230px;
+  gap: 24px;
+}
+.workspace-shell .native-build-layout > aside:last-child {
+  background: var(--field);
+  border: 1px solid var(--line);
+  padding: 16px;
+  border-radius: 12px;
+  align-self: start;
+}
+.workspace-shell .native-actions {
+  position: sticky;
+  bottom: -24px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+  z-index: 2;
+}
+.workspace-shell .ps-settings,
+.workspace-shell .ps-output,
+.workspace-shell .livery-layout aside {
+  background: var(--panel);
+  border-color: var(--line);
+}
+.workspace-shell .settings-dialog {
+  width: min(860px, calc(100vw - 40px));
+}
+.workspace-shell .settings-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 24px;
+}
+.workspace-shell .settings-section {
+  min-width: 0;
+}
+.workspace-shell .settings-section + .settings-section {
+  border-left: 1px solid var(--line);
+  padding-left: 24px;
+}
+.workspace-shell .settings-section h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+.workspace-shell .settings-fields {
+  display: grid;
+  gap: 6px;
+  margin: 20px 0;
+}
+.workspace-shell .settings-note {
+  padding: 14px;
+  border-radius: 10px;
+  background: var(--field);
+  font-size: 11px;
+  line-height: 1.8;
+  color: var(--muted);
+  border: 1px solid var(--line);
+}
+.workspace-shell .settings-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+.workspace-shell .settings-heading p {
+  margin: 0 0 18px;
+}
+.workspace-shell label.switch-label {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  margin: 0;
+  white-space: nowrap;
+}
+.workspace-shell .presence-card {
+  padding: 20px 16px;
+  margin-top: 22px;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.workspace-shell .presence-card img {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+}
+.workspace-shell .presence-card strong {
+  display: block;
+  font-size: 14px;
+  margin: 8px 0 0;
+}
+.workspace-shell .presence-card span {
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+.workspace-shell .presence-card p {
+  color: var(--text);
+  margin: 5px 0;
+}
+.workspace-shell .presence-card small,
+.workspace-shell .presence-hint {
+  font-size: 10px;
+  color: var(--muted);
+}
+.workspace-shell .settings-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 14px 0 20px;
+}
+.workspace-shell .setup-guide {
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.7;
+}
+.workspace-shell .setup-guide ol {
+  padding-left: 20px;
+}
+.workspace-shell .setup-guide li {
+  margin: 8px 0;
+}
+.workspace-shell[data-density='compact'] .tool-sidebar,
+.workspace-shell[data-density='compact'] .tool-details,
+.workspace-shell[data-density='compact'] .files {
+  padding: 12px 10px;
+}
+.workspace-shell[data-density='compact'] button {
+  min-height: 30px;
+}
+.workspace-shell[data-density='compact'] .asset-viewer .tool-sidebar {
+  gap: 6px;
+}
+.workspace-shell[data-density='compact'] .panelhead {
+  height: 50px;
+}
+@media (max-width: 1250px) {
+  body.workspace-shell {
+    --rail-width: 64px;
+  }
+  .workspace-shell header .brand {
+    width: 38px;
+  }
+  .workspace-shell .brandname,
+  .workspace-shell .nav-section-title,
+  .workspace-shell .nav-bottom small {
+    display: none;
+  }
+  .workspace-shell .workspace-nav {
+    padding: 20px 8px 12px;
+    gap: 10px;
+  }
+  .workspace-shell .workspace-nav button {
+    width: 44px;
+    height: 42px;
+    padding: 11px;
+    gap: 0;
+    font-size: 0;
+    justify-content: center;
+  }
+  .workspace-shell .workspace-nav button .control-label,
+  .workspace-shell .workspace-nav .nav-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .workspace-shell .connection-dot {
+    position: absolute;
+    right: 4px;
+    top: 5px;
+  }
+  .workspace-shell .workspace-nav #previewPerformance::before {
+    font-size: 21px;
+  }
+  .workspace-shell > main {
+    grid-template-columns: 180px minmax(240px, 1fr) 280px;
+  }
+  .workspace-shell > main.texture-mode-3d {
+    grid-template-columns: 180px minmax(320px, 1fr) 280px;
+  }
+  .workspace-shell .tool-workspace {
+    grid-template-columns: 210px minmax(200px, 1fr) 230px;
+  }
+  .workspace-shell .archive-workspace {
+    grid-template-columns: 200px minmax(220px, 1fr) 240px;
+  }
+}
+@media (max-width: 1000px) {
+  .workspace-shell header {
+    padding-right: 12px;
+  }
+  .workspace-shell .crumb {
+    display: flex;
+  }
+  .workspace-shell > main {
+    grid-template-columns: 155px minmax(220px, 1fr) 250px;
+  }
+  .workspace-shell > main.texture-mode-3d {
+    grid-template-columns: 155px minmax(285px, 1fr) 245px;
+  }
+  .workspace-shell .editor {
+    padding: 0 12px;
+  }
+  .workspace-shell .files,
+  .workspace-shell .tool-sidebar,
+  .workspace-shell .tool-details {
+    padding: 14px 10px;
+  }
+  .workspace-shell .native-build-layout {
+    grid-template-columns: 190px minmax(280px, 1fr);
+  }
+  .workspace-shell .native-build-layout > aside:last-child {
+    grid-column: 1 / -1;
+  }
+  .workspace-shell .viewer-content,
+  .workspace-shell .archive-center {
+    padding: 16px;
+  }
+  .workspace-shell .asset-viewer {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+  .workspace-shell .archive-workspace {
+    grid-template-columns: 180px minmax(0, 1fr);
+  }
+  .workspace-shell .archive-workspace > .tool-details {
+    display: none;
+  }
+}
+@media (max-height: 700px) {
+  .workspace-shell .workspace-nav {
+    gap: 3px;
+    padding-top: 12px;
+  }
+  .workspace-shell .workspace-nav button {
+    min-height: 36px;
+  }
+  .workspace-shell .nav-section-title:not(:first-child) {
+    margin-top: 10px;
+  }
+  .workspace-shell .nav-bottom {
+    padding-top: 14px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-shell *,
+  .workspace-shell *::before,
+  .workspace-shell *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* Keep the supported small desktop window inside the viewport. */
+.workspace-shell .files {
+  grid-row: auto;
+}
+.workspace-shell .editor {
+  height: auto;
+  overflow: hidden;
+}
+.workspace-shell main > .right:not(.expanded-3d) {
+  height: auto;
+  grid-column: auto;
+  grid-row: auto;
+}
+.workspace-shell main.texture-mode-3d > .right:not(.expanded-3d) {
+  grid-column: 2;
+  grid-row: 1;
+}
+.workspace-shell .tool-workspace > .tool-details {
+  grid-column: auto;
+}
+.workspace-shell .tool-center {
+  min-height: 0;
+  overflow: auto;
+}
+.workspace-shell #packViewer {
+  height: 100%;
+}
+.workspace-shell #viewport .empty h3 {
+  color: #eef0f7;
+}
+.workspace-shell #viewport .empty p,
+.workspace-shell #nbViewport > p {
+  color: #a6afc2;
+}
+@media (max-width: 1250px) {
+  .workspace-shell .workspace-nav #previewPerformance {
+    font-size: 0;
+  }
+}
+@media (max-height: 740px) {
+  .workspace-shell .panelhead {
+    height: 48px;
+  }
+  .workspace-shell .toolbar {
+    padding: 8px 0;
+  }
+  .workspace-shell .canvasarea {
+    min-height: 90px;
+  }
+  .workspace-shell .canvasarea .empty {
+    padding: 12px;
+  }
+  .workspace-shell .canvasarea .empty-symbol {
+    display: none;
+  }
+  .workspace-shell .canvasarea .empty h3 {
+    font-size: 17px;
+    margin: 8px 0;
+  }
+  .workspace-shell .canvasarea .empty p {
+    font-size: 10px;
+    line-height: 1.5;
+  }
+  .workspace-shell footer {
+    padding: 8px 0;
+  }
+}
+@media (max-width: 1000px) {
+  .workspace-shell .layeractions {
+    gap: 4px;
+  }
+  .workspace-shell .layeractions .compact-icon {
+    min-width: 26px;
+    width: 26px;
+    padding: 4px;
+  }
+  .workspace-shell .settings-layout {
+    grid-template-columns: 210px minmax(0, 1fr);
+    gap: 20px;
+  }
+}
+
+.workspace-shell .sidebarbottom .signature-actions small {
+  display: none;
+}
+.workspace-shell .settings-section > .icon-credit {
+  display: block;
+  margin-top: 18px;
+  color: var(--muted);
+  font-size: 10px;
+}

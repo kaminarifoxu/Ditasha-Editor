@@ -39,6 +39,10 @@ app.whenReady().then(async () => {
       }
     });
     await win.loadFile(path.resolve('ui/index.html'));
+    const shellReport = await win.webContents.executeJavaScript(
+      '(' + require('./workspace-ui-checks.cjs').toString() + ')()',
+    );
+    console.log('Workspace shell:', shellReport);
     const iconReport = await win.webContents.executeJavaScript('(' + checkIcons.toString() + ')()');
     const report = await win.webContents.executeJavaScript(
       '(' +

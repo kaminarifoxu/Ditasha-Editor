@@ -1,3 +1,4 @@
+import { mountWorkspaceShell } from './workspace-shell.js';
 import { mountNativeBuild } from './native-build-ui.js';
 import { decodeResource } from './resource-client.js';
 import { mountLivery } from './livery.js';
@@ -2029,4 +2030,5 @@ livery = mountLivery({
 nativeBuild = mountNativeBuild({ toast });
 mountPerformance();
 mountMinimalUi();
+mountWorkspaceShell({ toast });
 window.ditashaDesktop?.ready?.();

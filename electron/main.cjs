@@ -145,6 +145,12 @@ else {
       if (!isTrustedUpdateEvent(event, win, path.join(__dirname, '..', 'ui', 'index.html')))
         throw Error('Untrusted update request');
     };
+    await require('./discord-presence.cjs').registerDiscordPresence({
+      app,
+      ipcMain,
+      shell,
+      trusted,
+    });
     require('./native-build.cjs').registerNativeBuild({
       app,
       ipcMain,

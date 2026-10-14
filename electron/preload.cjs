@@ -29,3 +29,10 @@ contextBridge.exposeInMainWorld('ditashaNative', {
   cancel: () => ipcRenderer.invoke('ditasha:native-cancel'),
   reveal: () => ipcRenderer.invoke('ditasha:native-reveal'),
 });
+
+contextBridge.exposeInMainWorld('ditashaDiscord', {
+  state: () => ipcRenderer.invoke('ditasha:discord-state'),
+  configure: (value) => ipcRenderer.invoke('ditasha:discord-configure', value),
+  workspace: (value) => ipcRenderer.invoke('ditasha:discord-workspace', value),
+  docs: () => ipcRenderer.invoke('ditasha:discord-docs'),
+});
