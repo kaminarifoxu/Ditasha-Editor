@@ -1,3 +1,8 @@
+DITASHA Editor 1.16.1 — Extra drawable texture matching
+
+- Resolve source YTD names correctly for extra/livery drawable labels that include a drawable suffix. Cover duplicate-name collisions in both base and extra models.
+- Includes the native 3D preview and material improvements below.
+
 DITASHA Editor 1.16.0 — Texture binding and native 3D placement
 
 - Scope embedded textures to their own drawable and prefer the matching source YTD when external dictionaries contain duplicate names. Expose the resolved binding and per-mesh UV/alpha/U/V-flip controls; keep known vehicle paint/body shaders opaque instead of treating paint masks as transparency.

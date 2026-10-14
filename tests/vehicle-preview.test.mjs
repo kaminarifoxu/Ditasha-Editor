@@ -180,6 +180,10 @@ test('Material lookup isolates embedded drawable textures and resolves dictionar
     second = { name: 'BODY.dds', dictionary: 'second.ytd' };
   const embedded = { name: 'body' };
   assert.equal(resolveModelTexture('body', [first, second], [embedded], 'second_hi.yft'), second);
+  assert.equal(
+    resolveModelTexture('body', [first, second], [embedded], 'second_hi.yft · Drawable 2'),
+    second,
+  );
   assert.equal(resolveModelTexture('body', [first, second], [embedded], 'other.yft'), embedded);
   assert.equal(resolveModelTexture('body', [first, second], [], 'other.yft'), null);
   assert.equal(resolveModelTexture('body', [second], [], 'other.yft'), second);

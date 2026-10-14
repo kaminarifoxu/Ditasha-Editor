@@ -5,7 +5,7 @@ const normalize = (name = '') =>
 export function resolveModelTexture(name, external, embedded, sourceName) {
   if (!name) return null;
   const matches = external.filter((t) => normalize(t.name) === normalize(name));
-  const source = normalize(sourceName).replace(/_hi$/, '');
+  const source = normalize((sourceName || '').split(' · ')[0]).replace(/_hi$/, '');
   const owned = matches.filter((t) => normalize(t.dictionary).replace(/_hi$/, '') === source);
   if (owned.length) return owned.at(-1);
   const local = embedded.find((t) => normalize(t.name) === normalize(name));
