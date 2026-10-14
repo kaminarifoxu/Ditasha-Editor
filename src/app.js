@@ -1,3 +1,6 @@
+import { decodeResource } from './resource-client.js';
+import { mountLivery } from './livery.js';
+import { managePreview, mountPerformance } from './performance.js';
 import { mountMinimalUi } from './ui-minimal.js';
 import { mountPhotoshoot } from './photoshoot.js';
 import { mountStickers3D } from './stickers-3d.js';
@@ -8,7 +11,7 @@ import { mountPedAttachments } from './ped-attachments.js';
 import { readDds } from './asset-tools.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { readYtd, writeYtd, readYdd, readYdr, readYft } from './resource.js';
+import { writeYtd } from './resource.js';
 import {
   makeLayer,
   cropLayer,
@@ -38,7 +41,7 @@ let current = null,
   dirty = false,
   mapped = null,
   projectionPreview = null;
-let toastTimer;
+let toastTimer, livery;
 let mode = 'move',
   gesture = null,
   cropRect = null,
@@ -94,52 +97,47 @@ fill.position.set(-4, 2, -3);
 scene.add(fill);
 let wire = false;
 try {
-  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+  renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    alpha: true,
+    preserveDrawingBuffer: true,
+    powerPreference: 'high-performance',
+  });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   viewport.prepend(renderer.domElement);
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   camera.position.set(2, 1, 3);
-  new ResizeObserver(() => {
-    const w = viewport.clientWidth,
-      h = viewport.clientHeight;
-    if (!w || !h) return;
-    renderer.setSize(w, h);
-    camera.aspect = w / h;
-    camera.updateProjectionMatrix();
-    renderer.render(scene, camera);
-  }).observe(viewport);
-  renderer.setAnimationLoop(() => {
-    controls.update();
-    renderer.render(scene, camera);
-  });
+  managePreview({ renderer, camera, scene, controls, container: viewport, toast });
 } catch {
   toast('WebGL tidak tersedia. Gunakan browser dengan akselerasi hardware untuk preview 3D.');
+}
+function applyArtwork(source, name, binding) {
+  if (binding && binding.texture !== current)
+    throw Error('Pilih kembali tekstur tempat artwork ini dipasang.');
+  if (!current || current.isUV) throw Error('Pilih tekstur yang dapat diedit terlebih dahulu.');
+  initLayers(current);
+  remember();
+  const id = binding?.id || crypto.randomUUID();
+  const layer = { ...makeLayer(source, name), projectionId: id };
+  const index = current.layers.findIndex((l) => l.projectionId === id);
+  if (index < 0) current.layers.push(layer);
+  else current.layers[index] = layer;
+  current.selected = index < 0 ? current.layers.length - 1 : index;
+  $('apply').checked = true;
+  setMode('move');
+  renderComposite(true);
+  renderLayers();
+  renderTextures();
+  drawGuide();
+  applyTexture();
+  return { texture: current, id };
 }
 const stickers3d = mountStickers3D({
   getTextureSize: () =>
     current && !current.isUV ? { w: current.w, h: current.h, texture: current } : null,
-  addTextureLayer: (source, name, binding) => {
-    if (binding && binding.texture !== current)
-      throw Error('Pilih kembali tekstur tempat tattoo ini dipasang.');
-    initLayers(current);
-    remember();
-    const id = binding?.id || crypto.randomUUID();
-    const layer = { ...makeLayer(source, 'PNG 3D · ' + name), projectionId: id };
-    const index = current.layers.findIndex((l) => l.projectionId === id);
-    if (index < 0) current.layers.push(layer);
-    else current.layers[index] = layer;
-    current.selected = index < 0 ? current.layers.length - 1 : index;
-    $('apply').checked = true;
-    setMode('move');
-    renderComposite(true);
-    renderLayers();
-    renderTextures();
-    drawGuide();
-    applyTexture();
-    return { texture: current, id };
-  },
+  addTextureLayer: (source, name, binding) => applyArtwork(source, 'PNG 3D · ' + name, binding),
   previewTextureLayer: (binding) => {
     if (!binding) {
       if (!projectionPreview) return;
@@ -586,10 +584,10 @@ async function loadFiles(list) {
         f = { name: file.name, ext, size: file.size };
       toast('Membuka ' + file.name + '…');
       if (ext === 'ytd') {
-        f.resource = readYtd(await file.arrayBuffer());
+        f.resource = await decodeResource('ytd', await file.arrayBuffer());
         f.resource.textures.forEach(makeCanvas);
       } else if (['ydd', 'ydr', 'yft'].includes(ext)) {
-        f.drawables = { ydd: readYdd, ydr: readYdr, yft: readYft }[ext](await file.arrayBuffer());
+        f.drawables = await decodeResource(ext, await file.arrayBuffer());
       } else if (['png', 'jpg', 'jpeg', 'webp'].includes(ext)) {
         f.textures = [await imageTexture(file)];
       } else if (ext === 'glb') {
@@ -1240,7 +1238,7 @@ $('addInput').onchange = async (e) => {
       if (f.size > 64 * 1024 * 1024) throw Error('File terlalu besar.');
       if (f.name.toLowerCase().endsWith('.ytd')) {
         if (pendingYtd) throw Error('Pilih tekstur dari satu YTD terlebih dahulu.');
-        const resource = readYtd(await f.arrayBuffer());
+        const resource = await decodeResource('ytd', await f.arrayBuffer());
         resource.textures.forEach(makeCanvas);
         openYtdLayers({ name: f.name, ext: 'ytd', size: f.size, resource });
         continue;
@@ -1977,8 +1975,17 @@ function textureEditMode(value) {
 $('editTexture2d').onclick = () => textureEditMode('2d');
 $('editTexture3d').onclick = () => textureEditMode('3d');
 window.ditashaWorkspace = {
-  unsavedItems: () => [...unsavedItems(), ...tools.unsavedItems()],
-  confirmDiscard: (reason) => confirmDiscard(reason, [...unsavedItems(), ...tools.unsavedItems()]),
+  unsavedItems: () => [
+    ...unsavedItems(),
+    ...tools.unsavedItems(),
+    ...(livery?.unsavedItems() || []),
+  ],
+  confirmDiscard: (reason) =>
+    confirmDiscard(reason, [
+      ...unsavedItems(),
+      ...tools.unsavedItems(),
+      ...(livery?.unsavedItems() || []),
+    ]),
 };
 $('donate').addEventListener('click', async (e) => {
   if (!window.ditashaDesktop?.openDonation) return;
@@ -1989,5 +1996,27 @@ $('donate').addEventListener('click', async (e) => {
     toast('Saweria tidak dapat dibuka. Coba kembali atau buka saweria.co/itsaminarii di browser.');
   }
 });
+livery = mountLivery({
+  toolbar: document.querySelector('.modeltools'),
+  download,
+  toast,
+  applyLayer: applyArtwork,
+  getTarget: (binding) => {
+    if (!current || current.isUV) return null;
+    const base = document.createElement('canvas');
+    base.width = current.w;
+    base.height = current.h;
+    if (current.layers?.length)
+      drawLayers(
+        base.getContext('2d'),
+        current.layers.filter((l) => binding?.texture !== current || l.projectionId !== binding.id),
+        current.w,
+        current.h,
+      );
+    else base.getContext('2d').drawImage(canvas, 0, 0);
+    return { identity: current, w: current.w, h: current.h, name: current.name, canvas: base };
+  },
+});
+mountPerformance();
 mountMinimalUi();
 window.ditashaDesktop?.ready?.();

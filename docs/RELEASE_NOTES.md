@@ -1,3 +1,13 @@
+DITASHA Editor 1.14.0 — Offline studio
+
+- Add Livery studio with six manual slots, stripe/checker/chevron/text, transparent PNG import, drag/numeric transforms, manual UV rectangles, an editable 2D/3D texture layer, PNG ZIP exports and JSON projects.
+- Add Vehicle workshop with mesh picking/transforms, badge-name candidates, static lightbar preview, visible-scene GLB exports and vehicle project JSON.
+- Export visually masked native YFT/YDD/YDR by collapsing selected mesh indices, preserving resource layout/bones/physics and refusing partial shared buffers. Original files are not overwritten. Check each drawable/LOD explicitly and test in game.
+- Add GPU quality profiles and renderer diagnostics, bounded preview resolution, on-demand rendering, context-loss notification, and queued resource workers with timeouts for model/YTD decoding and native masking.
+- Test native resource preservation and YFT round trips, worker YTD export hydration, UV bounds, preview pixel budgets, and the actual offline studio workflow alongside existing viewer/updater checks.
+
+Limits: UV slots are mapped manually. Added parts, mesh transforms and lightbars are exported to GLB/project only; no new YFT siren bones, carcols or game-ready modkit are generated. AI generation is deferred. See docs/OFFLINE_STUDIO.md for the full workflow and limits.
+
 DITASHA Editor 1.13.1
 
 - Hide the previously baked layer from the temporary 3D material while moving/resizing/rotating the tattoo. This prevents doubled opaque tattoo previews; preserve the saved 2D layer until synchronization or restore it on cancellation.

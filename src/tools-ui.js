@@ -41,7 +41,7 @@ export function mountTools({ download, toast, preview, confirmDiscard }) {
     revision = 0,
     savedRevision = 0,
     buildVersion = 1;
-  const viewers = mountViewers({ nav, download, toast, activate });
+  const viewers = mountViewers({ nav, download, toast, activate, confirmDiscard });
   const archives = mountArchives({
     nav,
     download,
@@ -483,6 +483,7 @@ export function mountTools({ download, toast, preview, confirmDiscard }) {
     unsavedItems: () => [
       ...(dirty() ? [{ name: 'Clothing pack · ' + $('packName').value }] : []),
       ...archives.unsavedItems(),
+      ...viewers.unsavedItems(),
     ],
     isActive: () => page !== 'editor',
   };

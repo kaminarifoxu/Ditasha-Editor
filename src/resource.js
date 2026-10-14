@@ -465,7 +465,7 @@ function readDrawables(r, drawables, metadata = new Map()) {
       indices[i] = r.u16(ip + i * 2);
       if (indices[i] >= count) throw Error('Index model tidak valid.');
     }
-    const result = { positions, uvs, uvs2, indices };
+    const result = { positions, uvs, uvs2, indices, sourceGeometry: g, indexOffset: ip };
     cache.set(g, result);
     return result;
   }

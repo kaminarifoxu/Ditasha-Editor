@@ -1,8 +1,9 @@
+import { decodeResource } from './resource-client.js';
 import * as THREE from 'three';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
-import { readYtd, readYdd, readYdr, readYft } from './resource.js';
+import { readYdd, readYdr, readYft } from './resource.js';
 import { readDds, writeDds, createYtd, MAX_EXPORT } from './asset-tools.js';
 export const conversionModes = [
   ['ytd', 'Pictures → YTD', 'PNG · JPG · WebP · DDS → satu YTD Legacy'],
@@ -25,7 +26,7 @@ export function accepts(mode, name) {
 export async function imageData(file) {
   const ext = file.name.split('.').at(-1).toLowerCase();
   if (ext === 'dds') return [readDds(await file.arrayBuffer(), file.name)];
-  if (ext === 'ytd') return readYtd(await file.arrayBuffer()).textures;
+  if (ext === 'ytd') return await decodeResource('textures', await file.arrayBuffer());
   const bitmap = await createImageBitmap(file);
   try {
     if (bitmap.width * bitmap.height > 16777216) throw Error('Gambar maksimum 16 megapixel.');

@@ -1,9 +1,11 @@
+import { decodeResource } from './resource-client.js';
+import { mountVehicleWorkshop } from './vehicle-workshop.js';
+import { managePreview } from './performance.js';
 import * as THREE from 'three';
 import { mountPhotoshoot } from './photoshoot.js';
 import { mountMaterialPreview } from './material-preview.js';
 import { mountPedAttachments } from './ped-attachments.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { readYtd, readYdd, readYdr, readYft } from './resource.js';
 import { imageData } from './converter.js';
 import { writeDds, zipFiles, safePath, MAX_EXPORT } from './asset-tools.js';
 const modelExtensions = /\.(ydd|ydr|yft)$/i,
@@ -15,7 +17,7 @@ function textureCanvas(t) {
   canvas.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(t.out), t.w, t.h), 0, 0);
   return canvas;
 }
-export function mountViewers({ nav, download, toast, activate }) {
+export function mountViewers({ nav, download, toast, activate, confirmDiscard }) {
   const $ = (id) => document.getElementById(id);
   for (const [page, label, path] of [
     ['textureviewer', 'Texture viewer', 'M3 3h18v18H3Z M3 16l5-5 4 4 4-5 5 6'],
@@ -45,6 +47,7 @@ export function mountViewers({ nav, download, toast, activate }) {
     textureBusy = false,
     modelBusy = false,
     modelName = '',
+    modelSource = null,
     drawables = [],
     modelTextures = [],
     drawable = 0,
@@ -86,10 +89,41 @@ export function mountViewers({ nav, download, toast, activate }) {
   const light = new THREE.DirectionalLight(0xffffff, 3);
   light.position.set(3, 5, 4);
   scene.add(light);
+  const workshop = mountVehicleWorkshop({
+    container: modelRoot.querySelector('.tool-sidebar'),
+    scene,
+    viewport: $('mvViewport'),
+    camera,
+    getMeshes: () => renderedMeshes,
+    getRoot: () => group,
+    getSource: () => modelSource && { name: modelName, file: modelSource },
+    getHiddenGeometry: () => {
+      const instances = drawables.flatMap((d, di) =>
+        d.lods.flatMap((l) =>
+          l.geometries.map((g, i) => ({
+            g,
+            hidden: hiddenMeshes.has(`base:${di}:${l.name}:${i}`),
+          })),
+        ),
+      );
+      const selected = new Set(instances.filter((e) => e.hidden).map((e) => e.g.sourceGeometry));
+      if (instances.some((e) => selected.has(e.g.sourceGeometry) && !e.hidden))
+        throw Error(
+          'Geometri digunakan bersama pada part/LOD lain. Sembunyikan semua pemakai geometri itu sebelum ekspor.',
+        );
+      return [...selected];
+    },
+    setHidden: (key, hidden) => (hidden ? hiddenMeshes.add(key) : hiddenMeshes.delete(key)),
+    render: () => renderer?.render(scene, camera),
+    download,
+    toast,
+    operation,
+  });
   function initRenderer() {
     if (renderer) return;
     try {
       renderer = new THREE.WebGLRenderer({
+        powerPreference: 'high-performance',
         antialias: true,
         alpha: true,
         preserveDrawingBuffer: true,
@@ -99,22 +133,7 @@ export function mountViewers({ nav, download, toast, activate }) {
       $('mvViewport').prepend(renderer.domElement);
       controls = new OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
-      controls.addEventListener('change', () => renderer.render(scene, camera));
-      new ResizeObserver(() => {
-        const width = $('mvViewport').clientWidth,
-          height = $('mvViewport').clientHeight;
-        if (width && height) {
-          renderer.setSize(width, height);
-          camera.aspect = width / height;
-          camera.updateProjectionMatrix();
-          renderer.render(scene, camera);
-        }
-      }).observe($('mvViewport'));
-      renderer.setAnimationLoop(() => {
-        if (modelRoot.hidden) return;
-        controls.update();
-        renderer.render(scene, camera);
-      });
+      managePreview({ renderer, camera, scene, controls, container: $('mvViewport'), toast });
     } catch (e) {
       renderer = null;
       $('mvStatus').textContent = '3D preview requires WebGL hardware acceleration.';
@@ -149,6 +168,8 @@ export function mountViewers({ nav, download, toast, activate }) {
     } finally {
       kind === 'texture' ? (textureBusy = false) : (modelBusy = false);
       setBusy(root, false);
+      const status = $(kind === 'texture' ? 'tvStatus' : 'mvStatus');
+      if (status.textContent === 'Loading / processing…') status.textContent = 'Siap.';
     }
   }
   function scaledTexture() {
@@ -363,6 +384,7 @@ export function mountViewers({ nav, download, toast, activate }) {
     if (!controls) return;
     const box = new THREE.Box3().setFromObject(group);
     box.union(new THREE.Box3().setFromObject(pedAttachments.group));
+    box.union(new THREE.Box3().setFromObject(workshop.light));
     if (box.isEmpty()) return;
     const center = box.getCenter(new THREE.Vector3()),
       size = box.getSize(new THREE.Vector3()),
@@ -451,7 +473,7 @@ export function mountViewers({ nav, download, toast, activate }) {
       parts = new Map();
     for (const source of sources)
       for (const [index, g] of source.level.geometries.entries()) {
-        const meshKey = source.key + ':' + index,
+        const meshKey = source.key + ':' + source.level.name + ':' + index,
           override = materialOverrides.get(meshKey);
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute('position', new THREE.BufferAttribute(g.positions, 3));
@@ -482,6 +504,7 @@ export function mountViewers({ nav, download, toast, activate }) {
           );
           mesh.scale.setScalar(t.scale || 1);
         }
+        workshop.rememberOriginal(mesh);
         mesh.name =
           source.name +
           ' · Part ' +
@@ -530,6 +553,7 @@ export function mountViewers({ nav, download, toast, activate }) {
           if (input.checked) hiddenMeshes.delete(m.userData.bindingKey);
           else hiddenMeshes.add(m.userData.bindingKey);
         });
+        workshop.changed();
         meshRows.querySelectorAll('input').forEach((i) => (i.checked = input.checked));
         renderer?.render(scene, camera);
       };
@@ -548,6 +572,7 @@ export function mountViewers({ nav, download, toast, activate }) {
           m.visible = toggle.checked;
           if (toggle.checked) hiddenMeshes.delete(m.userData.bindingKey);
           else hiddenMeshes.add(m.userData.bindingKey);
+          workshop.changed();
           input.checked = meshes.every((m) => m.visible);
           renderer?.render(scene, camera);
         };
@@ -605,6 +630,7 @@ export function mountViewers({ nav, download, toast, activate }) {
       (!renderer ? ' · WebGL unavailable.' : '');
     modelOptions();
     pedMaterials.setMeshes(group.children.filter((mesh) => mesh.isMesh));
+    workshop.refresh();
     fitModel();
   }
   async function parseModels(files) {
@@ -620,7 +646,7 @@ export function mountViewers({ nav, download, toast, activate }) {
       if (!modelExtensions.test(f.name) || f.size > 64 * 1024 * 1024)
         throw Error('Choose YFT, YDD or YDR up to 64 MB.');
       const ext = f.name.split('.').at(-1).toLowerCase();
-      const data = { yft: readYft, ydd: readYdd, ydr: readYdr }[ext](await f.arrayBuffer());
+      const data = await decodeResource(ext, await f.arrayBuffer());
       vertexTotal += data.reduce(
         (sum, drawable) =>
           sum +
@@ -632,7 +658,7 @@ export function mountViewers({ nav, download, toast, activate }) {
         0,
       );
       if (vertexTotal > 2000000) throw Error('Gabungan model melebihi 2 juta vertex.');
-      out.push({ name: f.name, data });
+      out.push({ name: f.name, data, file: f });
     }
     return out;
   }
@@ -775,6 +801,12 @@ export function mountViewers({ nav, download, toast, activate }) {
   }
   $('mvMaterialTexture').onchange = $('mvMaterialUv').onchange = bindTexture;
   async function openModels(files) {
+    if (
+      workshop.unsavedItems().length &&
+      confirmDiscard &&
+      (await confirmDiscard('file', workshop.unsavedItems())) !== 'discard'
+    )
+      return;
     activate('modelviewer');
     await operation('model', async () => {
       const candidates = files.filter((f) => modelExtensions.test(f.name));
@@ -803,6 +835,7 @@ export function mountViewers({ nav, download, toast, activate }) {
       extraDrawables = extras;
       modelTextures = loaded;
       modelName = parsed[0].name;
+      modelSource = parsed[0].file;
       drawable = lod = 0;
       renderModel();
     });
@@ -855,12 +888,6 @@ export function mountViewers({ nav, download, toast, activate }) {
   $('mvDrawable').onchange = () => {
     drawable = Number($('mvDrawable').value);
     lod = 0;
-    let extraDrawables = [],
-      extraSerial = 0,
-      materialSelection = '';
-    const hiddenMeshes = new Set(),
-      materialOverrides = new Map();
-    let renderedMeshes = [];
     renderModel();
   };
   $('mvLod').onchange = () => {
@@ -950,12 +977,12 @@ export function mountViewers({ nav, download, toast, activate }) {
     getSource: () =>
       drawables.length && renderer
         ? {
-            objects: [group, pedAttachments.group],
+            objects: [group, pedAttachments.group, workshop.light],
             camera,
             target: controls.target,
             name: modelName,
           }
         : null,
   });
-  return { textureRoot, modelRoot, openTextures, openModels };
+  return { textureRoot, modelRoot, openTextures, openModels, unsavedItems: workshop.unsavedItems };
 }

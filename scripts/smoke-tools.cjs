@@ -119,8 +119,19 @@ app.whenReady().then(async () => {
         }) +
         ')',
     );
+    await win.loadFile(path.resolve('ui/index.html'));
+    const checkOffline = require('./offline-studio-ui-checks.cjs');
+    const offlineReport = await win.webContents.executeJavaScript(
+      '(' +
+        checkOffline.toString() +
+        ')(' +
+        JSON.stringify({ ytd: [...ytd], model: [...new Uint8Array(viewerModel)] }) +
+        ')',
+    );
     await Promise.all(captures);
-    console.log('PASS: ' + JSON.stringify({ iconReport, report, archiveReport, viewerReport }));
+    console.log(
+      'PASS: ' + JSON.stringify({ iconReport, report, archiveReport, viewerReport, offlineReport }),
+    );
     win.destroy();
     app.exit(0);
   } catch (e) {

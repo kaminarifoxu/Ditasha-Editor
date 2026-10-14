@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { readYdd, readYtd } from './resource.js';
+import { decodeResource } from './resource-client.js';
 import { MAX_EXPORT } from './asset-tools.js';
 
 const MAX_FILE = 64 * 1024 * 1024;
@@ -187,7 +187,7 @@ export function mountPedAttachments({ scene, container, prefix, toast, hasBase, 
     for (const f of files) {
       if (!/\.ytd$/i.test(f.name) || f.size > MAX_FILE)
         throw Error('Pilih YTD hingga 64 MB per file.');
-      for (const t of readYtd(await f.arrayBuffer()).textures) {
+      for (const t of await decodeResource('textures', await f.arrayBuffer())) {
         size += t.out.length;
         if (size > MAX_EXPORT) throw Error('Tekstur rambut melebihi 128 MB.');
         textures.push({ ...t, dictionary: f.name });
@@ -463,7 +463,7 @@ export function mountPedAttachments({ scene, container, prefix, toast, hasBase, 
         throw Error('Pilih satu YDD rambut, beserta YTD opsional.');
       const f = models[0];
       if (f.size > MAX_FILE) throw Error('YDD rambut maksimum 64 MB.');
-      const drawables = readYdd(await f.arrayBuffer()),
+      const drawables = await decodeResource('ydd', await f.arrayBuffer()),
         textures = await readTextures(files.filter((f) => /\.ytd$/i.test(f.name)));
       if (token !== generation || !hasBase()) return;
       const a = {

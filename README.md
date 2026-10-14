@@ -224,3 +224,7 @@ Pilih tekstur tujuan, impor **PNG 3D**, lalu klik permukaan model. Tattoo langsu
 ### Tata letak workspace (v1.13.2)
 
 Tab dokumen dan pilihan Edit 2D / Edit 3D berada di atas area utama yang aktif. Toolbar kamera, wireframe, foto dan Photoshoot berada di atas preview 3D. Tambah PNG tersedia langsung di panel Tattoo 3D. Rambut ped dan Edit Layer berada di sidebar kiri, dengan panel yang dapat dilipat agar daftar file dan layer tetap mudah dijangkau.
+
+### Offline livery & vehicle studio (v1.14.0)
+
+Livery studio menyediakan enam slot manual, pola/teks/PNG, area atlas UV, layer 2D/3D, proyek JSON dan ekspor PNG ZIP. Vehicle workshop menambahkan pemilihan/transform mesh, kandidat badge, lightbar preview, scene GLB, proyek JSON dan masking visual native dengan perlindungan shared buffer. Preview GPU memiliki profil kualitas dan render saat diperlukan; pembacaan model/YTD memakai worker. Lihat [panduan dan batas ekspor](docs/OFFLINE_STUDIO.md) sebelum membawa hasil ke game. Part baru/lightbar belum ditulis sebagai YFT/modkit.

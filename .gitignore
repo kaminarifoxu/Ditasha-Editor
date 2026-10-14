@@ -4,3 +4,5 @@ release/
 font-source.css
 
 /ui/app.js
+
+/ui/resource-worker.js
