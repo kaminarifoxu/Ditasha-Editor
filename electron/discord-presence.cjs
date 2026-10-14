@@ -31,7 +31,7 @@ function ipcPaths(platform = process.platform, env = process.env) {
   return Array.from({ length: 10 }, (_, i) =>
     platform === 'win32'
       ? `\\\\?\\pipe\\discord-ipc-${i}`
-      : path.join(env.XDG_RUNTIME_DIR || env.TMPDIR || env.TMP || '/tmp', `discord-ipc-${i}`),
+      : path.posix.join(env.XDG_RUNTIME_DIR || env.TMPDIR || env.TMP || '/tmp', `discord-ipc-${i}`),
   );
 }
 function frame(op, value) {
