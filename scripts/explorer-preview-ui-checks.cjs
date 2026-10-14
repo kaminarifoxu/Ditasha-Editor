@@ -12,6 +12,27 @@ module.exports = async function checkExplorerPreview(fixtures) {
     throw Error(message + ' · ' + $('archiveStatus').textContent);
   }
   const saves = [];
+  const modeBar = document.querySelector('.documentbar');
+  const modeRect = modeBar.getBoundingClientRect();
+  console.log('DITASHA_SNAPSHOT:editor-fixed-bar-2d');
+  await new Promise((r) => setTimeout(r, 300));
+  $('editTexture3d').click();
+  await new Promise((r) => setTimeout(r, 60));
+  assert(
+    modeBar.parentElement === document.querySelector('main'),
+    'Mode bar moved into a side panel',
+  );
+  assert(
+    Math.abs(modeBar.getBoundingClientRect().top - modeRect.top) < 1,
+    'Mode bar moved vertically in 3D mode',
+  );
+  assert(
+    Math.abs(modeBar.getBoundingClientRect().left - modeRect.left) < 1,
+    'Mode bar moved horizontally in 3D mode',
+  );
+  console.log('DITASHA_SNAPSHOT:editor-fixed-bar-3d');
+  await new Promise((r) => setTimeout(r, 300));
+  $('editTexture2d').click();
   window.ditashaDesktop ||= {};
   window.ditashaDesktop.saveExport = async ({ name, data }) => {
     saves.push({ name, data: [...data] });
@@ -34,10 +55,9 @@ module.exports = async function checkExplorerPreview(fixtures) {
   document.querySelector('[data-page=archives]').click();
   await input('archiveInput', [new File([new Uint8Array(fixtures.archive)], 'inline.rpf')]);
   select('car.ydd');
-  $('archiveModelViewer').click();
   await wait(
     () => !$('archiveOpen').disabled && $('mvTitle').textContent.includes('car'),
-    'Inline model did not load',
+    'Single-click inline model did not load',
   );
   assert(
     $('workspaceLabel').textContent === 'GTA V Explorer',
@@ -133,8 +153,44 @@ module.exports = async function checkExplorerPreview(fixtures) {
   );
   assert((await file.text()) === 'original source', 'Folder source was overwritten');
   dialog.querySelector('[data-action=close]').click();
-  await wait(() => $('unsavedDialog').open, 'Dirty folder buffer skipped confirmation');
+  await wait(() => !dialog.open, 'Saved file copy still triggered discard confirmation');
+  $('openCodeEditor').click();
+  await wait(
+    () => dialog.open && dialog.querySelector('h2').textContent === 'untitled.lua',
+    'Standalone Code editor entry failed',
+  );
+  monaco.editor.getModels().at(-1).setValue('-- standalone');
+  dialog.querySelector('[data-action=new]').click();
+  await wait(() => $('unsavedDialog').open, 'New file discarded dirty buffer without confirmation');
+  $('unsavedBack').click();
+  await wait(() => !$('unsavedDialog').open, 'Cancel did not preserve standalone file');
+  assert(
+    monaco.editor.getModels().at(-1).getValue() === '-- standalone',
+    'Standalone draft lost after cancel',
+  );
+  dialog.querySelector('[data-action=close]').click();
+  await wait(() => $('unsavedDialog').open, 'Dirty standalone buffer skipped confirmation');
   $('unsavedDiscard').click();
   await wait(() => !dialog.open, 'Discard did not close code editor');
+  $('openCodeEditor').click();
+  await wait(() => dialog.open, 'Standalone editor did not reopen');
+  const localInput = dialog.querySelector('[data-action=input]'),
+    transfer = new DataTransfer();
+  transfer.items.add(new File(['{"name":"DITASHA"}'], 'config.json'));
+  localInput.files = transfer.files;
+  localInput.dispatchEvent(new Event('change'));
+  await wait(
+    () => dialog.querySelector('h2').textContent === 'config.json',
+    'Standalone local file did not load',
+  );
+  assert(
+    monaco.editor.getModels().at(-1).getLanguageId() === 'json',
+    'Standalone JSON syntax mode missing',
+  );
+  assert(
+    dialog.querySelector('[data-action=apply]').disabled,
+    'Local file incorrectly targets archive',
+  );
+  dialog.querySelector('[data-action=close]').click();
   return { inlinePreview: true, offlineMonaco: true, saves };
 };

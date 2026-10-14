@@ -32,6 +32,12 @@ export function mountArchives({
     '<span class="eyebrow">FILE INSPECTOR</span><h2 id="inspectorTitle"></h2><div class="viewer-button-row"><button id="inspectorText">Text</button><button id="inspectorHex">Hex</button><button id="inspectorPrevious">← Previous</button><button id="inspectorNext">Next →</button></div><p id="inspectorInfo" class="muted"></p><pre id="inspectorContent"></pre><button id="inspectorClose">Close</button>';
   document.body.append(inspector);
   const code = mountCodeEditor({ download, confirmDiscard, toast });
+  const codeNav = document.createElement('button');
+  codeNav.dataset.page = 'code';
+  codeNav.id = 'openCodeEditor';
+  codeNav.innerHTML =
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 6-6 6 6 6m8-12 6 6-6 6M14 3l-4 18"/></svg>Code editor';
+  nav.append(codeNav);
   const codeButton = document.createElement('button');
   codeButton.id = 'archiveCodeEditor';
   codeButton.textContent = 'Edit code / text';
@@ -135,8 +141,10 @@ export function mountArchives({
       b.textContent = e.name;
       b.title = e.name;
       b.onclick = () => {
+        if (busy) return;
         selection = e;
         render();
+        if (!e.encrypted && /\.(yft|ydd|ydr)$/i.test(e.name)) $('archiveModelViewer').click();
       };
       b.ondblclick = () => {
         selection = e;
@@ -600,5 +608,11 @@ export function mountArchives({
     },
     true,
   );
-  return { root, unsavedItems: items, previewHost, previewVisible: () => !previewPanel.hidden };
+  return {
+    root,
+    unsavedItems: items,
+    previewHost,
+    previewVisible: () => !previewPanel.hidden,
+    openCode: () => code.openStandalone().catch((e) => toast(e.message)),
+  };
 }

@@ -17,11 +17,13 @@ Ekspor desain sebelum menutup; proyek tersimpan di memori selama aplikasi terbuk
 
 ## GTA V Explorer & editor kode
 
-Klik dua kali YFT/YDD/YDR untuk preview 3D langsung di Explorer; daftar file tetap terlihat.
+Klik sekali YFT/YDD/YDR untuk preview 3D langsung di Explorer; daftar file tetap terlihat.
 YTD dengan nama yang sama dipasangkan otomatis. Untuk YTD lain, pilih di toolbar preview,
 lalu klik Reload selected model. Model GTA V Legacy dan batas viewer yang ada tetap berlaku.
 
 Klik dua kali Lua/JS/TS/JSON/XML/meta/teks untuk membuka Monaco secara offline.
+Atau pilih **Code editor** di sidebar, lalu **Open code file** / **New Lua file** tanpa perlu membuka arsip.
+Tab dokumen dan tombol Edit 2D/3D tetap di bar atas saat berganti mode.
 Pilih **Apply to archive**, lalu **Save archive copy** untuk menyimpan perubahan ke RPF/ZIP/OIV baru.
 File dari Open folder tidak ditimpa; gunakan **Save file copy**. Batas teks 2 MB, UTF-8 saja.
 Monaco adalah komponen editor dari VS Code, bukan VS Code lengkap; tidak ada terminal,

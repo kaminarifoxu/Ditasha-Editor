@@ -1,3 +1,11 @@
+DITASHA Editor 1.18.1 — Fixed editor toolbar and discoverable previews
+
+- Keep document tabs and Edit 2D / Edit 3D controls in one full-width top bar. Switching modes changes the panels below without moving the tabs or controls.
+- Automatically open inline 3D preview on a single click of a YFT/YDD/YDR file in GTA V Explorer, including folder sources. Keep the Explorer workspace and file list visible.
+- Add a persistent Code editor entry in the sidebar. Open the offline Monaco editor without selecting a text file first; create a Lua file or open local UTF-8 text/JSON/XML/meta/scripts. Binary YFT/YTD assets remain viewer inputs rather than editable code.
+- Save standalone and folder documents as file copies, track successful exports, and preserve unsaved-buffer confirmation when opening another file or starting a new one.
+- Verify toolbar position across modes, single-click model preview, standalone editor entry/local file opening, discard cancellation and archive export round trips.
+
 DITASHA Editor 1.18.0 — Inline Explorer preview and offline code editor
 
 - Open YFT/YDD/YDR models directly inside GTA V Explorer, keeping the file list and current workspace visible. Double-click a model or use Model viewer; orbit, zoom, change LOD and inspect parts without switching pages.

@@ -3,7 +3,7 @@ export function mountVehicleWorkspace({ nav, viewers, onVehicleBuild }) {
   button.dataset.page = 'vehicles';
   button.innerHTML =
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 7 2-4h10l2 4 2 3v8H3v-8l2-3Zm0 0h14M3 13h18M6 10h2m8 0h2M5 18v3m14-3v3"/></svg>Vehicle workshop';
-  nav.append(button);
+  nav.querySelector('[data-page="archives"]').after(button);
   const root = document.createElement('section');
   root.className = 'vehicle-workspace';
   root.hidden = true;

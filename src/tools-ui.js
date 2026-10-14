@@ -69,6 +69,10 @@ export function mountTools({ download, toast, preview, confirmDiscard, onVehicle
   const mode = () => $('conversionMode').value;
   function activate(next) {
     if (busy) return;
+    if (next === 'code') {
+      archives.openCode();
+      return;
+    }
     if (page !== next) selection = null;
     page = next;
     $('workspaceLabel').textContent =

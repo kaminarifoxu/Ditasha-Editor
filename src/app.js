@@ -1965,11 +1965,10 @@ editModes.setAttribute('aria-label', 'Mode edit tekstur');
 editModes.innerHTML =
   '<button id="editTexture2d" aria-pressed="true" class="active">Edit 2D</button><button id="editTexture3d" aria-pressed="false">Edit 3D</button>';
 document.querySelector('.documentbar').append(editModes);
+document.querySelector('main').prepend(document.querySelector('.documentbar'));
 function textureEditMode(value) {
   expand3d(false);
   document.querySelector('main').classList.toggle('texture-mode-3d', value === '3d');
-  const tabHost = document.querySelector(value === '3d' ? '.right' : '.editor');
-  tabHost.prepend(document.querySelector('.documentbar'));
   for (const key of ['2d', '3d']) {
     $('editTexture' + key).classList.toggle('active', key === value);
     $('editTexture' + key).setAttribute('aria-pressed', String(key === value));

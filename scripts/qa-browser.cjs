@@ -3,11 +3,11 @@ const path = require('node:path');
 const fs = require('node:fs/promises');
 (async () => {
   const chromium = require('@sparticuz/chromium').default;
-  let executablePath;
+  let executablePath = '/tmp/chromium';
   try {
-    executablePath = await chromium.executablePath();
+    await fs.access(executablePath);
   } catch {
-    executablePath = '/tmp/chromium';
+    executablePath = await chromium.executablePath();
   }
   const browser = await require('playwright-core').chromium.launch({
     executablePath,
