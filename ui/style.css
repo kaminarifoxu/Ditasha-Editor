@@ -3307,3 +3307,40 @@ main.texture-mode-3d {
     grid-column: 1 / -1;
   }
 }
+
+/* Vehicle tools have their own workspace next to GTA V Explorer. */
+.vehicle-workspace {
+  height: calc(100dvh - var(--header-height) - var(--nav-height));
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.vehicle-workspace[hidden],
+#vehicleWorkshop[hidden] {
+  display: none;
+}
+.vehicle-workspace-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border);
+}
+.vehicle-workspace-head h2 {
+  margin: 3px 0 0;
+  font-size: 17px;
+}
+.vehicle-viewer-host {
+  flex: 1;
+  min-height: 0;
+}
+.vehicle-viewer-host > .asset-viewer {
+  height: 100%;
+}
+@media (max-width: 900px) {
+  .vehicle-workspace-head {
+    flex-wrap: wrap;
+    padding: 10px 14px;
+  }
+}

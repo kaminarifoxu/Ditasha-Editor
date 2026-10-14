@@ -17,7 +17,7 @@ function textureCanvas(t) {
   canvas.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(t.out), t.w, t.h), 0, 0);
   return canvas;
 }
-export function mountViewers({ nav, download, toast, activate, confirmDiscard }) {
+export function mountViewers({ nav, download, toast, activate, confirmDiscard, getActivePage }) {
   const $ = (id) => document.getElementById(id);
   for (const [page, label, path] of [
     ['textureviewer', 'Texture viewer', 'M3 3h18v18H3Z M3 16l5-5 4 4 4-5 5 6'],
@@ -807,7 +807,7 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard })
       (await confirmDiscard('file', workshop.unsavedItems())) !== 'discard'
     )
       return;
-    activate('modelviewer');
+    activate(getActivePage?.() === 'vehicles' ? 'vehicles' : 'modelviewer');
     await operation('model', async () => {
       const candidates = files.filter((f) => modelExtensions.test(f.name));
       candidates.sort(
@@ -984,5 +984,12 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard })
           }
         : null,
   });
-  return { textureRoot, modelRoot, openTextures, openModels, unsavedItems: workshop.unsavedItems };
+  return {
+    textureRoot,
+    modelRoot,
+    vehicleControls: workshop.root,
+    openTextures,
+    openModels,
+    unsavedItems: workshop.unsavedItems,
+  };
 }

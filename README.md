@@ -232,3 +232,7 @@ Livery studio menyediakan enam slot manual, pola/teks/PNG, area atlas UV, layer 
 ### Native game build (v1.15.0)
 
 **Game build** menghubungkan Blender/Sollumz/Muto yang dipasang terpisah untuk auto rig ped, penghapusan face badge pada LOD, serta transfer siren rigid dari donor YFT beserta patch metadata. Memerlukan setup engine dan provider native Windows; berbeda dari preview tanpa Blender. Lihat [setup, input yang didukung, dan status pengujian native](docs/NATIVE_BUILD.md). Ekspor biner/in-game belum diverifikasi end-to-end pada aset pengguna.
+
+### Vehicle workspace (v1.15.1)
+
+Open **Vehicle workshop**, immediately after **GTA V Explorer**, for vehicle YFT/YTD previews, extra parts, material/livery binding, mesh transforms, visual badge masking, lightbar previews and exports. **Debadge native** and **Strobo donor** open their respective offline engine workflows. The general Model viewer remains available for other assets; switching between these workspaces preserves the loaded scene. Auto rig ped is available through **Rig ped** in the header. Native requirements and limits are described in [Native build](docs/NATIVE_BUILD.md).

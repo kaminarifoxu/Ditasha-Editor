@@ -104,13 +104,30 @@ module.exports = async function checkOfflineStudio(fixtures) {
   assert($('previewPerformance').textContent.includes('Hemat'), 'GPU quality did not update');
   assert($('gpuDiagnostics').textContent.includes('viewport:'), 'GPU diagnostics missing');
   $('performanceDialog').close();
-  document.querySelector('[data-page="modelviewer"]').click();
+  const vehicleTab = document.querySelector('[data-page="vehicles"]');
+  assert(
+    document.querySelector('[data-page="archives"]').nextElementSibling === vehicleTab,
+    'Vehicle tab must follow GTA V Explorer',
+  );
+  vehicleTab.click();
+  assert(
+    !$('vehicleWorkshop').hidden && !$('vehicleOpen').closest('section').hidden,
+    'Dedicated vehicle workspace missing',
+  );
   await input(
     'mvInput',
     [new File([new Uint8Array(fixtures.model)], 'vehicle.ydd')],
     () => $('mvTitle').textContent === 'vehicle.ydd' && !$('mvOpen').disabled,
   );
+  assert(vehicleTab.classList.contains('active'), 'Import left the vehicle workspace');
   assert($('vwMesh').options.length === 2, 'Workshop mesh list missing');
+  document.querySelector('[data-page="modelviewer"]').click();
+  assert($('vehicleWorkshop').hidden, 'Vehicle tools leaked into model viewer');
+  vehicleTab.click();
+  assert(
+    $('mvTitle').textContent === 'vehicle.ydd' && !$('vehicleWorkshop').hidden,
+    'Vehicle model lost after switching workspaces',
+  );
   $('vehicleWorkshop').open = true;
   change('vw_x', '.25');
   $('vwAddLight').click();
@@ -175,8 +192,20 @@ module.exports = async function checkOfflineStudio(fixtures) {
     reveal: async () => true,
     docs: async () => true,
   };
+  $('vehicleStrobo').click();
+  assert(
+    $('nbMode').value === 'strobo' && !$('nbStrobo').hidden,
+    'Strobo shortcut selected wrong build',
+  );
+  $('nbClose').click();
   $('openNativeBuild').click();
-  change('nbMode', 'debadge');
+  assert($('nbMode').value === 'ped', 'Rig ped shortcut selected wrong build');
+  $('nbClose').click();
+  $('vehicleDebadge').click();
+  assert(
+    $('nbMode').value === 'debadge' && !$('nbDebadge').hidden,
+    'Debadge shortcut selected wrong build',
+  );
   $('nativeBuildDialog').querySelector('[data-pick="vehicle"]').click();
   await sleep(30);
   $('nbAnalyze').click();

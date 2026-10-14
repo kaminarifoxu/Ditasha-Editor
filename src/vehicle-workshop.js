@@ -19,6 +19,7 @@ export function mountVehicleWorkshop({
 }) {
   const root = document.createElement('details');
   root.id = 'vehicleWorkshop';
+  root.hidden = true;
   root.className = 'vehicle-workshop';
   root.innerHTML = `<summary>Vehicle workshop · offline</summary><p class="muted">Pilih mesh atau klik model. Sembunyikan badge pada daftar Visible parts. Transform part dan lightbar masuk ke ekspor GLB/proyek; belum ditulis sebagai part/siren YFT.</p><label>Mesh terpilih<select id="vwMesh"></select></label><button id="vwPick">Pilih mesh di 3D</button><button id="vwBadges">Cari kandidat badge</button><p id="vwBadgeStatus" class="muted"></p><details class="workshop-section"><summary>Transform mesh</summary><div id="vwTransform" class="studio-fields"></div><button id="vwResetMesh">Reset transform mesh</button></details><details id="vwLightSection" class="workshop-section"><summary>Lightbar preview</summary><button id="vwAddLight">Tambah lightbar preview</button><button id="vwRemoveLight">Hapus lightbar</button><div id="vwLightTransform" class="studio-fields"></div><label>Warna kiri<input type="color" id="vwLeftColor" value="#dd1535"></label><label>Warna kanan<input type="color" id="vwRightColor" value="#206cff"></label></details><details class="workshop-section"><summary>Ekspor &amp; proyek</summary><button id="vwNative">Ekspor resource · mesh tersembunyi</button><p class="muted">Ekspor native hanya menonaktifkan triangle mesh utama yang disembunyikan. Bone, collision dan rig tidak dihapus. Berlaku untuk LOD yang dipilih, bukan pencocokan otomatis semua LOD. Simpan sebagai file baru dan uji di game.</p><button id="vwGlb">Ekspor scene GLB</button><button id="vwSave">Simpan proyek kendaraan</button><button id="vwOpen">Buka proyek kendaraan</button><input id="vwProjectInput" type="file" accept=".json" hidden><p id="vwStatus" role="status" class="muted"></p></details>`;
   container.querySelector('#mvParts').after(root);
@@ -375,6 +376,7 @@ export function mountVehicleWorkshop({
       $('vwStatus').textContent = 'Proyek dimuat; periksa hasil sebelum mengekspor.';
     });
   return {
+    root,
     refresh,
     changed: () => {},
     light,

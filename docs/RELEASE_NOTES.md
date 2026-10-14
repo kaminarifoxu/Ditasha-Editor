@@ -1,3 +1,10 @@
+DITASHA Editor 1.15.1 — Dedicated vehicle workspace
+
+- Add Vehicle workshop immediately after GTA V Explorer, with a larger shared vehicle preview and its own mesh/transform, badge masking, lightbar preview and export controls.
+- Move vehicle editing controls out of the general Model viewer. Keep loaded models, textures and edits when switching workspaces, including after vehicle imports.
+- Add direct Debadge native and Strobo donor shortcuts inside the vehicle workspace; retain Rig ped in the application header.
+- Verify navigation order, workspace isolation, model persistence, native-operation shortcuts and existing offline workflows. Native engine requirements and export limitations from 1.15.0 still apply.
+
 DITASHA Editor 1.15.0 — Native engine bridge
 
 - Add Game build with a separately installed Blender/Sollumz/Muto engine: dependency probe, file pickers, background jobs, progress logs, cancellation, timeout and isolated output folders.

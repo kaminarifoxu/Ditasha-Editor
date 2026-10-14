@@ -1,9 +1,10 @@
+import { mountVehicleWorkspace } from './vehicle-ui.js';
 import { mountViewers } from './viewers-ui.js';
 import { mountArchives } from './archive-ui.js';
 import { conversionModes, accepts, convertFile, picturesToYtd } from './converter.js';
 import { zipFiles, MAX_EXPORT, safePath } from './asset-tools.js';
 import { clothingInfo, importPath, analyzePack, buildPack } from './clothing-pack.js';
-export function mountTools({ download, toast, preview, confirmDiscard }) {
+export function mountTools({ download, toast, preview, confirmDiscard, onVehicleBuild }) {
   const $ = (id) => document.getElementById(id),
     editor = document.querySelector('main'),
     viewer = document.querySelector('.right'),
@@ -41,7 +42,14 @@ export function mountTools({ download, toast, preview, confirmDiscard }) {
     revision = 0,
     savedRevision = 0,
     buildVersion = 1;
-  const viewers = mountViewers({ nav, download, toast, activate, confirmDiscard });
+  const viewers = mountViewers({
+    nav,
+    download,
+    toast,
+    activate,
+    confirmDiscard,
+    getActivePage: () => page,
+  });
   const archives = mountArchives({
     nav,
     download,
@@ -51,6 +59,8 @@ export function mountTools({ download, toast, preview, confirmDiscard }) {
     activate,
     viewers,
   });
+  const vehicles = mountVehicleWorkspace({ nav, viewers, onVehicleBuild });
+  const modelHome = viewers.modelRoot.parentElement;
   const dirty = () => pack.length && revision !== savedRevision;
   const touch = () => {
     revision++;
@@ -68,16 +78,28 @@ export function mountTools({ download, toast, preview, confirmDiscard }) {
           ? 'Clothing pack'
           : next === 'archives'
             ? 'GTA V Explorer'
-            : next === 'textureviewer'
-              ? 'Texture viewer'
-              : next === 'modelviewer'
-                ? 'Model viewer'
-                : 'Converter';
+            : next === 'vehicles'
+              ? 'Vehicle workshop'
+              : next === 'textureviewer'
+                ? 'Texture viewer'
+                : next === 'modelviewer'
+                  ? 'Model viewer'
+                  : 'Converter';
     editor.hidden = next !== 'editor';
     root.hidden = !['converter', 'pack'].includes(next);
     archives.root.hidden = next !== 'archives';
     viewers.textureRoot.hidden = next !== 'textureviewer';
-    viewers.modelRoot.hidden = next !== 'modelviewer';
+    vehicles.root.hidden = next !== 'vehicles';
+    const vehicleMode = next === 'vehicles';
+    (vehicleMode ? vehicles.host : modelHome).append(viewers.modelRoot);
+    viewers.modelRoot.hidden = !['modelviewer', 'vehicles'].includes(next);
+    viewers.vehicleControls.hidden = !vehicleMode;
+    viewers.modelRoot.querySelector('.tool-sidebar > h2').textContent = vehicleMode
+      ? 'Kendaraan'
+      : 'Model viewer';
+    viewers.modelRoot
+      .querySelectorAll('.ped-attachments, .material-preview')
+      .forEach((e) => (e.hidden = vehicleMode));
     nav
       .querySelectorAll('button')
       .forEach((b) => b.classList.toggle('active', b.dataset.page === next));

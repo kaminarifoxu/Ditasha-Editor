@@ -1906,7 +1906,13 @@ function confirmDiscard(reason = 'close', items = unsavedItems()) {
   dialog.showModal();
   return discardPending;
 }
-const tools = mountTools({ download, toast, preview: loadFiles, confirmDiscard });
+const tools = mountTools({
+  download,
+  toast,
+  preview: loadFiles,
+  confirmDiscard,
+  onVehicleBuild: (mode) => nativeBuild?.open(mode),
+});
 mountPhotoshoot({
   container: document.querySelector('.modeltools'),
   id: 'photoshoot',

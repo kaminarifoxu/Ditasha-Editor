@@ -1,8 +1,8 @@
 export function mountNativeBuild({ toast }) {
   const trigger = document.createElement('button');
   trigger.id = 'openNativeBuild';
-  trigger.textContent = 'Game build';
-  trigger.title = 'Rig ped, debadge dan transfer strobo native';
+  trigger.textContent = 'Rig ped';
+  trigger.title = 'Auto rig ped dengan Blender offline';
   document.querySelector('header').insertBefore(trigger, document.getElementById('openUpdates'));
   const dialog = document.createElement('dialog');
   dialog.className = 'studio-dialog native-build-dialog';
@@ -146,13 +146,16 @@ export function mountNativeBuild({ toast }) {
   };
   $('nbReveal').onclick = () => api()?.reveal();
   $('nbClose').onclick = () => dialog.close();
-  trigger.onclick = () => {
+  function open(value = 'ped') {
+    if (!state.running && !requesting) $('nbMode').value = value;
     mode();
-    dialog.showModal();
+    if (!dialog.open) dialog.showModal();
     refresh();
-  };
+  }
+  trigger.onclick = () => open('ped');
   mode();
   return {
+    open,
     unsavedItems: () =>
       state.running
         ? [{ name: 'Native build masih berjalan; menutup aplikasi membatalkan proses.' }]
