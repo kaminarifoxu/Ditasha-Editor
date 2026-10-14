@@ -10,6 +10,7 @@ export function mountVehicleWorkshop({
   getMeshes,
   getRoot,
   getSource,
+  onSelect,
   getHiddenGeometry,
   setHidden,
   render,
@@ -98,12 +99,13 @@ export function mountVehicleWorkshop({
     for (const k of ['x', 'y', 'z', 'rx', 'ry', 'rz', 'scale'])
       $(prefix + k).value = +t[k].toFixed(4);
   }
-  function choose() {
+  function choose(notify = false) {
     selected = $('vwMesh').value;
     const e = getMeshes().find((e) => e.key === selected);
     if (e) fill('vw_', snapshot(e.mesh));
+    if (notify) onSelect?.(selected);
   }
-  $('vwMesh').onchange = choose;
+  $('vwMesh').onchange = () => choose(true);
   function refresh() {
     const source = getSource(),
       signature = source?.name + ':' + source?.file?.lastModified + ':' + source?.file?.size;
@@ -151,7 +153,7 @@ export function mountVehicleWorkshop({
     )[0];
     if (hit) {
       $('vwMesh').value = hit.object.userData.bindingKey;
-      choose();
+      choose(true);
       picking = false;
       $('vwPick').classList.remove('active');
     }

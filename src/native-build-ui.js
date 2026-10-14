@@ -1,3 +1,4 @@
+import { mountNativePreview } from './native-preview.js';
 export function mountNativeBuild({ toast }) {
   const trigger = document.createElement('button');
   trigger.id = 'openNativeBuild';
@@ -13,7 +14,35 @@ export function mountNativeBuild({ toast }) {
     inputs = {};
   let state = { running: false },
     timer = null,
-    requesting = false;
+    requesting = false,
+    candidateKey = '',
+    loadedPreviewId = null;
+  const previewRoot = document.createElement('section');
+  previewRoot.className = 'native-preview';
+  previewRoot.hidden = true;
+  $('nbVehicle').after(previewRoot);
+  const selectedNames = () =>
+    [...$('nbCandidates').querySelectorAll('input:checked')].map((e) => e.value);
+  const preview = mountNativePreview({
+    container: previewRoot,
+    toast,
+    onPick: (name) => {
+      const check = [...$('nbCandidates').querySelectorAll('input')].find((e) => e.value === name);
+      if (!check || state.running || requesting) return;
+      check.checked = !check.checked;
+      preview.updateSelection(selectedNames());
+    },
+    onTransform: (offset) => ['nbX', 'nbY', 'nbZ'].forEach((id, i) => ($(id).value = offset[i])),
+  });
+  const syncTransform = () =>
+    preview.setTransform(
+      ['nbX', 'nbY', 'nbZ'].map((id) => Number($(id).value)),
+      Number($('nbScale').value),
+    );
+  for (const id of ['nbX', 'nbY', 'nbZ', 'nbScale']) $(id).addEventListener('input', syncTransform);
+  $('nbCandidates').addEventListener('change', () => preview.updateSelection(selectedNames()));
+  preview.loadButton.onclick = () =>
+    start($('nbMode').value === 'strobo' ? 'strobo_preview' : 'debadge_analyze');
   const api = () => window.ditashaNative;
   function mode() {
     const value = $('nbMode').value;
@@ -21,13 +50,16 @@ export function mountNativeBuild({ toast }) {
     $('nbVehicle').hidden = value === 'ped';
     $('nbDebadge').hidden = value !== 'debadge';
     $('nbStrobo').hidden = value !== 'strobo';
+    previewRoot.hidden = value === 'ped' || !dialog.open;
+    preview.setMode(value);
+    syncTransform();
   }
   function draw() {
     $('nbStatus').textContent = state.message || 'Siap.';
     $('nbLog').textContent = state.log || '';
     $('nbEngine').textContent = state.engine || $('nbEngine').textContent;
     dialog
-      .querySelectorAll('[data-pick],#nbMode,#nbRun,#nbAnalyze,#nbProbe')
+      .querySelectorAll('[data-pick],#nbMode,#nbRun,#nbAnalyze,#nbProbe,#nbPreviewLoad')
       .forEach((e) => (e.disabled = state.running || requesting));
     $('nbCancel').disabled = !state.running;
     $('nbReveal').disabled = !state.output;
@@ -51,7 +83,13 @@ export function mountNativeBuild({ toast }) {
       p.textContent = warning;
       $('nbReport').append(p);
     }
-    if (report.mode === 'debadge_analyze' && report.ok) {
+    const nextCandidateKey = JSON.stringify([inputs.vehicle, report.candidates]);
+    if (
+      ['debadge_analyze', 'strobo_preview'].includes(report.mode) &&
+      report.ok &&
+      candidateKey !== nextCandidateKey
+    ) {
+      candidateKey = nextCandidateKey;
       $('nbCandidates').replaceChildren();
       for (const candidate of report.candidates || []) {
         const label = document.createElement('label');
@@ -68,6 +106,23 @@ export function mountNativeBuild({ toast }) {
       if (!report.candidates?.length)
         $('nbCandidates').textContent =
           'Tidak ada badge terdeteksi dari nama. Pilih mesh manual di Vehicle workshop jika diperlukan.';
+    }
+    if (state.previewId && state.previewId !== loadedPreviewId && report.ok && !state.running) {
+      const id = state.previewId;
+      loadedPreviewId = id;
+      api()
+        ?.preview(id)
+        .then((data) => {
+          if (id !== loadedPreviewId) return;
+          return preview.load(data).then(() => {
+            syncTransform();
+            preview.updateSelection(selectedNames());
+          });
+        })
+        .catch((e) => {
+          preview.clear();
+          toast('Preview: ' + e.message);
+        });
     }
   }
   async function refresh() {
@@ -123,7 +178,12 @@ export function mountNativeBuild({ toast }) {
             else
               dialog.querySelector('[data-file="' + b.dataset.pick + '"]').textContent = value.name;
           }
-          if (b.dataset.pick === 'vehicle') $('nbCandidates').replaceChildren();
+          if (['vehicle', 'donor'].includes(b.dataset.pick)) {
+            $('nbCandidates').replaceChildren();
+            candidateKey = '';
+            loadedPreviewId = state.previewId || null;
+            preview.clear();
+          }
         } catch (e) {
           toast(e.message);
         }
@@ -146,10 +206,13 @@ export function mountNativeBuild({ toast }) {
   };
   $('nbReveal').onclick = () => api()?.reveal();
   $('nbClose').onclick = () => dialog.close();
+  dialog.addEventListener('close', () => {
+    if (!dialog.open) previewRoot.hidden = true;
+  });
   function open(value = 'ped') {
     if (!state.running && !requesting) $('nbMode').value = value;
-    mode();
     if (!dialog.open) dialog.showModal();
+    mode();
     refresh();
   }
   trigger.onclick = () => open('ped');

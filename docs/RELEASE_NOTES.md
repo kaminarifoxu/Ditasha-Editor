@@ -1,3 +1,11 @@
+DITASHA Editor 1.16.0 — Texture binding and native 3D placement
+
+- Scope embedded textures to their own drawable and prefer the matching source YTD when external dictionaries contain duplicate names. Expose the resolved binding and per-mesh UV/alpha/U/V-flip controls; keep known vehicle paint/body shaders opaque instead of treating paint masks as transparency.
+- Add actual Blender-imported 3D geometry to Debadge analysis. Click a badge to select its native object candidate, highlight only badge material faces, and compare a preview with the selected badges hidden.
+- Add native donor-lamp previews for Strobo. Place the actual rigid siren parts on a clicked target surface or drag their translation gizmo; synchronize GTA X/Y/Z offsets and scale with the native build request. Keep the gizmo at the donor lamp center while preserving engine coordinates.
+- Bound preview geometry to 250,000 triangles, 32 texture thumbnails at 512px, and 48 MB. Read preview output through opaque, trusted IPC tokens. Preserve the source models and image pixels.
+- Verify texture/dictionary collisions, shader metadata, real 3D candidate picking and donor placement, build payload offsets, and Blender geometry/thumbnail/transform agreement. Existing native engine requirements and donor restrictions still apply; user assets and in-game native output have not been verified end-to-end.
+
 DITASHA Editor 1.15.1 — Dedicated vehicle workspace
 
 - Add Vehicle workshop immediately after GTA V Explorer, with a larger shared vehicle preview and its own mesh/transform, badge masking, lightbar preview and export controls.

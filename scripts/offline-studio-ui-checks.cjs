@@ -176,10 +176,11 @@ module.exports = async function checkOfflineStudio(fixtures) {
     pick: async (kind) => ({ id: kind + '-token', name: kind + '.yft' }),
     start: async (payload) => {
       nativeCalls.push(payload);
-      if (payload.mode === 'debadge_analyze')
+      if (['debadge_analyze', 'strobo_preview'].includes(payload.mode))
         nativeState = {
           ...nativeState,
           status: 'success',
+          previewId: payload.mode + '-preview',
           report: {
             ok: true,
             mode: payload.mode,
@@ -188,6 +189,31 @@ module.exports = async function checkOfflineStudio(fixtures) {
         };
       return nativeState;
     },
+    preview: async () => ({
+      version: 1,
+      basis: 'gta-z-up',
+      textures: [],
+      meshes: [
+        {
+          name: 'front_badge',
+          kind: 'base',
+          candidate: 'front_badge',
+          positions: [-1, 0, 0, 1, 0, 0, 0, 0, 2],
+          uvs: [0, 0, 1, 0, 0.5, 1],
+        },
+        ...(nativeState.report.mode === 'strobo_preview'
+          ? [
+              {
+                name: 'lamp',
+                kind: 'donor',
+                candidate: null,
+                positions: [-0.2, 0, 2.1, 0.2, 0, 2.1, 0, 0, 2.3],
+                uvs: [0, 0, 1, 0, 0.5, 1],
+              },
+            ]
+          : []),
+      ],
+    }),
     cancel: async () => true,
     reveal: async () => true,
     docs: async () => true,
@@ -213,7 +239,34 @@ module.exports = async function checkOfflineStudio(fixtures) {
     () => $('nbCandidates').querySelector('input') && !$('nbRun').disabled,
     'Native badge analysis UI failed',
   );
-  $('nbCandidates').querySelector('input').checked = true;
+  await wait(
+    () =>
+      $('nbViewport').querySelector('canvas') &&
+      $('nbPreviewStatus').textContent.includes('triangles'),
+    'Native geometry preview did not load',
+  );
+  // Real raycast click selects the candidate in the analysis/build list.
+  const canvas = $('nbViewport').querySelector('canvas');
+  $('nbPreviewFit').click();
+  await sleep(100);
+  const rect = canvas.getBoundingClientRect();
+  for (const type of ['pointerdown', 'pointerup'])
+    canvas.dispatchEvent(
+      new PointerEvent(type, {
+        bubbles: true,
+        clientX: rect.x + rect.width / 2,
+        clientY: rect.y + rect.height / 2,
+        button: 0,
+        pointerId: 1,
+      }),
+    );
+  assert(
+    $('nbCandidates').querySelector('input').checked,
+    '3D badge click did not select the build candidate',
+  );
+  $('nbPreviewRemoved').checked = true;
+  $('nbPreviewRemoved').dispatchEvent(new Event('change', { bubbles: true }));
+  console.log('DITASHA_SNAPSHOT:native-debadge-preview');
   $('nbRun').click();
   await wait(
     () => nativeCalls.some((c) => c.mode === 'debadge') && !$('nbRun').disabled,
@@ -227,6 +280,51 @@ module.exports = async function checkOfflineStudio(fixtures) {
     nativeCalls.find((c) => c.mode === 'debadge').inputs.vehicle === 'vehicle-token',
     'Renderer did not use picker token',
   );
+  change('nbMode', 'strobo');
+  $('nativeBuildDialog').querySelector('[data-pick="donor"]').click();
+  await sleep(30);
+  $('nbPreviewLoad').click();
+  await wait(
+    () => $('nbPreviewStatus').textContent.startsWith('2 triangles'),
+    'Real donor preview did not load',
+  );
+  change('nbX', '.25');
+  $('nbX').dispatchEvent(new Event('input', { bubbles: true }));
+  change('nbZ', '1.5');
+  $('nbZ').dispatchEvent(new Event('input', { bubbles: true }));
+  $('nbPreviewPlace').click();
+  await sleep(100);
+  const lampRect = canvas.getBoundingClientRect();
+  for (const type of ['pointerdown', 'pointerup'])
+    canvas.dispatchEvent(
+      new PointerEvent(type, {
+        bubbles: true,
+        clientX: lampRect.x + lampRect.width / 2,
+        clientY: lampRect.y + lampRect.height / 2,
+        button: 0,
+        pointerId: 1,
+      }),
+    );
+  assert(
+    !$('nbPreviewPlace').classList.contains('active'),
+    '3D surface placement did not complete',
+  );
+  const expectedOffset = ['nbX', 'nbY', 'nbZ'].map((id) => Number($(id).value));
+  assert(
+    expectedOffset.every(Number.isFinite) && expectedOffset.some((v) => v !== 0),
+    '3D donor offset not synchronized',
+  );
+  $('nbRun').click();
+  await wait(
+    () => nativeCalls.some((c) => c.mode === 'strobo') && !$('nbRun').disabled,
+    'Strobo build not dispatched',
+  );
+  assert(
+    JSON.stringify(nativeCalls.find((c) => c.mode === 'strobo').offset) ===
+      JSON.stringify(expectedOffset),
+    '3D offset differs from native build',
+  );
+  console.log('DITASHA_SNAPSHOT:native-strobo-preview');
   window.ditashaNative.start = async () => {
     throw Error('Engine tidak tersedia untuk tes');
   };
@@ -234,6 +332,13 @@ module.exports = async function checkOfflineStudio(fixtures) {
   await wait(
     () => $('nbStatus').textContent.includes('Engine tidak tersedia'),
     'Native engine error was hidden',
+  );
+  $('nbClose').click();
+  $('vehicleStrobo').click();
+  await sleep(60);
+  assert(
+    !$('nbViewport').closest('.native-preview').hidden,
+    'Reopened native preview was hidden by an older close event',
   );
   $('nbClose').click();
   return {

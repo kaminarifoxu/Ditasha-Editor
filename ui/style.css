@@ -3344,3 +3344,41 @@ main.texture-mode-3d {
     padding: 10px 14px;
   }
 }
+
+.native-preview {
+  margin: 14px 0;
+  min-width: 0;
+}
+.native-preview[hidden] {
+  display: none;
+}
+#nbViewport {
+  position: relative;
+  width: 100%;
+  height: clamp(300px, 40vh, 480px);
+  overflow: hidden;
+  background: #202128;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-top: 8px;
+}
+#nbViewport > p {
+  padding: 20px;
+}
+#nbViewport canvas {
+  display: block;
+  touch-action: none;
+}
+.native-preview .check {
+  margin: 0;
+}
+#nbPreviewStatus {
+  min-height: 2.4em;
+}
+.native-build-dialog {
+  width: min(1600px, 96vw);
+}
+
+.native-preview [hidden] {
+  display: none !important;
+}

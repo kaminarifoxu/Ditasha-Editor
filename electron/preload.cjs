@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('ditashaDesktop', {
 
 contextBridge.exposeInMainWorld('ditashaNative', {
   state: () => ipcRenderer.invoke('ditasha:native-state'),
+  preview: (id) => ipcRenderer.invoke('ditasha:native-preview', id),
   pick: (kind) => ipcRenderer.invoke('ditasha:native-pick', kind),
   docs: (kind) => ipcRenderer.invoke('ditasha:native-doc', kind),
   start: (payload) => ipcRenderer.invoke('ditasha:native-start', payload),

@@ -173,3 +173,31 @@ test('BC7 YTD decodes RGBA and exports editable pixels; truncated blocks are rej
   r.v.setBigUint64(t.p + 112, BigInt(0x60000000 + r.bytes.length - r.sys - 8), true);
   assert.throws(() => readYtd(pack(r)), /truncated/);
 });
+
+test('Material lookup isolates embedded drawable textures and resolves dictionary collisions', async () => {
+  const { resolveModelTexture, modelAlphaMode } = await import('../src/model-material.js');
+  const first = { name: 'body', dictionary: 'first.ytd' },
+    second = { name: 'BODY.dds', dictionary: 'second.ytd' };
+  const embedded = { name: 'body' };
+  assert.equal(resolveModelTexture('body', [first, second], [embedded], 'second_hi.yft'), second);
+  assert.equal(resolveModelTexture('body', [first, second], [embedded], 'other.yft'), embedded);
+  assert.equal(resolveModelTexture('body', [first, second], [], 'other.yft'), null);
+  assert.equal(resolveModelTexture('body', [second], [], 'other.yft'), second);
+  assert.equal(resolveModelTexture('missing', [second], [], 'other.yft'), null);
+  assert.equal(modelAlphaMode({ shaderFileHash: hashName('vehicle_paint1.sps') }), 'opaque');
+  assert.equal(modelAlphaMode({ shaderHash: hashName('vehicle_mesh') }), 'opaque');
+  assert.equal(modelAlphaMode({ shaderFileHash: hashName('vehicle_decal.sps') }), 'blend');
+  assert.equal(
+    modelAlphaMode({ shaderFileHash: hashName('vehicle_paint1.sps') }, 'blend'),
+    'blend',
+  );
+  const r = new Resource(viewerModel, 165);
+  r.v.setUint32(2176 + 24, hashName('vehicle_paint1.sps'), true);
+  assert.equal(readYdd(pack(r))[0].geometries[0].shaderFileHash, hashName('vehicle_paint1.sps'));
+});
+
+test('Native 3D translation preserves GTA axis directions and bounded build offsets', async () => {
+  const { nativeOffsetFromThree } = await import('../src/native-preview.js');
+  assert.deepEqual(nativeOffsetFromThree({ x: 0.25, y: 1.5, z: -2 }), [0.25, 2, 1.5]);
+  assert.deepEqual(nativeOffsetFromThree({ x: 30, y: -30, z: 1 }), [20, -1, -20]);
+});

@@ -14,7 +14,12 @@ const PICK_TYPES = {
   vehicles: { name: 'Target vehicles.meta', extensions: ['meta'] },
 };
 function validateJob(payload) {
-  if (!payload || !['probe', 'ped', 'debadge_analyze', 'debadge', 'strobo'].includes(payload.mode))
+  if (
+    !payload ||
+    !['probe', 'ped', 'debadge_analyze', 'debadge', 'strobo', 'strobo_preview'].includes(
+      payload.mode,
+    )
+  )
     throw Error('Mode build tidak valid.');
   if (payload.mode === 'ped' && !/^[a-z][a-z0-9_]{2,31}$/.test(payload.name || ''))
     throw Error('Nama ped: 3–32 huruf kecil/angka/underscore, diawali huruf.');
@@ -58,7 +63,8 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted }) {
   const inputs = new Map();
   let engine = null,
     child = null,
-    running = false;
+    running = false,
+    preview = null;
   let state = {
     status: 'idle',
     message: 'Pilih Blender dan periksa engine.',
@@ -135,6 +141,13 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted }) {
     inputs.set(id, { kind, path: file, size: stat.size, mtime: stat.mtimeMs });
     return { id, name: path.basename(file) };
   });
+  ipcMain.handle('ditasha:native-preview', async (event, id) => {
+    trusted(event);
+    if (!preview || preview.id !== id) throw Error('Preview kedaluwarsa; muat ulang preview.');
+    const stat = await fs.stat(preview.path);
+    if (stat.size > 48 * 1024 * 1024) throw Error('Preview melebihi batas 48 MB.');
+    return JSON.parse(await fs.readFile(preview.path, 'utf8'));
+  });
   ipcMain.handle('ditasha:native-doc', async (event, kind) => {
     trusted(event);
     const url = {
@@ -175,10 +188,11 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted }) {
       };
     if (job.mode === 'ped') job.source = await get('ped');
     else if (job.mode !== 'probe') job.source = await get('vehicle');
+    if (job.mode === 'strobo_preview') job.donor = await get('donor');
     if (job.mode === 'strobo')
       for (const kind of ['donor', 'carcols', 'variations', 'vehicles'])
         job[kind] = await get(kind);
-    const base = ['probe', 'debadge_analyze'].includes(job.mode)
+    const base = ['probe', 'debadge_analyze', 'strobo_preview'].includes(job.mode)
       ? os.tmpdir()
       : await get('output');
     const root = await fs.mkdtemp(path.join(base, 'ditasha-build-'));
@@ -237,6 +251,13 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted }) {
           throw Error('Report engine terlalu besar.');
         const rep = JSON.parse(await fs.readFile(reportFile, 'utf8'));
         state.report = rep;
+        if (rep.ok && rep.preview && !error && !state.cancelled) {
+          const previewPath = path.join(job.output, 'preview.json');
+          if ((await fs.stat(previewPath)).size > 48 * 1024 * 1024)
+            throw Error('Preview terlalu besar.');
+          preview = { id: randomUUID(), path: previewPath };
+          state.previewId = preview.id;
+        }
         state.status = rep.ok && !error && !state.cancelled ? 'success' : 'error';
         state.message = state.cancelled
           ? 'Build dibatalkan; hasil parsial jangan dipakai.'

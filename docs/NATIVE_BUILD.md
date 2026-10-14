@@ -1,6 +1,6 @@
-# Native game build — 1.15.0
+# Native game build — 1.16.0
 
-Tombol **Game build** menjalankan Blender sebagai proses terpisah. Ini jalur baru untuk aset game; Vehicle workshop/Livery studio tetap dapat digunakan tanpa Blender. Tidak ada layanan AI, API key, atau pengunggahan model.
+Tombol **Rig ped** di header serta **Debadge native / Strobo donor** dalam Vehicle workshop menjalankan Blender sebagai proses terpisah. Ini jalur baru untuk aset game; Vehicle workshop/Livery studio tetap dapat digunakan tanpa Blender. Tidak ada layanan AI, API key, atau pengunggahan model.
 
 ## Pasang engine sekali
 
@@ -22,6 +22,7 @@ Gunakan Blender dengan add-on tersebut aktif di preferences. DITASHA tidak memas
 
 - Pilih YFT dasar; pasangan `_hi.yft` dan YTD berada di folder yang sama.
 - Klik **Analisis badge**. Kandidat berasal dari nama mesh/material/shader yang memuat badge/emblem, bukan deteksi visual AI.
+- Analisis juga memuat preview 3D dari objek native yang sama. Klik badge untuk memilih kandidat, atau centang daftarnya. Face badge yang dipilih berwarna merah; **Lihat tanpa badge** menyembunyikannya pada preview. Preview menampilkan satu LOD tertinggi yang utuh, sedangkan build tetap memproses semua LOD.
 - Periksa jumlah face dan centang kandidat yang benar, lalu **Build native**. Face badge dihapus pada semua mesh LOD yang terkait. UV/material face lain dipertahankan; datablock yang dibagi dengan objek lain disalin sebelum diubah.
 - Seluruh target diekspor ulang melalui Sollumz. Berbeda dengan masking index pada Vehicle workshop, ini penghapusan face lewat engine pemodelan. Ekspor ulang dapat menormalisasi struktur/fitur file yang didukung Sollumz; bukan jaminan byte-identik dengan original.
 - Jika nama badge tidak dapat dikenali, gunakan pemilihan manual Vehicle workshop atau edit di Blender.
@@ -33,8 +34,9 @@ Versi ini memindahkan **mesh lampu rigid dan bone siren1–20 dari donor**; tida
 1. Pilih YFT target dan YFT donor, keduanya beserta `_hi.yft` di folder masing-masing.
 2. Lampu donor harus terikat ke bone siren melalui constraint rigid dan memakai tekstur embedded. Donor skinned, tekstur eksternal yang belum di-embed, target dengan bone siren bernama sama, atau konflik tag bone ditolak.
 3. Pilih `carcols.meta` donor dan `carvariations.meta` serta `vehicles.meta` milik target. Metadata harus UTF-8, tanpa DTD/entity. Nama model harus cocok dengan nama YFT target.
-4. Atur offset X kanan/Y depan/Z atas dalam meter dan scale, ID donor (0 untuk setting tunggal), serta ID siren baru 1–254. ID baru harus unik di server; DITASHA tidak dapat memeriksa seluruh resource server dari komputer lokal.
-5. Build menyalin bone/tag/flags dan mesh lampu, mengarahkan binding ke skeleton target, mengekspor YFT native, serta membuat patch resource dengan carcols/carvariations/vehicles dan fxmanifest. Variasi target mempertahankan kit/warna; kelas disetel emergency dan audio POLICE.
+4. Klik **Muat preview 3D** setelah memilih target dan donor. Preview memuat geometri siren donor yang benar, bukan lightbar contoh. Klik **Letakkan strobo** lalu permukaan kendaraan untuk menempatkan pusat lampu; geser sumbu gizmo untuk mengatur posisi. Nilai offset dan scale di bawah preview langsung terhubung ke build. Model `_hi` dan YTD mengikuti impor Sollumz; material yang tidak tersedia tetap tampil sebagai warna netral.
+5. Atur offset X kanan/Y depan/Z atas dalam meter dan scale, ID donor (0 untuk setting tunggal), serta ID siren baru 1–254. ID baru harus unik di server; DITASHA tidak dapat memeriksa seluruh resource server dari komputer lokal.
+6. Build menyalin bone/tag/flags dan mesh lampu, mengarahkan binding ke skeleton target, mengekspor YFT native, serta membuat patch resource dengan carcols/carvariations/vehicles dan fxmanifest. Variasi target mempertahankan kit/warna; kelas disetel emergency dan audio POLICE.
 
 **Resource asli kendaraan tetap harus dimuat lebih dahulu** untuk tekstur/handling/aset yang tidak diganti. Housing lightbar, collision donor, kaca shattermap, part non-siren, dan rig skinned tidak dipindah otomatis. Tidak semua kendaraan donor mengikuti konvensi yang didukung; penolakan kompatibilitas harus ditangani di Blender. Uji mesh, posisi lampu, pola strobo, LOD, bone dan collision pada server uji.
 
@@ -50,3 +52,11 @@ Validasi pengembangan:
 - **Ekspor biner memakai PyMateria dan perilaku dalam GTA/FiveM belum diuji end-to-end pada kendaraan/ped pengguna.** Lingkungan pengembangan Linux tidak menyediakan provider native Windows. Probe/build menolak provider yang hilang. Jangan menyamakan tes kernel rigging/geometri dengan sertifikasi semua hasil di game.
 
 Referensi: [Muto Ped Rig](https://github.com/B7Kompirine/muto-ped-rig), [Sollumz](https://github.com/Sollumz/Sollumz), [Cfx data files](https://docs.fivem.net/docs/game-references/data-files/). Hak dan lisensi proyek eksternal tetap milik masing-masing pembuat. Bridge DITASHA tidak menyalin implementasi add-on tersebut.
+
+## Batas preview dan tekstur
+
+Preview engine memerlukan Blender/Sollumz/provider native yang sama dengan build. Preview dibatasi 250.000 triangle, 32 thumbnail tekstur maksimal 512px dan JSON 48 MB. Batas ini hanya berlaku untuk preview; berkas sumber dan kualitas build tidak diperkecil. Posisi preview menggunakan konversi GTA Z-up ke Three Y-up; offset build tetap X kanan/Y depan/Z atas. Gizmo berada di pusat lampu donor, bukan titik origin kendaraan donor. Tidak ada animasi strobo atau simulasi collision di preview.
+
+Pada Model viewer/Vehicle workshop, tekstur embedded tidak lagi diambil dari drawable extra lain. Jika beberapa YTD memiliki nama tekstur sama, dictionary yang namanya cocok dengan model diprioritaskan; pilihan yang ambigu tidak ditebak. Periksa **Material & livery** untuk nama binding, pilih tekstur/UV secara manual bila perlu. **Alpha** dapat disetel ke Opaque untuk body/paint atau Transparan untuk kaca/decal, serta U/V dibalik per mesh. Ini pengaturan preview, bukan penulisan ulang shader YFT. Shared texture dictionaries bawaan GTA belum dimuat otomatis; sertakan YTD yang dibutuhkan.
+
+Smoke test geometri Blender tersedia di `scripts/smoke-native-preview.py`. Jalankan memakai Blender dengan Sollumz aktif: `blender --background --disable-autoexec --python-exit-code 2 --python scripts/smoke-native-preview.py`. Fixture memeriksa face badge selektif, thumbnail PNG, posisi geometri donor dibanding transform native dan penolakan konflik bone; tidak menggantikan pengujian ekspor biner/game.

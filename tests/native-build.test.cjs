@@ -4,6 +4,7 @@ const { test } = require('node:test'),
 const { validateJob, blenderArgs } = require('../electron/native-build.cjs');
 const { execFileSync } = require('node:child_process');
 test('Native build accepts bounded job settings and refuses arbitrary task/transform data', () => {
+  assert.equal(validateJob({ mode: 'strobo_preview' }).mode, 'strobo_preview');
   assert.equal(validateJob({ mode: 'ped', name: 'ditasha_ped' }).name, 'ditasha_ped');
   assert.equal(validateJob({ mode: 'strobo', donorSirenId: 986, sirenId: 100 }).donorSirenId, 986);
   for (const value of [
@@ -32,4 +33,22 @@ test('Native metadata selects one model, links siren ID and rejects XML entities
     { encoding: 'utf8' },
   );
   assert.match(result, /PASS_NATIVE_METADATA/);
+});
+
+test('Native preview IPC rejects arbitrary file reads and untrusted callers', async () => {
+  const { registerNativeBuild } = require('../electron/native-build.cjs');
+  const handlers = new Map();
+  let calls = 0;
+  registerNativeBuild({
+    app: { getPath: () => require('node:os').tmpdir(), on: () => {} },
+    ipcMain: { handle: (name, fn) => handlers.set(name, fn) },
+    trusted: (event) => {
+      calls++;
+      if (!event.trusted) throw Error('untrusted');
+    },
+  });
+  const read = handlers.get('ditasha:native-preview');
+  await assert.rejects(read({ trusted: true }, 'C:/secret.txt'), /kedaluwarsa/);
+  await assert.rejects(read({ trusted: false }, 'anything'), /untrusted/);
+  assert.equal(calls, 2);
 });

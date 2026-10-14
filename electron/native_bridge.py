@@ -174,13 +174,7 @@ def debadge(fragment, selected):
     return count
 
 
-def transfer_sirens(bpy, target, donor, job):
-    """Transfer rigid siren parts; refuse ambiguous/skinned/missing-texture donors."""
-    from mathutils import Matrix, Vector
-    offset = Matrix.Translation(Vector(job['offset'])) @ Matrix.Scale(job['scale'], 4)
-    target_draw = next((o for o in target.children if getattr(o, 'sollum_type', '') == 'sollumz_drawable' and 'damaged' not in o.name.lower()), None)
-    if target_draw is None:
-        raise ValueError('Drawable kendaraan target tidak ditemukan.')
+def siren_parts(donor):
     candidates = []
     names = set()
     for obj in donor.children_recursive:
@@ -201,6 +195,17 @@ def transfer_sirens(bpy, target, donor, job):
         names.update(c.subtarget for c in links)
     if not candidates:
         raise ValueError('Donor tidak memiliki mesh rigid yang terikat ke siren1–siren20.')
+    return candidates, names
+
+
+def transfer_sirens(bpy, target, donor, job):
+    """Transfer rigid siren parts; refuse ambiguous/skinned/missing-texture donors."""
+    from mathutils import Matrix, Vector
+    offset = Matrix.Translation(Vector(job['offset'])) @ Matrix.Scale(job['scale'], 4)
+    target_draw = next((o for o in target.children if getattr(o, 'sollum_type', '') == 'sollumz_drawable' and 'damaged' not in o.name.lower()), None)
+    if target_draw is None:
+        raise ValueError('Drawable kendaraan target tidak ditemukan.')
+    candidates, names = siren_parts(donor)
     if any(name in target.data.bones for name in names):
         raise ValueError('Target sudah memiliki bone siren yang sama. Gunakan target tanpa siren, atau edit manual di Blender.')
     tags = {b.bone_properties.tag for b in target.data.bones}
@@ -241,6 +246,108 @@ def transfer_sirens(bpy, target, donor, job):
         for level in mesh_levels(clone):
             level.use_fake_user = True
     return {'parts': len(candidates), 'bones': sorted(names)}
+
+
+def preview_scene(bpy, fragment, output, donor=None):
+    """Bounded world-space geometry from the exact imported native objects/LOD materials."""
+    import base64
+    from array import array
+    bpy.context.view_layer.update()
+    result = {'version': 1, 'meshes': [], 'textures': [], 'basis': 'gta-z-up', 'triangles': 0}
+    images = {}
+    def texture(material):
+        if not material or not material.node_tree:
+            return None
+        node = next((material.node_tree.nodes.get(n) for n in ('DiffuseSampler', 'TextureSampler', 'DiffuseSampler2') if material.node_tree.nodes.get(n)), None)
+        image = getattr(node, 'image', None)
+        if not image or not image.has_data:
+            return None
+        key = image.as_pointer()
+        if key in images:
+            return images[key]
+        if len(images) >= 32:
+            return None
+        index = len(images)
+        w, h = image.size
+        if w < 1 or h < 1:
+            return None
+        ratio = min(1, 512 / max(w, h))
+        width, height = max(1, int(w * ratio)), max(1, int(h * ratio))
+        copy = bpy.data.images.new('ditasha_preview_map', width=width, height=height, alpha=True)
+        try:
+            # Image.copy() does not copy generated/packed pixel edits. Sample the original
+            # buffer into a bounded thumbnail without modifying it or allocating a full 4K copy.
+            pixels = image.pixels
+            sample = array('f')
+            for y in range(height):
+                sy = min(h - 1, int((y + .5) * h / height))
+                for x in range(width):
+                    sx = min(w - 1, int((x + .5) * w / width))
+                    at = (sy * w + sx) * 4
+                    sample.extend(pixels[at:at + 4])
+            copy.colorspace_settings.name = image.colorspace_settings.name
+            copy.pixels.foreach_set(sample)
+            copy.update()
+            image_file = Path(output) / ('preview-map-' + str(index) + '.png')
+            copy.filepath_raw = str(image_file)
+            copy.file_format = 'PNG'
+            copy.save()
+            data = image_file.read_bytes()
+            image_file.unlink()
+            if len(data) > 2 * 1024 * 1024:
+                return None
+            images[key] = index
+            result['textures'].append(base64.b64encode(data).decode('ascii'))
+            return index
+        finally:
+            bpy.data.images.remove(copy)
+    def append(obj, kind):
+        # One intact highest available LOD: overlaying all LODs would misrepresent the surface.
+        mesh = next((m for m in mesh_levels(obj) if len(m.polygons)), None)
+        if mesh is None:
+            return
+        mesh.calc_loop_triangles()
+        groups = {}
+        for tri in mesh.loop_triangles:
+            material = mesh.materials[tri.material_index] if tri.material_index < len(mesh.materials) else None
+            shader = getattr(getattr(material, 'shader_properties', None), 'filename', '')
+            badge = kind == 'base' and bool(re.search(r'badge|emblem', ' '.join([obj.name, material.name if material else '', shader]).lower()))
+            key = (tri.material_index, badge)
+            if key not in groups:
+                alpha = 'blend' if any(n in shader.lower() for n in ('glass', 'badge', 'decal', 'lightsemissive', 'alpha')) else 'opaque'
+                groups[key] = {'name': obj.name, 'kind': kind, 'candidate': obj.name if badge else None, 'positions': [], 'uvs': [], 'texture': texture(material), 'alpha': alpha}
+            item = groups[key]
+            uv_layer = mesh.uv_layers.active
+            if material and material.node_tree:
+                image_node = next((material.node_tree.nodes.get(n) for n in ('DiffuseSampler', 'TextureSampler', 'DiffuseSampler2') if material.node_tree.nodes.get(n)), None)
+                vector = image_node.inputs.get('Vector') if image_node else None
+                if vector and vector.links:
+                    uv_node = vector.links[0].from_node
+                    if uv_node.type == 'UVMAP':
+                        uv_layer = mesh.uv_layers.get(uv_node.uv_map) or uv_layer
+            # Sollumz UV values are Blender-oriented here; Three texture loader flips PNG by default.
+            for loop in tri.loops:
+                point = obj.matrix_world @ mesh.vertices[mesh.loops[loop].vertex_index].co
+                item['positions'].extend(round(v, 6) for v in point)
+                item['uvs'].extend(round(v, 6) for v in (uv_layer.data[loop].uv if uv_layer else (0, 0)))
+            result['triangles'] += 1
+            if result['triangles'] > 250000:
+                raise ValueError('Preview melebihi 250 ribu triangle. Pilih kendaraan lebih ringan; build tidak diubah.')
+        result['meshes'].extend(groups.values())
+    for obj in fragment.children_recursive:
+        if obj.type == 'MESH' and getattr(obj, 'sollum_type', '') == 'sollumz_drawable_model' and 'damaged' not in obj.name.lower():
+            append(obj, 'base')
+    if donor:
+        parts, _ = siren_parts(donor)
+        for obj in parts:
+            append(obj, 'donor')
+    if not result['meshes']:
+        raise ValueError('Geometri preview tidak tersedia.')
+    data = json.dumps(result, separators=(',', ':'))
+    if len(data.encode('utf-8')) > 48 * 1024 * 1024:
+        raise ValueError('Preview melebihi batas 48 MB.')
+    (Path(output) / 'preview.json').write_text(data, encoding='utf-8')
+    return {'triangles': result['triangles'], 'meshes': len(result['meshes'])}
 
 
 def export_vehicle(bpy, fragment, output):
@@ -288,7 +395,9 @@ def run(job):
         else:
             fragment = import_vehicle(bpy, job['source'])
             report['candidates'] = badge_candidates(fragment)
-            if job['mode'] == 'debadge_analyze':
+            if job['mode'] in ('debadge_analyze', 'strobo_preview'):
+                donor = import_vehicle(bpy, job['donor']) if job['mode'] == 'strobo_preview' else None
+                report['preview'] = preview_scene(bpy, fragment, output, donor)
                 report['ok'] = True
                 return report
             if job['mode'] == 'debadge':

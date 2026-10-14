@@ -1,3 +1,4 @@
+import { resolveModelTexture, modelAlphaMode } from './model-material.js';
 import { decodeResource } from './resource-client.js';
 import { mountVehicleWorkshop } from './vehicle-workshop.js';
 import { managePreview } from './performance.js';
@@ -37,7 +38,7 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
   const modelRoot = document.createElement('section');
   modelRoot.className = 'asset-viewer model-viewer';
   modelRoot.hidden = true;
-  modelRoot.innerHTML = `<aside class="tool-sidebar"><span class="eyebrow">GTA V LEGACY</span><h2>Model viewer</h2><div class="viewer-button-row"><button id="mvOpen" class="primary">Open model</button><button id="mvAddTextures">+ Textures</button></div><input id="mvInput" type="file" accept=".yft,.ydd,.ydr,.ytd" multiple hidden><button id="mvAddModels">Tambah extra / livery YFT</button><input id="mvExtraInput" type="file" accept=".yft,.ydd,.ydr" multiple hidden><div id="mvModels"></div><input id="mvTextureInput" type="file" accept=".ytd,.dds,.png,.jpg,.jpeg,.webp" multiple hidden><div class="viewer-options"><label>Drawable<select id="mvDrawable" disabled></select></label><label>Level of detail<select id="mvLod" disabled></select></label><label class="check"><input id="mvGrid" type="checkbox" checked>Grid</label><label class="check"><input id="mvWire" type="checkbox">Wireframe</label><label class="check"><input id="mvBounds" type="checkbox">Geometry bounds</label><label class="check"><input id="mvPoints" type="checkbox">Vertex points</label></div><h3>Visible parts</h3><div class="viewer-button-row"><button id="mvShowAll">Show all</button><button id="mvHideAll">Hide all</button></div><div id="mvParts"></div><details class="material-binding"><summary>Material &amp; livery</summary><label>Mesh<select id="mvMaterialMesh"></select></label><label>Tekstur<select id="mvMaterialTexture"><option value="">Otomatis</option></select></label><label>UV<select id="mvMaterialUv"><option value="0">UV 1</option><option value="1">UV 2</option></select></label><p class="muted">Pilih tekstur untuk mesh yang dipilih. Livery YFT terpisah ditambahkan lewat Extra; ini preview material statis.</p></details><h3>Loaded textures</h3><div id="mvTextures"></div><p class="muted">Static geometry and diffuse materials. Skeleton animation, damage physics and mesh editing are not supported.</p></aside><section class="viewer-content"><div class="viewer-toolbar"><div><span class="eyebrow">MODEL PREVIEW</span><h2 id="mvTitle">No model loaded</h2></div><div class="viewer-button-row"><button id="mvFit">Fit model</button><button id="mvFront">Front</button><button id="mvSide">Side</button><button id="mvTop">Top</button><button id="mvSnapshot" disabled>Save PNG</button></div></div><div id="mvViewport"><p id="mvEmpty" class="muted">Open a YFT, YDD or YDR model. Drag to orbit; right-drag to pan; scroll to zoom.</p></div><p id="mvStatus" class="muted" role="status">Ready.</p></section>`;
+  modelRoot.innerHTML = `<aside class="tool-sidebar"><span class="eyebrow">GTA V LEGACY</span><h2>Model viewer</h2><div class="viewer-button-row"><button id="mvOpen" class="primary">Open model</button><button id="mvAddTextures">+ Textures</button></div><input id="mvInput" type="file" accept=".yft,.ydd,.ydr,.ytd" multiple hidden><button id="mvAddModels">Tambah extra / livery YFT</button><input id="mvExtraInput" type="file" accept=".yft,.ydd,.ydr" multiple hidden><div id="mvModels"></div><input id="mvTextureInput" type="file" accept=".ytd,.dds,.png,.jpg,.jpeg,.webp" multiple hidden><div class="viewer-options"><label>Drawable<select id="mvDrawable" disabled></select></label><label>Level of detail<select id="mvLod" disabled></select></label><label class="check"><input id="mvGrid" type="checkbox" checked>Grid</label><label class="check"><input id="mvWire" type="checkbox">Wireframe</label><label class="check"><input id="mvBounds" type="checkbox">Geometry bounds</label><label class="check"><input id="mvPoints" type="checkbox">Vertex points</label></div><h3>Visible parts</h3><div class="viewer-button-row"><button id="mvShowAll">Show all</button><button id="mvHideAll">Hide all</button></div><div id="mvParts"></div><details class="material-binding"><summary>Material &amp; livery</summary><label>Mesh<select id="mvMaterialMesh"></select></label><label>Tekstur<select id="mvMaterialTexture"><option value="">Otomatis</option></select></label><label>UV<select id="mvMaterialUv"><option value="0">UV 1</option><option value="1">UV 2</option></select></label><label>Alpha<select id="mvMaterialAlpha"><option value="auto">Otomatis sesuai shader</option><option value="opaque">Opaque · body / paint</option><option value="blend">Transparan · kaca / decal</option></select></label><label class="check"><input id="mvMaterialFlipU" type="checkbox">Balik U</label><label class="check"><input id="mvMaterialFlipV" type="checkbox">Balik V</label><p id="mvMaterialInfo" class="muted"></p><p class="muted">Pilih tekstur untuk mesh yang dipilih. Livery YFT terpisah ditambahkan lewat Extra; ini preview material statis.</p></details><h3>Loaded textures</h3><div id="mvTextures"></div><p class="muted">Static geometry and diffuse materials. Skeleton animation, damage physics and mesh editing are not supported.</p></aside><section class="viewer-content"><div class="viewer-toolbar"><div><span class="eyebrow">MODEL PREVIEW</span><h2 id="mvTitle">No model loaded</h2></div><div class="viewer-button-row"><button id="mvFit">Fit model</button><button id="mvFront">Front</button><button id="mvSide">Side</button><button id="mvTop">Top</button><button id="mvSnapshot" disabled>Save PNG</button></div></div><div id="mvViewport"><p id="mvEmpty" class="muted">Open a YFT, YDD or YDR model. Drag to orbit; right-drag to pan; scroll to zoom.</p></div><p id="mvStatus" class="muted" role="status">Ready.</p></section>`;
   nav.after(textureRoot);
   textureRoot.after(modelRoot);
   let textures = [],
@@ -95,6 +96,10 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
     viewport: $('mvViewport'),
     camera,
     getMeshes: () => renderedMeshes,
+    onSelect: (key) => {
+      materialSelection = key;
+      renderBindings();
+    },
     getRoot: () => group,
     getSource: () => modelSource && { name: modelName, file: modelSource },
     getHiddenGeometry: () => {
@@ -405,13 +410,6 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
     controls.update();
     renderer?.render(scene, camera);
   }
-  function textureLookup(name, embedded) {
-    return [...modelTextures, ...embedded].find(
-      (t) =>
-        t.name.replace(/\.(dds|png|jpe?g|webp)$/i, '').toLowerCase() ===
-        name?.replace(/\.(dds|png|jpe?g|webp)$/i, '').toLowerCase(),
-    );
-  }
   function materialMap(t, channel = 0) {
     if (!t) return null;
     if (mapCache.get(t)?.has(channel)) return mapCache.get(t).get(channel);
@@ -477,23 +475,38 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
           override = materialOverrides.get(meshKey);
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute('position', new THREE.BufferAttribute(g.positions, 3));
-        if (g.uvs) geometry.setAttribute('uv', new THREE.BufferAttribute(g.uvs, 2));
-        if (g.uvs2) geometry.setAttribute('uv1', new THREE.BufferAttribute(g.uvs2, 2));
+        if (g.uvs) geometry.setAttribute('uv', new THREE.BufferAttribute(g.uvs.slice(), 2));
+        if (g.uvs2) geometry.setAttribute('uv1', new THREE.BufferAttribute(g.uvs2.slice(), 2));
         geometry.setIndex(new THREE.BufferAttribute(g.indices, 1));
         geometry.computeVertexNormals();
         const available = [...modelTextures, ...embedded];
-        const t = override
+        const t = override?.name
           ? available.find((t) => t.name === override.name && t.dictionary === override.dictionary)
-          : textureLookup(g.diffuseTexture, embedded);
+          : resolveModelTexture(
+              g.diffuseTexture,
+              modelTextures,
+              source.data.embeddedTextures || [],
+              source.name,
+            );
         if (g.diffuseTexture && !t) missing.add(g.diffuseTexture);
+        const channel = override?.channel === 1 && g.uvs2 ? 1 : 0;
+        const uv = geometry.getAttribute(channel ? 'uv1' : 'uv');
+        if (uv && (override?.flipU || override?.flipV))
+          for (let i = 0; i < uv.count; i++)
+            uv.setXY(
+              i,
+              override.flipU ? 1 - uv.getX(i) : uv.getX(i),
+              override.flipV ? 1 - uv.getY(i) : uv.getY(i),
+            );
+        const alpha = modelAlphaMode(g, override?.alpha || 'auto');
         const material = new THREE.MeshStandardMaterial({
           color: t ? 0xffffff : 0xb3bbc8,
-          map: materialMap(t, override?.channel === 1 && g.uvs2 ? 1 : 0),
+          map: materialMap(t, channel),
           side: THREE.DoubleSide,
           roughness: 0.75,
           wireframe: $('mvWire').checked,
-          transparent: !!t,
-          alphaTest: t ? 0.05 : 0,
+          transparent: !!t && alpha !== 'opaque',
+          alphaTest: t && alpha !== 'opaque' ? 0.02 : 0,
         });
         const mesh = new THREE.Mesh(geometry, material);
         if (source.transform) {
@@ -521,6 +534,9 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
         mesh.add(p);
         points.push(p);
         mesh.userData.bindingKey = meshKey;
+        mesh.userData.textureBinding = t
+          ? `${t.name} · ${t.dictionary || source.name + ' embedded'}`
+          : `Missing: ${g.diffuseTexture || 'tanpa diffuse'}`;
         mesh.visible = !hiddenMeshes.has(meshKey);
         renderedMeshes.push({ mesh, key: meshKey, geometry: g });
         const partKey =
@@ -647,6 +663,9 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
         throw Error('Choose YFT, YDD or YDR up to 64 MB.');
       const ext = f.name.split('.').at(-1).toLowerCase();
       const data = await decodeResource(ext, await f.arrayBuffer());
+      data.forEach((d, i) =>
+        (d.embeddedTextures || []).forEach((t) => (t.dictionary = `${f.name} · embedded ${i + 1}`)),
+      );
       vertexTotal += data.reduce(
         (sum, drawable) =>
           sum +
@@ -766,13 +785,18 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
       }),
     );
     const override = materialOverrides.get(materialSelection),
-      selected = override
+      selected = override?.name
         ? available.findIndex(
             (t) => t.name === override.name && t.dictionary === override.dictionary,
           )
         : -1;
     $('mvMaterialTexture').value = selected < 0 ? '' : String(selected);
     $('mvMaterialUv').value = String(override?.channel || 0);
+    $('mvMaterialAlpha').value = override?.alpha || 'auto';
+    $('mvMaterialFlipU').checked = !!override?.flipU;
+    $('mvMaterialFlipV').checked = !!override?.flipV;
+    $('mvMaterialInfo').textContent =
+      renderedMeshes.find((e) => e.key === materialSelection)?.mesh.userData.textureBinding || '';
     $('mvMaterialUv').disabled = !renderedMeshes.find((e) => e.key === materialSelection)?.geometry
       .uvs2;
   }
@@ -787,19 +811,27 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
   };
   function bindTexture() {
     const value = $('mvMaterialTexture').value;
-    if (value === '') materialOverrides.delete(materialSelection);
-    else {
-      const t = [...modelTextures, ...sourcesTextures()][Number(value)];
-      if (t)
-        materialOverrides.set(materialSelection, {
-          name: t.name,
-          dictionary: t.dictionary,
-          channel: Number($('mvMaterialUv').value),
-        });
-    }
+    const t = value === '' ? null : [...modelTextures, ...sourcesTextures()][Number(value)];
+    const binding = {
+      channel: Number($('mvMaterialUv').value),
+      alpha: $('mvMaterialAlpha').value,
+      flipU: $('mvMaterialFlipU').checked,
+      flipV: $('mvMaterialFlipV').checked,
+    };
+    if (t) Object.assign(binding, { name: t.name, dictionary: t.dictionary });
+    if (!t && !binding.channel && binding.alpha === 'auto' && !binding.flipU && !binding.flipV)
+      materialOverrides.delete(materialSelection);
+    else materialOverrides.set(materialSelection, binding);
     renderModel();
   }
-  $('mvMaterialTexture').onchange = $('mvMaterialUv').onchange = bindTexture;
+  for (const id of [
+    'mvMaterialTexture',
+    'mvMaterialUv',
+    'mvMaterialAlpha',
+    'mvMaterialFlipU',
+    'mvMaterialFlipV',
+  ])
+    $(id).onchange = bindTexture;
   async function openModels(files) {
     if (
       workshop.unsavedItems().length &&

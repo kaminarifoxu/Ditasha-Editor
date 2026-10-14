@@ -341,6 +341,7 @@ function shaderInfo(r, d) {
       textureNames: refs.map((t) => t.name).filter(Boolean),
       textureSamplers: refs,
       shaderHash: r.u32(shader + 8),
+      shaderFileHash: r.u32(shader + 24),
     });
   }
   return { bindings, embeddedTextures, warnings };
@@ -505,6 +506,8 @@ function readDrawables(r, drawables, metadata = new Map()) {
                 name: 'Part ' + (mi + 1) + ' / Mesh ' + (gi + 1),
                 part: mi,
                 shaderIndex,
+                shaderHash: binding?.shaderHash || 0,
+                shaderFileHash: binding?.shaderFileHash || 0,
                 diffuseTexture: binding?.diffuseTexture || null,
                 textureNames: binding?.textureNames || [],
                 textureSamplers: binding?.textureSamplers || [],
