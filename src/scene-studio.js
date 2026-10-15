@@ -149,13 +149,13 @@ export function mountSceneStudio({
     for (const id of ['Backdrop', 'Save', 'Open'])
       $(id).disabled = !signature || !getRenderer() || !getControls();
   }
-  function choose() {
+  function choose(notifySelection = true) {
     ensure();
     const entry = current();
     if (gizmoActive && entry && entry.object.visible) gizmo?.attach(entry.object);
     else gizmo?.detach();
     $('Object').value = selected;
-    if (entry && !entry.key.startsWith('backdrop:')) onSelect(entry.key);
+    if (notifySelection && entry && !entry.key.startsWith('backdrop:')) onSelect(entry.key);
     fill();
     render();
   }
@@ -494,7 +494,7 @@ export function mountSceneStudio({
       $('Object').append(option);
     }
     if (!entries.some((e) => e.key === selected)) selected = entries[0]?.key || '';
-    choose();
+    choose(false);
     return changed;
   }
   changeMode('translate', false);

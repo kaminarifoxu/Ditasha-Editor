@@ -108,30 +108,32 @@ export function alignLayer(layer, width, height, alignment) {
   return { x: layer.x + x, y: layer.y + y };
 }
 export function maskAt(layer, point, radius, reveal = false, previous) {
-  const toSource = (p) => {
-    const local = localPoint(layer, p);
-    return {
-      x: layer.sx + (layer.flipX ? 1 - local.x / layer.w : local.x / layer.w) * layer.sw,
-      y: layer.sy + (layer.flipY ? 1 - local.y / layer.h : local.y / layer.h) * layer.sh,
-    };
-  };
-  const p = toSource(point),
-    a = toSource(previous || point),
+  const p = localPoint(layer, point),
+    a = localPoint(layer, previous || point),
     ctx = layer.mask.getContext('2d');
   ctx.save();
   ctx.globalCompositeOperation = reveal ? 'source-over' : 'destination-out';
+  ctx.transform(
+    ((layer.flipX ? -1 : 1) * layer.sw) / layer.w,
+    0,
+    0,
+    ((layer.flipY ? -1 : 1) * layer.sh) / layer.h,
+    layer.sx + (layer.flipX ? layer.sw : 0),
+    layer.sy + (layer.flipY ? layer.sh : 0),
+  );
   ctx.fillStyle = ctx.strokeStyle = '#fff';
-  ctx.lineWidth = radius * 2 * Math.max(layer.sw / layer.w, layer.sh / layer.h);
+  ctx.lineWidth = radius * 2;
   ctx.lineCap = 'round';
   ctx.beginPath();
   ctx.moveTo(a.x, a.y);
   ctx.lineTo(p.x, p.y);
   ctx.stroke();
   ctx.beginPath();
-  ctx.arc(p.x, p.y, ctx.lineWidth / 2, 0, Math.PI * 2);
+  ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 }
+
 export function drawUV(ctx, geometries, w, h) {
   ctx.clearRect(0, 0, w, h);
   ctx.fillStyle = '#3948f0';
