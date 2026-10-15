@@ -115,10 +115,19 @@ module.exports = async function checkFileManager() {
     'GTA classification not reflected in UI',
   );
   $('fmPlanClose').click();
+  await wait(() => $('fmPlanPanel').hidden, 'Sorting plan did not close');
   const box = document.querySelector('.file-manager').getBoundingClientRect();
+  const nav = document.querySelector('.workspace-nav').getBoundingClientRect();
   assert(
-    box.width > 500 && box.left > 100 && box.bottom <= innerHeight + 2,
-    'File Manager does not fit the workspace',
+    box.width > 500 && box.left >= nav.right - 1 && box.bottom <= innerHeight + 2,
+    'File Manager does not fit the workspace: ' +
+      JSON.stringify({
+        left: box.left,
+        width: box.width,
+        bottom: box.bottom,
+        height: innerHeight,
+        navRight: nav.right,
+      }),
   );
   assert(
     document.querySelector('.file-manager').scrollWidth <= box.width + 1,

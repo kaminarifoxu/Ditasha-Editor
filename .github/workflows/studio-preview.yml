@@ -28,7 +28,11 @@ jobs:
         run: npx electron scripts/smoke-native-setup.cjs
         timeout-minutes: 30
       - name: Check File Manager and native asset sorting
-        run: npx electron scripts/smoke-file-manager.cjs
+        shell: pwsh
+        run: |
+          npx electron scripts/smoke-file-manager.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'File Manager checks failed.' }
+          if (!(Test-Path 'release/qa/file-manager-result.json')) { throw 'File Manager checks exited before completion.' }
         timeout-minutes: 3
       - name: Prepare verified native IDE engine
         run: npm run prepare:ide

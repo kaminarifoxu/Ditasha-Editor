@@ -78,12 +78,14 @@ app.whenReady().then(async () => {
       path.resolve('release/qa/file-manager.png'),
       (await win.webContents.capturePage()).toPNG(),
     );
+    await fs.writeFile(path.resolve('release/qa/file-manager-result.json'), JSON.stringify(report));
     console.log('PASS: File Manager UI and real native file copy ' + JSON.stringify(report));
     clearTimeout(timeout);
-    win.destroy();
     await fs.rm(scratch, { recursive: true, force: true });
+    win.destroy();
     app.exit(0);
   } catch (e) {
+    process.exitCode = 1;
     console.error(e);
     clearTimeout(timeout);
     if (win && !win.isDestroyed()) {
@@ -94,9 +96,9 @@ app.whenReady().then(async () => {
           (await win.webContents.capturePage()).toPNG(),
         )
         .catch(() => {});
-      win.destroy();
     }
     if (scratch) await fs.rm(scratch, { recursive: true, force: true });
+    if (win && !win.isDestroyed()) win.destroy();
     app.exit(1);
   }
 });
