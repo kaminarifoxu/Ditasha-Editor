@@ -15,7 +15,7 @@ app.whenReady().then(async () => {
     win = new BrowserWindow({
       width: 1500,
       height: 950,
-      show: false,
+      show: true,
       webPreferences: {
         contextIsolation: true,
         sandbox: true,

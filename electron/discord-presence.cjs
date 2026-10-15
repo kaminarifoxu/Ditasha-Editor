@@ -4,6 +4,15 @@ const path = require('node:path');
 const fs = require('node:fs/promises');
 const { randomUUID } = require('node:crypto');
 const WORKSPACES = {
+  'craft-photocraft': 'Photo Studio',
+  'craft-vectorcraft': 'Vector Studio',
+  'craft-lightcraft': 'Photo Develop',
+  'craft-filmcraft': 'Video Studio',
+  'craft-effectcraft': 'Motion Studio',
+  'craft-pdfcraft': 'PDF Studio',
+  'craft-wordcraft': 'Documents',
+  'craft-gridcraft': 'Spreadsheets',
+  'craft-deckcraft': 'Presentations',
   files: 'File Manager',
   home: 'Home',
   code: 'Code Studio',

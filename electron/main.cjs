@@ -7,7 +7,21 @@ const {
   ipcMain,
   net,
   shell,
+  protocol,
+  session,
 } = require('electron');
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'ditasha-craft',
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+      stream: true,
+    },
+  },
+]);
 const path = require('node:path');
 const { isTrustedUpdateEvent } = require('./ipc-trust.cjs');
 const { startReplacement } = require('./installer.cjs');
@@ -18,6 +32,7 @@ let win,
   splash,
   updater,
   embeddedIDE,
+  craftEngines,
   allowQuit = false,
   closingPrompt = false;
 const gotLock = app.requestSingleInstanceLock();
@@ -86,6 +101,7 @@ else {
         );
         if (choice === 'discard') {
           if (embeddedIDE && !(await embeddedIDE.requestClose())) return;
+          if (craftEngines && !(await craftEngines.requestClose())) return;
           allowQuit = true;
           win.close();
         }
@@ -157,6 +173,17 @@ else {
         throw Error('Untrusted update request');
     };
     require('./file-manager.cjs').registerFileManager({ ipcMain, trusted, win, dialog, shell });
+    craftEngines = require('./craft-engines.cjs').registerCraftEngines({
+      app,
+      ipcMain,
+      protocol,
+      net,
+      session,
+      win,
+      trusted,
+      WebContentsView,
+      dialog,
+    });
     await require('./discord-presence.cjs').registerDiscordPresence({
       app,
       ipcMain,
@@ -255,6 +282,7 @@ else {
         "window.ditashaWorkspace.confirmDiscard('update')",
       );
       if (choice !== 'discard') return false;
+      if (craftEngines && !(await craftEngines.requestClose())) return false;
       if (downloadFirst) {
         const state = await updater.download();
         if (state.status !== 'ready') throw Error(state.message);

@@ -61,6 +61,56 @@ export function mountWorkspaceShell({ toast }) {
   bottom.className = 'nav-bottom';
   bottom.innerHTML = `<button id="openSettings" title="Pengaturan" aria-label="Pengaturan"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 3-1 3-3 1-2 3 2 2-1 3 3 2 1 3h4l1-3 3-1 2-3-2-2 1-3-3-2-1-3H9Z"/><circle cx="10" cy="11" r="3"/></svg><span class="nav-label">Pengaturan</span><span id="discordConnection" class="connection-dot" aria-label="Discord belum diatur"></span></button><small>© 2026 Ditasha-Workshop</small>`;
   nav.append(bottom);
+  // Group workspaces by task rather than showing a long flat list.
+  navTitle.remove();
+  buildTitle.remove();
+  const groups = [
+    ['DESIGN', 'Design', true],
+    ['MOTION', 'Video & motion', false],
+    ['OFFICE', 'Documents & office', false],
+  ];
+  const fileItem = nav.querySelector('[data-page=files]');
+  if (fileItem) home.after(fileItem);
+  const groupsHost = document.createElement('div');
+  groupsHost.className = 'suite-nav-groups';
+  nav.insertBefore(groupsHost, nav.querySelector('[data-page=editor]'));
+  for (const [key, label, open] of groups) {
+    const group = document.createElement('details');
+    group.className = 'suite-nav-group';
+    group.open = open;
+    const summary = document.createElement('summary');
+    summary.textContent = label;
+    group.append(summary);
+    nav.querySelectorAll(`[data-nav-group="${key}"]`).forEach((item) => group.append(item));
+    groupsHost.append(group);
+  }
+  const workshop = document.createElement('details');
+  workshop.className = 'suite-nav-group workshop-nav';
+  workshop.open = true;
+  workshop.innerHTML = '<summary>Asset workshop</summary>';
+  for (const page of [
+    'editor',
+    'archives',
+    'vehicles',
+    'modelviewer',
+    'pack',
+    'converter',
+    'code',
+  ]) {
+    const item = nav.querySelector(`[data-page="${page}"]`);
+    if (item) workshop.append(item);
+  }
+  workshop.append(rig);
+  groupsHost.append(workshop);
+  utilities.hidden = true;
+  // Native editor actions remain accessible from the shared document bar.
+  const advanced = document.createElement('button');
+  advanced.id = 'openPhotoStudio';
+  advanced.textContent = 'Photo Studio ↗';
+  advanced.title =
+    'Advanced image editing. Export PNG, edit in Photo Studio, then import the result.';
+  advanced.onclick = () => nav.querySelector('[data-page=craft-photocraft]')?.click();
+  document.querySelector('.texture-edit-modes').append(advanced);
   const dialog = document.createElement('dialog');
   dialog.id = 'settingsDialog';
   dialog.className = 'studio-dialog settings-dialog';
@@ -213,6 +263,8 @@ export function mountWorkspaceShell({ toast }) {
       .forEach((button) =>
         button.setAttribute('aria-current', button.classList.contains('active') ? 'page' : 'false'),
       );
+    const activeGroup = nav.querySelector('[data-page].active')?.closest('.suite-nav-group');
+    if (activeGroup) activeGroup.open = true;
     const page = document.body.dataset.workspace || 'editor';
     if (rig.classList.contains('active') !== (page === 'rig'))
       rig.classList.toggle('active', page === 'rig');

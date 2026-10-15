@@ -1,3 +1,4 @@
+import { craftWorkspaces } from './craft-ui.js';
 import { ICON_CODES } from './ui-icons.js';
 
 const icon = (name) =>
@@ -71,7 +72,7 @@ export function mountHome({
   root.className = 'home-workspace';
   root.hidden = true;
   root.setAttribute('aria-label', 'Homepage DITASHA Editor');
-  root.innerHTML = `<div class="home-inner"><div class="home-heading"><span class="home-kicker"><span></span> YOUR LOCAL CREATIVE SPACE</span><span class="home-version"></span></div><section class="home-hero"><div class="home-hero-copy"><p class="home-overline">DITASHA / EDITOR</p><h1>Ruang untuk<br><em>karyamu.</em></h1><p class="home-description">Dari tekstur pertama sampai detail terakhir.<br>Semua alatmu, dalam satu workspace.</p><div class="home-hero-actions"><button class="primary" data-home="import">${icon('plus')}<span>Buka file</span></button><button data-home="resume">Masuk ke editor ${icon('arrow-right')}</button></div><small>Tarik file ke sini untuk mulai mengedit</small></div><div class="home-art" aria-hidden="true"><div class="home-art-orbit"></div><div class="home-art-orbit second"></div><div class="home-art-tile"><img src="assets/ditasha-emblem.webp" alt=""></div><span class="home-art-label">BUILT FOR YOUR NEXT IDEA</span></div></section><div class="home-section-heading"><div><span class="home-overline">PILIH WORKSPACE</span><h2>Mau buat apa hari ini?</h2></div><span>07 / TOOLS</span></div><div class="home-workspace-grid"></div><section class="home-session"><div class="home-section-heading"><div><span class="home-overline">SESI AKTIF</span><h2>Lanjutkan pekerjaanmu</h2></div><span data-home="session-count">0 FILE</span></div><div class="home-session-files"></div></section><footer class="home-footer"><span>© 2026 Ditasha-Workshop</span><span>Crafted by GANOMABI <span class="home-footer-dot">•</span> Offline workspace</span></footer></div>`;
+  root.innerHTML = `<div class="home-inner"><div class="home-heading"><span class="home-kicker">DITASHA / CREATIVE SUITE</span><span class="home-version"></span></div><section class="home-hero"><div class="home-hero-copy"><p class="home-overline">A PLACE FOR ALL YOUR WORK</p><h1>Make something<br><em>worth keeping.</em></h1><p class="home-description">Textures, scenes, stories and everything in between.<br>One studio. All on your computer.</p><div class="home-hero-actions"><button class="primary" data-home="import">${icon('plus')}<span>Open an asset</span></button><button data-home="resume">Texture & Model ${icon('arrow-right')}</button></div></div><div class="home-start-card"><span class="home-overline">YOUR NEXT PROJECT</span><strong>Start with<br>a blank canvas.</strong><p>Advanced layers, masks and image editing.</p><button data-home="photo">Open Photo Studio ${icon('arrow-right')}</button><span class="home-start-index">01 / DESIGN</span></div></section><div class="home-section-heading"><div><span class="home-overline">CREATE SOMETHING NEW</span><h2>Your creative workspaces</h2></div><span>09 / STUDIOS</span></div><div class="home-suite-grid"></div><div class="home-section-heading"><div><span class="home-overline">BUILD & ORGANIZE</span><h2>Your asset workshop</h2></div><span>GTA V · CODE · FILES</span></div><div class="home-workspace-grid"></div><section class="home-session"><div class="home-section-heading"><div><span class="home-overline">THIS SESSION</span><h2>Pick up where you left off</h2></div><span data-home="session-count">0 FILE</span></div><div class="home-session-files"></div></section><footer class="home-footer"><span>DITASHA EDITOR · Creative Suite</span><span>GANOMABI / Ditasha-Workshop · 2026</span></footer></div>`;
   nav.after(root);
   for (const [page, symbol, title, description, format] of workspaces) {
     const card = document.createElement('button');
@@ -80,6 +81,15 @@ export function mountHome({
     card.innerHTML = `<span class="home-card-top"><span class="home-card-icon">${icon(symbol)}</span><span class="home-card-arrow">${icon('arrow-right')}</span></span><strong>${title}</strong><span class="home-card-description">${description}</span><span class="home-card-format">${format}</span>`;
     card.onclick = () => activate(page);
     root.querySelector('.home-workspace-grid').append(card);
+  }
+  root.querySelector('[data-home=photo]').onclick = () => activate('craft-photocraft');
+  for (const [id, title, mark, description, group] of craftWorkspaces) {
+    const card = document.createElement('button');
+    card.className = 'home-suite-card';
+    card.dataset.homePage = 'craft-' + id;
+    card.innerHTML = `<span class="suite-mark">${mark}</span><div><strong>${title}</strong><span>${description}</span></div><small>${group}</small>${icon('arrow-right')}`;
+    card.onclick = () => activate('craft-' + id);
+    root.querySelector('.home-suite-grid').append(card);
   }
   function refresh() {
     const files = getSessionFiles();

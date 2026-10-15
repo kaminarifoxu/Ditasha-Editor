@@ -1,30 +1,32 @@
 {
   "name": "ganomabi-asset-studio",
-  "version": "1.22.0",
-  "description": "DITASHA Editor — editor tekstur YTD dan preview model YDD",
+  "version": "1.23.0",
+  "description": "DITASHA Editor \u2014 editor tekstur YTD dan preview model YDD",
   "author": "Ditasha-Workshop",
   "license": "UNLICENSED",
   "main": "electron/main.cjs",
   "scripts": {
     "start": "electron .",
-    "build:win": "npm run prepare:ide && npm run build:ui && electron-builder --win portable --x64",
+    "build:win": "npm run prepare:ide && npm run prepare:craft && npm run build:ui && electron-builder --win portable --x64",
     "prepare:ide": "node scripts/prepare-ide.cjs",
     "test": "node --test tests/*.test.cjs tests/*.test.mjs",
     "build:ui": "node scripts/build-ui.cjs",
     "prestart": "npm run build:ui",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "prepare:craft": "node scripts/prepare-craft.cjs"
   },
   "build": {
     "appId": "com.ganomabi.assetstudio",
     "productName": "DITASHA-Editor",
-    "copyright": "Copyright © 2026 Ditasha-Workshop",
+    "copyright": "Copyright \u00a9 2026 Ditasha-Workshop",
     "files": [
       "electron/**/*.cjs",
       "ui/**/*",
       "assets/icon.ico",
       "package.json",
-      "electron/**/*.py"
+      "electron/**/*.py",
+      "config/craft-engines.json"
     ],
     "extraResources": [
       {
@@ -37,6 +39,13 @@
       {
         "from": "ide-runtime/node_modules",
         "to": "ide-runtime/node_modules",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "craft-runtime",
+        "to": "craft-runtime",
         "filter": [
           "**/*"
         ]

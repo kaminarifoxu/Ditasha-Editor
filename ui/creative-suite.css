@@ -1,0 +1,824 @@
+/* DITASHA Creative Suite. Shared surfaces for every desktop workspace. */
+body.workspace-shell {
+  --rail-width: 208px;
+  --header-height: 56px;
+  --bg: #181a1b;
+  --panel: #202223;
+  --raised: #292c2d;
+  --field: #1b1d1e;
+  --line: #363a3b;
+  --border: var(--line);
+  --text: #edf0ec;
+  --muted: #a0a8a4;
+  --accent: #c4e88d;
+  --accent-soft: #323d2b;
+  --canvas-surround: #141617;
+  font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  font-size: 12px;
+  color: var(--text);
+  letter-spacing: 0;
+}
+body.workspace-shell[data-theme='light'] {
+  --bg: #f1f2ed;
+  --panel: #fafbf7;
+  --raised: #e7eae2;
+  --field: #ffffff;
+  --line: #d8ddd2;
+  --text: #232923;
+  --muted: #687262;
+  --accent: #426522;
+  --accent-soft: #e1ecd4;
+  --canvas-surround: #e3e7df;
+}
+.workspace-shell button,
+.workspace-shell .donation-button {
+  border-radius: 5px;
+  font-weight: 500;
+  min-height: 30px;
+  transition:
+    background 0.12s,
+    border-color 0.12s;
+}
+.workspace-shell button.primary {
+  color: #1c2813;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.workspace-shell[data-theme='light'] button.primary {
+  color: #fff;
+}
+.workspace-shell button:disabled {
+  opacity: 0.4;
+}
+.workspace-shell input:not([type='checkbox']):not([type='range']):not([type='color']),
+.workspace-shell select,
+.workspace-shell textarea {
+  border-radius: 4px;
+  min-height: 31px;
+}
+.workspace-shell h1,
+.workspace-shell h2,
+.workspace-shell h3 {
+  font-weight: 500;
+}
+.workspace-shell .eyebrow,
+.workspace-shell .sectiontitle {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+}
+.workspace-shell > header {
+  padding: 0 16px;
+  background: var(--bg);
+  gap: 16px;
+}
+.workspace-shell > header .brand {
+  width: calc(var(--rail-width) - 16px);
+}
+.workspace-shell > header .brandicon {
+  width: 27px;
+  height: 27px;
+}
+.workspace-shell .brandname {
+  font-size: 13px;
+  letter-spacing: 0.1em;
+}
+.workspace-shell .brandname small {
+  font-size: 8px;
+  letter-spacing: 0.2em;
+}
+.workspace-shell .workspace-dot {
+  display: none;
+}
+.workspace-shell .crumb {
+  color: var(--muted);
+  font-size: 11px;
+}
+.workspace-shell .workspace-search {
+  margin-left: auto;
+  width: 220px;
+  background: transparent;
+  justify-content: flex-start;
+}
+.workspace-shell header .local {
+  display: none;
+}
+.workspace-shell .donation-button {
+  background: transparent;
+  border-color: transparent;
+}
+.workspace-shell .workspace-nav {
+  padding: 15px 10px 8px;
+  gap: 4px;
+  background: var(--bg);
+}
+.workspace-shell .workspace-nav button {
+  min-height: 34px;
+  border-radius: 5px;
+  padding: 7px 10px;
+  font-size: 11px;
+  gap: 10px;
+}
+.workspace-shell .workspace-nav button.active {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: transparent;
+}
+.workspace-shell .workspace-nav #openHome {
+  margin-bottom: 0;
+}
+.workspace-shell .workspace-nav .nav-bottom {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 0;
+}
+.workspace-shell .nav-bottom small {
+  font-size: 8px;
+  padding-top: 10px;
+}
+.suite-nav-groups {
+  margin-top: 16px;
+}
+.suite-nav-group {
+  border-top: 1px solid var(--line);
+  padding: 9px 0;
+}
+.suite-nav-group > summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  padding: 6px 10px 10px;
+  font-size: 10px;
+  color: var(--muted);
+  list-style: none;
+}
+.suite-nav-group > summary::after {
+  content: '+';
+  font-size: 14px;
+}
+.suite-nav-group[open] > summary::after {
+  content: '−';
+}
+.suite-nav-group > summary::-webkit-details-marker {
+  display: none;
+}
+.suite-mark {
+  font:
+    600 11px 'Segoe UI',
+    sans-serif;
+  letter-spacing: -0.04em;
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  background: var(--raised);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.workspace-shell .workspace-nav .suite-mark {
+  width: 22px;
+  height: 22px;
+  font-size: 10px;
+  border-radius: 4px;
+}
+.workspace-shell .home-workspace {
+  background: var(--bg);
+}
+.workspace-shell .home-inner {
+  max-width: 1260px;
+  padding: 28px 44px 16px;
+  margin: auto;
+}
+.workspace-shell .home-heading {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 18px;
+}
+.workspace-shell .home-kicker {
+  letter-spacing: 0.13em;
+  font-size: 9px;
+}
+.workspace-shell .home-version {
+  border: 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+.workspace-shell .home-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 36px;
+  padding: 40px 0;
+  min-height: 0;
+  border: 0;
+  background: transparent;
+}
+.workspace-shell .home-hero-copy {
+  padding: 0;
+}
+.workspace-shell .home-overline {
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 0.14em;
+}
+.workspace-shell .home-hero h1 {
+  font-size: clamp(35px, 3.4vw, 62px);
+  line-height: 1.06;
+  letter-spacing: -0.05em;
+  margin: 20px 0;
+  font-weight: 450;
+}
+.workspace-shell .home-hero h1 em {
+  font-style: normal;
+  color: var(--accent);
+}
+.workspace-shell .home-description {
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--muted);
+  margin: 0 0 24px;
+}
+.workspace-shell .home-hero-actions {
+  gap: 10px;
+}
+.workspace-shell .home-hero-actions button {
+  padding: 9px 15px;
+  min-height: 37px;
+  border-radius: 5px;
+}
+.home-start-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 26px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+.home-start-card > strong {
+  font-size: 29px;
+  letter-spacing: -0.04em;
+  line-height: 1.12;
+  margin-top: 20px;
+  font-weight: 500;
+}
+.home-start-card > p {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.home-start-card > button {
+  margin: 12px 0 24px;
+}
+.home-start-index {
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 0.12em;
+}
+.workspace-shell .home-section-heading {
+  margin: 22px 0 16px;
+  padding: 0;
+}
+.workspace-shell .home-section-heading h2 {
+  font-size: 20px;
+  letter-spacing: -0.03em;
+  margin: 6px 0 0;
+}
+.workspace-shell .home-section-heading > span {
+  font-size: 9px;
+  color: var(--muted);
+}
+.home-suite-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.workspace-shell .home-suite-card {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 16px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  text-align: left;
+  position: relative;
+  min-height: 100px;
+  border-radius: 6px;
+}
+.home-suite-card > div {
+  min-width: 0;
+  padding-right: 5px;
+}
+.home-suite-card strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  margin: 2px 0 7px;
+}
+.home-suite-card div > span {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+.home-suite-card small {
+  display: none;
+}
+.home-suite-card > .di-icon {
+  margin: 6px 0 0 auto;
+  font-size: 10px;
+  color: var(--muted);
+}
+.workspace-shell .home-workspace-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.workspace-shell .home-workspace-card {
+  padding: 16px;
+  border-radius: 6px;
+  background: transparent;
+  box-shadow: none;
+  min-height: 140px;
+  border: 1px solid var(--line);
+  transform: none;
+}
+.workspace-shell .home-workspace-card:hover:not(:disabled) {
+  transform: none;
+}
+.workspace-shell .home-card-icon {
+  background: transparent;
+  border: 0;
+  width: 24px;
+  height: 24px;
+  color: var(--muted);
+}
+.workspace-shell .home-card-top {
+  margin-bottom: 12px;
+}
+.workspace-shell .home-workspace-card strong {
+  font-size: 12px;
+}
+.workspace-shell .home-card-description {
+  font-size: 10px;
+  line-height: 1.6;
+}
+.workspace-shell .home-card-format {
+  margin-top: 13px;
+  font-size: 8px;
+  color: var(--muted);
+}
+.workspace-shell .home-session {
+  border-top: 1px solid var(--line);
+  margin-top: 28px;
+}
+.workspace-shell .home-session-empty {
+  border: 1px dashed var(--line);
+  border-radius: 5px;
+  background: transparent;
+}
+.workspace-shell .home-footer {
+  margin-top: 32px;
+  font-size: 9px;
+}
+.workspace-shell > .craft-workspace {
+  margin-left: var(--rail-width);
+  width: calc(100% - var(--rail-width));
+  height: calc(100dvh - var(--header-height));
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  min-width: 0;
+}
+.craft-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+.craft-toolbar > div {
+  margin-right: auto;
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 4px 12px;
+  align-items: center;
+}
+.craft-toolbar .eyebrow {
+  grid-column: 1 / -1;
+}
+.craft-toolbar strong {
+  font-size: 14px;
+  font-weight: 500;
+}
+.craft-toolbar [data-craft='engine'] {
+  font-size: 9px;
+  color: var(--muted);
+}
+.craft-host {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.craft-welcome {
+  margin: 0 auto;
+  max-width: 760px;
+  padding: 52px 40px;
+}
+.craft-monogram {
+  font-size: 24px;
+  display: inline-block;
+  padding: 17px;
+  background: var(--accent-soft);
+  border-radius: 10px;
+  color: var(--accent);
+}
+.craft-welcome h1 {
+  font-size: 38px;
+  letter-spacing: -0.04em;
+  margin: 24px 0 14px;
+}
+.craft-welcome p {
+  line-height: 1.8;
+  color: var(--muted);
+}
+.craft-welcome [data-craft='start'] {
+  margin: 14px 0;
+}
+.craft-guide {
+  padding-top: 24px;
+  margin-top: 32px;
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+}
+/* A single fixed tool shelf above the two editing surfaces. */
+.workspace-shell > main,
+.workspace-shell > main.texture-mode-3d {
+  grid-template-columns: 210px minmax(260px, 1fr) 290px;
+  grid-template-rows: 42px 54px minmax(0, 1fr);
+}
+.workspace-shell main > .documentbar {
+  padding: 0 12px;
+  background: var(--bg);
+}
+.workspace-shell .documenttab {
+  border-radius: 0;
+  border-top: 0;
+  background: transparent;
+}
+.workspace-shell .documenttab.active {
+  border-bottom: 2px solid var(--accent);
+  background: var(--panel);
+}
+.workspace-shell main > .editor-commandbar {
+  padding: 7px 12px;
+  gap: 12px;
+  background: var(--panel);
+}
+.workspace-shell .editor-commandbar button {
+  min-height: 28px;
+  border-color: transparent;
+  background: transparent;
+  border-radius: 4px;
+}
+.workspace-shell .editor-commandbar button.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.workspace-shell .editor-commandbar button:hover {
+  background: var(--raised);
+}
+.workspace-shell .texture-edit-modes {
+  border: 1px solid var(--line);
+  padding: 2px;
+  border-radius: 5px;
+  background: transparent;
+}
+.workspace-shell .texture-edit-modes button {
+  border: 0;
+  border-radius: 3px;
+  min-height: 25px;
+}
+.workspace-shell .files,
+.workspace-shell .tool-sidebar,
+.workspace-shell .tool-details {
+  padding: 18px 13px;
+  background: var(--panel);
+}
+.workspace-shell .files > h2,
+.workspace-shell .tool-sidebar > h2 {
+  font-size: 17px;
+  margin: 6px 0 14px;
+}
+.workspace-shell .files > .muted,
+.workspace-shell .sidebarbottom .studio-signature,
+.workspace-shell .sidebarbottom > p {
+  display: none;
+}
+.workspace-shell .editor,
+.workspace-shell .right {
+  padding: 0 12px 12px;
+  background: var(--bg);
+}
+.workspace-shell .right {
+  border-left: 1px solid var(--line);
+}
+.workspace-shell .panelhead {
+  height: 54px;
+}
+.workspace-shell .panelhead h2 {
+  font-size: 13px;
+  letter-spacing: -0.02em;
+}
+.workspace-shell .canvasarea,
+.workspace-shell #viewport,
+.workspace-shell .viewer-viewport,
+.workspace-shell #nbViewport {
+  border-radius: 5px;
+  border-color: var(--line);
+}
+.workspace-shell .canvasarea {
+  background-color: var(--canvas-surround);
+}
+.workspace-shell .empty-symbol {
+  width: 42px;
+  height: 42px;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  border-color: var(--line);
+}
+.workspace-shell .empty h3 {
+  font-size: 21px;
+  font-weight: 450;
+}
+.workspace-shell .emptykicker {
+  font-size: 8px;
+  color: var(--muted);
+}
+.workspace-shell .layerpanel {
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+.workspace-shell .layer,
+.workspace-shell .file {
+  border-radius: 4px;
+}
+.workspace-shell .inspector {
+  padding: 14px 0;
+}
+.workspace-shell .canvas-studio,
+.workspace-shell .scene-studio,
+.workspace-shell .material-preview,
+.workspace-shell .ped-attachments,
+.workspace-shell .hair-card {
+  border-radius: 5px;
+  background: var(--panel);
+  border-color: var(--line);
+}
+.workspace-shell .scene-studio {
+  padding: 12px;
+}
+.workspace-shell .tool-workspace {
+  background: var(--bg);
+}
+.workspace-shell .tool-center,
+.workspace-shell .viewer-content,
+.workspace-shell .archive-center {
+  background: var(--bg);
+  padding: 16px;
+}
+.workspace-shell .viewer-toolbar,
+.workspace-shell .archive-toolbar,
+.workspace-shell .vehicle-workspace-head,
+.workspace-shell .embedded-ide-toolbar,
+.workspace-shell .fm-toolbar {
+  background: var(--panel);
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.workspace-shell .vehicle-workspace-head h2 {
+  font-size: 19px;
+}
+.workspace-shell .conversion-buttons {
+  gap: 6px;
+}
+.workspace-shell .conversion-buttons button {
+  padding: 10px;
+  border-radius: 5px;
+}
+.workspace-shell .archive-workspace,
+.workspace-shell .file-manager {
+  background: var(--bg);
+}
+.workspace-shell .archive-table th,
+.workspace-shell .fm-table th {
+  background: var(--panel);
+  font-size: 9px;
+  letter-spacing: 0.05em;
+}
+.workspace-shell .archive-table td,
+.workspace-shell .fm-table td {
+  border-bottom-color: var(--line);
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+.workspace-shell .fm-sidebar,
+.workspace-shell .fm-details,
+.workspace-shell .fm-preview,
+.workspace-shell .fm-plan {
+  background: var(--panel);
+  border-color: var(--line);
+  border-radius: 5px;
+}
+.workspace-shell .fm-category {
+  border-radius: 4px;
+}
+.workspace-shell .fm-preview-image {
+  background: var(--canvas-surround);
+  border-radius: 4px;
+}
+.workspace-shell .fm-status {
+  background: var(--panel);
+}
+.workspace-shell .native-build-workspace {
+  background: var(--bg);
+}
+.workspace-shell .native-build-layout > aside,
+.workspace-shell .native-build-layout > section {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 18px;
+}
+.workspace-shell .native-build-head {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--line);
+}
+.workspace-shell .native-build-head h2 {
+  font-size: 23px;
+}
+.workspace-shell dialog {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  box-shadow: 0 24px 100px #0008;
+}
+.workspace-shell dialog::backdrop {
+  background: #090b0cad;
+  backdrop-filter: blur(5px);
+}
+.workspace-shell .settings-layout {
+  gap: 22px;
+}
+.workspace-shell .settings-section {
+  background: transparent;
+  border-radius: 5px;
+}
+.workspace-shell .presence-card,
+.workspace-shell .settings-note {
+  background: var(--bg);
+  border-radius: 5px;
+}
+.workspace-shell .workspace-command-results button {
+  border-radius: 4px;
+}
+.workspace-shell .badge {
+  border-radius: 3px;
+  background: var(--raised);
+  border-color: var(--line);
+  color: var(--muted);
+  font-size: 8px;
+}
+.workspace-shell .embedded-ide-host,
+.workspace-shell .code-file-layout {
+  background: var(--bg);
+}
+.workspace-shell .embedded-ide-welcome {
+  max-width: 760px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel);
+  padding: 36px;
+}
+.workspace-shell .code-dialog {
+  border-radius: 8px;
+}
+.workspace-shell .studio-dialog-head {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 18px;
+}
+@media (max-width: 1250px) {
+  body.workspace-shell {
+    --rail-width: 176px;
+  }
+  .workspace-shell .workspace-nav .nav-label,
+  .workspace-shell .workspace-nav .control-label {
+    display: initial;
+  }
+  .workspace-shell .workspace-nav button {
+    font-size: 10px;
+    justify-content: flex-start;
+  }
+  .workspace-shell .workspace-nav .nav-bottom small {
+    display: block;
+  }
+  .workspace-shell .workspace-search {
+    width: 160px;
+  }
+  .workspace-shell header .crumb {
+    max-width: 190px;
+  }
+  .workspace-shell .home-inner {
+    padding: 24px;
+  }
+  .workspace-shell .home-hero {
+    grid-template-columns: minmax(0, 1fr) 220px;
+    gap: 22px;
+  }
+  .workspace-shell .home-hero h1 {
+    font-size: 40px;
+  }
+  .workspace-shell .home-workspace-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .workspace-shell > main,
+  .workspace-shell > main.texture-mode-3d {
+    grid-template-columns: 180px minmax(220px, 1fr) 255px;
+  }
+  .craft-toolbar {
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 1000px) {
+  body.workspace-shell {
+    --rail-width: 144px;
+  }
+  .workspace-shell .workspace-nav {
+    padding-left: 7px;
+    padding-right: 7px;
+  }
+  .workspace-shell .workspace-nav button {
+    padding: 6px;
+    gap: 7px;
+  }
+  .suite-nav-group > summary {
+    padding-left: 6px;
+    font-size: 9px;
+  }
+  .workspace-shell header .workspace-search {
+    width: 32px;
+    min-width: 32px;
+    padding: 6px;
+  }
+  .workspace-shell .workspace-search > span,
+  .workspace-shell .workspace-search kbd {
+    display: none;
+  }
+  .workspace-shell .home-hero {
+    grid-template-columns: 1fr;
+    padding: 30px 0;
+  }
+  .home-start-card {
+    display: none;
+  }
+  .home-suite-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .workspace-shell .home-workspace-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .workspace-shell > main,
+  .workspace-shell > main.texture-mode-3d {
+    grid-template-columns: 150px minmax(210px, 1fr) 230px;
+  }
+  .workspace-shell .brandname {
+    display: block;
+  }
+  .workspace-shell .craft-toolbar [data-craft='engine'] {
+    display: none;
+  }
+}
+/* Retain readable navigation at laptop widths. */
+.workspace-shell .workspace-nav button {
+  width: 100%;
+  height: auto;
+}
+.workspace-shell .workspace-nav button .control-label,
+.workspace-shell .workspace-nav .nav-label {
+  position: static;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip-path: none;
+  white-space: nowrap;
+}
+.workspace-shell .brandname {
+  display: block;
+}

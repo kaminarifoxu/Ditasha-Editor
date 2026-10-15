@@ -1,5 +1,6 @@
 node_modules/
 ide-runtime/
+craft-runtime/
 release/
 *.log
 font-source.css

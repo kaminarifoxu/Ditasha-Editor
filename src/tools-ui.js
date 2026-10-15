@@ -1,3 +1,4 @@
+import { mountCraft, craftWorkspaces } from './craft-ui.js';
 import { ICON_CODES } from './ui-icons.js';
 import { mountVehicleWorkspace } from './vehicle-ui.js';
 import { mountViewers } from './viewers-ui.js';
@@ -105,6 +106,7 @@ export function mountTools({
       return preview(files);
     },
   });
+  const craft = mountCraft({ nav, activate, toast, preview });
   const homepage = mountHome({ nav, activate, preview, getSessionFiles, selectSessionFile });
   const modelHome = viewers.modelRoot.parentElement;
   const dirty = () => pack.length && revision !== savedRevision;
@@ -151,6 +153,12 @@ export function mountTools({
                         : next === 'code'
                           ? 'Integrated IDE'
                           : 'Converter';
+    craft.root.hidden = !next.startsWith('craft-');
+    if (next.startsWith('craft-')) {
+      $('workspaceLabel').textContent =
+        craftWorkspaces.find((s) => 'craft-' + s[0] === next)?.[1] || 'Creative Studio';
+      craft.activate(next);
+    }
     ide.root.hidden = next !== 'code';
     fileManager.root.hidden = next !== 'files';
     homepage.root.hidden = next !== 'home';

@@ -34,6 +34,7 @@ module.exports = async function checkHome({ ytd, size, interactions }) {
   }
   console.log('DITASHA_SNAPSHOT:home-' + size);
   if (!interactions) return { size, fits: true };
+  assert(home.querySelectorAll('.home-suite-card').length === 9, 'Creative workspaces missing');
   const title = document.title;
   document.querySelector('header .brand').click();
   assert(document.title === title && !home.hidden, 'Brand does not safely return home');
@@ -91,7 +92,7 @@ module.exports = async function checkHome({ ytd, size, interactions }) {
   document.body.dataset.theme = 'light';
   await sleep(200);
   assert(
-    getComputedStyle(home).backgroundColor === 'rgb(238, 240, 245)',
+    getComputedStyle(home).backgroundColor === 'rgb(241, 242, 237)',
     'Homepage light theme did not apply',
   );
   document.getElementById('toast').style.display = 'none';

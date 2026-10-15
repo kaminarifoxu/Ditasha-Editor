@@ -1,4 +1,10 @@
 const { contextBridge, ipcRenderer } = require('electron');
+contextBridge.exposeInMainWorld('ditashaCraft', {
+  state: () => ipcRenderer.invoke('ditasha:craft-state'),
+  start: (id) => ipcRenderer.invoke('ditasha:craft-start', id),
+  layout: (bounds) => ipcRenderer.invoke('ditasha:craft-layout', bounds),
+  close: (id) => ipcRenderer.invoke('ditasha:craft-close', id),
+});
 contextBridge.exposeInMainWorld('ditashaFiles', {
   state: () => ipcRenderer.invoke('ditasha:files-state'),
   choose: (refresh = false) => ipcRenderer.invoke('ditasha:files-choose', refresh),

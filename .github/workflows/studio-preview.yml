@@ -34,6 +34,16 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'File Manager checks failed.' }
           if (!(Test-Path 'release/qa/file-manager-result.json')) { throw 'File Manager checks exited before completion.' }
         timeout-minutes: 3
+      - name: Prepare verified offline creative engines
+        run: npm run prepare:craft
+        timeout-minutes: 15
+      - name: Check all nine embedded creative workspaces
+        shell: pwsh
+        run: |
+          npx electron scripts/smoke-craft.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Creative engine checks failed.' }
+          if (!(Test-Path 'release/qa/creative-engines-result.json')) { throw 'Creative engine checks exited before completion.' }
+        timeout-minutes: 10
       - name: Prepare verified native IDE engine
         run: npm run prepare:ide
       - name: Check the embedded IDE workbench
@@ -48,6 +58,8 @@ jobs:
       - name: Verify packaged engine dependencies and workbench
         shell: pwsh
         run: |
+          node scripts/check-packaged-craft.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Packaged creative engine files differ.' }
           node scripts/check-packaged-ide.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Packaged engine files differ.' }
           $env:DITASHA_IDE_RUNTIME = Join-Path $env:GITHUB_WORKSPACE 'release/win-unpacked/resources/ide-runtime'
@@ -64,4 +76,6 @@ jobs:
         if: always()
         with:
           name: DITASHA-Studio-UI-QA
-          path: release/qa/*.png
+          path: |
+            release/qa/*.png
+            release/qa/*-result.json
