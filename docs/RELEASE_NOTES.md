@@ -1,3 +1,9 @@
+# 1.19.1
+
+- Fix the embedded IDE failing with ERR_MODULE_NOT_FOUND / cookie in the portable Windows app: explicitly package the engine dependency folder skipped by electron-builder. Compare every packaged engine file and start the real packaged workbench in Windows CI.
+- Add Download & set up for Blender 5.2.2 LTS, Sollumz 2.9.0 and Muto Ped Rig 0.3.2, with verified downloads, progress, cancellation/retry, and an isolated persistent Blender profile. Sollumz installs its pinned szio/PyMateria dependencies directly from their providers.
+- Add a step-by-step Auto Rig guide inside the dialog. Existing manual Blender selection remains available.
+
 DITASHA Editor 1.18.1 — Fixed editor toolbar and discoverable previews
 
 - Keep document tabs and Edit 2D / Edit 3D controls in one full-width top bar. Switching modes changes the panels below without moving the tabs or controls.

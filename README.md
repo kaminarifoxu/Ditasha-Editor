@@ -39,6 +39,12 @@ Monaco adalah komponen editor dari VS Code, bukan VS Code lengkap; tidak ada ter
 extension VS Code, atau eksekusi skrip. Lisensi Microsoft dan pemberitahuan pihak ketiga
 disertakan di assets aplikasi.
 
+## Auto rig ped
+
+Buka **Auto rig ped → Download & set up** untuk memasang engine dan add-on secara otomatis.
+Setelah selesai, pilih model humanoid GLB/FBX/OBJ dalam A/T-pose, nama ped, dan Folder hasil,
+lalu klik **Build native**. Panduan lengkap: [NATIVE_BUILD.md](docs/NATIVE_BUILD.md).
+
 ## Update aplikasi
 
 Aplikasi mengecek GitHub Releases pada startup. Pilih **Update sekarang**

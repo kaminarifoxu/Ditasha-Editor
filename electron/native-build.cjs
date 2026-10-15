@@ -4,6 +4,7 @@ const fs = require('node:fs/promises'),
   os = require('node:os');
 const { spawn } = require('node:child_process');
 const { randomUUID } = require('node:crypto');
+const { setupNative, managedEnv } = require('./native-setup.cjs');
 const PICK_TYPES = {
   engine: { name: 'Blender', extensions: process.platform === 'win32' ? ['exe'] : ['*'] },
   ped: { name: 'Humanoid model', extensions: ['glb', 'fbx', 'obj'] },
@@ -64,7 +65,9 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted }) {
   let engine = null,
     child = null,
     running = false,
-    preview = null;
+    preview = null,
+    managedRoot = null,
+    setupController = null;
   let state = {
     status: 'idle',
     message: 'Pilih Blender dan periksa engine.',
@@ -79,9 +82,12 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted }) {
       const v = JSON.parse(await fs.readFile(settings, 'utf8'));
       if (typeof v.engine === 'string' && /^blender(?:\.exe)?$/i.test(path.basename(v.engine)))
         engine = v.engine;
+      if (v.managedRoot === path.join(app.getPath('userData'), 'native-tools'))
+        managedRoot = v.managedRoot;
     } catch {}
   };
   const cancel = () => {
+    setupController?.abort();
     if (!child) return;
     const currentChild = child;
     if (process.platform === 'win32') {
@@ -101,7 +107,7 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted }) {
   });
   ipcMain.handle('ditasha:native-pick', async (event, kind) => {
     trusted(event);
-    if (running) throw Error('Tunggu build selesai.');
+    if (running) throw Error('Tunggu setup/build selesai.');
     if (kind === 'output') {
       const r = await dialog.showOpenDialog(win, {
         title: 'Folder hasil build baru',
@@ -133,6 +139,7 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted }) {
       if (!/^blender(?:\.exe)?$/i.test(path.basename(file)))
         throw Error('Pilih blender.exe, bukan launcher.');
       engine = file;
+      managedRoot = null;
       await fs.mkdir(path.dirname(settings), { recursive: true });
       await fs.writeFile(settings, JSON.stringify({ engine }));
       return { id: 'engine', name: file };
@@ -140,6 +147,92 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted }) {
     const id = randomUUID();
     inputs.set(id, { kind, path: file, size: stat.size, mtime: stat.mtimeMs });
     return { id, name: path.basename(file) };
+  });
+  ipcMain.handle('ditasha:native-setup', async (event) => {
+    trusted(event);
+    if (running) throw Error('Satu setup/build sudah berjalan.');
+    if (process.platform !== 'win32' || process.arch !== 'x64')
+      throw Error(
+        'Setup otomatis memerlukan Windows x64. Pilih Blender manual pada platform lain.',
+      );
+    const root = path.join(app.getPath('userData'), 'native-tools');
+    const controller = new AbortController();
+    setupController = controller;
+    running = true;
+    state = {
+      status: 'installing',
+      message: 'Menyiapkan download engine…',
+      log: '',
+      report: null,
+      output: null,
+      progress: null,
+    };
+    const execute = (executable, args, options = {}) =>
+      new Promise((resolve, reject) => {
+        if (controller.signal.aborted) return reject(Error('Setup dibatalkan.'));
+        let captured = '';
+        child = spawn(executable, args, {
+          windowsHide: true,
+          shell: false,
+          stdio: ['ignore', 'pipe', 'pipe'],
+          env: options.env || process.env,
+        });
+        const current = child;
+        const append = (chunk) => {
+          const text = chunk.toString();
+          state.log = (state.log + text).slice(-24000);
+          if (options.capture) captured += text;
+        };
+        current.stdout.on('data', append);
+        current.stderr.on('data', append);
+        const timeout = setTimeout(
+          () => {
+            cancel();
+          },
+          20 * 60 * 1000,
+        );
+        current.once('error', (error) => {
+          clearTimeout(timeout);
+          child = null;
+          reject(error);
+        });
+        current.once('close', (code) => {
+          clearTimeout(timeout);
+          child = null;
+          if (controller.signal.aborted)
+            reject(Error('Setup dibatalkan. Klik Download & set up untuk mencoba lagi.'));
+          else if (code !== 0)
+            reject(Error('Setup engine keluar dengan kode ' + code + '. Periksa Log engine.'));
+          else resolve(captured);
+        });
+      });
+    setupNative({
+      root,
+      signal: controller.signal,
+      update: (value) => Object.assign(state, value),
+      execute,
+    })
+      .then(async (selected) => {
+        controller.signal.throwIfAborted();
+        await fs.writeFile(settings, JSON.stringify({ engine: selected, managedRoot: root }));
+        engine = selected;
+        managedRoot = root;
+        state.status = 'success';
+        state.message =
+          'Engine terpasang. Pilih model humanoid, nama ped dan Folder hasil, lalu Build native.';
+      })
+      .catch((error) => {
+        state.status = 'error';
+        state.message = controller.signal.aborted
+          ? 'Setup dibatalkan. Download yang selesai akan digunakan lagi saat mencoba ulang.'
+          : error.message;
+      })
+      .finally(() => {
+        running = false;
+        setupController = null;
+        state.progress = null;
+      });
+    return { ...state, running, engine: engine ? path.basename(engine) : null };
   });
   ipcMain.handle('ditasha:native-preview', async (event, id) => {
     trusted(event);
@@ -218,7 +311,7 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted }) {
         windowsHide: true,
         stdio: ['ignore', 'pipe', 'pipe'],
         shell: false,
-        env: { ...process.env, PYTHONUNBUFFERED: '1' },
+        env: managedRoot ? managedEnv(managedRoot) : { ...process.env, PYTHONUNBUFFERED: '1' },
       });
     } catch (e) {
       running = false;

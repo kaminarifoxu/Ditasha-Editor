@@ -4,7 +4,7 @@ This integration hosts the **Code - OSS server-web workbench inside the DITASHA 
 
 ## Current validation status
 
-Windows builds bundle the MIT VSCodium Code - OSS Web Host. The exact version, official release URL, size and SHA-256 are pinned in `scripts/ide-runtime.json`. Packaging refuses an unexpected download. Microsoft VS Code Server binaries and Microsoft Marketplace extensions are not redistributed. The real embedded workbench must pass its own Windows check before packaging.
+Windows builds bundle the MIT VSCodium Code - OSS Web Host. The exact version, official release URL, size and SHA-256 are pinned in `scripts/ide-runtime.json`. Packaging refuses an unexpected download. Microsoft VS Code Server binaries and Microsoft Marketplace extensions are not redistributed. Windows CI checks the real workbench before packaging, compares the packaged runtime files byte-for-byte, and starts the workbench again from the packaged resource directory. The dependency directory has its own explicit resource mapping because electron-builder skips a top-level node_modules directory in a resource mapping.
 
 ## Bundled engine and builds
 

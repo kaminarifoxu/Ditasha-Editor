@@ -32,7 +32,9 @@ jobs:
       - name: Test real embedded IDE engine
         shell: pwsh
         run: |
-          $env:DITASHA_IDE_RUNTIME = Join-Path $env:GITHUB_WORKSPACE 'ide-runtime'
+          node scripts/check-packaged-ide.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Packaged engine files differ.' }
+          $env:DITASHA_IDE_RUNTIME = Join-Path $env:GITHUB_WORKSPACE 'release/win-unpacked/resources/ide-runtime'
           npx electron scripts/smoke-embedded-ide.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Embedded IDE check failed.' }
       - name: Test real portable download and restart

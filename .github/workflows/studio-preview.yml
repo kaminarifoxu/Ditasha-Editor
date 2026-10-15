@@ -24,6 +24,9 @@ jobs:
       - name: Check homepage, themes and existing editor tools
         run: npx electron scripts/smoke-tools.cjs
         timeout-minutes: 5
+      - name: Check automatic Blender and add-on setup
+        run: npx electron scripts/smoke-native-setup.cjs
+        timeout-minutes: 30
       - name: Prepare verified native IDE engine
         run: npm run prepare:ide
       - name: Check the embedded IDE workbench
@@ -35,6 +38,14 @@ jobs:
       - name: Build Windows studio preview
         # build:win also verifies the engine before packaging it.
         run: npm run build:win
+      - name: Verify packaged engine dependencies and workbench
+        shell: pwsh
+        run: |
+          node scripts/check-packaged-ide.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Packaged engine files differ.' }
+          $env:DITASHA_IDE_RUNTIME = Join-Path $env:GITHUB_WORKSPACE 'release/win-unpacked/resources/ide-runtime'
+          npx electron scripts/smoke-embedded-ide.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Packaged IDE check failed.' }
       - run: node scripts/checksum.cjs
       - uses: actions/upload-artifact@v4
         with:
