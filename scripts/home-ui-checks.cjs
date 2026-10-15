@@ -14,6 +14,7 @@ module.exports = async function checkHome({ ytd, size, interactions }) {
   const home = document.querySelector('.home-workspace');
   document.getElementById('openHome').click();
   await sleep(100);
+  document.getElementById('toast').style.display = 'none';
   assert(
     !home.hidden && document.querySelector('main').hidden,
     'Homepage does not replace the editor',
@@ -88,8 +89,19 @@ module.exports = async function checkHome({ ytd, size, interactions }) {
     'Changing workspace discarded the loaded file',
   );
   document.body.dataset.theme = 'light';
+  await sleep(200);
+  assert(
+    getComputedStyle(home).backgroundColor === 'rgb(238, 240, 245)',
+    'Homepage light theme did not apply',
+  );
+  document.getElementById('toast').style.display = 'none';
   console.log('DITASHA_SNAPSHOT:home-light');
-  await sleep(100);
+  await sleep(200);
   document.body.dataset.theme = 'midnight';
+  home.querySelector('.home-workspace-grid').scrollIntoView({ block: 'start' });
+  await sleep(200);
+  console.log('DITASHA_SNAPSHOT:home-tools-session');
+  await sleep(200);
+  home.scrollTop = 0;
   return { size, fits: true, search: true, navigation: true, sessionFiles: true };
 };

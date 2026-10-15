@@ -12,8 +12,11 @@ module.exports = async function checkExplorerPreview(fixtures) {
     throw Error(message + ' · ' + $('archiveStatus').textContent);
   }
   const saves = [];
+  document.querySelector('[data-page=editor]').click();
+  await new Promise((r) => setTimeout(r, 100));
   const modeBar = document.querySelector('.documentbar');
   const modeRect = modeBar.getBoundingClientRect();
+  assert(modeRect.width > 300 && modeRect.height > 0, 'Editor toolbar is not visible');
   console.log('DITASHA_SNAPSHOT:editor-fixed-bar-2d');
   await new Promise((r) => setTimeout(r, 300));
   $('editTexture3d').click();

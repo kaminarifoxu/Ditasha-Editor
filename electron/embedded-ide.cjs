@@ -293,7 +293,7 @@ function registerEmbeddedIDE({
     disposed = true;
     stop();
   });
-  app.on('before-quit', () => {
+  app.on('will-quit', () => {
     disposed = true;
     stop();
   });

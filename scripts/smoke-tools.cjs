@@ -132,7 +132,6 @@ app.whenReady().then(async () => {
         checkViewers.toString() +
         ')(' +
         JSON.stringify({
-          homeReports,
           ytd: [...ytd],
           model: [...new Uint8Array(viewerModel)],
           hairYtd: [...hairYtd],
@@ -193,6 +192,7 @@ app.whenReady().then(async () => {
     console.log(
       'PASS: ' +
         JSON.stringify({
+          homeReports,
           iconReport,
           report,
           archiveReport,

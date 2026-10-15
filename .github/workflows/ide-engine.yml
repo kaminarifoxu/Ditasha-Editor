@@ -5,6 +5,7 @@ on:
     branches: [codex/embedded-code-oss]
 jobs:
   engine:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[build-engine]')
     runs-on: windows-latest
     timeout-minutes: 90
     permissions:
