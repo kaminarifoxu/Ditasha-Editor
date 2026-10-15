@@ -17,6 +17,13 @@ module.exports = async function checkExplorerPreview(fixtures) {
   const modeBar = document.querySelector('.documentbar');
   const modeRect = modeBar.getBoundingClientRect();
   assert(modeRect.width > 300 && modeRect.height > 0, 'Editor toolbar is not visible');
+  const commandbar = document.querySelector('.editor-commandbar');
+  const commandRect = commandbar.getBoundingClientRect();
+  assert(
+    commandbar.contains($('brush')) && commandbar.contains($('snapshot')),
+    'Texture and model tools are not together',
+  );
+  assert($('eyedropper') && $('fillLayer') && $('centerLayer'), 'Photoshop-style tools missing');
   console.log('DITASHA_SNAPSHOT:editor-fixed-bar-2d');
   await new Promise((r) => setTimeout(r, 300));
   $('editTexture3d').click();
@@ -33,9 +40,51 @@ module.exports = async function checkExplorerPreview(fixtures) {
     Math.abs(modeBar.getBoundingClientRect().left - modeRect.left) < 1,
     'Mode bar moved horizontally in 3D mode',
   );
+  const afterTools = commandbar.getBoundingClientRect();
+  assert(
+    Math.abs(afterTools.top - commandRect.top) < 1 &&
+      Math.abs(afterTools.left - commandRect.left) < 1,
+    'Shared editor tools moved in 3D',
+  );
   console.log('DITASHA_SNAPSHOT:editor-fixed-bar-3d');
   await new Promise((r) => setTimeout(r, 300));
   $('editTexture2d').click();
+  // Real layer editing: color fill is undoable; sampling ignores the UV overlay.
+  if ($('fillLayer') && document.getElementById('fileInput')) {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 8;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#336699';
+    ctx.fillRect(0, 0, 8, 8);
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve));
+    const transfer = new DataTransfer();
+    transfer.items.add(new File([blob], 'toolbar-color.png', { type: 'image/png' }));
+    $('fileInput').files = transfer.files;
+    $('fileInput').dispatchEvent(new Event('change'));
+    await wait(
+      () => $('textureTitle').textContent.includes('toolbar-color'),
+      'Tool fixture not loaded',
+    );
+    $('color').value = '#ff0000';
+    $('fillLayer').click();
+    $('undo').click();
+    const target = $('canvasarea').querySelector('canvas');
+    $('eyedropper').click();
+    const r = target.getBoundingClientRect();
+    target.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        clientX: r.x + r.width / 2,
+        clientY: r.y + r.height / 2,
+        button: 0,
+        bubbles: true,
+      }),
+    );
+    assert(
+      $('color').value === '#336699',
+      'Eyedropper or undoable fill changed the original color',
+    );
+    $('move').click();
+  }
   window.ditashaDesktop ||= {};
   window.ditashaDesktop.saveExport = async ({ name, data }) => {
     saves.push({ name, data: [...data] });
@@ -81,6 +130,12 @@ module.exports = async function checkExplorerPreview(fixtures) {
   assert(
     [...$('archivePreviewTextures').options].some((o) => o.value === 'alternate.ytd'),
     'Manual YTD pairing missing',
+  );
+  const fileRect = document.querySelector('.archive-center').getBoundingClientRect();
+  const previewRect = document.querySelector('.explorer-preview').getBoundingClientRect();
+  assert(
+    previewRect.left >= fileRect.right - 1 && Math.abs(previewRect.top - fileRect.top) < 2,
+    'Explorer preview is not on the right',
   );
   console.log('DITASHA_SNAPSHOT:explorer-inline-preview');
   await new Promise((r) => setTimeout(r, 300));

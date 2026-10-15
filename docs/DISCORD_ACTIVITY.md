@@ -21,6 +21,10 @@ No ID is bundled in this release because the project owner has not created one y
 
 Workspace changes are coalesced to avoid flooding Discord. The session timer stays consistent after reconnect. Disabling Activity clears the published activity and disconnects; closing the editor also clears it. The engine is non-blocking and does not prevent asset editing if Discord is unavailable.
 
+## Nama proyek
+
+Activity dapat menampilkan nama aset/proyek aktif (tanpa path folder lengkap). Matikan **Tampilkan nama proyek di Activity** untuk menyembunyikannya. Isian **Nama proyek** di Pengaturan memberi nama manual yang diprioritaskan; kosongkan untuk kembali mengikuti aset aktif. Auto Rig, Explorer, Texture & Model dan Model Viewer memperbarui nama dari input yang dipilih. Untuk nama proyek Code Studio, gunakan isian manual.
+
 ## Verification
 
 `tests/discord-presence.test.cjs` checks public-ID validation, known workspace values, frame splitting and coalescing, ping/pong, throttling, connection recovery, privacy mode, clearing and trusted settings persistence. Tests use an in-memory peer and a local named-pipe/Unix-socket fixture; environments that prohibit local sockets skip only the transport fixture. Windows release CI runs the pipe fixture. A real Discord account/profile is not used in automated tests and needs a valid Application ID for manual validation.

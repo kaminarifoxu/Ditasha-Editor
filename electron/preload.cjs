@@ -29,6 +29,8 @@ contextBridge.exposeInMainWorld('ditashaDesktop', {
 contextBridge.exposeInMainWorld('ditashaNative', {
   state: () => ipcRenderer.invoke('ditasha:native-state'),
   setup: () => ipcRenderer.invoke('ditasha:native-setup'),
+  save: (id) => ipcRenderer.invoke('ditasha:native-save', id),
+  discard: (id) => ipcRenderer.invoke('ditasha:native-discard', id),
   preview: (id) => ipcRenderer.invoke('ditasha:native-preview', id),
   pick: (kind) => ipcRenderer.invoke('ditasha:native-pick', kind),
   docs: (kind) => ipcRenderer.invoke('ditasha:native-doc', kind),
@@ -41,5 +43,6 @@ contextBridge.exposeInMainWorld('ditashaDiscord', {
   state: () => ipcRenderer.invoke('ditasha:discord-state'),
   configure: (value) => ipcRenderer.invoke('ditasha:discord-configure', value),
   workspace: (value) => ipcRenderer.invoke('ditasha:discord-workspace', value),
+  project: (value) => ipcRenderer.invoke('ditasha:discord-project', value),
   docs: () => ipcRenderer.invoke('ditasha:discord-docs'),
 });

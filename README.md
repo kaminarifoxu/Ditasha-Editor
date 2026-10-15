@@ -42,8 +42,8 @@ disertakan di assets aplikasi.
 ## Auto rig ped
 
 Buka **Auto rig ped → Download & set up** untuk memasang engine dan add-on secara otomatis.
-Setelah selesai, pilih model humanoid GLB/FBX/OBJ dalam A/T-pose, nama ped, dan Folder hasil,
-lalu klik **Build native**. Panduan lengkap: [NATIVE_BUILD.md](docs/NATIVE_BUILD.md).
+Setelah selesai, pilih model humanoid GLB/FBX/OBJ dalam A/T-pose dan nama ped, lalu klik
+**Buat preview rig**. Periksa model 3D, kemudian **Simpan hasil ped** untuk memilih folder hasil. Panduan lengkap: [NATIVE_BUILD.md](docs/NATIVE_BUILD.md).
 
 ## Update aplikasi
 

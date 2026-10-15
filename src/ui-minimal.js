@@ -1,6 +1,9 @@
 import { ICON_CODES } from './ui-icons.js';
 
 const actions = {
+  eyedropper: 'info',
+  fillLayer: 'picture',
+  centerLayer: 'compress',
   brush: 'brush',
   eraser: 'eraser',
   move: 'arrows',
@@ -80,6 +83,17 @@ const actions = {
   archiveNew: 'plus',
   archiveBack: 'arrow-left',
   archivePreview: 'layers',
+  nbSetup: 'download',
+  nbProbe: 'refresh',
+  nbRun: 'tshirt',
+  nbSave: 'disk',
+  nbCancel: 'cross',
+  nbReveal: 'folder-open',
+  nbClose: 'arrow-left',
+  nbAnalyze: 'eye',
+  vehicleDebadge: 'eraser',
+  vehicleStrobo: 'plus',
+  vehicleOpen: 'folder-open',
   archiveTextureViewer: 'picture',
   archiveModelViewer: 'cube',
   archiveInspect: 'document',
@@ -155,7 +169,8 @@ function icon(name) {
 export function mountMinimalUi() {
   function decorate(el) {
     const text = el.textContent.trim().replace(/\s+/g, ' ');
-    let name = pages[el.dataset.page] || actions[el.id] || labels[text];
+    let name =
+      pages[el.dataset.page] || actions[el.id] || actions[el.dataset.editorAction] || labels[text];
     if (/AddHair$/.test(el.id)) name = 'plus';
     if (/AddHairTextures$/.test(el.id)) name = 'picture';
     if (/RemoveHair$|ClearHair$/.test(el.id)) name = 'trash';

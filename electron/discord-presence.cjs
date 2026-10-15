@@ -13,6 +13,7 @@ const WORKSPACES = {
   modelviewer: 'Model viewer',
   archives: 'GTA V Explorer',
   vehicles: 'Vehicle workshop',
+  rig: 'Auto rig ped',
 };
 function validatePreferences(value) {
   if (
@@ -26,6 +27,7 @@ function validatePreferences(value) {
   return {
     enabled: value.enabled,
     shareWorkspace: value.shareWorkspace,
+    shareProject: value.shareProject !== false,
     applicationId: value.applicationId,
   };
 }
@@ -53,6 +55,7 @@ function createDiscordPresence({
 } = {}) {
   let config = { enabled: true, shareWorkspace: true, applicationId: '' },
     workspace = 'editor',
+    project = '',
     socket = null,
     ready = false,
     buffer = Buffer.alloc(0),
@@ -102,7 +105,7 @@ function createDiscordPresence({
   function activity() {
     return {
       details: config.shareWorkspace ? WORKSPACES[workspace] : 'Creating with DITASHA Editor',
-      state: 'Ditasha-Workshop',
+      state: config.shareProject && project ? 'Proyek: ' + project : 'Ditasha-Workshop',
       timestamps: { start: started },
       instance: false,
     };
@@ -247,11 +250,22 @@ function createDiscordPresence({
     workspace = value;
     publish();
   }
+  function setProject(value) {
+    if (typeof value !== 'string' || value.length > 500) throw Error('Nama proyek tidak valid.');
+    project =
+      value
+        .split(/[\\/]/)
+        .filter(Boolean)
+        .at(-1)
+        ?.replace(/[\u0000-\u001f\u007f]/g, '')
+        .slice(0, 100) || '';
+    publish();
+  }
   function close() {
     stopped = true;
     disconnect(true);
   }
-  return { configure, setWorkspace, getState, close };
+  return { configure, setWorkspace, setProject, getState, close };
 }
 async function registerDiscordPresence({ app, ipcMain, shell, trusted }) {
   const file = path.join(app.getPath('userData'), 'discord-presence.json');
@@ -281,6 +295,11 @@ async function registerDiscordPresence({ app, ipcMain, shell, trusted }) {
   ipcMain.handle('ditasha:discord-workspace', (event, value) => {
     trusted(event);
     client.setWorkspace(value);
+    return true;
+  });
+  ipcMain.handle('ditasha:discord-project', (event, value) => {
+    trusted(event);
+    client.setProject(value);
     return true;
   });
   ipcMain.handle('ditasha:discord-docs', async (event) => {

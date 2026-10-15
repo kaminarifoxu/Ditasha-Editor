@@ -223,9 +223,23 @@ module.exports = async function checkOfflineStudio(fixtures) {
     $('nbMode').value === 'strobo' && !$('nbStrobo').hidden,
     'Strobo shortcut selected wrong build',
   );
+  assert(
+    $('nativeBuildDialog').tagName === 'SECTION' && !document.querySelector('dialog[open]'),
+    'Native operation still opens a modal',
+  );
+  assert(
+    document.querySelector('.vehicle-native-host').contains($('nativeBuildDialog')),
+    'Vehicle operation not embedded',
+  );
   $('nbClose').click();
   $('openNativeBuild').click();
-  assert($('nbMode').value === 'ped', 'Rig ped shortcut selected wrong build');
+  assert(
+    $('nbMode').value === 'ped' &&
+      !$('nativeBuildDialog').hidden &&
+      document.body.dataset.workspace === 'rig',
+    'Rig ped shortcut selected wrong build',
+  );
+  console.log('DITASHA_SNAPSHOT:rig-workspace');
   $('nbClose').click();
   $('vehicleDebadge').click();
   assert(
@@ -280,7 +294,7 @@ module.exports = async function checkOfflineStudio(fixtures) {
     nativeCalls.find((c) => c.mode === 'debadge').inputs.vehicle === 'vehicle-token',
     'Renderer did not use picker token',
   );
-  change('nbMode', 'strobo');
+  $('vehicleStrobo').click();
   $('nativeBuildDialog').querySelector('[data-pick="donor"]').click();
   await sleep(30);
   $('nbPreviewLoad').click();
@@ -339,6 +353,55 @@ module.exports = async function checkOfflineStudio(fixtures) {
   assert(
     !$('nbViewport').closest('.native-preview').hidden,
     'Reopened native preview was hidden by an older close event',
+  );
+  $('nbClose').click();
+  $('openNativeBuild').click();
+  await sleep(40);
+  window.ditashaNative.start = async (payload) => {
+    assert(payload.mode === 'ped', 'Rig preview requested wrong operation');
+    nativeState = {
+      ...nativeState,
+      status: 'success',
+      running: false,
+      output: null,
+      stagedId: 'staged-ped',
+      previewId: 'ped-result-preview',
+      report: { ok: true, mode: 'ped' },
+      message: 'Preview rig siap.',
+    };
+    return nativeState;
+  };
+  let savedPed = false;
+  window.ditashaNative.save = async (id) => {
+    assert(id === 'staged-ped', 'Save did not use staged result');
+    savedPed = true;
+    nativeState = {
+      ...nativeState,
+      stagedId: null,
+      output: 'chosen-output',
+      message: 'Resource ped disimpan.',
+    };
+    return true;
+  };
+  $('nbRun').click();
+  await wait(
+    () =>
+      !$('nbSave').disabled &&
+      !$('nbViewport').closest('.native-preview').hidden &&
+      $('nbViewport canvas'),
+    'Rig result did not show a preview before save',
+  );
+  assert(!savedPed, 'Rig result was saved before user approval');
+  assert(
+    window.ditashaWorkspace.unsavedItems().some((v) => v.name.includes('Hasil rig')),
+    'Staged rig is not tracked as unsaved',
+  );
+  console.log('DITASHA_SNAPSHOT:rig-result-preview');
+  $('nbSave').click();
+  await wait(() => savedPed && !$('nbReveal').disabled, 'Explicit rig save failed');
+  assert(
+    !window.ditashaWorkspace.unsavedItems().some((v) => v.name.includes('Hasil rig')),
+    'Saved rig remains dirty',
   );
   $('nbClose').click();
   return {

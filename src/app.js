@@ -1,3 +1,4 @@
+import { setProject } from './project-context.js';
 import { mountWorkspaceShell } from './workspace-shell.js';
 import { mountNativeBuild } from './native-build-ui.js';
 import { decodeResource } from './resource-client.js';
@@ -360,6 +361,7 @@ function options(el, items) {
 }
 function selectFile(f) {
   activeFile = f;
+  setProject('editor', f.name);
   refreshFiles();
   if (f.resource || f.textures) {
     textures.splice(0, textures.length, ...(f.resource?.textures || f.textures));
@@ -958,18 +960,21 @@ function drawSelection() {
 function setMode(m) {
   mode = m;
   brush = m === 'brush';
-  for (const id of ['move', 'crop', 'brush', 'eraser']) $(id).classList.toggle('active', id === m);
+  for (const id of ['move', 'crop', 'brush', 'eraser', 'eyedropper'])
+    $(id)?.classList.toggle('active', id === m);
   canvas.style.cursor = m === 'move' ? 'move' : 'crosshair';
   document.querySelector('.toolbar').classList.toggle('paintmode', m === 'brush' || m === 'eraser');
   document.querySelector('.toolbar').classList.toggle('erasemode', m === 'eraser');
   $('toolHint').textContent =
-    m === 'crop'
-      ? 'Tarik area crop, lalu pilih Terapkan crop.'
-      : m === 'eraser'
-        ? 'Hapus bagian layer terpilih.'
-        : m === 'brush'
-          ? 'Lukis di kanvas dengan warna dan ukuran kuas.'
-          : 'Resize dari 8 titik · klik kanan untuk aksi layer.';
+    m === 'eyedropper'
+      ? 'Klik kanvas untuk mengambil warna komposit (tanpa garis UV).'
+      : m === 'crop'
+        ? 'Tarik area crop, lalu pilih Terapkan crop.'
+        : m === 'eraser'
+          ? 'Hapus bagian layer terpilih.'
+          : m === 'brush'
+            ? 'Lukis di kanvas dengan warna dan ukuran kuas.'
+            : 'Resize dari 8 titik · klik kanan untuk aksi layer.';
   drawSelection();
 }
 function point(e) {
@@ -2034,7 +2039,98 @@ livery = mountLivery({
     return { identity: current, w: current.w, h: current.h, name: current.name, canvas: base };
   },
 });
-nativeBuild = mountNativeBuild({ toast });
+// All editing and viewing actions share a stable toolbar in both 2D and 3D.
+const commandbar = document.createElement('section');
+commandbar.className = 'editor-commandbar';
+commandbar.setAttribute('aria-label', 'Alat tekstur dan model');
+const toolbar = document.querySelector('.toolbar');
+commandbar.append(
+  toolbar,
+  document.querySelector('.modeltools'),
+  document.querySelector('.canvasoptions'),
+);
+document.querySelector('main').insertBefore(commandbar, document.querySelector('main').children[1]);
+const extraTools = document.createElement('div');
+extraTools.className = 'editor-layer-actions';
+extraTools.innerHTML =
+  '<button id="eyedropper" title="Ambil warna (I)" aria-label="Ambil warna (I)">Ambil warna</button><button id="fillLayer" title="Isi warna layer terpilih" aria-label="Isi warna layer terpilih">Isi warna</button><button id="centerLayer" title="Tengahkan layer" aria-label="Tengahkan layer">Tengah</button><button data-editor-action="fitImage" title="Pas layer ke kanvas" aria-label="Pas layer ke kanvas">Pas kanvas</button><button data-editor-action="rotateLeft" title="Putar kiri" aria-label="Putar kiri">Putar kiri</button><button data-editor-action="rotateRight" title="Putar kanan" aria-label="Putar kanan">Putar kanan</button><button data-editor-action="mirrorX" title="Cermin horizontal" aria-label="Cermin horizontal">Cermin</button><button data-editor-action="duplicateLayer" title="Duplikat layer (Ctrl D)" aria-label="Duplikat layer (Ctrl D)">Duplikat</button>';
+toolbar.querySelector('.spacer').before(extraTools);
+extraTools
+  .querySelectorAll('[data-editor-action]')
+  .forEach((b) => (b.onclick = () => $(b.dataset.editorAction).click()));
+$('eyedropper').onclick = () => setMode('eyedropper');
+canvas.addEventListener(
+  'pointerdown',
+  (event) => {
+    if (mode !== 'eyedropper' || !current || event.button !== 0) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const sample = document.createElement('canvas');
+    sample.width = current.w;
+    sample.height = current.h;
+    drawLayers(sample.getContext('2d'), current.layers, current.w, current.h);
+    const p = point(event);
+    const rgba = sample
+      .getContext('2d')
+      .getImageData(
+        Math.max(0, Math.min(current.w - 1, Math.floor(p.x))),
+        Math.max(0, Math.min(current.h - 1, Math.floor(p.y))),
+        1,
+        1,
+      ).data;
+    $('color').value =
+      '#' +
+      [...rgba]
+        .slice(0, 3)
+        .map((v) => v.toString(16).padStart(2, '0'))
+        .join('');
+    toast('Warna dipilih: ' + $('color').value);
+  },
+  true,
+);
+$('fillLayer').onclick = () => {
+  const layer = selectedLayer();
+  if (!layer || layer.locked) return toast('Pilih layer yang tidak terkunci.');
+  remember();
+  layer.source = copyCanvas(layer.source);
+  const ctx = layer.source.getContext('2d');
+  ctx.fillStyle = $('color').value;
+  ctx.fillRect(0, 0, layer.source.width, layer.source.height);
+  refreshEdit();
+};
+$('centerLayer').onclick = () => {
+  const layer = selectedLayer();
+  if (!layer || layer.locked) return toast('Pilih layer yang tidak terkunci.');
+  remember();
+  layer.x = (current.w - layer.w) / 2;
+  layer.y = (current.h - layer.h) / 2;
+  syncTransform();
+  refreshEdit();
+};
+document.addEventListener('keydown', (event) => {
+  if (
+    event.ctrlKey ||
+    event.metaKey ||
+    event.altKey ||
+    event.target.closest('input,select,textarea,[contenteditable=true]') ||
+    tools.isActive() ||
+    document.querySelector('dialog[open]')
+  )
+    return;
+  const action = { v: 'move', b: 'brush', e: 'eraser', i: 'eyedropper', c: 'crop' }[
+    event.key.toLowerCase()
+  ];
+  if (action) {
+    event.preventDefault();
+    $(action).click();
+  }
+});
+nativeBuild = mountNativeBuild({
+  toast,
+  activate: tools.activate,
+  attach: tools.attachNative,
+  confirmDiscard,
+});
 mountPerformance();
 mountMinimalUi();
 mountWorkspaceShell({ toast });

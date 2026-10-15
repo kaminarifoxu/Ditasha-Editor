@@ -48,6 +48,26 @@ app.whenReady().then(async () => {
     assert(state.report.engine.sollumz, 'Sollumz is not enabled.');
     assert(state.report.engine.native, 'Native szio/PyMateria is unavailable.');
     assert(state.report.engine.muto, 'Muto is not enabled.');
+    const settings = JSON.parse(await fs.readFile(path.join(root, 'native-engine.json'), 'utf8'));
+    const { promisify } = require('node:util');
+    const { execFile } = require('node:child_process');
+    const result = await promisify(execFile)(
+      settings.engine,
+      [
+        '--background',
+        '--disable-autoexec',
+        '--python-exit-code',
+        '2',
+        '--python',
+        path.resolve('scripts/smoke-native-preview.py'),
+      ],
+      {
+        env: require('../electron/native-setup.cjs').managedEnv(settings.managedRoot),
+        timeout: 120000,
+        maxBuffer: 2 * 1024 * 1024,
+      },
+    );
+    console.log(result.stdout);
     console.log(
       'PASS: automatic download, checksum, isolated Blender profile, native dependencies, enabled Muto and persistent setup.',
     );

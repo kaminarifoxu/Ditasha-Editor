@@ -1,3 +1,4 @@
+import { setProject } from './project-context.js';
 import { resolveModelTexture, modelAlphaMode } from './model-material.js';
 import { decodeResource } from './resource-client.js';
 import { mountVehicleWorkshop } from './vehicle-workshop.js';
@@ -21,7 +22,6 @@ function textureCanvas(t) {
 export function mountViewers({ nav, download, toast, activate, confirmDiscard, getActivePage }) {
   const $ = (id) => document.getElementById(id);
   for (const [page, label, path] of [
-    ['textureviewer', 'Texture viewer', 'M3 3h18v18H3Z M3 16l5-5 4 4 4-5 5 6'],
     ['modelviewer', 'Model viewer', 'm12 2 9 5v10l-9 5-9-5V7Z M3 7l9 5 9-5 M12 12v10'],
   ]) {
     const b = document.createElement('button');
@@ -641,7 +641,11 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
       parts.size +
       ' parts · ' +
       level.name +
-      (missing.size ? ' · Missing textures: ' + [...missing].join(', ') : '') +
+      (missing.size
+        ? ' · Missing textures: ' +
+          [...missing].join(', ') +
+          ' — pilih YTD yang sesuai atau + Textures (gambar/DDS). Tekstur eksternal tidak selalu ada di arsip.'
+        : '') +
       (d.warnings?.length ? ' · ' + d.warnings.join('; ') : '') +
       (!renderer ? ' · WebGL unavailable.' : '');
     modelOptions();
@@ -873,6 +877,10 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
       extraDrawables = extras;
       modelTextures = loaded;
       modelName = parsed[0].name;
+      setProject(
+        options.page === 'archives' ? 'archives' : getActivePage?.() || 'modelviewer',
+        modelName,
+      );
       modelSource = parsed[0].file;
       drawable = lod = 0;
       renderModel();

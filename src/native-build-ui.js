@@ -1,14 +1,16 @@
+import { setProject } from './project-context.js';
 import { mountNativePreview } from './native-preview.js';
-export function mountNativeBuild({ toast }) {
+export function mountNativeBuild({ toast, activate, attach, confirmDiscard }) {
   const trigger = document.createElement('button');
   trigger.id = 'openNativeBuild';
   trigger.textContent = 'Rig ped';
   trigger.title = 'Auto rig ped dengan Blender offline';
   document.querySelector('header').insertBefore(trigger, document.getElementById('openUpdates'));
-  const dialog = document.createElement('dialog');
-  dialog.className = 'studio-dialog native-build-dialog';
+  const dialog = document.createElement('section');
+  dialog.className = 'native-build-workspace';
+  dialog.hidden = true;
   dialog.id = 'nativeBuildDialog';
-  dialog.innerHTML = `<div class="studio-dialog-head"><div><span class="eyebrow">OFFLINE · BLENDER ENGINE</span><h2>Game asset build</h2></div><button id="nbClose" aria-label="Tutup">×</button></div><div class="native-build-layout"><aside><h3>1 · Persiapan engine</h3><button id="nbSetup" class="primary">Download & set up</button><p class="muted">Pasang Blender 5.2.2, Sollumz dan Muto otomatis. Download awal sekitar 410 MB + dependency; siapkan ruang kosong 3 GB. Setelah terpasang, rigging berjalan offline.</p><progress id="nbSetupProgress" hidden max="100" value="0" aria-label="Download engine"></progress><button data-pick="engine">Pilih blender.exe</button><p id="nbEngine" class="muted">Belum dipilih</p><button id="nbProbe">Periksa engine & add-on</button><p class="muted">Blender 5.2 direkomendasikan untuk ped; kendaraan 4.2+. Sollumz 2.9 dan dependency native szio/PyMateria. Rigging memerlukan Muto Ped Rig aktif. Instal add-on di Blender sekali; build berikutnya berjalan offline.</p><div class="native-links"><button data-doc="blender">Blender</button><button data-doc="sollumz">Sollumz</button><button data-doc="muto">Muto Ped Rig</button></div><label>Operasi<select id="nbMode"><option value="ped">Auto rig humanoid → ped FiveM</option><option value="debadge">Debadge native · seluruh LOD</option><option value="strobo">Transfer strobo donor → YFT</option></select></label><button data-pick="output">Folder hasil</button><p id="nbOutput" class="muted">Hasil ditulis ke subfolder baru; input asli tidak ditimpa.</p></aside><section><div id="nbPed"><h3>2 · Pilih model humanoid</h3><ol class="muted"><li>Klik Download & set up sekali dan tunggu selesai.</li><li>Pilih model GLB / FBX / OBJ dalam A/T-pose. Untuk OBJ, letakkan MTL dan tekstur di folder yang sama.</li><li>Isi nama ped, lalu pilih Folder hasil di sebelah kiri.</li><li>Klik Build native. Hasil resource dan file .blend tersimpan di subfolder baru.</li><li>Buka folder hasil, pasang resource ke server uji FiveM, lalu tes animasi dan gerak ped.</li></ol><button data-pick="ped">Pilih GLB / FBX / OBJ humanoid</button><p data-file="ped" class="muted">Belum dipilih</p><label>Nama ped<input id="nbPedName" maxlength="32" value="ditasha_ped"></label><p class="muted">Model humanoid berdiri dalam A/T-pose. Engine membuat marker, skeleton, weights, pose GTA dan resource addon. Prop, model non-humanoid dan anatomi yang sulit dapat memerlukan koreksi di .blend. Ini rigging lokal, bukan generator AI dari foto.</p></div><div id="nbVehicle" hidden><button data-pick="vehicle">Pilih YFT dasar kendaraan</button><p data-file="vehicle" class="muted">Taruh _hi.YFT dan YTD pasangannya di folder yang sama.</p></div><div id="nbDebadge" hidden><h3>Debadge native</h3><p class="muted">Analisis nama mesh/material/shader badge dan emblem pada semua LOD. Pilih kandidat yang benar sebelum build; engine menghapus face badge tanpa memotong mesh lain yang memakai material berbeda.</p><button id="nbAnalyze">Analisis badge</button><div id="nbCandidates"></div></div><div id="nbStrobo" hidden><h3>Strobo dari donor</h3><p class="muted">Pilih kendaraan donor dengan mesh rigid terikat ke siren1–20 dan tekstur lampu embedded. Target harus belum memakai bone siren yang sama. Housing, donor skinned dan lampu bertekstur eksternal tidak dipindahkan otomatis.</p><button data-pick="donor">YFT donor</button><p data-file="donor" class="muted">Belum dipilih</p><button data-pick="carcols">carcols.meta donor</button><p data-file="carcols" class="muted">Belum dipilih</p><button data-pick="variations">carvariations.meta target</button><p data-file="variations" class="muted">Belum dipilih</p><button data-pick="vehicles">vehicles.meta target</button><p data-file="vehicles" class="muted">Belum dipilih</p><div class="studio-fields"><label>ID siren baru<input id="nbSirenId" type="number" min="1" max="254" value="100"></label><label>ID donor · 0=auto<input id="nbDonorId" type="number" min="0" max="65534" value="0"></label><label>Offset X · kanan<input id="nbX" type="number" step=".01" value="0"></label><label>Offset Y · depan<input id="nbY" type="number" step=".01" value="0"></label><label>Offset Z · atas<input id="nbZ" type="number" step=".01" value="0"></label><label>Scale<input id="nbScale" type="number" min=".1" max="5" step=".1" value="1"></label></div><p class="muted">Offset memakai sumbu GTA/Blender dalam meter, bukan sumbu preview Three.js. Hasil berupa patch resource; resource kendaraan asli tetap dimuat dahulu. Gunakan ID siren yang tidak berbenturan di server.</p></div><div class="native-actions"><button id="nbRun" class="primary">Build native</button><button id="nbCancel" disabled>Batalkan build</button><button id="nbReveal" disabled>Buka folder hasil</button></div></section><aside><h3>Status build</h3><p id="nbStatus" role="status">Periksa engine sebelum build.</p><div id="nbReport"></div><details><summary>Log engine</summary><pre id="nbLog"></pre></details><p class="muted">File hasil dan report diperiksa sebelum status sukses. Rigging, ekspor native dan kompatibilitas game tetap bergantung pada model dan engine yang terpasang. Tes spawn/animasi/siren pada server uji sebelum digunakan.</p></aside></div>`;
+  dialog.innerHTML = `<div class="studio-dialog-head"><div><span class="eyebrow">OFFLINE · BLENDER ENGINE</span><h2 id="nbTitle">Auto rig ped</h2></div><button id="nbClose" aria-label="Kembali ke workspace">Kembali</button></div><div class="native-build-layout"><aside><h3>1 · Persiapan engine</h3><button id="nbSetup" class="primary">Download & set up</button><p class="muted">Pasang Blender 5.2.2, Sollumz dan Muto otomatis. Download awal sekitar 410 MB + dependency; siapkan ruang kosong 3 GB. Setelah terpasang, rigging berjalan offline.</p><progress id="nbSetupProgress" hidden max="100" value="0" aria-label="Download engine"></progress><button data-pick="engine">Pilih blender.exe</button><p id="nbEngine" class="muted">Belum dipilih</p><button id="nbProbe">Periksa engine & add-on</button><p class="muted">Blender 5.2 direkomendasikan untuk ped; kendaraan 4.2+. Sollumz 2.9 dan dependency native szio/PyMateria. Rigging memerlukan Muto Ped Rig aktif. Instal add-on di Blender sekali; build berikutnya berjalan offline.</p><div class="native-links"><button data-doc="blender">Blender</button><button data-doc="sollumz">Sollumz</button><button data-doc="muto">Muto Ped Rig</button></div><label hidden>Operasi<select id="nbMode"><option value="ped">Auto rig humanoid → ped FiveM</option><option value="debadge">Debadge native · seluruh LOD</option><option value="strobo">Transfer strobo donor → YFT</option></select></label><button data-pick="output">Folder hasil</button><p id="nbOutput" class="muted">Hasil ditulis ke subfolder baru; input asli tidak ditimpa.</p></aside><section><div id="nbPed"><h3>2 · Pilih model humanoid</h3><ol class="muted"><li>Klik Download & set up sekali dan tunggu selesai.</li><li>Pilih model GLB / FBX / OBJ dalam A/T-pose. Untuk OBJ, letakkan MTL dan tekstur di folder yang sama.</li><li>Isi nama ped dan klik Buat preview rig.</li><li>Periksa hasil rig di preview 3D. Model belum disimpan ke folder tujuan.</li><li>Klik Simpan hasil ped untuk memilih folder tujuan. Tes animasi ped pada server FiveM uji.</li></ol><button data-pick="ped">Pilih GLB / FBX / OBJ humanoid</button><p data-file="ped" class="muted">Belum dipilih</p><label>Nama ped<input id="nbPedName" maxlength="32" value="ditasha_ped"></label><p class="muted">Model humanoid berdiri dalam A/T-pose. Engine membuat marker, skeleton, weights, pose GTA dan resource addon. Prop, model non-humanoid dan anatomi yang sulit dapat memerlukan koreksi di .blend. Ini rigging lokal, bukan generator AI dari foto.</p></div><div id="nbVehicle" hidden><button data-pick="vehicle">Pilih YFT dasar kendaraan</button><p data-file="vehicle" class="muted">Taruh _hi.YFT dan YTD pasangannya di folder yang sama.</p></div><div id="nbDebadge" hidden><h3>Debadge native</h3><p class="muted">Analisis nama mesh/material/shader badge dan emblem pada semua LOD. Pilih kandidat yang benar sebelum build; engine menghapus face badge tanpa memotong mesh lain yang memakai material berbeda.</p><button id="nbAnalyze">Analisis badge</button><div id="nbCandidates"></div></div><div id="nbStrobo" hidden><h3>Strobo dari donor</h3><p class="muted">Pilih kendaraan donor dengan mesh rigid terikat ke siren1–20 dan tekstur lampu embedded. Target harus belum memakai bone siren yang sama. Housing, donor skinned dan lampu bertekstur eksternal tidak dipindahkan otomatis.</p><button data-pick="donor">YFT donor</button><p data-file="donor" class="muted">Belum dipilih</p><button data-pick="carcols">carcols.meta donor</button><p data-file="carcols" class="muted">Belum dipilih</p><button data-pick="variations">carvariations.meta target</button><p data-file="variations" class="muted">Belum dipilih</p><button data-pick="vehicles">vehicles.meta target</button><p data-file="vehicles" class="muted">Belum dipilih</p><div class="studio-fields"><label>ID siren baru<input id="nbSirenId" type="number" min="1" max="254" value="100"></label><label>ID donor · 0=auto<input id="nbDonorId" type="number" min="0" max="65534" value="0"></label><label>Offset X · kanan<input id="nbX" type="number" step=".01" value="0"></label><label>Offset Y · depan<input id="nbY" type="number" step=".01" value="0"></label><label>Offset Z · atas<input id="nbZ" type="number" step=".01" value="0"></label><label>Scale<input id="nbScale" type="number" min=".1" max="5" step=".1" value="1"></label></div><p class="muted">Offset memakai sumbu GTA/Blender dalam meter, bukan sumbu preview Three.js. Hasil berupa patch resource; resource kendaraan asli tetap dimuat dahulu. Gunakan ID siren yang tidak berbenturan di server.</p></div><div class="native-actions"><button id="nbRun" class="primary">Build native</button><button id="nbCancel" disabled>Batalkan build</button><button id="nbSave" class="primary" disabled>Simpan hasil ped</button><button id="nbDiscard" disabled>Buang hasil sementara</button><button id="nbReveal" disabled>Buka folder hasil</button></div></section><aside><h3>Status build</h3><p id="nbStatus" role="status">Periksa engine sebelum build.</p><div id="nbReport"></div><details><summary>Log engine</summary><pre id="nbLog"></pre></details><p class="muted">File hasil dan report diperiksa sebelum status sukses. Rigging, ekspor native dan kompatibilitas game tetap bergantung pada model dan engine yang terpasang. Tes spawn/animasi/siren pada server uji sebelum digunakan.</p></aside></div>`;
   document.body.append(dialog);
   const $ = (id) => dialog.querySelector('#' + id),
     inputs = {};
@@ -50,7 +52,18 @@ export function mountNativeBuild({ toast }) {
     $('nbVehicle').hidden = value === 'ped';
     $('nbDebadge').hidden = value !== 'debadge';
     $('nbStrobo').hidden = value !== 'strobo';
-    previewRoot.hidden = value === 'ped' || !dialog.open;
+    previewRoot.hidden = dialog.hidden || (value === 'ped' && !state.previewId);
+    $('nbTitle').textContent =
+      value === 'ped'
+        ? 'Auto rig ped'
+        : value === 'debadge'
+          ? 'Debadge kendaraan'
+          : 'Strobo dari donor';
+    $('nbRun').textContent = value === 'ped' ? 'Buat preview rig' : 'Build native';
+    $('nbSave').hidden = $('nbDiscard').hidden = value !== 'ped';
+    dialog.querySelector('[data-pick=output]').hidden = value === 'ped';
+    $('nbOutput').hidden = value === 'ped';
+    preview.loadButton.hidden = value === 'ped';
     preview.setMode(value);
     syncTransform();
   }
@@ -67,6 +80,9 @@ export function mountNativeBuild({ toast }) {
       .forEach((e) => (e.disabled = state.running || requesting));
     $('nbCancel').disabled = !state.running;
     $('nbReveal').disabled = !state.output;
+    $('nbSave').disabled = state.running || requesting || !state.stagedId || !state.previewId;
+    $('nbDiscard').disabled = state.running || requesting || !state.stagedId;
+    if ($('nbMode').value === 'ped') previewRoot.hidden = !state.previewId || dialog.hidden;
     $('nbReport').replaceChildren();
     const report = state.report;
     if (!report) return;
@@ -143,6 +159,10 @@ export function mountNativeBuild({ toast }) {
   async function start(task) {
     if (!api()) return toast('Game build tersedia pada aplikasi desktop Windows.');
     if (requesting || state.running) return;
+    if (state.stagedId) {
+      toast('Simpan atau buang hasil preview sebelumnya sebelum memulai proses baru.');
+      return;
+    }
     const selected = [...$('nbCandidates').querySelectorAll('input:checked')].map((e) => e.value);
     requesting = true;
     draw();
@@ -175,6 +195,8 @@ export function mountNativeBuild({ toast }) {
         try {
           const value = await api().pick(b.dataset.pick);
           if (!value) return;
+          if (['ped', 'vehicle'].includes(b.dataset.pick))
+            setProject(b.dataset.pick === 'ped' ? 'rig' : 'vehicles', value.name);
           if (b.dataset.pick === 'engine') $('nbEngine').textContent = value.name;
           else {
             inputs[b.dataset.pick] = value.id;
@@ -224,23 +246,61 @@ export function mountNativeBuild({ toast }) {
     await refresh();
   };
   $('nbReveal').onclick = () => api()?.reveal();
-  $('nbClose').onclick = () => dialog.close();
-  dialog.addEventListener('close', () => {
-    if (!dialog.open) previewRoot.hidden = true;
-  });
+  $('nbClose').onclick = () => {
+    const ped = $('nbMode').value === 'ped';
+    attach(dialog, '');
+    activate(ped ? 'home' : 'vehicles');
+  };
+  $('nbSave').onclick = async () => {
+    if (!state.stagedId || requesting) return;
+    requesting = true;
+    draw();
+    try {
+      await api().save(state.stagedId);
+      await refresh();
+    } catch (error) {
+      toast(error.message);
+    } finally {
+      requesting = false;
+      draw();
+    }
+  };
+  $('nbDiscard').onclick = async () => {
+    if (!state.stagedId || requesting) return;
+    if (
+      confirmDiscard &&
+      (await confirmDiscard('file', [{ name: 'Hasil rig belum disimpan' }])) !== 'discard'
+    )
+      return;
+    try {
+      await api().discard(state.stagedId);
+      loadedPreviewId = null;
+      preview.clear();
+      await refresh();
+    } catch (error) {
+      toast(error.message);
+    }
+  };
   function open(value = 'ped') {
+    if ((state.running || state.stagedId) && value !== $('nbMode').value)
+      return toast('Selesaikan proses atau simpan hasil preview sebelum mengganti operasi.');
     if (!state.running && !requesting) $('nbMode').value = value;
-    if (!dialog.open) dialog.showModal();
+    attach(dialog, value);
+    activate(value === 'ped' ? 'rig' : 'vehicles');
     mode();
     refresh();
   }
+  $('nbPedName').oninput = () => setProject('rig', $('nbPedName').value);
   trigger.onclick = () => open('ped');
   mode();
   return {
     open,
+    root: dialog,
     unsavedItems: () =>
       state.running
         ? [{ name: 'Native build masih berjalan; menutup aplikasi membatalkan proses.' }]
-        : [],
+        : state.stagedId
+          ? [{ name: 'Hasil rig belum disimpan' }]
+          : [],
   };
 }

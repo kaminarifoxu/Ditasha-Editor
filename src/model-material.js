@@ -1,14 +1,23 @@
 import { hashName } from './asset-tools.js';
 const normalize = (name = '') =>
-  name.replace(/\.(yft|ydd|ydr|ytd|dds|png|jpe?g|webp)$/i, '').toLowerCase();
+  name
+    .split(/[\\/]/)
+    .at(-1)
+    .replace(/\.(yft|ydd|ydr|ytd|dds|png|jpe?g|webp)$/i, '')
+    .toLowerCase();
 // External replacements belong to a dictionary; embedded maps belong to one drawable.
 export function resolveModelTexture(name, external, embedded, sourceName) {
   if (!name) return null;
-  const matches = external.filter((t) => normalize(t.name) === normalize(name));
+  const key = normalize(name);
+  const same = (texture) =>
+    normalize(texture.name) === key ||
+    (/^hash_[0-9a-f]{8}$/i.test(key) &&
+      hashName(normalize(texture.name)) === parseInt(key.slice(5), 16));
+  const matches = external.filter(same);
   const source = normalize((sourceName || '').split(' · ')[0]).replace(/_hi$/, '');
   const owned = matches.filter((t) => normalize(t.dictionary).replace(/_hi$/, '') === source);
   if (owned.length) return owned.at(-1);
-  const local = embedded.find((t) => normalize(t.name) === normalize(name));
+  const local = embedded.find(same);
   if (matches.length === 1) return matches[0];
   return local || null;
 }

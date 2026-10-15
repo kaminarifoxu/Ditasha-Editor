@@ -52,3 +52,89 @@ test('Native preview IPC rejects arbitrary file reads and untrusted callers', as
   await assert.rejects(read({ trusted: false }, 'anything'), /untrusted/);
   assert.equal(calls, 2);
 });
+
+test('Ped builds stage a preview before exporting; canceled/invalid saves preserve the staged result', async (t) => {
+  const fs = require('node:fs/promises');
+  const path = require('node:path');
+  const os = require('node:os');
+  const { EventEmitter } = require('node:events');
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'ditasha-ped-stage-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const engine = path.join(root, 'blender.exe');
+  const source = path.join(root, 'person.glb');
+  await fs.writeFile(engine, 'fixture');
+  await fs.writeFile(source, 'fixture');
+  const handlers = new Map();
+  let pick = engine,
+    cancelSave = true,
+    chosenFolders = 0,
+    specPath;
+  require('../electron/native-build.cjs').registerNativeBuild({
+    app: { getPath: () => root, on: () => {} },
+    ipcMain: { handle: (name, fn) => handlers.set(name, fn) },
+    trusted: (event) => {
+      if (event !== 'trusted') throw Error('untrusted');
+    },
+    dialog: {
+      showOpenDialog: async (_win, options) => {
+        if (options.properties.includes('openDirectory')) {
+          chosenFolders++;
+          return cancelSave ? { canceled: true } : { canceled: false, filePaths: [root] };
+        }
+        return { canceled: false, filePaths: [pick] };
+      },
+    },
+    spawnProcess: (_executable, args) => {
+      specPath = args.at(-1);
+      const process = new EventEmitter();
+      process.stdout = new EventEmitter();
+      process.stderr = new EventEmitter();
+      setImmediate(async () => {
+        const job = JSON.parse(await fs.readFile(specPath, 'utf8'));
+        await fs.writeFile(
+          path.join(job.output, 'report.json'),
+          JSON.stringify({ ok: true, mode: 'ped', preview: { meshes: 1 } }),
+        );
+        await fs.writeFile(
+          path.join(job.output, 'preview.json'),
+          JSON.stringify({ version: 1, meshes: [], textures: [] }),
+        );
+        await fs.writeFile(path.join(job.output, 'fxmanifest.lua'), 'fixture resource');
+        process.emit('close', 0);
+      });
+      return process;
+    },
+  });
+  const call = (name, value) => handlers.get('ditasha:native-' + name)('trusted', value);
+  await call('pick', 'engine');
+  pick = source;
+  const input = await call('pick', 'ped');
+  await call('start', { mode: 'ped', name: 'test_ped', inputs: { ped: input.id } });
+  let state;
+  for (let i = 0; i < 200; i++) {
+    state = await call('state');
+    if (!state.running) break;
+    await new Promise((r) => setTimeout(r, 5));
+  }
+  t.after(() => fs.rm(path.dirname(specPath), { recursive: true, force: true }));
+  assert.equal(state.status, 'success');
+  assert(state.previewId && state.stagedId);
+  assert.equal(state.output, null);
+  assert.equal(chosenFolders, 0, 'Do not ask for an export directory before preview');
+  await assert.rejects(call('save', 'forged-id'), /preview/);
+  await assert.rejects(
+    handlers.get('ditasha:native-save')('untrusted', state.stagedId),
+    /untrusted/,
+  );
+  assert.equal(await call('save', state.stagedId), false);
+  assert.equal((await call('state')).stagedId, state.stagedId);
+  cancelSave = false;
+  assert.equal(await call('save', state.stagedId), true);
+  const saved = await call('state');
+  assert.equal(saved.stagedId, undefined);
+  assert.equal(
+    await fs.readFile(path.join(saved.output, 'fxmanifest.lua'), 'utf8'),
+    'fixture resource',
+  );
+  assert.equal((await call('preview', saved.previewId)).version, 1);
+});

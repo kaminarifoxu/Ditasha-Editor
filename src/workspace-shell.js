@@ -1,3 +1,4 @@
+import { getProject } from './project-context.js';
 import { ICON_CODES } from './ui-icons.js';
 const glyph = (name) =>
   `<i class="di-icon" aria-hidden="true" data-icon="${name}" data-glyph="${String.fromCodePoint(parseInt(ICON_CODES[name], 16))}"></i>`;
@@ -42,7 +43,7 @@ export function mountWorkspaceShell({ toast }) {
   utilities.className = 'nav-utilities';
   utilities.innerHTML =
     '<summary title="Alat lainnya" aria-label="Alat lainnya"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span class="nav-label">Alat lainnya</span></summary>';
-  for (const page of ['textureviewer', 'modelviewer', 'converter', 'pack']) {
+  for (const page of ['modelviewer', 'converter', 'pack']) {
     const item = nav.querySelector(`[data-page="${page}"]`);
     if (item) utilities.append(item);
   }
@@ -63,7 +64,7 @@ export function mountWorkspaceShell({ toast }) {
   const dialog = document.createElement('dialog');
   dialog.id = 'settingsDialog';
   dialog.className = 'studio-dialog settings-dialog';
-  dialog.innerHTML = `<div class="studio-dialog-head"><div><span class="eyebrow">DITASHA EDITOR</span><h2>Pengaturan</h2></div><button id="settingsClose" aria-label="Tutup">×</button></div><div class="settings-layout"><section class="settings-section"><h3>Tampilan</h3><p class="muted">Atur tampilan workspace sesuai cara kamu bekerja.</p><div class="settings-fields"><label>Tema<select id="appearanceTheme"><option value="midnight">Midnight</option><option value="light">Terang</option></select></label><label>Kepadatan<select id="appearanceDensity"><option value="comfortable">Nyaman</option><option value="compact">Ringkas</option></select></label></div><div class="settings-note">Navigasi ada di kiri. File dan layer mengikuti workspace aktif; kontrol detail berada di panel samping.</div></section><section class="settings-section"><div class="settings-heading"><div><h3>Discord Activity</h3><p class="muted">Tampilkan DITASHA Editor saat aplikasi terbuka.</p></div><label class="switch-label"><input id="discordEnabled" type="checkbox" checked>Aktif</label></div><label>Application ID<input id="discordAppId" inputmode="numeric" maxlength="20" placeholder="Salin Application ID dari Developer Portal" autocomplete="off"></label><label class="check"><input id="discordShareWorkspace" type="checkbox" checked>Tampilkan workspace yang sedang digunakan</label><div class="presence-card"><img src="assets/ditasha-emblem.webp" alt=""><div><span>PLAYING A GAME</span><strong>DITASHA Editor</strong><p id="discordActivityPreview">Texture & Model</p><small>Ditasha-Workshop · waktu berjalan</small></div></div><p class="muted presence-hint">Contoh tampilan. Nama dan ikon aplikasi mengikuti pengaturan aplikasi di Discord.</p><p id="discordSettingsStatus" role="status">Memuat pengaturan Discord…</p><div class="settings-actions"><button id="discordSave" class="primary">Simpan & hubungkan</button><button id="discordRefresh">Periksa koneksi</button></div><details class="setup-guide"><summary>Belum punya Application ID?</summary><ol><li>Buka Developer Portal, buat aplikasi bernama <strong>DITASHA Editor</strong>.</li><li>Salin <strong>Application ID</strong> dari General Information lalu tempel di atas. Ikon aplikasi dapat diunggah pada halaman aplikasi tersebut.</li><li>Buka Discord desktop dan aktifkan berbagi aktivitas pada <strong>Activity Privacy</strong>, lalu simpan pengaturan ini.</li></ol><button id="discordPortal">Buka Discord Developer Portal</button><p class="muted">Application ID adalah ID publik. Tidak perlu bot token, client secret, atau login Discord di editor. Nama file dan lokasi folder tidak dikirim melalui Activity.</p></details></section></div>`;
+  dialog.innerHTML = `<div class="studio-dialog-head"><div><span class="eyebrow">DITASHA EDITOR</span><h2>Pengaturan</h2></div><button id="settingsClose" aria-label="Tutup">×</button></div><div class="settings-layout"><section class="settings-section"><h3>Tampilan</h3><p class="muted">Atur tampilan workspace sesuai cara kamu bekerja.</p><div class="settings-fields"><label>Tema<select id="appearanceTheme"><option value="midnight">Midnight</option><option value="light">Terang</option></select></label><label>Kepadatan<select id="appearanceDensity"><option value="comfortable">Nyaman</option><option value="compact">Ringkas</option></select></label></div><div class="settings-note">Navigasi ada di kiri. File dan layer mengikuti workspace aktif; kontrol detail berada di panel samping.</div></section><section class="settings-section"><div class="settings-heading"><div><h3>Discord Activity</h3><p class="muted">Tampilkan DITASHA Editor saat aplikasi terbuka.</p></div><label class="switch-label"><input id="discordEnabled" type="checkbox" checked>Aktif</label></div><label>Application ID<input id="discordAppId" inputmode="numeric" maxlength="20" placeholder="Salin Application ID dari Developer Portal" autocomplete="off"></label><label class="check"><input id="discordShareWorkspace" type="checkbox" checked>Tampilkan workspace yang sedang digunakan</label><label class="check"><input id="discordShareProject" type="checkbox" checked>Tampilkan nama proyek di Activity</label><label>Nama proyek (kosong = nama aset aktif)<input id="discordProjectName" maxlength="100" placeholder="Otomatis dari aset / folder aktif"></label><div class="presence-card"><img src="assets/ditasha-emblem.webp" alt=""><div><span>PLAYING A GAME</span><strong>DITASHA Editor</strong><p id="discordActivityPreview">Texture & Model</p><small>Ditasha-Workshop · waktu berjalan</small></div></div><p class="muted presence-hint">Contoh tampilan. Nama dan ikon aplikasi mengikuti pengaturan aplikasi di Discord.</p><p id="discordSettingsStatus" role="status">Memuat pengaturan Discord…</p><div class="settings-actions"><button id="discordSave" class="primary">Simpan & hubungkan</button><button id="discordRefresh">Periksa koneksi</button></div><details class="setup-guide"><summary>Belum punya Application ID?</summary><ol><li>Buka Developer Portal, buat aplikasi bernama <strong>DITASHA Editor</strong>.</li><li>Salin <strong>Application ID</strong> dari General Information lalu tempel di atas. Ikon aplikasi dapat diunggah pada halaman aplikasi tersebut.</li><li>Buka Discord desktop dan aktifkan berbagi aktivitas pada <strong>Activity Privacy</strong>, lalu simpan pengaturan ini.</li></ol><button id="discordPortal">Buka Discord Developer Portal</button><p class="muted">Application ID adalah ID publik. Tidak perlu bot token, client secret, atau login Discord di editor. Hanya nama proyek/aset ditampilkan jika pilihan berbagi nama proyek aktif. Lokasi folder lengkap tidak dikirim.</p></details></section></div>`;
   document.body.append(dialog);
   dialog.querySelector('.settings-section').append(gpu);
   const brand = document.querySelector('header .brand');
@@ -148,14 +149,13 @@ export function mountWorkspaceShell({ toast }) {
       $('discordAppId').value = value.applicationId || '';
       $('discordEnabled').checked = value.enabled !== false;
       $('discordShareWorkspace').checked = value.shareWorkspace !== false;
+      $('discordShareProject').checked = value.shareProject !== false;
       initialized = true;
     }
     $('discordSettingsStatus').textContent = value.message || '';
     $('discordConnection').dataset.status = value.status || 'setup';
     $('discordConnection').setAttribute('aria-label', value.message || 'Discord');
-    $('discordActivityPreview').textContent = $('discordShareWorkspace').checked
-      ? $('workspaceLabel').textContent
-      : 'Creating with DITASHA Editor';
+    workspace();
   }
   async function refresh(fill = false) {
     try {
@@ -186,6 +186,7 @@ export function mountWorkspaceShell({ toast }) {
           applicationId: $('discordAppId').value.trim(),
           enabled: $('discordEnabled').checked,
           shareWorkspace: $('discordShareWorkspace').checked,
+          shareProject: $('discordShareProject').checked,
         }),
       );
       initialized = true;
@@ -212,17 +213,32 @@ export function mountWorkspaceShell({ toast }) {
       .forEach((button) =>
         button.setAttribute('aria-current', button.classList.contains('active') ? 'page' : 'false'),
       );
-    const page = nav.querySelector('[data-page].active')?.dataset.page || 'editor';
+    const page = document.body.dataset.workspace || 'editor';
+    if (rig.classList.contains('active') !== (page === 'rig'))
+      rig.classList.toggle('active', page === 'rig');
     if (page !== lastWorkspace) {
       lastWorkspace = page;
       api()
         ?.workspace(page)
         .catch(() => {});
     }
-    $('discordActivityPreview').textContent = $('discordShareWorkspace').checked
-      ? $('workspaceLabel').textContent
-      : 'Creating with DITASHA Editor';
+    const project = $('discordProjectName').value.trim() || getProject(page);
+    api()
+      ?.project?.(project)
+      .catch(() => {});
+    $('discordActivityPreview').textContent =
+      ($('discordShareWorkspace').checked
+        ? $('workspaceLabel').textContent
+        : 'Creating with DITASHA Editor') +
+      ($('discordShareProject').checked && project ? ' · ' + project : '');
   }
+  $('discordProjectName').value = load('projectName', '');
+  $('discordProjectName').onchange = () => {
+    store('projectName', $('discordProjectName').value);
+    workspace();
+  };
+  $('discordShareProject').onchange = workspace;
+  window.addEventListener('ditasha:project', workspace);
   new MutationObserver(workspace).observe(nav, {
     attributes: true,
     subtree: true,

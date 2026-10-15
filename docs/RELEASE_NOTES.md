@@ -1,3 +1,11 @@
+# 1.20.0
+
+- Embed Debadge and Strobo directly in Vehicle Workshop and give Auto Rig an inline workspace. Ped results are staged with a 3D preview before an explicit Save; original inputs stay unchanged.
+- Keep texture, model, view and mode controls in a stable shared toolbar for both 2D and 3D. Add color sampling, undoable layer fill, center alignment and direct transform/duplicate shortcuts.
+- Remove Texture Viewer from navigation; open archive textures directly in the editor. Converter formats are icon buttons instead of a dropdown.
+- Reorganize GTA V Explorer with the file list and 3D preview side by side. Auto-load nearby dictionaries, normalize texture references and support hashed texture names. External/absent texture references still require the correct YTD or image.
+- Share the active project/asset name in Discord Activity with a sharing toggle and optional manual project name. Never transmit full folder paths.
+
 # 1.19.1
 
 - Fix the embedded IDE failing with ERR_MODULE_NOT_FOUND / cookie in the portable Windows app: explicitly package the engine dependency folder skipped by electron-builder. Compare every packaged engine file and start the real packaged workbench in Windows CI.

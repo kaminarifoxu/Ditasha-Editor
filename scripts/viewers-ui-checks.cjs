@@ -646,49 +646,10 @@ module.exports = async function checkViewers(fixtures) {
       () => $('fileLoading').hidden && $('textureTitle').textContent === 'cloth_diffuse',
     ),
   );
-  document.querySelector('[data-page="textureviewer"]').click();
-  await input(
-    'tvInput',
-    [new File([new Uint8Array(fixtures.ytd)], 'test.ytd')],
-    () => !$('tvOpen').disabled,
-  );
   assert(
-    $('tvGallery').children.length === 1 && $('tvInfo').textContent.includes('4 × 4'),
-    'Texture gallery or metadata missing',
+    !document.querySelector('[data-page=textureviewer]'),
+    'Texture viewer navigation was not removed',
   );
-  assert(!$('tvCanvas').hidden, 'Selected texture missing');
-  $('tvOriginal').click();
-  assert($('tvCanvas').style.width === '4px', 'Original-size preview not exact');
-  $('tvZoomIn').click();
-  assert($('tvCanvas').style.width === '5px', 'Texture zoom failed');
-  change('tvLayout', 'list');
-  assert($('tvGallery').classList.contains('is-list'), 'List view not active');
-  change('tvBackground', 'white');
-  assert($('tvPreview').classList.contains('white'), 'Alpha background failed');
-  $('tvSearch').value = 'no match';
-  $('tvSearch').dispatchEvent(new Event('input'));
-  assert(!$('tvGallery').children.length, 'Texture search failed');
-  $('tvSearch').value = '';
-  $('tvSearch').dispatchEvent(new Event('input'));
-  change('tvLayout', 'grid');
-  change('tvBackground', 'checker');
-  $('tvFit').click();
-  console.log('DITASHA_SNAPSHOT:texture-viewer');
-  canceled = true;
-  $('tvExport').click();
-  await wait(() => !$('tvOpen').disabled, 'Canceled texture save failed');
-  assert($('tvStatus').textContent === 'Save canceled.', 'Canceled texture save reported success');
-  assert(saves.at(-1).magic.join(',') === '137,80,78,71', 'Invalid viewer PNG');
-  canceled = false;
-  change('tvFormat', 'dds');
-  $('tvExport').click();
-  await wait(() => !$('tvOpen').disabled, 'DDS export failed');
-  assert(saves.at(-1).magic.join(',') === '68,68,83,32', 'Invalid viewer DDS');
-  $('tvExportAll').click();
-  await wait(() => !$('tvOpen').disabled, 'Bulk texture export failed');
-  assert(saves.at(-1).name === 'ditasha-textures.zip', 'Bulk texture export missing');
-  await input('tvInput', [new File(['broken'], 'bad.ytd')], () => !$('tvOpen').disabled);
-  assert($('tvGallery').children.length === 1, 'Invalid texture erased previous gallery');
   document.querySelector('[data-page="modelviewer"]').click();
   await input(
     'mvInput',
@@ -864,11 +825,11 @@ module.exports = async function checkViewers(fixtures) {
   assert($('mvTextures').textContent.includes('test_texture'), 'Paired folder YTD missing');
   document.querySelector('[data-page="archives"]').click();
   select('assets/test.ytd');
-  $('archiveTextureViewer').click();
+  $('archivePreview').click();
   await wait(
     () =>
-      !document.querySelector('.texture-viewer').hidden && $('tvTitle').textContent === 'test.ytd',
-    'Explorer did not open texture viewer',
+      !document.querySelector('main').hidden && $('textureTitle').textContent === 'test_texture',
+    'Explorer texture did not open in the editor',
   );
   document.querySelector('[data-page="archives"]').click();
   $('archiveNew').click();

@@ -529,3 +529,259 @@
     transform: none;
   }
 }
+
+/* Stable shared command bar: actions never move when switching 2D and 3D. */
+.workspace-shell > main {
+  grid-template-rows: 46px 62px minmax(0, 1fr);
+}
+.workspace-shell main > .editor-commandbar {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.workspace-shell .editor-commandbar .toolbar,
+.workspace-shell .editor-commandbar .modeltools {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.workspace-shell .editor-commandbar .modeltools {
+  border-left: 1px solid var(--line);
+  padding-left: 16px;
+}
+.editor-layer-actions {
+  display: flex;
+  gap: 5px;
+  padding-left: 8px;
+  border-left: 1px solid var(--line);
+}
+.workspace-shell main > .files,
+.workspace-shell main > .editor,
+.workspace-shell main > .right:not(.expanded-3d),
+.workspace-shell main.texture-mode-3d > .editor,
+.workspace-shell main.texture-mode-3d > .right:not(.expanded-3d) {
+  grid-row: 3;
+}
+.workspace-shell .editor-commandbar #size {
+  width: 66px;
+}
+.workspace-shell .editor-commandbar #color {
+  width: 30px;
+  min-width: 30px;
+}
+.workspace-shell .editor-commandbar button {
+  flex-shrink: 0;
+}
+/* Embedded tools retain navigation instead of covering it with a modal. */
+.workspace-shell > .native-build-workspace {
+  width: calc(100% - var(--rail-width));
+  margin-left: var(--rail-width);
+  height: calc(100dvh - var(--header-height));
+  overflow: auto;
+  padding: 22px;
+}
+.native-build-workspace {
+  min-width: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+.native-build-workspace .studio-dialog-head {
+  margin-bottom: 18px;
+}
+.native-build-workspace .native-build-layout {
+  grid-template-columns: 200px minmax(240px, 1fr) 220px;
+  gap: 18px;
+  align-items: start;
+}
+.native-build-workspace .native-build-layout > aside {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+}
+.native-build-workspace .native-build-layout > section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.native-build-workspace .native-actions {
+  position: sticky;
+  bottom: 0;
+  background: var(--panel);
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  z-index: 2;
+}
+.native-build-workspace #nbViewport {
+  height: clamp(280px, 48vh, 620px);
+}
+.native-build-workspace #nbLog {
+  max-height: 240px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.vehicle-native-host:empty {
+  display: none;
+}
+.embedded-native {
+  padding: 12px 0;
+}
+.conversion-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 12px 0;
+}
+.conversion-buttons button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px;
+  text-align: left;
+}
+/* Explorer: directories, file list and preview form one horizontal workspace. */
+.workspace-shell .archive-workspace {
+  grid-template-columns: 190px minmax(260px, 1fr);
+  gap: 0;
+}
+.workspace-shell .archive-workspace.has-preview {
+  grid-template-columns: 190px minmax(250px, 0.85fr) minmax(420px, 1.3fr);
+}
+.workspace-shell .archive-center {
+  padding: 16px;
+  min-width: 0;
+  overflow: hidden;
+}
+.workspace-shell .archive-table-wrap {
+  flex: 1 1 auto;
+  min-height: 140px;
+  overflow: auto;
+}
+.workspace-shell .archive-selection-details {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  margin-top: 12px;
+  max-height: 34vh;
+  overflow: auto;
+  flex-shrink: 0;
+}
+.archive-selection-details > summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+.workspace-shell .archive-selection-details .tool-details {
+  padding: 12px 0 0;
+  background: transparent;
+  border: 0;
+}
+.workspace-shell .archive-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+.workspace-shell .archive-selection-details .tool-bottom {
+  position: static;
+  padding: 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.workspace-shell .archive-selection-details #archiveStatus {
+  flex-basis: 100%;
+  margin: 0;
+}
+.workspace-shell .explorer-preview {
+  min-height: 0;
+  border: 0;
+  border-left: 1px solid var(--line);
+  overflow: hidden;
+}
+.workspace-shell .explorer-preview-bar {
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+.workspace-shell .explorer-preview-host > .asset-viewer {
+  grid-template-columns: minmax(0, 1fr);
+  display: flex;
+  flex-direction: column-reverse;
+}
+.workspace-shell .explorer-embedded > .tool-sidebar {
+  max-height: 160px;
+  overflow: auto;
+  border: 0;
+  border-top: 1px solid var(--line);
+  padding: 10px;
+}
+.workspace-shell .explorer-embedded > .viewer-content {
+  flex: 1;
+  min-height: 0;
+}
+.workspace-shell .explorer-embedded #mvViewport {
+  min-height: 180px;
+  flex: 1;
+}
+.workspace-shell .explorer-embedded .viewer-toolbar {
+  flex-wrap: wrap;
+}
+.workspace-shell .explorer-embedded .viewer-toolbar h2 {
+  font-size: 13px;
+}
+.workspace-shell .explorer-embedded #mvStatus {
+  overflow-wrap: anywhere;
+  font-size: 10px;
+}
+@media (max-width: 1150px) {
+  .workspace-shell .archive-workspace.has-preview {
+    grid-template-columns: 145px minmax(180px, 0.7fr) minmax(320px, 1.3fr);
+  }
+  .native-build-workspace .native-build-layout {
+    grid-template-columns: 170px minmax(240px, 1fr);
+  }
+  .native-build-workspace .native-build-layout > aside:last-child {
+    display: block;
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 850px) {
+  .workspace-shell .archive-workspace.has-preview {
+    grid-template-columns: minmax(160px, 0.7fr) minmax(280px, 1.3fr);
+  }
+  .workspace-shell .archive-workspace.has-preview > .tool-sidebar {
+    display: none;
+  }
+}
+.workspace-shell .editor-commandbar .canvasoptions {
+  display: flex;
+  flex-wrap: nowrap;
+  flex: 0 0 auto;
+  padding: 0;
+  margin: 0;
+}
+.workspace-shell .editor-commandbar #toolHint {
+  max-width: 180px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.workspace-shell .editor-commandbar #color {
+  display: block;
+}
