@@ -19,10 +19,10 @@ module.exports = async function checkPhoto({ contents, host, temp, setSavePath }
       if (method === 'Page.fileChooserOpened') chooser = params;
     };
     contents.debugger.on('message', handler);
-    const shortcut = (key) => {
+    const shortcut = (key, modifiers = ['control']) => {
       contents.focus();
-      contents.sendInputEvent({ type: 'keyDown', keyCode: key, modifiers: ['control'] });
-      contents.sendInputEvent({ type: 'keyUp', keyCode: key, modifiers: ['control'] });
+      contents.sendInputEvent({ type: 'keyDown', keyCode: key, modifiers });
+      contents.sendInputEvent({ type: 'keyUp', keyCode: key, modifiers });
     };
     shortcut('O');
     let end = Date.now() + 15000;
@@ -46,9 +46,29 @@ module.exports = async function checkPhoto({ contents, host, temp, setSavePath }
     end = Date.now() + 15000;
     while (!result && Date.now() < end) await sleep(100);
     assert.equal(result?.state, 'completed', 'Photo Studio did not export the imported document');
+    const layered = await fs.readFile(output);
+    assert.equal(
+      layered.subarray(0, 4).toString('ascii'),
+      '8BPS',
+      'Save should preserve a layered PSD',
+    );
+    result = undefined;
+    contents.session.once('will-download', (_event, item) => {
+      item.once('done', (_e, state) => {
+        result = { state, filename: item.getFilename() };
+      });
+    });
+    // Export As is a separate command; Save deliberately keeps a layered PSD.
+    shortcut('W', ['control', 'alt', 'shift']);
+    await sleep(700);
+    contents.sendInputEvent({ type: 'keyDown', keyCode: 'Return' });
+    contents.sendInputEvent({ type: 'keyUp', keyCode: 'Return' });
+    end = Date.now() + 15000;
+    while (!result && Date.now() < end) await sleep(100);
+    assert.equal(result?.state, 'completed', 'Photo Studio PNG Export As did not complete');
     const bytes = await fs.readFile(output);
     assert.ok(bytes.length > 32, 'Photo Studio exported an empty document');
-    // Save retains PNG when a PNG was opened, allowing a lossless texture exchange.
+    // Export As defaults to PNG, allowing a lossless texture exchange.
     assert.equal(bytes.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
     const pixel = await host.executeJavaScript(
       `(async()=>{const b=await createImageBitmap(new Blob([Uint8Array.from(atob('${bytes.toString('base64')}'),c=>c.charCodeAt(0))],{type:'image/png'}));const c=document.createElement('canvas');c.width=b.width;c.height=b.height;c.getContext('2d').drawImage(b,0,0);const p=[...c.getContext('2d').getImageData(16,16,1,1).data];return {w:b.width,h:b.height,p};})()`,

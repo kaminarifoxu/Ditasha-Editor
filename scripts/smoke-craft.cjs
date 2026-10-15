@@ -26,7 +26,7 @@ protocol.registerSchemesAsPrivileged([
 ]);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 app.whenReady().then(async () => {
-  let win, temp, savePath;
+  let win, temp, savePath, engines;
   const report = [];
   const timeout = setTimeout(() => {
     console.error('Creative engines timed out');
@@ -49,7 +49,7 @@ app.whenReady().then(async () => {
     });
     const { registerCraftEngines } = require('../electron/craft-engines.cjs');
     const runtime = process.env.DITASHA_CRAFT_RUNTIME || path.resolve('craft-runtime');
-    const engines = registerCraftEngines({
+    engines = registerCraftEngines({
       app,
       ipcMain,
       protocol,
@@ -64,6 +64,16 @@ app.whenReady().then(async () => {
         showMessageBox: async () => ({ response: 1 }),
       },
     });
+    // Other desktop services have their own smoke checks. Keep them quiet in this focused engine test.
+    ipcMain.handle('ditasha:embedded-ide-state', () => ({
+      installed: false,
+      status: 'idle',
+      message: 'IDE is tested separately.',
+    }));
+    ipcMain.handle('ditasha:embedded-ide-layout', () => null);
+    ipcMain.handle('ditasha:discord-workspace', () => null);
+    ipcMain.handle('ditasha:discord-project', () => null);
+    ipcMain.handle('gano:update-state', () => ({ status: 'idle', autoDownload: false }));
     await win.loadFile(path.resolve('ui/index.html'));
     await fs.mkdir(path.resolve('release/qa'), { recursive: true });
     async function capture(name) {
@@ -126,6 +136,10 @@ app.whenReady().then(async () => {
       assert.ok(boot.secure, item.id + ' is not a secure context');
       assert.ok(boot.isolated, item.id + ' lacks cross-origin isolation');
       assert.equal(entry.error, '');
+      assert.ok(
+        entry.view.getBounds().width > 300,
+        item.id + ' child view is not laid out inside the host',
+      );
       const blocked = await contents.executeJavaScript(
         `fetch('https://example.com/ditasha-network-probe').then(()=>false,()=>true)`,
       );
@@ -196,6 +210,14 @@ app.whenReady().then(async () => {
     app.exit(0);
   } catch (e) {
     console.error(e);
+    for (const [id, entry] of engines?.views || []) {
+      await fs
+        .writeFile(
+          path.resolve('release/qa/engine-failure-' + id + '.png'),
+          (await entry.view.webContents.capturePage()).toPNG(),
+        )
+        .catch(() => {});
+    }
     clearTimeout(timeout);
     if (win && !win.isDestroyed()) {
       await fs
