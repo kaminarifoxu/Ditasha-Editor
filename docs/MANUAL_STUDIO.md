@@ -21,7 +21,7 @@ Canvas projects are limited to 64 layers, 64 MB of JSON, and 128 MB of decoded s
 
 Scene Studio appears in the existing Texture & Model, Model Viewer, Vehicle Workshop, and embedded Explorer model preview. It replaces the duplicate vehicle mesh transform panel while preserving vehicle export/project compatibility.
 
-1. Open a model, choose a mesh from **Objek**, or click the mesh in the viewport.
+1. Open a model, choose a mesh from **Objek**, or activate a transform tool and click the mesh in the viewport. Gizmos remain hidden during ordinary previews until explicitly activated.
 2. Choose **Geser**, **Putar**, or **Skala**. Drag the gizmo or edit individual numeric axes. W/E/R work while the viewport has focus. Choose World/Local axes and enable optional translation/rotation/scale snapping.
 3. Use **Undo 3D**, **Redo 3D**, **Reset objek**, or the visibility button. Non-uniform scaling is supported.
 4. Adjust FOV, Neutral/Warm/Cool lighting, intensity, and background color. Add a PNG/JPG/WebP backdrop, then position it like another scene object.

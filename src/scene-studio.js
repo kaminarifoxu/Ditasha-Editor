@@ -26,6 +26,7 @@ export function mountSceneStudio({
   markVehicleSaved,
   managedTransforms = false,
   onSelect = () => {},
+  hasExternalEdits = () => false,
 }) {
   const root = document.createElement('details');
   root.className = 'scene-studio';
@@ -45,6 +46,7 @@ export function mountSceneStudio({
     signature = '',
     selected = '',
     transformMode = 'translate',
+    gizmoActive = false,
     before = null,
     history = [],
     future = [],
@@ -101,7 +103,7 @@ export function mountSceneStudio({
       renderer.domElement.dataset.ssDown = JSON.stringify([e.clientX, e.clientY]);
     });
     renderer.domElement.addEventListener('pointerup', (e) => {
-      if (gizmo.dragging || gizmo.axis) return;
+      if (!gizmoActive || gizmo.dragging || gizmo.axis) return;
       const start = JSON.parse(renderer.domElement.dataset.ssDown || '[0,0]');
       if (Math.hypot(start[0] - e.clientX, start[1] - e.clientY) > 5) return;
       const rect = renderer.domElement.getBoundingClientRect(),
@@ -150,16 +152,18 @@ export function mountSceneStudio({
   function choose() {
     ensure();
     const entry = current();
-    if (entry && entry.object.visible) gizmo?.attach(entry.object);
+    if (gizmoActive && entry && entry.object.visible) gizmo?.attach(entry.object);
     else gizmo?.detach();
     $('Object').value = selected;
     if (entry && !entry.key.startsWith('backdrop:')) onSelect(entry.key);
     fill();
     render();
   }
-  function changeMode(mode) {
+  function changeMode(mode, active = true) {
+    gizmoActive = active;
     transformMode = mode;
     gizmo?.setMode(mode);
+    choose();
     [root, toolbar].forEach((host) =>
       host.querySelectorAll('[data-mode]').forEach((b) => {
         b.classList.toggle('active', b.dataset.mode === mode);
@@ -197,6 +201,7 @@ export function mountSceneStudio({
       .forEach((b) => (b.onclick = () => changeMode(b.dataset.mode))),
   );
   $('Object').onchange = () => {
+    gizmoActive = true;
     selected = $('Object').value;
     choose();
   };
@@ -416,7 +421,8 @@ export function mountSceneStudio({
         decoded.push({ ...prop, image });
       }
       if (p.vehicle && loadVehicle) loadVehicle(p.vehicle, true);
-      if (dirty && !confirm('Ganti perubahan scene yang belum disimpan?')) return;
+      if ((dirty || hasExternalEdits()) && !confirm('Ganti perubahan scene yang belum disimpan?'))
+        return;
       if (p.vehicle && loadVehicle) loadVehicle(p.vehicle);
       gizmo?.detach();
       clearProps();
@@ -471,6 +477,7 @@ export function mountSceneStudio({
       history = [];
       future = [];
       signature = next;
+      gizmoActive = false;
       dirty = false;
       selected = '';
     }
@@ -490,7 +497,7 @@ export function mountSceneStudio({
     choose();
     return changed;
   }
-  changeMode('translate');
+  changeMode('translate', false);
   fill();
   return {
     root,
@@ -518,6 +525,7 @@ export function mountSceneStudio({
       gizmo?.detach();
       clearProps();
       signature = '';
+      gizmoActive = false;
       selected = '';
       transforms.clear();
       originals.clear();

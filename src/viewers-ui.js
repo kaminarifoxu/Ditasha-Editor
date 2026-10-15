@@ -141,6 +141,7 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
     getVehicle: workshop.projectState,
     loadVehicle: workshop.applyProject,
     markVehicleSaved: workshop.markSaved,
+    hasExternalEdits: () => workshop.unsavedItems().length > 0,
     download,
     toast,
     managedTransforms: true,

@@ -879,7 +879,11 @@ function renderLayers() {
       const name = document.createElement('strong');
       name.textContent = l.name;
       const type = document.createElement('small');
-      type.textContent = (l.kind || 'Gambar') + (l.locked ? ' · Terkunci' : '');
+      type.textContent =
+        (l.kind || 'Gambar') +
+        (l.locked ? ' · Terkunci' : '') +
+        (l.mask ? ' · Mask' : '') +
+        (l.blend && l.blend !== 'source-over' ? ' · ' + l.blend : '');
       row.oncontextmenu = (e) => {
         e.preventDefault();
         current.selected = i;
@@ -1345,6 +1349,15 @@ $('replaceInput').onchange = async (e) => {
       sy: 0,
       sw: t.w,
       sh: t.h,
+      mask: l.mask
+        ? (() => {
+            const c = document.createElement('canvas');
+            c.width = t.w;
+            c.height = t.h;
+            c.getContext('2d').drawImage(l.mask, 0, 0, t.w, t.h);
+            return c;
+          })()
+        : null,
     };
     renderComposite(true);
     renderLayers();
@@ -1411,12 +1424,47 @@ function bakeRotation(l) {
   c.height = bounds.h;
   drawLayers(
     c.getContext('2d'),
-    [{ ...l, x: l.x - bounds.x, y: l.y - bounds.y, visible: true, opacity: 1 }],
+    [
+      {
+        ...l,
+        mask: null,
+        blend: 'source-over',
+        x: l.x - bounds.x,
+        y: l.y - bounds.y,
+        visible: true,
+        opacity: 1,
+      },
+    ],
     bounds.w,
     bounds.h,
   );
+  let mask = null;
+  if (l.mask) {
+    mask = document.createElement('canvas');
+    mask.width = bounds.w;
+    mask.height = bounds.h;
+    drawLayers(
+      mask.getContext('2d'),
+      [
+        {
+          ...l,
+          source: l.mask,
+          mask: null,
+          blend: 'source-over',
+          x: l.x - bounds.x,
+          y: l.y - bounds.y,
+          visible: true,
+          opacity: 1,
+        },
+      ],
+      bounds.w,
+      bounds.h,
+    );
+  }
   return {
     ...makeLayer(c, l.name),
+    mask,
+    blend: l.blend || 'source-over',
     x: bounds.x,
     y: bounds.y,
     visible: l.visible,
