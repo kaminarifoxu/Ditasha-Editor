@@ -1,4 +1,13 @@
-const { app, BrowserWindow, Menu, dialog, ipcMain, net, shell } = require('electron');
+const {
+  app,
+  BrowserWindow,
+  WebContentsView,
+  Menu,
+  dialog,
+  ipcMain,
+  net,
+  shell,
+} = require('electron');
 const path = require('node:path');
 const { isTrustedUpdateEvent } = require('./ipc-trust.cjs');
 const { startReplacement } = require('./installer.cjs');
@@ -8,6 +17,7 @@ const { createPortableUpdater } = require('./updater.cjs');
 let win,
   splash,
   updater,
+  embeddedIDE,
   allowQuit = false,
   closingPrompt = false;
 const gotLock = app.requestSingleInstanceLock();
@@ -75,6 +85,7 @@ else {
           "window.ditashaWorkspace ? (window.ditashaWorkspace.unsavedItems().length ? window.ditashaWorkspace.confirmDiscard('close') : 'discard') : 'discard'",
         );
         if (choice === 'discard') {
+          if (embeddedIDE && !(await embeddedIDE.requestClose())) return;
           allowQuit = true;
           win.close();
         }
@@ -158,6 +169,14 @@ else {
       shell,
       win,
       trusted,
+    });
+    embeddedIDE = require('./embedded-ide.cjs').registerEmbeddedIDE({
+      app,
+      ipcMain,
+      dialog,
+      win,
+      trusted,
+      WebContentsView,
     });
     ipcMain.handle('ditasha:open-icon-credits', async (event) => {
       trusted(event);

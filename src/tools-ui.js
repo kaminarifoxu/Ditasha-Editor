@@ -1,6 +1,7 @@
 import { mountVehicleWorkspace } from './vehicle-ui.js';
 import { mountViewers } from './viewers-ui.js';
 import { mountArchives } from './archive-ui.js';
+import { mountEmbeddedIDE } from './embedded-ide-ui.js';
 import { conversionModes, accepts, convertFile, picturesToYtd } from './converter.js';
 import { zipFiles, MAX_EXPORT, safePath } from './asset-tools.js';
 import { clothingInfo, importPath, analyzePack, buildPack } from './clothing-pack.js';
@@ -60,6 +61,7 @@ export function mountTools({ download, toast, preview, confirmDiscard, onVehicle
     viewers,
   });
   const vehicles = mountVehicleWorkspace({ nav, viewers, onVehicleBuild });
+  const ide = mountEmbeddedIDE({ nav, toast, openQuickEditor: archives.openCode });
   const modelHome = viewers.modelRoot.parentElement;
   const dirty = () => pack.length && revision !== savedRevision;
   const touch = () => {
@@ -69,7 +71,7 @@ export function mountTools({ download, toast, preview, confirmDiscard, onVehicle
   const mode = () => $('conversionMode').value;
   function activate(next) {
     if (busy) return;
-    if (next === 'code') {
+    if (next === 'code' && !window.ditashaIDE) {
       archives.openCode();
       return;
     }
@@ -88,7 +90,11 @@ export function mountTools({ download, toast, preview, confirmDiscard, onVehicle
                 ? 'Texture viewer'
                 : next === 'modelviewer'
                   ? 'Model viewer'
-                  : 'Converter';
+                  : next === 'code'
+                    ? 'Integrated IDE'
+                    : 'Converter';
+    ide.root.hidden = next !== 'code';
+    if (next === 'code') ide.activate();
     editor.hidden = next !== 'editor';
     root.hidden = !['converter', 'pack'].includes(next);
     archives.root.hidden = next !== 'archives';

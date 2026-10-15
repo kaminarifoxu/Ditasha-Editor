@@ -1,4 +1,10 @@
 const { contextBridge, ipcRenderer } = require('electron');
+contextBridge.exposeInMainWorld('ditashaIDE', {
+  state: () => ipcRenderer.invoke('ditasha:embedded-ide-state'),
+  choose: () => ipcRenderer.invoke('ditasha:embedded-ide-choose'),
+  start: () => ipcRenderer.invoke('ditasha:embedded-ide-start'),
+  layout: (bounds) => ipcRenderer.invoke('ditasha:embedded-ide-layout', bounds),
+});
 contextBridge.exposeInMainWorld('ganoUpdates', {
   getState: () => ipcRenderer.invoke('gano:update-state'),
   check: () => ipcRenderer.invoke('gano:update-check'),
