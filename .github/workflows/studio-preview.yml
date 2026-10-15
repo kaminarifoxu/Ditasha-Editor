@@ -1,0 +1,40 @@
+name: Test and build DITASHA studio preview
+on:
+  push:
+    branches: [codex/embedded-code-oss]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ditasha-studio-preview
+  cancel-in-progress: true
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm test
+      - run: npm run build:ui
+      - name: Check homepage, themes and existing editor tools
+        run: npx electron scripts/smoke-tools.cjs
+        timeout-minutes: 5
+      - name: Build Windows studio preview
+        run: npm run build:win
+      - run: node scripts/checksum.cjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DITASHA-Studio-Windows-Preview
+          path: |
+            release/DITASHA-Editor.exe
+            release/*.sha256
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: DITASHA-Studio-UI-QA
+          path: release/qa/*.png

@@ -1913,7 +1913,15 @@ const tools = mountTools({
   preview: loadFiles,
   confirmDiscard,
   onVehicleBuild: (mode) => nativeBuild?.open(mode),
+  getSessionFiles: () => files.map(({ name, ext, size }) => ({ name, ext, size })),
+  selectSessionFile: (index) => {
+    if (files[index]) selectFile(files[index]);
+  },
 });
+$('open').onclick = () => {
+  tools.activate('editor');
+  $('fileInput').click();
+};
 mountPhotoshoot({
   container: document.querySelector('.modeltools'),
   id: 'photoshoot',

@@ -2,10 +2,19 @@ import { mountVehicleWorkspace } from './vehicle-ui.js';
 import { mountViewers } from './viewers-ui.js';
 import { mountArchives } from './archive-ui.js';
 import { mountEmbeddedIDE } from './embedded-ide-ui.js';
+import { mountHome } from './home-ui.js';
 import { conversionModes, accepts, convertFile, picturesToYtd } from './converter.js';
 import { zipFiles, MAX_EXPORT, safePath } from './asset-tools.js';
 import { clothingInfo, importPath, analyzePack, buildPack } from './clothing-pack.js';
-export function mountTools({ download, toast, preview, confirmDiscard, onVehicleBuild }) {
+export function mountTools({
+  download,
+  toast,
+  preview,
+  confirmDiscard,
+  onVehicleBuild,
+  getSessionFiles,
+  selectSessionFile,
+}) {
   const $ = (id) => document.getElementById(id),
     editor = document.querySelector('main'),
     viewer = document.querySelector('.right'),
@@ -62,6 +71,7 @@ export function mountTools({ download, toast, preview, confirmDiscard, onVehicle
   });
   const vehicles = mountVehicleWorkspace({ nav, viewers, onVehicleBuild });
   const ide = mountEmbeddedIDE({ nav, toast, openQuickEditor: archives.openCode });
+  const homepage = mountHome({ nav, activate, preview, getSessionFiles, selectSessionFile });
   const modelHome = viewers.modelRoot.parentElement;
   const dirty = () => pack.length && revision !== savedRevision;
   const touch = () => {
@@ -78,22 +88,27 @@ export function mountTools({ download, toast, preview, confirmDiscard, onVehicle
     if (page !== next) selection = null;
     page = next;
     $('workspaceLabel').textContent =
-      next === 'editor'
-        ? 'Texture & Model'
-        : next === 'pack'
-          ? 'Clothing pack'
-          : next === 'archives'
-            ? 'GTA V Explorer'
-            : next === 'vehicles'
-              ? 'Vehicle workshop'
-              : next === 'textureviewer'
-                ? 'Texture viewer'
-                : next === 'modelviewer'
-                  ? 'Model viewer'
-                  : next === 'code'
-                    ? 'Integrated IDE'
-                    : 'Converter';
+      next === 'home'
+        ? 'Home'
+        : next === 'editor'
+          ? 'Texture & Model'
+          : next === 'pack'
+            ? 'Clothing pack'
+            : next === 'archives'
+              ? 'GTA V Explorer'
+              : next === 'vehicles'
+                ? 'Vehicle workshop'
+                : next === 'textureviewer'
+                  ? 'Texture viewer'
+                  : next === 'modelviewer'
+                    ? 'Model viewer'
+                    : next === 'code'
+                      ? 'Integrated IDE'
+                      : 'Converter';
     ide.root.hidden = next !== 'code';
+    homepage.root.hidden = next !== 'home';
+    document.body.dataset.workspace = next;
+    if (next === 'home') homepage.refresh();
     if (next === 'code') ide.activate();
     editor.hidden = next !== 'editor';
     root.hidden = !['converter', 'pack'].includes(next);
@@ -515,7 +530,9 @@ export function mountTools({ download, toast, preview, confirmDiscard, onVehicle
     },
     true,
   );
+  activate('home');
   return {
+    activate,
     unsavedItems: () => [
       ...(dirty() ? [{ name: 'Clothing pack · ' + $('packName').value }] : []),
       ...archives.unsavedItems(),

@@ -39,6 +39,30 @@ app.whenReady().then(async () => {
       }
     });
     await win.loadFile(path.resolve('ui/index.html'));
+    const homeReports = [];
+    for (const [width, height] of [
+      [1500, 950],
+      [1024, 768],
+      [800, 600],
+    ]) {
+      win.setSize(width, height);
+      homeReports.push(
+        await win.webContents.executeJavaScript(
+          '(' +
+            require('./home-ui-checks.cjs').toString() +
+            ')(' +
+            JSON.stringify({
+              ytd: [...new Uint8Array(testYtd)],
+              size: width,
+              interactions: width === 1500,
+            }) +
+            ')',
+        ),
+      );
+    }
+    await Promise.all(captures);
+    win.setSize(1500, 950);
+    await win.loadFile(path.resolve('ui/index.html'));
     const shellReport = await win.webContents.executeJavaScript(
       '(' + require('./workspace-ui-checks.cjs').toString() + ')()',
     );
@@ -108,6 +132,7 @@ app.whenReady().then(async () => {
         checkViewers.toString() +
         ')(' +
         JSON.stringify({
+          homeReports,
           ytd: [...ytd],
           model: [...new Uint8Array(viewerModel)],
           hairYtd: [...hairYtd],

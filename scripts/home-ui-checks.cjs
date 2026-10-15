@@ -1,0 +1,95 @@
+module.exports = async function checkHome({ ytd, size, interactions }) {
+  const assert = (value, message) => {
+    if (!value) throw Error(message);
+  };
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const wait = async (check, message) => {
+    const end = Date.now() + 15000;
+    while (Date.now() < end) {
+      if (check()) return;
+      await sleep(50);
+    }
+    throw Error(message);
+  };
+  const home = document.querySelector('.home-workspace');
+  document.getElementById('openHome').click();
+  await sleep(100);
+  assert(
+    !home.hidden && document.querySelector('main').hidden,
+    'Homepage does not replace the editor',
+  );
+  assert(
+    document.querySelectorAll('.home-workspace-card').length === 6,
+    'Homepage tool cards missing',
+  );
+  assert(
+    document.body.dataset.workspace === 'home',
+    'Homepage did not become the active workspace',
+  );
+  assert(home.scrollWidth <= home.clientWidth + 1, 'Homepage overflows horizontally at ' + size);
+  for (const card of home.querySelectorAll('.home-workspace-card')) {
+    const box = card.getBoundingClientRect();
+    assert(box.width > 150 && box.right <= innerWidth, 'Workspace card does not fit at ' + size);
+  }
+  console.log('DITASHA_SNAPSHOT:home-' + size);
+  if (!interactions) return { size, fits: true };
+  const title = document.title;
+  document.querySelector('header .brand').click();
+  assert(document.title === title && !home.hidden, 'Brand does not safely return home');
+  document.getElementById('openWorkspaceSearch').click();
+  const command = document.getElementById('workspaceCommand');
+  assert(command.open, 'Workspace search did not open');
+  const input = command.querySelector('input');
+  input.value = 'vehicle';
+  input.dispatchEvent(new Event('input'));
+  const visible = [...command.querySelectorAll('.workspace-command-results button')].filter(
+    (button) => !button.hidden,
+  );
+  assert(visible.length === 1, 'Workspace search did not filter the available tools');
+  input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  assert(
+    !command.open && document.body.dataset.workspace === 'vehicles',
+    'Search did not navigate to the selected workspace',
+  );
+  document.getElementById('openHome').click();
+  for (const page of ['editor', 'archives', 'vehicles', 'converter', 'pack']) {
+    home.querySelector(`[data-home-page="${page}"]`).click();
+    assert(
+      document.body.dataset.workspace === page && home.hidden,
+      'Homepage navigation failed: ' + page,
+    );
+    document.getElementById('openHome').click();
+  }
+  input.value = 'no-matching-workspace';
+  input.dispatchEvent(new Event('input'));
+  assert(!command.querySelector('p').hidden, 'Search has no empty state');
+  const dt = new DataTransfer();
+  dt.items.add(new File([new Uint8Array(ytd)], 'home-session.ytd'));
+  const fileInput = document.getElementById('fileInput');
+  fileInput.files = dt.files;
+  fileInput.dispatchEvent(new Event('change'));
+  await wait(
+    () => home.querySelector('.home-session-file'),
+    'Loaded file did not appear on homepage',
+  );
+  assert(
+    home.querySelector('[data-home=session-count]').textContent === '1 FILE',
+    'Session counter is not based on loaded files',
+  );
+  home.querySelector('.home-session-file').click();
+  assert(document.body.dataset.workspace === 'editor', 'Session file did not open the editor');
+  assert(
+    document.querySelector('#fileList .file.selected strong')?.textContent === 'home-session.ytd',
+    'Session navigation selected the wrong document',
+  );
+  document.getElementById('openHome').click();
+  assert(
+    home.querySelectorAll('.home-session-file').length === 1,
+    'Changing workspace discarded the loaded file',
+  );
+  document.body.dataset.theme = 'light';
+  console.log('DITASHA_SNAPSHOT:home-light');
+  await sleep(100);
+  document.body.dataset.theme = 'midnight';
+  return { size, fits: true, search: true, navigation: true, sessionFiles: true };
+};

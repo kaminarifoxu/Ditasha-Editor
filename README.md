@@ -8,6 +8,12 @@ Logo, tema sakura, font, dan editor disertakan untuk penggunaan offline.
 
 ## Fitur
 
+**Home** menjadi halaman awal, berisi enam pintasan workspace dan file yang dimuat
+di tab aktif. Klik logo untuk kembali ke Home tanpa me-reload aplikasi.
+Gunakan **Cari alat** / **Ctrl K** untuk berpindah workspace. Alat tambahan bisa
+dibuka dari **Alat lainnya**; pengaturan performa preview tersedia di Pengaturan.
+Tema Midnight/Terang dan kepadatan tampilan tetap tersimpan.
+
 YFT/YDD/YDR: preview geometri statis, UV, wireframe dan foto 3D.
 YTD: DXT1/3/5, BGRA/RGBA; ekspor BGRA tanpa kompresi, satu mipmap.
 Layer gambar dan YTD: geser, resize 8 titik, rotate, crop, mirror,
@@ -22,7 +28,10 @@ YTD dengan nama yang sama dipasangkan otomatis. Untuk YTD lain, pilih di toolbar
 lalu klik Reload selected model. Model GTA V Legacy dan batas viewer yang ada tetap berlaku.
 
 Klik dua kali Lua/JS/TS/JSON/XML/meta/teks untuk membuka Monaco secara offline.
-Atau pilih **Code editor** di sidebar, lalu **Open code file** / **New Lua file** tanpa perlu membuka arsip.
+Pilih **Code editor** di sidebar untuk workspace IDE Code - OSS yang tertanam di jendela DITASHA.
+Engine MIT server-web tambahan diperlukan; panduan dan batas dukungannya ada di
+[EMBEDDED_IDE.md](docs/EMBEDDED_IDE.md). Tombol **Quick edit file** tetap membuka Monaco
+secara offline untuk **Open code file** / **New Lua file**, tanpa perlu membuka arsip atau memasang engine IDE.
 Tab dokumen dan tombol Edit 2D/3D tetap di bar atas saat berganti mode.
 Pilih **Apply to archive**, lalu **Save archive copy** untuk menyimpan perubahan ke RPF/ZIP/OIV baru.
 File dari Open folder tidak ditimpa; gunakan **Save file copy**. Batas teks 2 MB, UTF-8 saja.

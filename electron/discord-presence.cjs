@@ -4,6 +4,8 @@ const path = require('node:path');
 const fs = require('node:fs/promises');
 const { randomUUID } = require('node:crypto');
 const WORKSPACES = {
+  home: 'Home',
+  code: 'Code Studio',
   editor: 'Texture & Model',
   converter: 'Converter',
   pack: 'Clothing pack',
