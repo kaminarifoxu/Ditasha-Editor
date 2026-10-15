@@ -13,7 +13,7 @@ test('Explorer finds differently named sibling YTDs without unbounded or encrypt
   ];
   assert.deepEqual(
     companionTextures('ped/model.ydd', entries).map((e) => e.name),
-    ['ped/model.ytd', 'ped/other.ytd'],
+    ['ped/model.ytd'],
   );
   assert.deepEqual(
     companionTextures('ped/model.ydd', entries, 'ped/other.ytd').map((e) => e.name),
@@ -42,4 +42,17 @@ test('Texture references normalize folders/extensions and resolve hashed names',
     ),
     texture,
   );
+});
+
+test('Ped previews choose one matching component variant, rather than decode every sibling skin', () => {
+  const entries = [
+    { name: 'mp_f_freemode_01_cpxhead^hair_diff_000_a_uni.ytd', size: 990000 },
+    { name: 'mp_f_freemode_01_cpxhead^hair_diff_001_b_uni.ytd', size: 990000 },
+    { name: 'mp_f_freemode_01_cpxhead^hair_diff_001_a_uni.ytd', size: 990000 },
+    { name: 'mp_f_freemode_01_cpxhead^accs_diff_001_a_uni.ytd', size: 990000 },
+  ];
+  const model = 'mp_f_freemode_01_cpxhead^hair_001_u.ydd';
+  assert.deepEqual(companionTextures(model, entries), [entries[2]]);
+  assert.deepEqual(companionTextures(model, entries, entries[1].name), [entries[1]]);
+  assert.equal(companionTextures(model, entries.slice(0, 1)).length, 1);
 });

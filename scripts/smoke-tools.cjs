@@ -171,7 +171,15 @@ app.whenReady().then(async () => {
       '(' +
         require('./explorer-preview-ui-checks.cjs').toString() +
         ')(' +
-        JSON.stringify({ archive: [...inlineArchive] }) +
+        JSON.stringify({
+          archive: [...inlineArchive],
+          textureFailureArchive: [
+            ...writeRpf([
+              { name: 'car.ydd', data: inlineModel },
+              { name: 'car.ytd', data: new TextEncoder().encode('invalid texture resource') },
+            ]),
+          ],
+        }) +
         ')',
     );
     const { openArchive } = await import('../src/archives.js');

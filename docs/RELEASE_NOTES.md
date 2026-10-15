@@ -1,3 +1,10 @@
+# v1.20.1 preview
+
+- Fix the main-process error when Electron destroys the embedded IDE before the main window closes. Clear the active view before cleanup and tolerate missing/destroyed web contents.
+- Load one automatic YTD companion for Explorer previews, prioritizing a matching ped component and texture index. Alternative skins remain available through the dictionary selector.
+- Check YTD decoded memory against the remaining budget before allocating texture buffers. Retain the 128 MB cap.
+- Show valid Explorer model geometry even when an external texture fails, with an actionable warning and usable controls.
+
 # 1.20.0
 
 - Embed Debadge and Strobo directly in Vehicle Workshop and give Auto Rig an inline workspace. Ped results are staged with a 3D preview before an explicit Save; original inputs stay unchanged.

@@ -257,7 +257,7 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
     for (const f of files) {
       if (f.size > 64 * 1024 * 1024 || !textureExtensions.test(f.name))
         throw Error('Textures: YTD, DDS or images up to 64 MB per file.');
-      for (const t of await imageData(f)) {
+      for (const t of await imageData(f, { maxDecodedBytes: MAX_EXPORT - size })) {
         size += t.out.length;
         if (size > MAX_EXPORT) throw Error('Decoded texture limit: 128 MB.');
         out.push({ ...t, dictionary: f.name });
@@ -859,7 +859,17 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
       );
       const parsed = await parseModels(candidates);
       if (!parsed.length) throw Error('Choose YFT, YDD or YDR up to 64 MB.');
-      const loaded = await readTextures(files.filter((f) => textureExtensions.test(f.name)));
+      let loaded = [],
+        textureWarning = '';
+      try {
+        loaded = await readTextures(files.filter((f) => textureExtensions.test(f.name)));
+      } catch (error) {
+        if (options.page !== 'archives') throw error;
+        textureWarning =
+          'Model loaded without external textures: ' +
+          error.message +
+          ' Select another YTD or use +Textures.';
+      }
       const extras = parsed.slice(1).flatMap((f) =>
         f.data.map((d) => ({
           id: ++extraSerial,
@@ -884,6 +894,10 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
       modelSource = parsed[0].file;
       drawable = lod = 0;
       renderModel();
+      if (textureWarning) {
+        $('mvStatus').textContent = textureWarning;
+        toast(textureWarning);
+      }
     });
   }
   $('mvAddModels').onclick = () => {

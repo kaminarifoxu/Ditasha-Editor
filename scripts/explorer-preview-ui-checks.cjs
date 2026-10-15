@@ -196,6 +196,27 @@ module.exports = async function checkExplorerPreview(fixtures) {
     !window.ditashaWorkspace.unsavedItems().some((i) => /^(Code|Archive) ·/.test(i.name)),
     'Saved archive remains dirty',
   );
+  // Texture failure must not discard a valid model or leave the controls busy.
+  $('archivePreviewTextures').value = '';
+  await input('archiveInput', [
+    new File([new Uint8Array(fixtures.textureFailureArchive)], 'broken-texture.rpf'),
+  ]);
+  select('car.ydd');
+  await wait(
+    () =>
+      !$('archiveOpen').disabled &&
+      $('mvStatus').textContent.includes('Model loaded without external textures:'),
+    'Texture failure blocked geometry or left Loading status',
+  );
+  assert(
+    $('mvTitle').textContent.includes('car'),
+    'Valid geometry was discarded with bad textures',
+  );
+  assert(
+    !$('mvDrawable').disabled && $('mvParts').querySelector('input'),
+    'Model controls not restored after texture failure',
+  );
+  $('archivePreviewClose').click();
   const file = new File(['original source'], 'note.txt');
   Object.defineProperty(file, 'webkitRelativePath', { value: 'source/note.txt' });
   await input('archiveFolderInput', [file]);

@@ -9,6 +9,7 @@ const {
   agentPort,
   clampBounds,
   registerEmbeddedIDE,
+  disposeIDEView,
 } = require('../electron/embedded-ide.cjs');
 
 test('IDE bounds stay within the content area and hide invalid or empty rectangles', () => {
@@ -114,4 +115,34 @@ test('startup failures expose exit code and engine output without exposing the c
   assert.equal(state.details.includes(token), false);
   assert.equal(await fs.readFile(state.diagnosticsFile, 'utf8'), state.details);
   win.emit('closed');
+});
+
+test('IDE teardown tolerates missing or destroyed native contents and captures contents before detach', () => {
+  let closed = 0,
+    detached = 0;
+  const contents = { isDestroyed: () => false, close: () => closed++ };
+  const view = { webContents: contents };
+  const win = {
+    isDestroyed: () => false,
+    contentView: {
+      removeChildView(value) {
+        detached++;
+        value.webContents = undefined;
+      },
+    },
+  };
+  disposeIDEView(win, view);
+  assert.equal(closed, 1);
+  assert.equal(detached, 1);
+  // Electron has already torn down the window and removed WebContentsView.webContents.
+  const gone = { isDestroyed: () => true };
+  assert.doesNotThrow(() => disposeIDEView(gone, view));
+  assert.doesNotThrow(() => disposeIDEView(gone, null));
+  disposeIDEView(gone, {
+    webContents: {
+      isDestroyed: () => true,
+      close: () => assert.fail('Destroyed contents closed again'),
+    },
+  });
+  assert.equal(closed, 1);
 });

@@ -63,6 +63,17 @@ function probe(url, cookie = '', redirects = 0) {
   });
 }
 
+// Capture webContents before detaching: Electron can clear the view's native handle on close.
+function disposeIDEView(win, view) {
+  if (!view) return;
+  const contents = view.webContents;
+  try {
+    if (!win.isDestroyed()) win.contentView?.removeChildView(view);
+  } finally {
+    if (contents && !contents.isDestroyed()) contents.close();
+  }
+}
+
 function registerEmbeddedIDE({
   app,
   ipcMain,
@@ -106,12 +117,13 @@ function registerEmbeddedIDE({
     }
     return runtime;
   }
-  const hide = () => view?.setVisible(false);
+  const hide = () => {
+    if (view?.webContents && !view.webContents.isDestroyed()) view.setVisible(false);
+  };
   function closeView() {
-    if (!view) return;
-    if (!win.isDestroyed()) win.contentView.removeChildView(view);
-    if (!view.webContents.isDestroyed()) view.webContents.close();
-    view = null;
+    const closing = view;
+    view = null; // Clear first so reentrant closed / will-quit events are harmless.
+    disposeIDEView(win, closing);
   }
   function terminateEngine() {
     if (!child) return;
@@ -139,7 +151,7 @@ function registerEmbeddedIDE({
   }
   async function start() {
     if (disposed) throw Error('IDE has closed.');
-    if (view && !view.webContents.isDestroyed() && baseURL && state.status === 'ready')
+    if (view?.webContents && !view.webContents.isDestroyed() && baseURL && state.status === 'ready')
       return { ...state };
     if (startPromise) return startPromise;
     if (view || child) stop();
@@ -229,6 +241,9 @@ function registerEmbeddedIDE({
       view.setVisible(false);
       view.setBackgroundColor('#1e1e1e');
       const contents = view.webContents;
+      contents.once('destroyed', () => {
+        if (view === ideView) view = null;
+      });
       contents.setWindowOpenHandler(() => ({ action: 'deny' }));
       const restrict = (event, target) => {
         try {
@@ -297,7 +312,7 @@ function registerEmbeddedIDE({
     },
     start,
     layout(value) {
-      if (!view || view.webContents.isDestroyed()) return;
+      if (!view?.webContents || view.webContents.isDestroyed()) return;
       const factor = win.webContents.getZoomFactor();
       const scaled =
         value && Object.fromEntries(Object.entries(value).map(([key, val]) => [key, val * factor]));
@@ -322,7 +337,7 @@ function registerEmbeddedIDE({
     stop();
   });
   async function requestClose() {
-    if (!view || view.webContents.isDestroyed()) return true;
+    if (!view?.webContents || view.webContents.isDestroyed()) return true;
     const contents = view.webContents;
     return new Promise((resolve) => {
       const blocked = (event) => {
@@ -352,4 +367,4 @@ function registerEmbeddedIDE({
   }
   return { hide, requestClose };
 }
-module.exports = { registerEmbeddedIDE, inspectRuntime, agentPort, clampBounds };
+module.exports = { registerEmbeddedIDE, inspectRuntime, agentPort, clampBounds, disposeIDEView };
