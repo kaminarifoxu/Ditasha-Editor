@@ -12,12 +12,6 @@ Run `npm run prepare:ide` to download, verify and extract the pinned Windows eng
 
 The advanced **Choose engine** button accepts a different extracted MIT server-web runtime. A regular Microsoft `Code.exe` installation is not a server-web engine.
 
-## Optional engine source build
-
-Use the manual `Build embedded Code - OSS engine` GitHub Actions workflow. It checks out a pinned upstream source revision and builds `vscode-reh-web-win32-x64-min`. Download and extract the resulting artifact, then choose its root from **Code editor → Choose engine**. The root contains `node.exe`, `out/server-main.js`, `product.json`, `extensions`, and the full web workbench. Dependencies must remain together.
-
-The expensive source-engine build runs manually or when a branch commit contains `[build-engine]`. Ordinary studio changes use the separate Windows preview workflow, avoiding a full VS Code source rebuild for every UI adjustment.
-
 The DITASHA navigation and toolbar remain visible around the IDE. Quick edits to archive files remain a separate workflow; they are not automatically written back from the IDE into an RPF.
 
 ## Capabilities and limits
