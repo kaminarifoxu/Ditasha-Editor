@@ -75,3 +75,43 @@ test('IDE IPC validates callers and reports a missing engine instead of claiming
   assert.equal((await handlers.get('ditasha:embedded-ide-state')('trusted')).status, 'error');
   win.emit('closed');
 });
+
+test('startup failures expose exit code and engine output without exposing the connection token', async (t) => {
+  if (process.platform === 'win32') return t.skip('Uses a local executable symlink on Unix.');
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'ditasha-ide-exit-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const engine = path.join(root, 'ide-runtime');
+  await fs.mkdir(path.join(engine, 'out/vs/code/browser/workbench'), { recursive: true });
+  await fs.symlink(process.execPath, path.join(engine, 'node'));
+  await fs.writeFile(path.join(engine, 'product.json'), JSON.stringify({ licenseName: 'MIT' }));
+  await fs.writeFile(path.join(engine, 'out/vs/code/browser/workbench/workbench.html'), '');
+  await fs.writeFile(
+    path.join(engine, 'out/server-main.js'),
+    `
+    const fs = require('node:fs');
+    const token = fs.readFileSync(process.argv[process.argv.indexOf('--connection-token-file') + 1], 'utf8');
+    console.error('Missing dependency; token=' + token);
+    process.exitCode = 23;
+  `,
+  );
+  const handlers = new Map();
+  const app = new EventEmitter();
+  app.getPath = () => root;
+  const win = new EventEmitter();
+  registerEmbeddedIDE({
+    app,
+    win,
+    resourcesPath: root,
+    ipcMain: { handle: (key, value) => handlers.set(key, value) },
+    dialog: {},
+    trusted: () => {},
+    WebContentsView: class {},
+  });
+  await assert.rejects(handlers.get('ditasha:embedded-ide-start')({}), /exit 23/);
+  const state = await handlers.get('ditasha:embedded-ide-state')({});
+  assert.match(state.details, /Missing dependency; token=\[redacted\]/);
+  const token = await fs.readFile(path.join(root, 'embedded-ide/connection-token'), 'utf8');
+  assert.equal(state.details.includes(token), false);
+  assert.equal(await fs.readFile(state.diagnosticsFile, 'utf8'), state.details);
+  win.emit('closed');
+});

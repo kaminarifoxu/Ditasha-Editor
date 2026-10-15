@@ -2,7 +2,7 @@ export function mountEmbeddedIDE({ nav, openQuickEditor, toast }) {
   const root = document.createElement('section');
   root.className = 'embedded-ide-workspace';
   root.hidden = true;
-  root.innerHTML = `<div class="embedded-ide-toolbar"><div><span class="eyebrow">CODE - OSS</span><strong>Integrated IDE</strong></div><button data-ide="quick">Quick edit file</button><button data-ide="engine">Choose engine…</button><button class="primary" data-ide="start">Start IDE</button></div><div class="embedded-ide-host"><div class="embedded-ide-welcome"><h2>Your coding workspace, inside DITASHA</h2><p>Full Code - OSS workbench with project Explorer, search, tabs, terminal, Git, extensions and debugging through a local engine.</p><p role="status">Checking IDE engine…</p><details><summary>Engine setup & compatibility</summary><p>Windows builds include a local Code - OSS engine. Choose engine allows an advanced override with an extracted MIT server-web build. It must contain node, out/server-main.js and the web workbench. The engine runs locally; a regular Code.exe installation is not a server-web engine.</p><p>Git and language tools must be installed locally. Microsoft-only extensions and Marketplace services are not included. Extension availability depends on the engine; compatible VSIX packages can be installed from the IDE.</p></details></div></div>`;
+  root.innerHTML = `<div class="embedded-ide-toolbar"><div><span class="eyebrow">CODE - OSS</span><strong>Integrated IDE</strong></div><button data-ide="quick">Quick edit file</button><button data-ide="engine">Choose engine…</button><button class="primary" data-ide="start">Start IDE</button></div><div class="embedded-ide-host"><div class="embedded-ide-welcome"><h2>Your coding workspace, inside DITASHA</h2><p>Full Code - OSS workbench with project Explorer, search, tabs, terminal, Git, extensions and debugging through a local engine.</p><p role="status">Checking IDE engine…</p><details data-ide="diagnostics" hidden><summary>Startup error details</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto"></pre><p data-ide="log-path"></p></details><details><summary>Engine setup & compatibility</summary><p>Windows builds include a local Code - OSS engine. Choose engine allows an advanced override with an extracted MIT server-web build. It must contain node, out/server-main.js and the web workbench. The engine runs locally; a regular Code.exe installation is not a server-web engine.</p><p>Git and language tools must be installed locally. Microsoft-only extensions and Marketplace services are not included. Extension availability depends on the engine; compatible VSIX packages can be installed from the IDE.</p></details></div></div>`;
   nav.after(root);
   const api = window.ditashaIDE;
   const host = root.querySelector('.embedded-ide-host');
@@ -17,6 +17,12 @@ export function mountEmbeddedIDE({ nav, openQuickEditor, toast }) {
   function report(state) {
     latestState = state;
     status.textContent = state.message;
+    root.querySelector('[data-ide=diagnostics]').hidden = !state.details;
+    root.querySelector('[data-ide=diagnostics] pre').textContent = state.details || '';
+    root.querySelector('[data-ide=log-path]').textContent = state.diagnosticsFile
+      ? 'Error report saved to: ' + state.diagnosticsFile
+      : '';
+    if (state.details) root.querySelector('[data-ide=diagnostics]').open = true;
     running = state.status === 'ready';
     welcome.hidden = running;
     root.querySelector('[data-ide=start]').disabled =

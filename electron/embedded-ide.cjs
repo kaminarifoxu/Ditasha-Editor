@@ -85,6 +85,11 @@ function registerEmbeddedIDE({
     message: 'Install a Code - OSS server-web engine to enable the integrated IDE.',
   };
   let generation = 0;
+  const diagnosticsFile = path.join(directory, 'last-startup-error.txt');
+  let diagnostics = '';
+  function redact(value) {
+    return value.replace(/(tkn=)[^\s&]+/gi, '$1[redacted]');
+  }
   async function detect() {
     if (runtime) return runtime;
     const roots = [path.join(resourcesPath, 'ide-runtime')];
@@ -144,6 +149,7 @@ function registerEmbeddedIDE({
         throw Error(
           'Code - OSS engine is not installed. Choose the extracted server-web runtime folder.',
         );
+      diagnostics = '';
       const current = ++generation;
       state = { status: 'starting', message: 'Starting local Code - OSS engine…' };
       await fs.mkdir(directory, { recursive: true });
@@ -183,8 +189,8 @@ function registerEmbeddedIDE({
       processChild.once('error', (e) => {
         failure = e.message;
       });
-      processChild.once('exit', () => {
-        failure ||= 'Code - OSS engine stopped.';
+      processChild.once('exit', (code, signal) => {
+        failure ||= `Code - OSS engine stopped (exit ${code ?? 'unknown'}${signal ? ', signal ' + signal : ''}).`;
         if (current !== generation) return;
         baseURL = null;
         hide();
@@ -192,6 +198,7 @@ function registerEmbeddedIDE({
       });
       const capture = (data) => {
         output = (output + data.toString()).slice(-16384);
+        diagnostics = output.replaceAll(token, '[redacted]');
       };
       processChild.stdout.on('data', capture);
       processChild.stderr.on('data', capture);
@@ -244,9 +251,18 @@ function registerEmbeddedIDE({
       state = { status: 'ready', message: 'Code - OSS is running locally inside DITASHA.' };
       return { ...state };
     })()
-      .catch((error) => {
+      .catch(async (error) => {
         stop();
-        state = { status: 'error', message: error.message };
+        const details = redact(
+          `${error.message}\nEngine: ${runtime?.root || 'not found'}\nSystem: ${process.platform} ${process.arch}\n\n${diagnostics || 'The engine produced no output.'}`,
+        );
+        let saved = '';
+        try {
+          await fs.mkdir(directory, { recursive: true });
+          await fs.writeFile(diagnosticsFile, details, { mode: 0o600 });
+          saved = diagnosticsFile;
+        } catch {}
+        state = { status: 'error', message: error.message, details, diagnosticsFile: saved };
         throw error;
       })
       .finally(() => {
