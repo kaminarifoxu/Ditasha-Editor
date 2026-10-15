@@ -18,8 +18,8 @@ app.whenReady().then(async () => {
     scratch = await fs.mkdtemp(path.join(os.tmpdir(), 'ditasha-ide-smoke-'));
     const handlers = new Map();
     win = new BrowserWindow({
-      width: 1280,
-      height: 800,
+      width: 1000,
+      height: 700,
       webPreferences: { sandbox: true, nodeIntegration: false, contextIsolation: true },
     });
     await win.loadURL(
@@ -43,8 +43,8 @@ app.whenReady().then(async () => {
     const call = (name, value) => handlers.get('ditasha:embedded-ide-' + name)('trusted', value);
     assert.equal((await call('choose')).installed, true);
     assert.equal((await call('start')).status, 'ready');
-    await call('layout', { x: 180, y: 50, width: 1060, height: 690 });
-    assert.deepEqual(embedded.getBounds(), { x: 180, y: 50, width: 1060, height: 690 });
+    await call('layout', { x: 140, y: 40, width: 760, height: 560 });
+    assert.deepEqual(embedded.getBounds(), { x: 140, y: 40, width: 760, height: 560 });
     const contents = embedded.webContents;
     const deadline = Date.now() + 60000;
     let loaded = false;
@@ -61,13 +61,13 @@ app.whenReady().then(async () => {
     assert.equal(await contents.executeJavaScript('typeof window.ditashaIDE'), 'undefined');
     const before = contents.id;
     await call('layout', null);
-    await call('layout', { x: 180, y: 50, width: 780, height: 590 });
+    await call('layout', { x: 140, y: 40, width: 680, height: 500 });
     assert.equal(contents.id, before, 'Workspace switching recreated the IDE.');
-    assert.deepEqual(embedded.getBounds(), { x: 180, y: 50, width: 780, height: 590 });
+    assert.deepEqual(embedded.getBounds(), { x: 140, y: 40, width: 680, height: 500 });
     await fs.mkdir(path.resolve('release/qa'), { recursive: true });
     await fs.writeFile(
       path.resolve('release/qa/embedded-code-oss.png'),
-      (await win.webContents.capturePage()).toPNG(),
+      (await contents.capturePage()).toPNG(),
     );
     console.log(
       'PASS: real Code - OSS engine, native embedded workbench, isolated privileges, resize and preserved session.',
