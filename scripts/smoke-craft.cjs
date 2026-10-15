@@ -71,6 +71,12 @@ app.whenReady().then(async () => {
       message: 'IDE is tested separately.',
     }));
     ipcMain.handle('ditasha:embedded-ide-layout', () => null);
+    ipcMain.handle('ditasha:discord-state', () => ({
+      enabled: false,
+      applicationId: '',
+      status: 'disabled',
+      message: 'Discord is tested separately.',
+    }));
     ipcMain.handle('ditasha:discord-workspace', () => null);
     ipcMain.handle('ditasha:discord-project', () => null);
     ipcMain.handle('gano:update-state', () => ({ status: 'idle', autoDownload: false }));
@@ -136,6 +142,8 @@ app.whenReady().then(async () => {
       assert.ok(boot.secure, item.id + ' is not a secure context');
       assert.ok(boot.isolated, item.id + ' lacks cross-origin isolation');
       assert.equal(entry.error, '');
+      // A canvas can exist before the renderer has sent the native host bounds.
+      while (entry.view.getBounds().width <= 300 && Date.now() < end) await sleep(100);
       assert.ok(
         entry.view.getBounds().width > 300,
         item.id + ' child view is not laid out inside the host',
