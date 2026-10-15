@@ -144,6 +144,7 @@ module.exports = async function checkManualStudio(fixtures) {
     'Scene project lost backdrop/camera/lighting',
   );
   assert(sceneProject.objects[0].transform.sy === 2, 'Scene lost independent scale axes');
+  assert(sceneProject.background === null, 'Scene project replaced the transparent background');
   window.confirm = () => true;
   change('ssModelx', 0.9);
   await input('ssModelProjectInput', [new File([sceneSave.data], 'scene.json')]);

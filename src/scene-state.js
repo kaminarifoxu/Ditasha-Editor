@@ -66,7 +66,7 @@ export function validateSceneProject(p, signature, keys) {
     !Number.isFinite(p.lighting.intensity) ||
     p.lighting.intensity < 0.1 ||
     p.lighting.intensity > 3 ||
-    !/^#[0-9a-f]{6}$/i.test(p.background)
+    (p.background !== null && !/^#[0-9a-f]{6}$/i.test(p.background))
   )
     throw Error(
       'Proyek scene tidak cocok atau datanya tidak valid. Buka model, drawable/LOD, dan extra yang sama.',

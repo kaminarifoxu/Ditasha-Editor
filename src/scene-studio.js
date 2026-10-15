@@ -384,7 +384,7 @@ export function mountSceneStudio({
           fov: camera.fov,
         },
         lighting: { preset: $('Light').value, intensity: Number($('Intensity').value) },
-        background: $('Background').value,
+        background: scene.background?.isColor ? '#' + scene.background.getHexString() : null,
         vehicle: getVehicle?.() || null,
       };
       const json = JSON.stringify(data);
@@ -447,8 +447,8 @@ export function mountSceneStudio({
       $('Light').value = p.lighting.preset;
       $('Intensity').value = p.lighting.intensity;
       lighting();
-      $('Background').value = p.background;
-      scene.background = new THREE.Color(p.background);
+      if (p.background) $('Background').value = p.background;
+      scene.background = p.background ? new THREE.Color(p.background) : null;
       history = [];
       future = [];
       dirty = false;
