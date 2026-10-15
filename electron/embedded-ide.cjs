@@ -104,7 +104,7 @@ function registerEmbeddedIDE({
   const hide = () => view?.setVisible(false);
   function closeView() {
     if (!view) return;
-    win.contentView.removeChildView(view);
+    if (!win.isDestroyed()) win.contentView.removeChildView(view);
     if (!view.webContents.isDestroyed()) view.webContents.close();
     view = null;
   }
