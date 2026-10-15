@@ -1,4 +1,5 @@
 import { setProject } from './project-context.js';
+import { mountSceneStudio } from './scene-studio.js';
 import { resolveModelTexture, modelAlphaMode } from './model-material.js';
 import { decodeResource } from './resource-client.js';
 import { mountVehicleWorkshop } from './vehicle-workshop.js';
@@ -124,6 +125,27 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
     toast,
     operation,
   });
+  const sceneStudio = mountSceneStudio({
+    container: modelRoot.querySelector('.tool-sidebar'),
+    viewport: $('mvViewport'),
+    prefix: 'ssModel',
+    scene,
+    camera,
+    getRenderer: () => renderer,
+    getControls: () => controls,
+    getObjects: () =>
+      renderedMeshes.map((e) => ({ key: e.key, object: e.mesh, label: e.mesh.name })),
+    onTransform: (key, mesh) => workshop.capture(key, mesh),
+    onSelect: (key) => workshop.select(key),
+    onVisibility: (key, hidden) => (hidden ? hiddenMeshes.add(key) : hiddenMeshes.delete(key)),
+    getVehicle: workshop.projectState,
+    loadVehicle: workshop.applyProject,
+    markVehicleSaved: workshop.markSaved,
+    download,
+    toast,
+    managedTransforms: true,
+  });
+  $('vwTransform').closest('details').hidden = true;
   function initRenderer() {
     if (renderer) return;
     try {
@@ -365,6 +387,7 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
         : 'Save canceled.';
     });
   function disposeModel() {
+    sceneStudio.detach();
     pedMaterials.clear(false);
     group.traverse((o) => {
       o.geometry?.dispose();
@@ -651,7 +674,7 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
     modelOptions();
     pedMaterials.setMeshes(group.children.filter((mesh) => mesh.isMesh));
     workshop.refresh();
-    fitModel();
+    if (sceneStudio.refresh([modelName, modelSource?.size].join('|'))) fitModel();
   }
   async function parseModels(files) {
     const out = [];
@@ -838,9 +861,12 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
     $(id).onchange = bindTexture;
   async function openModels(files, options = {}) {
     if (
-      workshop.unsavedItems().length &&
+      (workshop.unsavedItems().length || sceneStudio.unsavedItems().length) &&
       confirmDiscard &&
-      (await confirmDiscard('file', workshop.unsavedItems())) !== 'discard'
+      (await confirmDiscard('file', [
+        ...workshop.unsavedItems(),
+        ...sceneStudio.unsavedItems(),
+      ])) !== 'discard'
     )
       return;
     activate(
@@ -986,8 +1012,9 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
     };
   $('mvSnapshot').onclick = () =>
     operation('model', async () => {
-      renderer.render(scene, camera);
-      const blob = await new Promise((resolve) => renderer.domElement.toBlob(resolve, 'image/png'));
+      const blob = await sceneStudio.cleanCapture(
+        () => new Promise((resolve) => renderer.domElement.toBlob(resolve, 'image/png')),
+      );
       if (!blob) throw Error('Snapshot failed.');
       $('mvStatus').textContent = (await download(blob, 'ditasha-model-viewer.png', 'image/png'))
         ? 'Snapshot saved.'
@@ -1050,6 +1077,6 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
     vehicleControls: workshop.root,
     openTextures,
     openModels,
-    unsavedItems: workshop.unsavedItems,
+    unsavedItems: () => [...workshop.unsavedItems(), ...sceneStudio.unsavedItems()],
   };
 }

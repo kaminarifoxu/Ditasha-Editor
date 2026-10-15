@@ -26,6 +26,7 @@ export function makeLayer(source, name, w = source.width, h = source.height) {
     flipY: false,
     opacity: 1,
     visible: true,
+    blend: 'source-over',
   };
 }
 export function cropLayer(layer, rect) {
@@ -46,6 +47,16 @@ export function cropLayer(layer, rect) {
     h: bottom - y,
   };
 }
+export const blendModes = [
+  'source-over',
+  'multiply',
+  'screen',
+  'overlay',
+  'darken',
+  'lighten',
+  'difference',
+];
+let maskBuffer;
 export function drawLayers(ctx, layers, w, h) {
   ctx.clearRect(0, 0, w, h);
   for (const l of layers) {
@@ -55,10 +66,71 @@ export function drawLayers(ctx, layers, w, h) {
       ctx.rotate(((l.angle || 0) * Math.PI) / 180);
       ctx.scale(l.flipX ? -1 : 1, l.flipY ? -1 : 1);
       ctx.globalAlpha = l.opacity ?? 1;
-      ctx.drawImage(l.source, l.sx, l.sy, l.sw, l.sh, -l.w / 2, -l.h / 2, l.w, l.h);
+      ctx.globalCompositeOperation = blendModes.includes(l.blend) ? l.blend : 'source-over';
+      let source = l.source;
+      if (l.mask) {
+        maskBuffer ||= l.source.ownerDocument.createElement('canvas');
+        if (maskBuffer.width !== source.width || maskBuffer.height !== source.height) {
+          maskBuffer.width = source.width;
+          maskBuffer.height = source.height;
+        }
+        const c = maskBuffer.getContext('2d');
+        c.clearRect(0, 0, maskBuffer.width, maskBuffer.height);
+        c.drawImage(source, 0, 0);
+        c.globalCompositeOperation = 'destination-in';
+        c.drawImage(l.mask, 0, 0);
+        c.globalCompositeOperation = 'source-over';
+        source = maskBuffer;
+      }
+      ctx.drawImage(source, l.sx, l.sy, l.sw, l.sh, -l.w / 2, -l.h / 2, l.w, l.h);
       ctx.restore();
     }
   }
+}
+export function alignLayer(layer, width, height, alignment) {
+  const box = layerBounds(layer);
+  const x =
+    alignment === 'left'
+      ? -box.x
+      : alignment === 'right'
+        ? width - box.x - box.w
+        : alignment === 'center-x'
+          ? (width - box.w) / 2 - box.x
+          : 0;
+  const y =
+    alignment === 'top'
+      ? -box.y
+      : alignment === 'bottom'
+        ? height - box.y - box.h
+        : alignment === 'center-y'
+          ? (height - box.h) / 2 - box.y
+          : 0;
+  return { x: layer.x + x, y: layer.y + y };
+}
+export function maskAt(layer, point, radius, reveal = false, previous) {
+  const toSource = (p) => {
+    const local = localPoint(layer, p);
+    return {
+      x: layer.sx + (layer.flipX ? 1 - local.x / layer.w : local.x / layer.w) * layer.sw,
+      y: layer.sy + (layer.flipY ? 1 - local.y / layer.h : local.y / layer.h) * layer.sh,
+    };
+  };
+  const p = toSource(point),
+    a = toSource(previous || point),
+    ctx = layer.mask.getContext('2d');
+  ctx.save();
+  ctx.globalCompositeOperation = reveal ? 'source-over' : 'destination-out';
+  ctx.fillStyle = ctx.strokeStyle = '#fff';
+  ctx.lineWidth = radius * 2 * Math.max(layer.sw / layer.w, layer.sh / layer.h);
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(a.x, a.y);
+  ctx.lineTo(p.x, p.y);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, ctx.lineWidth / 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
 }
 export function drawUV(ctx, geometries, w, h) {
   ctx.clearRect(0, 0, w, h);

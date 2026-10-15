@@ -196,6 +196,14 @@ app.whenReady().then(async () => {
     )
       throw Error('Code editor changes did not survive RPF export');
     inlineReport.saves = inlineReport.saves.map((s) => ({ name: s.name, size: s.data.length }));
+    await win.loadFile(path.resolve('ui/index.html'));
+    const manualStudioReport = await win.webContents.executeJavaScript(
+      '(' +
+        require('./manual-studio-ui-checks.cjs').toString() +
+        ')(' +
+        JSON.stringify({ model: [...inlineModel] }) +
+        ')',
+    );
     await Promise.all(captures);
     console.log(
       'PASS: ' +
@@ -207,6 +215,7 @@ app.whenReady().then(async () => {
           viewerReport,
           offlineReport,
           inlineReport,
+          manualStudioReport,
         }),
     );
     win.destroy();

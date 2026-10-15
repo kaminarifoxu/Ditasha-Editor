@@ -1,3 +1,10 @@
+# v1.22.0 preview
+
+- Add Canvas Studio with blend modes, manual hide/reveal masks, alignment, optional position snapping, and portable layer/mask projects. Existing texture editing and GTA exports remain available.
+- Add Scene Studio to Texture & Model and Model/Vehicle Viewer: move/rotate/scale gizmos, object selection, local/world axes, snapping, numeric transforms, undo/redo, camera FOV, lighting presets, PNG backdrops, and scene projects.
+- Replace the duplicate vehicle transform panel with Scene Studio. Vehicle transforms now preserve independent scale axes. Clean snapshot exports exclude gizmos.
+- Keep source assets and GTA formats separate from preview scene transforms. No AI runtime, provider, credentials, or third-party ArtCraft assets are included. See [MANUAL_STUDIO.md](MANUAL_STUDIO.md).
+
 # v1.21.0 preview
 
 - Add a desktop File Manager with folder navigation, recursive search, category filters, image preview, and links to the texture/model editor and GTA V Explorer.

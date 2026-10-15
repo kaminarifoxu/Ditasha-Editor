@@ -1141,3 +1141,124 @@
     align-items: stretch;
   }
 }
+
+/* Manual canvas and scene authoring, using the existing DITASHA workspaces. */
+.canvas-studio,
+.scene-studio {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+  margin: 14px 0;
+  background: var(--panel);
+}
+.canvas-studio > label,
+.scene-studio label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 9px 0;
+  font-size: 11px;
+}
+.canvas-studio label.check,
+.scene-studio label.check {
+  flex-direction: row;
+  align-items: center;
+}
+.canvas-studio p,
+.scene-studio p {
+  font-size: 10px;
+  line-height: 1.7;
+}
+.scene-studio > summary {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+.scene-studio > details {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+  margin-top: 12px;
+}
+.cs-button-row,
+.ss-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin: 10px 0;
+}
+.cs-button-row button,
+.ss-actions button,
+.cs-align button,
+.ss-mode button {
+  white-space: normal;
+  font-size: 10px;
+  justify-content: center;
+  min-width: 0;
+  padding: 7px;
+}
+.cs-align,
+.ss-mode,
+.ss-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.ss-fields label {
+  margin: 0;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+.ss-fields input {
+  width: 100%;
+  min-width: 0;
+  padding: 6px;
+}
+.ss-options {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+.scene-studio select,
+.canvas-studio select {
+  width: 100%;
+  min-width: 0;
+}
+.scene-studio .active,
+.canvas-studio .active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.scene-toolbar {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 2;
+  display: flex;
+  gap: 5px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  border-radius: 12px;
+  box-shadow: 0 8px 22px #0003;
+}
+.scene-toolbar button {
+  width: 34px;
+  height: 32px;
+  padding: 0;
+  justify-content: center;
+  font-size: 18px;
+}
+.scene-toolbar button.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+#mvViewport,
+#viewport {
+  position: relative;
+}
