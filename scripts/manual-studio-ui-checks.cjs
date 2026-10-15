@@ -42,7 +42,7 @@ module.exports = async function checkManualStudio(fixtures) {
     pixel().join(',') === '128,0,0,255',
     'Blend mode does not affect exported pixels: ' + pixel(),
   );
-  $('size').value = 2;
+  $('size').value = 4;
   $('csMaskHide').click();
   const target = $('textureCanvas'),
     r = target.getBoundingClientRect(),
@@ -107,6 +107,11 @@ module.exports = async function checkManualStudio(fixtures) {
     'Scene source failed',
   );
   assert($('ssModelObject').options.length > 0, 'Scene outliner empty');
+  const moveTool = $('ssModelObject')
+    .closest('.scene-studio')
+    .querySelector('[data-mode=translate]');
+  moveTool.click();
+  assert(moveTool.getAttribute('aria-pressed') === 'true', 'Transform gizmo mode did not activate');
   change('ssModelx', 0.5);
   assert(Number($('ssModelx').value) === 0.5, 'Scene move failed');
   $('ssModelUndo').click();
