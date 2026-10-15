@@ -1,6 +1,6 @@
 # Discord Activity
 
-DITASHA Editor connects to the local Discord desktop client using Discord RPC over IPC. It publishes the active workspace and session start time; it does not publish file names, file contents, folder paths, account credentials or server details. Turning off workspace visibility publishes a generic creator activity instead.
+DITASHA Editor connects to the local Discord desktop client using Discord RPC over IPC. It publishes the active workspace and session start time. When project sharing is enabled, the activity also includes the project/asset label. Full folder paths, file contents, account credentials and server details are not published. Workspace and project visibility can be disabled separately.
 
 ## One-time setup
 

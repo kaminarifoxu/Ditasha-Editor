@@ -239,7 +239,9 @@ module.exports = async function checkOfflineStudio(fixtures) {
       document.body.dataset.workspace === 'rig',
     'Rig ped shortcut selected wrong build',
   );
+  await sleep(250);
   console.log('DITASHA_SNAPSHOT:rig-workspace');
+  await sleep(250);
   $('nbClose').click();
   $('vehicleDebadge').click();
   assert(
@@ -388,7 +390,7 @@ module.exports = async function checkOfflineStudio(fixtures) {
     () =>
       !$('nbSave').disabled &&
       !$('nbViewport').closest('.native-preview').hidden &&
-      $('nbViewport canvas'),
+      $('nbViewport').querySelector('canvas'),
     'Rig result did not show a preview before save',
   );
   assert(!savedPed, 'Rig result was saved before user approval');
@@ -396,7 +398,9 @@ module.exports = async function checkOfflineStudio(fixtures) {
     window.ditashaWorkspace.unsavedItems().some((v) => v.name.includes('Hasil rig')),
     'Staged rig is not tracked as unsaved',
   );
+  await sleep(250);
   console.log('DITASHA_SNAPSHOT:rig-result-preview');
+  await sleep(250);
   $('nbSave').click();
   await wait(() => savedPed && !$('nbReveal').disabled, 'Explicit rig save failed');
   assert(

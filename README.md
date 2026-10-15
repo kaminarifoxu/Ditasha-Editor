@@ -145,10 +145,7 @@ This feature is implemented in DITASHA; OpenIV itself is not bundled.
 
 ## GTA V viewers and Explorer (1.7.0)
 
-**Texture viewer** opens YTD dictionaries, DDS or images. Search textures, choose
-Grid/List and thumbnail sizes, inspect dimensions/format/mip count, change the alpha
-background, and view at original size or zoom. Export one texture as PNG/DDS or all
-textures in a ZIP. DDS exports use uncompressed RGBA and one mip level.
+Textures open directly in **Texture & Model**. The separate Texture Viewer navigation has been removed. GTA V Explorer keeps the file browser on the left and model preview on the right.
 
 **Model viewer** opens Legacy YFT/YDD/YDR models and available High/Medium/Low/Very-low
 LODs. Select drawables, show/hide individual model parts, toggle grid/wireframe/points/
