@@ -35,7 +35,7 @@ export function mountWorkspaceShell({ toast }) {
   const home = nav.querySelector('[data-page=home]');
   if (home) home.after(navTitle);
   else nav.prepend(navTitle);
-  for (const page of ['editor', 'archives', 'vehicles', 'code']) {
+  for (const page of ['files', 'editor', 'archives', 'vehicles', 'code']) {
     const item = nav.querySelector(`[data-page="${page}"]`);
     if (item) nav.append(item);
   }

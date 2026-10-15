@@ -619,6 +619,10 @@ export function mountArchives({
     unsavedItems: items,
     previewHost,
     previewVisible: () => !previewPanel.hidden,
+    openFile: (file) => {
+      activate('archives');
+      return run(() => load(file));
+    },
     openCode: () => code.openStandalone().catch((e) => toast(e.message)),
   };
 }

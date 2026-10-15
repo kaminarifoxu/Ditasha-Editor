@@ -1,3 +1,10 @@
+# v1.21.0 preview
+
+- Add a desktop File Manager with folder navigation, recursive search, category filters, image preview, and links to the texture/model editor and GTA V Explorer.
+- Preview asset sorting destinations before copying. Group images by format, recognized clothing/hair by component and collection, and vehicle models with recognized texture companions.
+- Stream copies into a unique output folder, preserving original filenames and source hierarchy. Report failures and cancellation without modifying source files.
+- Add File Manager to the homepage, workspace search, and Discord Activity. See [FILE_MANAGER.md](FILE_MANAGER.md) for usage and classification limits.
+
 # v1.20.1 preview
 
 - Fix the main-process error when Electron destroys the embedded IDE before the main window closes. Clear the active view before cleanup and tolerate missing/destroyed web contents.

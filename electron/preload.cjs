@@ -1,4 +1,19 @@
 const { contextBridge, ipcRenderer } = require('electron');
+contextBridge.exposeInMainWorld('ditashaFiles', {
+  state: () => ipcRenderer.invoke('ditasha:files-state'),
+  choose: (refresh = false) => ipcRenderer.invoke('ditasha:files-choose', refresh),
+  list: (query) => ipcRenderer.invoke('ditasha:files-list', query),
+  read: (id) => ipcRenderer.invoke('ditasha:files-read', id),
+  plan: (query) => ipcRenderer.invoke('ditasha:files-plan', query),
+  sort: (id) => ipcRenderer.invoke('ditasha:files-sort', id),
+  cancel: () => ipcRenderer.invoke('ditasha:files-cancel'),
+  reveal: (id) => ipcRenderer.invoke('ditasha:files-reveal', id),
+  subscribe: (callback) => {
+    const listener = (_event, state) => callback(state);
+    ipcRenderer.on('ditasha:files-progress', listener);
+    return () => ipcRenderer.removeListener('ditasha:files-progress', listener);
+  },
+});
 contextBridge.exposeInMainWorld('ditashaIDE', {
   state: () => ipcRenderer.invoke('ditasha:embedded-ide-state'),
   choose: () => ipcRenderer.invoke('ditasha:embedded-ide-choose'),

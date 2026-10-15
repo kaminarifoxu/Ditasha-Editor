@@ -4,6 +4,13 @@ const icon = (name) =>
   `<i class="di-icon" aria-hidden="true" data-icon="${name}" data-glyph="${String.fromCodePoint(parseInt(ICON_CODES[name], 16))}"></i>`;
 const workspaces = [
   [
+    'files',
+    'folder-open',
+    'File Manager',
+    'Cari, preview, dan sorting gambar, pakaian, rambut, serta kendaraan.',
+    'FOLDER · ASSET SORTING',
+  ],
+  [
     'editor',
     'layers',
     'Texture & Model',
@@ -64,7 +71,7 @@ export function mountHome({
   root.className = 'home-workspace';
   root.hidden = true;
   root.setAttribute('aria-label', 'Homepage DITASHA Editor');
-  root.innerHTML = `<div class="home-inner"><div class="home-heading"><span class="home-kicker"><span></span> YOUR LOCAL CREATIVE SPACE</span><span class="home-version"></span></div><section class="home-hero"><div class="home-hero-copy"><p class="home-overline">DITASHA / EDITOR</p><h1>Ruang untuk<br><em>karyamu.</em></h1><p class="home-description">Dari tekstur pertama sampai detail terakhir.<br>Semua alatmu, dalam satu workspace.</p><div class="home-hero-actions"><button class="primary" data-home="import">${icon('plus')}<span>Buka file</span></button><button data-home="resume">Masuk ke editor ${icon('arrow-right')}</button></div><small>Tarik file ke sini untuk mulai mengedit</small></div><div class="home-art" aria-hidden="true"><div class="home-art-orbit"></div><div class="home-art-orbit second"></div><div class="home-art-tile"><img src="assets/ditasha-emblem.webp" alt=""></div><span class="home-art-label">BUILT FOR YOUR NEXT IDEA</span></div></section><div class="home-section-heading"><div><span class="home-overline">PILIH WORKSPACE</span><h2>Mau buat apa hari ini?</h2></div><span>06 / TOOLS</span></div><div class="home-workspace-grid"></div><section class="home-session"><div class="home-section-heading"><div><span class="home-overline">SESI AKTIF</span><h2>Lanjutkan pekerjaanmu</h2></div><span data-home="session-count">0 FILE</span></div><div class="home-session-files"></div></section><footer class="home-footer"><span>© 2026 Ditasha-Workshop</span><span>Crafted by GANOMABI <span class="home-footer-dot">•</span> Offline workspace</span></footer></div>`;
+  root.innerHTML = `<div class="home-inner"><div class="home-heading"><span class="home-kicker"><span></span> YOUR LOCAL CREATIVE SPACE</span><span class="home-version"></span></div><section class="home-hero"><div class="home-hero-copy"><p class="home-overline">DITASHA / EDITOR</p><h1>Ruang untuk<br><em>karyamu.</em></h1><p class="home-description">Dari tekstur pertama sampai detail terakhir.<br>Semua alatmu, dalam satu workspace.</p><div class="home-hero-actions"><button class="primary" data-home="import">${icon('plus')}<span>Buka file</span></button><button data-home="resume">Masuk ke editor ${icon('arrow-right')}</button></div><small>Tarik file ke sini untuk mulai mengedit</small></div><div class="home-art" aria-hidden="true"><div class="home-art-orbit"></div><div class="home-art-orbit second"></div><div class="home-art-tile"><img src="assets/ditasha-emblem.webp" alt=""></div><span class="home-art-label">BUILT FOR YOUR NEXT IDEA</span></div></section><div class="home-section-heading"><div><span class="home-overline">PILIH WORKSPACE</span><h2>Mau buat apa hari ini?</h2></div><span>07 / TOOLS</span></div><div class="home-workspace-grid"></div><section class="home-session"><div class="home-section-heading"><div><span class="home-overline">SESI AKTIF</span><h2>Lanjutkan pekerjaanmu</h2></div><span data-home="session-count">0 FILE</span></div><div class="home-session-files"></div></section><footer class="home-footer"><span>© 2026 Ditasha-Workshop</span><span>Crafted by GANOMABI <span class="home-footer-dot">•</span> Offline workspace</span></footer></div>`;
   nav.after(root);
   for (const [page, symbol, title, description, format] of workspaces) {
     const card = document.createElement('button');

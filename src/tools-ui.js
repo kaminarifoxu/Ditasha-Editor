@@ -4,6 +4,7 @@ import { mountViewers } from './viewers-ui.js';
 import { mountArchives } from './archive-ui.js';
 import { mountEmbeddedIDE } from './embedded-ide-ui.js';
 import { mountHome } from './home-ui.js';
+import { mountFileManager } from './file-manager-ui.js';
 import { conversionModes, accepts, convertFile, picturesToYtd } from './converter.js';
 import { zipFiles, MAX_EXPORT, safePath } from './asset-tools.js';
 import { clothingInfo, importPath, analyzePack, buildPack } from './clothing-pack.js';
@@ -89,6 +90,21 @@ export function mountTools({
   const vehicles = mountVehicleWorkspace({ nav, viewers, onVehicleBuild });
   vehicles.root.append(nativeHost);
   const ide = mountEmbeddedIDE({ nav, toast, openQuickEditor: archives.openCode });
+  const fileManager = mountFileManager({
+    nav,
+    activate,
+    toast,
+    openFile: async (files) => {
+      const name = files[0].name;
+      if (/\.(rpf|zip|oiv)$/i.test(name)) return archives.openFile(files[0]);
+      if (/\.(ydd|ydr|yft)$/i.test(name)) {
+        activate(/\.yft$/i.test(name) ? 'vehicles' : 'modelviewer');
+        return viewers.openModels(files);
+      }
+      activate('editor');
+      return preview(files);
+    },
+  });
   const homepage = mountHome({ nav, activate, preview, getSessionFiles, selectSessionFile });
   const modelHome = viewers.modelRoot.parentElement;
   const dirty = () => pack.length && revision !== savedRevision;
@@ -114,26 +130,29 @@ export function mountTools({
     if (page !== next) selection = null;
     page = next;
     $('workspaceLabel').textContent =
-      next === 'rig'
-        ? 'Auto rig ped'
-        : next === 'home'
-          ? 'Home'
-          : next === 'editor'
-            ? 'Texture & Model'
-            : next === 'pack'
-              ? 'Clothing pack'
-              : next === 'archives'
-                ? 'GTA V Explorer'
-                : next === 'vehicles'
-                  ? 'Vehicle workshop'
-                  : next === 'textureviewer'
-                    ? 'Texture viewer'
-                    : next === 'modelviewer'
-                      ? 'Model viewer'
-                      : next === 'code'
-                        ? 'Integrated IDE'
-                        : 'Converter';
+      next === 'files'
+        ? 'File Manager'
+        : next === 'rig'
+          ? 'Auto rig ped'
+          : next === 'home'
+            ? 'Home'
+            : next === 'editor'
+              ? 'Texture & Model'
+              : next === 'pack'
+                ? 'Clothing pack'
+                : next === 'archives'
+                  ? 'GTA V Explorer'
+                  : next === 'vehicles'
+                    ? 'Vehicle workshop'
+                    : next === 'textureviewer'
+                      ? 'Texture viewer'
+                      : next === 'modelviewer'
+                        ? 'Model viewer'
+                        : next === 'code'
+                          ? 'Integrated IDE'
+                          : 'Converter';
     ide.root.hidden = next !== 'code';
+    fileManager.root.hidden = next !== 'files';
     homepage.root.hidden = next !== 'home';
     document.body.dataset.workspace = next;
     if (next === 'home') homepage.refresh();

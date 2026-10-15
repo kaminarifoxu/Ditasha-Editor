@@ -156,6 +156,7 @@ else {
       if (!isTrustedUpdateEvent(event, win, path.join(__dirname, '..', 'ui', 'index.html')))
         throw Error('Untrusted update request');
     };
+    require('./file-manager.cjs').registerFileManager({ ipcMain, trusted, win, dialog, shell });
     await require('./discord-presence.cjs').registerDiscordPresence({
       app,
       ipcMain,

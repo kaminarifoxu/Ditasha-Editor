@@ -27,6 +27,9 @@ jobs:
       - name: Check automatic Blender and add-on setup
         run: npx electron scripts/smoke-native-setup.cjs
         timeout-minutes: 30
+      - name: Check File Manager and native asset sorting
+        run: npx electron scripts/smoke-file-manager.cjs
+        timeout-minutes: 3
       - name: Prepare verified native IDE engine
         run: npm run prepare:ide
       - name: Check the embedded IDE workbench

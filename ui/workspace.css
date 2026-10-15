@@ -241,6 +241,7 @@ body.workspace-shell {
 .workspace-shell > .asset-viewer,
 .workspace-shell > .archive-workspace,
 .workspace-shell > .home-workspace,
+.workspace-shell > .file-manager,
 .workspace-shell > .embedded-ide-workspace,
 .workspace-shell > .vehicle-workspace {
   width: calc(100% - var(--rail-width));
