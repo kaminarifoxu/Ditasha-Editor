@@ -4,15 +4,21 @@ This integration hosts the **Code - OSS server-web workbench inside the DITASHA 
 
 ## Current validation status
 
-The integration requires a separate MIT Code - OSS `reh-web` engine. The regular Microsoft `Code.exe` application is not this engine. Microsoft VS Code Server binaries and Microsoft Marketplace extensions are not redistributed. Windows packaging, terminal, language debugging and extension compatibility must pass a real-engine smoke test before this can ship as a release.
+Windows builds bundle the MIT VSCodium Code - OSS Web Host. The exact version, official release URL, size and SHA-256 are pinned in `scripts/ide-runtime.json`. Packaging refuses an unexpected download. Microsoft VS Code Server binaries and Microsoft Marketplace extensions are not redistributed. The real embedded workbench must pass its own Windows check before packaging.
 
-## Build the Windows engine
+## Bundled engine and builds
+
+Run `npm run prepare:ide` to download, verify and extract the pinned Windows engine. `npm run build:win` does this automatically and includes the engine and license notices in the portable application. For offline builds, set `DITASHA_IDE_ARCHIVE` to the exact pinned archive; its checksum is still verified. The IDE starts when you enter its workspace, while other workspaces keep it hidden without closing its tabs.
+
+The advanced **Choose engine** button accepts a different extracted MIT server-web runtime. A regular Microsoft `Code.exe` installation is not a server-web engine.
+
+## Optional engine source build
 
 Use the manual `Build embedded Code - OSS engine` GitHub Actions workflow. It checks out a pinned upstream source revision and builds `vscode-reh-web-win32-x64-min`. Download and extract the resulting artifact, then choose its root from **Code editor → Choose engine**. The root contains `node.exe`, `out/server-main.js`, `product.json`, `extensions`, and the full web workbench. Dependencies must remain together.
 
 The expensive source-engine build runs manually or when a branch commit contains `[build-engine]`. Ordinary studio changes use the separate Windows preview workflow, avoiding a full VS Code source rebuild for every UI adjustment.
 
-**Start IDE** opens the workbench in the same application window. The DITASHA navigation and toolbar remain visible. Switching workspace hides the IDE without terminating its engine or closing project tabs. Quick edits to archive files remain a separate workflow; they are not automatically written back from the IDE into an RPF.
+The DITASHA navigation and toolbar remain visible around the IDE. Quick edits to archive files remain a separate workflow; they are not automatically written back from the IDE into an RPF.
 
 ## Capabilities and limits
 

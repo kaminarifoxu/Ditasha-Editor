@@ -88,6 +88,8 @@ function registerEmbeddedIDE({
   async function detect() {
     if (runtime) return runtime;
     const roots = [path.join(resourcesPath, 'ide-runtime')];
+    if (typeof app.getAppPath === 'function')
+      roots.push(path.join(app.getAppPath(), 'ide-runtime'));
     try {
       roots.unshift(JSON.parse(await fs.readFile(config, 'utf8')).root);
     } catch {}
@@ -255,7 +257,13 @@ function registerEmbeddedIDE({
   const actions = {
     async state() {
       await detect();
-      return { ...state, installed: !!runtime, runtime: runtime?.root || '' };
+      return {
+        ...state,
+        message:
+          runtime && state.status === 'setup' ? 'Local Code - OSS engine is ready.' : state.message,
+        installed: !!runtime,
+        runtime: runtime?.root || '',
+      };
     },
     async choose() {
       if (child || startPromise) throw Error('Restart DITASHA before changing the IDE engine.');

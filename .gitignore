@@ -1,4 +1,5 @@
 node_modules/
+ide-runtime/
 release/
 *.log
 font-source.css

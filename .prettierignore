@@ -1,4 +1,5 @@
 node_modules/
+ide-runtime/
 release/
 ui/app.js
 package-lock.json

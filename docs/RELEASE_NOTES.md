@@ -99,5 +99,5 @@ DITASHA Editor 1.19.0 — Home and minimal studio workspace
 - Add workspace search with Ctrl K. The DITASHA logo returns Home without reloading or discarding the current session.
 - Simplify the navigation rail: keep the editor, GTA V Explorer, Vehicle Workshop and code workspace directly accessible; group extra tools in an expandable section and move preview performance into Settings.
 - Refresh dark/light palettes, panels, controls, dialogs and splash screen with restrained sakura accents, clearer spacing and consistent borders. Preserve document tabs and the stable 2D/3D toolbar.
-- Add an isolated embedded Code - OSS workbench host for a separately installed MIT server-web engine. It remains a distinct dependency and does not promise Microsoft-only extensions or services. Keep Monaco quick editing and archive save workflows available.
+- Add an isolated embedded Code - OSS workbench host with a bundled, SHA-256-verified VSCodium MIT server-web engine. The IDE starts on entering its workspace and does not promise Microsoft-only extensions or services. Keep Monaco quick editing and archive save workflows available.
 - Add Windows checks for homepage layout at 1500/1024/800 px, workspace search and navigation, loaded-file preservation, light theme, and existing editor/viewer workflows. Real-engine tests are separate from UI tests.
