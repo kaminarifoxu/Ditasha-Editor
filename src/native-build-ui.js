@@ -18,7 +18,8 @@ export function mountNativeBuild({ toast, activate, attach, confirmDiscard }) {
     timer = null,
     requesting = false,
     candidateKey = '',
-    loadedPreviewId = null;
+    loadedPreviewId = null,
+    displayedMode = 'ped';
   const previewRoot = document.createElement('section');
   previewRoot.className = 'native-preview';
   previewRoot.hidden = true;
@@ -46,13 +47,26 @@ export function mountNativeBuild({ toast, activate, attach, confirmDiscard }) {
   preview.loadButton.onclick = () =>
     start($('nbMode').value === 'strobo' ? 'strobo_preview' : 'debadge_analyze');
   const api = () => window.ditashaNative;
+  const matchesPreview = () => {
+    const value = $('nbMode').value;
+    return (
+      state.report?.mode ===
+      (value === 'ped' ? 'ped' : value === 'strobo' ? 'strobo_preview' : 'debadge_analyze')
+    );
+  };
   function mode() {
     const value = $('nbMode').value;
+    if (value !== displayedMode) {
+      preview.clear();
+      loadedPreviewId = null;
+      displayedMode = value;
+    }
     $('nbPed').hidden = value !== 'ped';
     $('nbVehicle').hidden = value === 'ped';
     $('nbDebadge').hidden = value !== 'debadge';
     $('nbStrobo').hidden = value !== 'strobo';
-    previewRoot.hidden = dialog.hidden || (value === 'ped' && !state.previewId);
+    previewRoot.hidden =
+      dialog.hidden || (value === 'ped' && (!state.previewId || !matchesPreview()));
     $('nbTitle').textContent =
       value === 'ped'
         ? 'Auto rig ped'
@@ -82,7 +96,8 @@ export function mountNativeBuild({ toast, activate, attach, confirmDiscard }) {
     $('nbReveal').disabled = !state.output;
     $('nbSave').disabled = state.running || requesting || !state.stagedId || !state.previewId;
     $('nbDiscard').disabled = state.running || requesting || !state.stagedId;
-    if ($('nbMode').value === 'ped') previewRoot.hidden = !state.previewId || dialog.hidden;
+    if ($('nbMode').value === 'ped')
+      previewRoot.hidden = !state.previewId || !matchesPreview() || dialog.hidden;
     $('nbReport').replaceChildren();
     const report = state.report;
     if (!report) return;
@@ -127,7 +142,13 @@ export function mountNativeBuild({ toast, activate, attach, confirmDiscard }) {
         $('nbCandidates').textContent =
           'Tidak ada badge terdeteksi dari nama. Pilih mesh manual di Vehicle workshop jika diperlukan.';
     }
-    if (state.previewId && state.previewId !== loadedPreviewId && report.ok && !state.running) {
+    if (
+      state.previewId &&
+      state.previewId !== loadedPreviewId &&
+      report.ok &&
+      !state.running &&
+      matchesPreview()
+    ) {
       const id = state.previewId;
       loadedPreviewId = id;
       api()

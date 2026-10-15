@@ -69,6 +69,7 @@ module.exports = async function checkTools(fixtures) {
       document.querySelector('[data-conversion-mode=png]').getAttribute('aria-pressed') === 'true',
     'Format buttons do not change conversion mode',
   );
+  document.querySelector('[data-conversion-mode=ytd]').click();
   await add([png]);
   $('toolRun').click();
   await wait(() => !$('toolRun').disabled, 'YTD conversion did not finish');
