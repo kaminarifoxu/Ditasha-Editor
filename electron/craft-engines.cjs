@@ -20,10 +20,12 @@ function registerCraftEngines({
     : path.resolve(__dirname, '../craft-runtime'),
 }) {
   const views = new Map();
+  const configuredSessions = new Set();
   let active = '',
     bounds;
   async function installProtocol(partition) {
     const ses = session.fromPartition(partition);
+    if (configuredSessions.has(partition)) return ses;
     if (
       !ses.protocol.isProtocolHandled ||
       !(await ses.protocol.isProtocolHandled('ditasha-craft'))
@@ -64,6 +66,7 @@ function registerCraftEngines({
       if (target) item.setSavePath(target);
       else item.cancel();
     });
+    configuredSessions.add(partition);
     return ses;
   }
   function layout() {

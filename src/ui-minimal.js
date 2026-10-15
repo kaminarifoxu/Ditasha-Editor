@@ -228,7 +228,7 @@ export function mountMinimalUi() {
       el.dataset.autoLabel = 'true';
     }
     el.title = accessible;
-    el.querySelectorAll(':scope > svg').forEach((svg) => svg.remove());
+    el.querySelectorAll(':scope > svg, :scope > .di-icon').forEach((symbol) => symbol.remove());
     const badge = el.id === 'openUpdates' ? document.getElementById('updateBadge') : null;
     badge?.remove();
     const label = document.createElement('span');

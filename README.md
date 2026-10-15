@@ -269,3 +269,7 @@ Open **Vehicle workshop**, immediately after **GTA V Explorer**, for vehicle YFT
 The workspace navigation is now on the left. Auto rig ped, GPU and Settings are in the lower navigation section; Vehicle workshop follows GTA V Explorer. Settings contains persistent Midnight/Light themes, Comfortable/Compact density, and Discord Activity preferences.
 
 Discord Activity uses the installed Discord desktop client. Create an application named DITASHA Editor in [Discord Developer Portal](https://discord.com/developers/applications), copy its public Application ID, and enter it in Settings. No bot token or client secret is needed. Activity becomes available after configuration and follows Discord Activity Privacy. See [Discord setup](docs/DISCORD_ACTIVITY.md).
+
+## Creative Suite preview
+
+The v1.23 preview embeds nine verified offline Craft web editors for images, vectors, photos, video, motion, PDF, documents, spreadsheets and slides. The DITASHA interface uses the new graphite / sage design. [Workspace guide, texture interchange and integration boundaries](docs/CREATIVE_SUITE.md).

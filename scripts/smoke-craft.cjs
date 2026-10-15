@@ -26,7 +26,7 @@ protocol.registerSchemesAsPrivileged([
 ]);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 app.whenReady().then(async () => {
-  let win, temp;
+  let win, temp, savePath;
   const report = [];
   const timeout = setTimeout(() => {
     console.error('Creative engines timed out');
@@ -60,7 +60,7 @@ app.whenReady().then(async () => {
       root: runtime,
       trusted: (e) => assert.equal(e.sender, win.webContents),
       dialog: {
-        showSaveDialogSync: () => undefined,
+        showSaveDialogSync: () => savePath,
         showMessageBox: async () => ({ response: 1 }),
       },
     });
@@ -142,6 +142,17 @@ app.whenReady().then(async () => {
         colors.size > 15,
         item.id + ' rendered a blank canvas (' + colors.size + ' colors)',
       );
+      let imageRoundTrip;
+      if (item.id === 'photocraft')
+        imageRoundTrip = await require('./craft-photo-check.cjs')({
+          contents,
+          host: win.webContents,
+          temp,
+          setSavePath: (value) => {
+            savePath = value;
+          },
+        });
+      await fs.writeFile(path.resolve('release/qa/engine-' + item.id + '.png'), image.toPNG());
       await capture('creative-' + item.id);
       // Returning to the hub must retain the live document and hide the child view.
       await win.webContents.executeJavaScript(`document.getElementById('openHome').click()`);
@@ -164,6 +175,7 @@ app.whenReady().then(async () => {
         colors: colors.size,
         offline: true,
         retained: true,
+        ...(imageRoundTrip ? { imageRoundTrip } : {}),
       });
       console.log('PASS engine: ' + JSON.stringify(report.at(-1)));
       // Release memory between engine checks, like an explicit user Close engine action.

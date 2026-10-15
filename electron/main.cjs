@@ -58,7 +58,7 @@ else {
       frame: false,
       resizable: false,
       show: false,
-      backgroundColor: '#101113',
+      backgroundColor: '#181a1b',
       icon: path.join(__dirname, '..', 'assets', 'icon.ico'),
       webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true },
     });
@@ -72,7 +72,7 @@ else {
       minWidth: 800,
       minHeight: 600,
       title: 'DITASHA Editor',
-      backgroundColor: '#101113',
+      backgroundColor: '#181a1b',
       icon: path.join(__dirname, '..', 'assets', 'icon.ico'),
       show: false,
       autoHideMenuBar: true,
