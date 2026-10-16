@@ -36,8 +36,9 @@ module.exports = async function checkDebadge({ vehicle }) {
   );
   const dt = new DataTransfer();
   dt.items.add(new File([Uint8Array.from(vehicle)], 'testvehicle.yft'));
-  $('dbInput').files = dt.files;
-  $('dbInput').dispatchEvent(new Event('change'));
+  $('dbViewport').dispatchEvent(
+    new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }),
+  );
   await wait(
     () => $('dbParts').children.length === 2 && !$('dbOpen').disabled,
     'Vehicle preview did not load connected parts',

@@ -1024,7 +1024,7 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
   $('open').addEventListener(
     'click',
     (e) => {
-      if (textureRoot.hidden && modelRoot.hidden) return;
+      if (textureRoot.closest('[hidden]') && modelRoot.closest('[hidden]')) return;
       e.preventDefault();
       e.stopImmediatePropagation();
       $(!textureRoot.hidden ? 'tvInput' : 'mvInput').click();
@@ -1034,7 +1034,7 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
   document.addEventListener(
     'drop',
     (e) => {
-      if (textureRoot.hidden && modelRoot.hidden) return;
+      if (textureRoot.closest('[hidden]') && modelRoot.closest('[hidden]')) return;
       e.preventDefault();
       e.stopImmediatePropagation();
       const files = [...e.dataTransfer.files];
