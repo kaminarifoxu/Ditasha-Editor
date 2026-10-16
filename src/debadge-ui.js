@@ -393,8 +393,11 @@ export function mountDebadge({ download, toast, confirmDiscard, back }) {
         )
           return;
         const next = [];
-        for (const f of yfts)
-          next.push({ file: f, data: await decodeResource('debadge-read', await f.arrayBuffer()) });
+        for (const f of yfts) {
+          const input = await f.arrayBuffer();
+          const original = input.slice(0);
+          next.push({ file: f, original, data: await decodeResource('debadge-read', input) });
+        }
         stagedModels = next;
       }
       let used = stagedExternal.reduce((n, t) => n + t.out.byteLength, 0);
@@ -433,7 +436,7 @@ export function mountDebadge({ download, toast, confirmDiscard, back }) {
           .filter((k) => k.startsWith(i + ':'))
           .map((k) => k.slice(String(i).length + 1));
         if (!selected.length) continue;
-        const result = await decodeResource('debadge-write', await models[i].file.arrayBuffer(), {
+        const result = await decodeResource('debadge-write', models[i].original.slice(0), {
           selected,
         });
         removed += result.removedTriangles;

@@ -86,13 +86,17 @@ module.exports = async function checkDebadge({ vehicle }) {
   const saved = saves.at(-1);
   assert(saved.name === 'testvehicle.yft', 'Native export lost the original filename');
   assert([...saved.data.slice(0, 4)].join(',') === '82,83,67,55', 'Export is not RSC7');
+  $('dbHide').checked = false;
+  $('dbHide').dispatchEvent(new Event('change'));
+  $('dbFit').click();
+  await sleep(150);
   console.log('DITASHA_SNAPSHOT:direct-debadge');
   // Bad input must preserve the existing vehicle and selection.
   const bad = new DataTransfer();
   bad.items.add(new File(['invalid'], 'broken.yft'));
   $('dbInput').files = bad.files;
   $('dbInput').dispatchEvent(new Event('change'));
-  await sleep(250);
+  await wait(() => !$('dbOpen').disabled, 'Invalid import did not settle');
   assert(
     $('dbFiles').textContent.includes('testvehicle.yft'),
     'Bad import replaced the current vehicle',
