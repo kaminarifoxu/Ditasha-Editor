@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { photoshootPoints, fitPhotoshoot } from '../src/photoshoot-framing.js';
 import { modelAlphaMode } from '../src/model-material.js';
 import { hashName } from '../src/asset-tools.js';
+import { defaultPreviewSettings, previewAlpha } from '../src/material-preview.js';
 
 test('Wide vehicle fills each angle independently and stays inside the export panel', () => {
   const root = new THREE.Mesh(new THREE.BoxGeometry(6, 2, 1));
@@ -61,4 +62,15 @@ test('Opaque vehicle shader variants preserve solid surfaces while glass and dec
   }
   for (const name of ['vehicle_vehglass', 'vehicle_badges', 'vehicle_decal', 'vehicle_cutout'])
     assert.equal(modelAlphaMode({ shaderFileHash: hashName(name + '.sps') }), 'blend');
+});
+
+test('Ped material defaults cannot overwrite the solid vehicle shader mode', () => {
+  const material = new THREE.MeshStandardMaterial();
+  assert.equal(defaultPreviewSettings(material).mode, 'cutout');
+  material.userData.previewAlphaDefault = { mode: 'opaque', cutoff: 0 };
+  assert.deepEqual(previewAlpha(defaultPreviewSettings(material), true), {
+    transparent: false,
+    alphaTest: 0,
+    depthWrite: true,
+  });
 });

@@ -9,6 +9,16 @@ export function previewAlpha(settings, textured) {
   };
 }
 
+export function defaultPreviewSettings(material) {
+  return {
+    mode: 'cutout',
+    cutoff: 0.25,
+    removeBlack: false,
+    ...material?.userData.previewAlphaDefault,
+    automatic: true,
+  };
+}
+
 // Preview settings and colour-keyed maps never modify editor pixels or export data.
 export function mountMaterialPreview({ container, prefix, onChange }) {
   const root = document.createElement('details');
@@ -22,7 +32,7 @@ export function mountMaterialPreview({ container, prefix, onChange }) {
     settings = new Map(),
     keyedMaps = new Set(),
     selectedKey = 'all';
-  const defaults = () => ({ mode: 'cutout', cutoff: 0.25, removeBlack: false });
+  const defaults = defaultPreviewSettings;
   function selected() {
     return $('Part').value === 'all' ? items : items.filter((item) => item.key === $('Part').value);
   }
@@ -75,7 +85,7 @@ export function mountMaterialPreview({ container, prefix, onChange }) {
     onChange();
   }
   function change(update) {
-    for (const item of selected()) Object.assign(item.settings, update);
+    for (const item of selected()) Object.assign(item.settings, update, { automatic: false });
     apply();
     refresh();
   }
@@ -93,7 +103,11 @@ export function mountMaterialPreview({ container, prefix, onChange }) {
     change({ cutoff: value });
   };
   $('Black').onchange = () => change({ removeBlack: $('Black').checked });
-  $('Reset').onclick = () => change(defaults());
+  $('Reset').onclick = () => {
+    for (const item of selected()) Object.assign(item.settings, defaults(item.material));
+    apply();
+    refresh();
+  };
   function clear(reset = false) {
     releaseMaps();
     items = [];
@@ -116,7 +130,8 @@ export function mountMaterialPreview({ container, prefix, onChange }) {
         const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
         materials.forEach((material, slot) => {
           const key = (mesh.name || 'Mesh ' + (index + 1)) + ' · ' + slot;
-          if (!settings.has(key)) settings.set(key, defaults());
+          if (!settings.has(key) || settings.get(key).automatic)
+            settings.set(key, defaults(material));
           items.push({ key, material, source: material.map, settings: settings.get(key) });
         });
       });

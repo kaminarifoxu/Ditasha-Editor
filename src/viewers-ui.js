@@ -533,6 +533,12 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
           alphaTest: t && alpha !== 'opaque' ? 0.02 : 0,
         });
         const mesh = new THREE.Mesh(geometry, material);
+        // Ped alpha controls must not turn solid vehicle paint into a cutout.
+        if (alpha === 'opaque' || override?.alpha === 'blend')
+          material.userData.previewAlphaDefault = {
+            mode: alpha,
+            cutoff: alpha === 'opaque' ? 0 : 0.02,
+          };
         if (source.transform) {
           const t = source.transform;
           mesh.position.set(t.x || 0, t.y || 0, t.z || 0);
