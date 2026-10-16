@@ -1,3 +1,10 @@
+# v1.24.0 preview
+
+- Replaced Blender-dependent debadge with direct Legacy YFT preview and connected-part selection. Click separate badge geometry, highlight it, focus it, preview it hidden, undo/redo selections, and export using the original YFT filename.
+- Native export changes only selected index entries into degenerate visual triangles. It preserves rig, collision, vertices, materials, textures, header/pointers and unselected buffers. Shared/overlapping index buffers, unreadable geometry and removing an entire LOD are guarded.
+- Base and `_hi.yft` files can be reviewed together, with explicit drawable/LOD selection. Separate LODs are not guessed or edited automatically. YTD textures and the currently open vehicle can be reused.
+- Debadge no longer calls Sollumz's YFT importer, avoiding the pre-preview import traceback shown in the reported failure. Other Blender operations retain their importer; full error reports can now be expanded or saved without overflowing a narrow status column.
+
 # v1.22.0 preview
 
 - Add Canvas Studio with blend modes, manual hide/reveal masks, alignment, optional position snapping, and portable layer/mask projects. Existing texture editing and GTA exports remain available.

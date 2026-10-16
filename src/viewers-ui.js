@@ -1076,6 +1076,10 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
     textureRoot,
     modelRoot,
     vehicleControls: workshop.root,
+    getVehicleSource: () =>
+      modelSource && /\.yft$/i.test(modelSource.name)
+        ? { file: modelSource, textures: modelTextures }
+        : null,
     openTextures,
     openModels,
     unsavedItems: () => [...workshop.unsavedItems(), ...sceneStudio.unsavedItems()],

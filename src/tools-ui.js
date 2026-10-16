@@ -593,8 +593,10 @@ export function mountTools({
   );
   activate('home');
   return {
+    getVehicleSource: viewers.getVehicleSource,
     activate,
     attachNative: (element, mode) => {
+      if (nativeRoot && nativeRoot !== element) nativeRoot.hidden = true;
       nativeRoot = element;
       nativeMode = mode;
       (mode === 'ped' || !mode ? document.body : nativeHost).append(element);

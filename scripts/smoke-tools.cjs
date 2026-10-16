@@ -204,6 +204,20 @@ app.whenReady().then(async () => {
         JSON.stringify({ model: [...inlineModel] }) +
         ')',
     );
+    const { debadgeFixture } = await import('../tests/debadge.test.mjs');
+    await win.loadFile(path.resolve('ui/index.html'));
+    const debadgeReport = await win.webContents.executeJavaScript(
+      '(' +
+        require('./debadge-ui-checks.cjs').toString() +
+        ')(' +
+        JSON.stringify({ vehicle: [...new Uint8Array(debadgeFixture())] }) +
+        ')',
+    );
+    const { readYft } = await import('../src/resource.js');
+    const indices = readYft(Uint8Array.from(debadgeReport.data).buffer)[0].geometries[0].indices;
+    if ([...indices].join(',') !== '0,1,2,0,2,3,4,4,4')
+      throw Error('UI export changed the wrong triangles');
+    delete debadgeReport.data;
     await Promise.all(captures);
     console.log(
       'PASS: ' +
@@ -216,6 +230,7 @@ app.whenReady().then(async () => {
           offlineReport,
           inlineReport,
           manualStudioReport,
+          debadgeReport,
         }),
     );
     win.destroy();

@@ -581,8 +581,10 @@ export function readYft(buffer) {
   }
   if (!offsets.length) throw Error('YFT tidak memiliki drawable yang dapat ditampilkan.');
   const result = requireGeometry(readDrawables(r, [...new Set(offsets)], metadata));
-  if (r.fragmentWarnings?.length)
+  if (r.fragmentWarnings?.length) {
+    result[0].geometryWarnings = [...r.fragmentWarnings];
     result[0].warnings = [...result[0].warnings, ...r.fragmentWarnings];
+  }
   return result;
 }
 

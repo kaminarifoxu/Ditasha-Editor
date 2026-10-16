@@ -822,3 +822,235 @@ body.workspace-shell[data-theme='light'] {
 .workspace-shell .brandname {
   display: block;
 }
+/* Direct visual debadge stays in the vehicle workspace, without a Blender modal. */
+.debadge-workspace {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  background: var(--bg);
+  overflow: hidden;
+}
+.debadge-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+}
+.debadge-head > div {
+  margin-right: auto;
+}
+.debadge-head h2 {
+  font-size: 20px;
+  margin: 5px 0 0;
+}
+.debadge-layout {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 245px minmax(260px, 1fr) 235px;
+}
+.debadge-sidebar,
+.debadge-inspector {
+  overflow-y: auto;
+  min-height: 0;
+  min-width: 0;
+  padding: 18px 14px;
+  background: var(--panel);
+}
+.debadge-sidebar {
+  border-right: 1px solid var(--line);
+}
+.debadge-inspector {
+  border-left: 1px solid var(--line);
+}
+.debadge-sidebar label {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+}
+.debadge-sidebar select {
+  width: 100%;
+  min-width: 0;
+}
+#dbFiles {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  line-height: 1.8;
+  margin: 12px 0;
+}
+.debadge-picked {
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+  margin-top: 18px;
+}
+#dbSearch {
+  width: 100%;
+  margin: 10px 0;
+}
+.db-part {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  margin-bottom: 6px;
+}
+.db-part.selected {
+  background: #822d4633;
+  border-color: #c94362;
+}
+.db-part label {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  cursor: pointer;
+  align-items: center;
+}
+.db-part label > span {
+  min-width: 0;
+}
+.db-part strong,
+.db-part small {
+  display: block;
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.db-part small {
+  color: var(--muted);
+  font-size: 9px;
+  margin-top: 5px;
+}
+.db-part button {
+  width: 25px;
+  min-width: 25px;
+  padding: 3px;
+}
+.debadge-stage {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.debadge-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.debadge-toolbar label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+}
+#dbViewport {
+  flex: 1;
+  min-height: 180px;
+  position: relative;
+  overflow: hidden;
+}
+#dbViewport canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+#dbViewport .empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+#dbStatus {
+  border-top: 1px solid var(--line);
+  padding: 12px;
+  font-size: 10px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.debadge-warnings {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+  font-size: 10px;
+  color: #d8b56c;
+}
+.debadge-inspector p {
+  font-size: 11px;
+  line-height: 1.8;
+}
+#dbExport {
+  margin-top: 20px;
+  width: 100%;
+}
+.native-error-details {
+  max-height: 360px;
+  white-space: pre-wrap;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  font-size: 10px;
+  width: 100%;
+}
+.native-build-layout > aside {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 1250px) {
+  .debadge-layout {
+    grid-template-columns: 200px minmax(230px, 1fr);
+  }
+  .debadge-inspector {
+    grid-column: 1 / -1;
+    max-height: 190px;
+    border-top: 1px solid var(--line);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 20px;
+  }
+  .debadge-inspector > .eyebrow,
+  #dbSaved {
+    grid-column: 1 / -1;
+  }
+  #dbExport {
+    margin-top: 0;
+  }
+}
+@media (max-width: 850px) {
+  .debadge-layout {
+    grid-template-columns: 165px minmax(190px, 1fr);
+  }
+  .debadge-head {
+    padding: 10px;
+    flex-wrap: wrap;
+  }
+  .debadge-toolbar {
+    gap: 4px;
+    padding: 6px;
+  }
+  .debadge-toolbar button {
+    font-size: 10px;
+    padding: 4px 6px;
+  }
+}
+.vehicle-native-host:has(> .debadge-workspace:not([hidden])) {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.debadge-workspace.embedded-native {
+  padding: 0;
+}

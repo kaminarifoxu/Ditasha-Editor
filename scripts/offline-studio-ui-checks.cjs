@@ -244,58 +244,8 @@ module.exports = async function checkOfflineStudio(fixtures) {
   await sleep(250);
   $('nbClose').click();
   $('vehicleDebadge').click();
-  assert(
-    $('nbMode').value === 'debadge' && !$('nbDebadge').hidden,
-    'Debadge shortcut selected wrong build',
-  );
-  $('nativeBuildDialog').querySelector('[data-pick="vehicle"]').click();
-  await sleep(30);
-  $('nbAnalyze').click();
-  await wait(
-    () => $('nbCandidates').querySelector('input') && !$('nbRun').disabled,
-    'Native badge analysis UI failed',
-  );
-  await wait(
-    () =>
-      $('nbViewport').querySelector('canvas') &&
-      $('nbPreviewStatus').textContent.includes('triangles'),
-    'Native geometry preview did not load',
-  );
-  // Real raycast click selects the candidate in the analysis/build list.
-  const canvas = $('nbViewport').querySelector('canvas');
-  $('nbPreviewFit').click();
-  await sleep(100);
-  const rect = canvas.getBoundingClientRect();
-  for (const type of ['pointerdown', 'pointerup'])
-    canvas.dispatchEvent(
-      new PointerEvent(type, {
-        bubbles: true,
-        clientX: rect.x + rect.width / 2,
-        clientY: rect.y + rect.height / 2,
-        button: 0,
-        pointerId: 1,
-      }),
-    );
-  assert(
-    $('nbCandidates').querySelector('input').checked,
-    '3D badge click did not select the build candidate',
-  );
-  $('nbPreviewRemoved').checked = true;
-  $('nbPreviewRemoved').dispatchEvent(new Event('change', { bubbles: true }));
-  console.log('DITASHA_SNAPSHOT:native-debadge-preview');
-  $('nbRun').click();
-  await wait(
-    () => nativeCalls.some((c) => c.mode === 'debadge') && !$('nbRun').disabled,
-    'Native build UI did not dispatch',
-  );
-  assert(
-    nativeCalls.find((c) => c.mode === 'debadge').selected[0] === 'front_badge',
-    'Native candidate selection was lost before build',
-  );
-  assert(
-    nativeCalls.find((c) => c.mode === 'debadge').inputs.vehicle === 'vehicle-token',
-    'Renderer did not use picker token',
-  );
+  assert(!$('debadgeWorkspace').hidden, 'Direct debadge workspace did not open');
+  $('dbBack').click();
   $('vehicleStrobo').click();
   $('nativeBuildDialog').querySelector('[data-pick="donor"]').click();
   await sleep(30);

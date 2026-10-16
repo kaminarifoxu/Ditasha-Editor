@@ -2285,6 +2285,8 @@ canvasStudio = mountCanvasStudio({
   },
 });
 nativeBuild = mountNativeBuild({
+  getVehicleSource: tools.getVehicleSource,
+  download,
   toast,
   activate: tools.activate,
   attach: tools.attachNative,
