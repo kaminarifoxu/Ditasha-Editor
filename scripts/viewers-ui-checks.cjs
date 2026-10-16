@@ -977,12 +977,19 @@ module.exports = async function checkViewers(fixtures) {
       solidPixels[i + 1] > solidPixels[i] * 2
     )
       solidGreen++;
-  assert(
-    solidGreen > 1000,
-    'Opaque vehicle paint disappeared in Photoshoot because diffuse alpha was zero',
-  );
   console.log('DITASHA_SNAPSHOT:photoshoot-solid-vehicle');
   await sleep(200);
+  assert(
+    solidGreen > 1000,
+    'Opaque vehicle paint disappeared: ' +
+      JSON.stringify({
+        solidGreen,
+        mode: $('mvPedMaterialMode').value,
+        status: $('psStatus').textContent,
+        source: $('psSource').textContent,
+        warnings: $('psWarnings').textContent,
+      }),
+  );
   $('psClose').click();
   return {
     saves,

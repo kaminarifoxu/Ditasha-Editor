@@ -67,7 +67,13 @@ export function mountMaterialPreview({ container, prefix, onChange }) {
           canvas.width = image.width;
           canvas.height = image.height;
           const ctx = canvas.getContext('2d');
-          ctx.drawImage(image, 0, 0);
+          if (image.data)
+            ctx.putImageData(
+              new ImageData(new Uint8ClampedArray(image.data), image.width, image.height),
+              0,
+              0,
+            );
+          else ctx.drawImage(image, 0, 0);
           const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
           pixels.data.set(hairTexturePixels({ out: pixels.data }, true));
           ctx.putImageData(pixels, 0, 0);

@@ -4,6 +4,7 @@
 - Add a single-view layout and 50–300% zoom with an explicit crop notice. Empty title/caption areas give space back to the model.
 - Treat the remaining standard opaque vehicle shader presets as solid surfaces. Diffuse alpha in paint, detail, cloth and tire shader data no longer makes those surfaces disappear. Glass, badges and decals retain alpha.
 - Prevent the ped alpha panel from overwriting opaque vehicle materials with its default eyebrow cutout; reset now restores each material's own default.
+- Upload viewer RGBA textures directly to the GPU, preserving RGB under zero alpha instead of losing it through Canvas premultiplication.
 - Retain shader identity even when no texture parameters are present. Show viewer texture/geometry warnings in Photoshoot.
 - The supplied GS image was reviewed. Its exact vehicle YFT/YTD was not supplied, so this does not establish that every missing part on that specific motorcycle is repaired. Physics fragment assembly and shared GTA textures absent from supplied files are not synthesized.
 - Material preset reference: https://github.com/Sollumz/szio/blob/main/src/szio/gta5/Shaders.xml (bucket 0 vehicle presets).

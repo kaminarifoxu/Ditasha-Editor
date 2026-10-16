@@ -437,8 +437,13 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
   function materialMap(t, channel = 0) {
     if (!t) return null;
     if (mapCache.get(t)?.has(channel)) return mapCache.get(t).get(channel);
-    const canvas = textureCanvas(t),
-      map = new THREE.CanvasTexture(canvas);
+    // Canvas premultiplication discards RGB where alpha is zero. Vehicle
+    // shaders often use those RGB values even though alpha is shader data.
+    const map = new THREE.DataTexture(t.out, t.w, t.h, THREE.RGBAFormat);
+    map.generateMipmaps = true;
+    map.minFilter = THREE.LinearMipmapLinearFilter;
+    map.magFilter = THREE.LinearFilter;
+    map.needsUpdate = true;
     map.flipY = false;
     map.channel = channel;
     map.colorSpace = THREE.SRGBColorSpace;
