@@ -5,6 +5,20 @@ const fs = require('node:fs/promises'),
 const { createPortableUpdater } = require('./updater.cjs');
 const { startReplacement } = require('./installer.cjs');
 const { completeUpdateStartup } = require('./update-startup.cjs');
+// CI authenticates only release metadata, never the asset URL or a different host.
+function ciFetcher(fetcher, token = '') {
+  return (url, options = {}) => {
+    const target = new URL(url);
+    const authorized =
+      token &&
+      target.origin === 'https://api.github.com' &&
+      target.pathname === '/repos/kaminarifoxu/Ditasha-Editor/releases/latest';
+    return fetcher(url, {
+      ...options,
+      headers: { ...options.headers, ...(authorized ? { Authorization: `Bearer ${token}` } : {}) },
+    });
+  };
+}
 async function run(app, net) {
   const root = process.env.DITASHA_UPDATE_SMOKE_ROOT;
   const phase = async (name) =>
@@ -71,10 +85,12 @@ async function run(app, net) {
       return;
     }
     // Download the current public release with Electron's real network stack.
+    const token = process.env.DITASHA_CI_GITHUB_TOKEN || '';
+    delete process.env.DITASHA_CI_GITHUB_TOKEN;
     const updater = createPortableUpdater({
       version: '1.0.0',
       directory: path.join(root, 'download'),
-      fetcher: (...args) => net.fetch(...args),
+      fetcher: ciFetcher((...args) => net.fetch(...args), token),
     });
     await phase('downloading');
     await updater.setAutoDownload(true);
@@ -109,4 +125,4 @@ async function run(app, net) {
     app.exit(1);
   }
 }
-module.exports = { run };
+module.exports = { run, ciFetcher };
