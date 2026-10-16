@@ -9,6 +9,7 @@
 }
 .workspace-shell .asset-workshop-surface button {
   min-height: var(--workshop-button);
+  height: auto;
   border-radius: 8px;
   padding: 8px 12px;
   font-size: 11px;
@@ -88,13 +89,14 @@
   )
   button.icon-control
   .control-label {
-  position: static;
-  width: auto;
-  height: auto;
-  clip: auto;
-  clip-path: none;
-  overflow: visible;
-  white-space: normal;
+  position: static !important;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  clip: auto !important;
+  clip-path: none !important;
+  overflow: visible !important;
+  white-space: normal !important;
   display: inline;
 }
 .workspace-shell
@@ -352,13 +354,14 @@
   gap: 7px;
 }
 .workspace-shell .editor-commandbar button.workshop-show-label .control-label {
-  position: static;
-  width: auto;
-  height: auto;
-  clip: auto;
-  clip-path: none;
-  overflow: visible;
-  white-space: nowrap;
+  position: static !important;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  clip: auto !important;
+  clip-path: none !important;
+  overflow: visible !important;
+  white-space: nowrap !important;
 }
 .workspace-shell .editor-commandbar #size {
   width: 68px;
