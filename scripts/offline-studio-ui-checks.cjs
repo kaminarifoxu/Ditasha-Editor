@@ -247,6 +247,8 @@ module.exports = async function checkOfflineStudio(fixtures) {
   assert(!$('debadgeWorkspace').hidden, 'Direct debadge workspace did not open');
   $('dbBack').click();
   $('vehicleStrobo').click();
+  $('nativeBuildDialog').querySelector('[data-pick="vehicle"]').click();
+  await sleep(30);
   $('nativeBuildDialog').querySelector('[data-pick="donor"]').click();
   await sleep(30);
   $('nbPreviewLoad').click();
@@ -254,6 +256,7 @@ module.exports = async function checkOfflineStudio(fixtures) {
     () => $('nbPreviewStatus').textContent.startsWith('2 triangles'),
     'Real donor preview did not load',
   );
+  const canvas = $('nbViewport').querySelector('canvas');
   change('nbX', '.25');
   $('nbX').dispatchEvent(new Event('input', { bubbles: true }));
   change('nbZ', '1.5');
