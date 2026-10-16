@@ -72,7 +72,7 @@ app.whenReady().then(async () => {
     assert.equal(nativeURLs.length, 1);
     assert.equal(
       new URL(nativeURLs[0]).searchParams.get('cmd'),
-      'files-stable.exe -Directory \"' + source + '\"',
+      'files-stable.exe -Directory \"' + (await fs.realpath(source)) + '\"',
     );
     const directories = await fs.readdir(output);
     assert.equal(directories.length, 1);
