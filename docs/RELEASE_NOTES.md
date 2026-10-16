@@ -1,3 +1,12 @@
+# v1.24.1 preview — Photoshoot framing and vehicle materials
+
+- Fit each camera angle to visible indexed geometry, instead of a shared sphere. Hidden parts, unused vertices and collapsed badge triangles no longer make the subject smaller.
+- Add a single-view layout and 50–300% zoom with an explicit crop notice. Empty title/caption areas give space back to the model.
+- Treat the remaining standard opaque vehicle shader presets as solid surfaces. Diffuse alpha in paint, detail, cloth and tire shader data no longer makes those surfaces disappear. Glass, badges and decals retain alpha.
+- Retain shader identity even when no texture parameters are present. Show viewer texture/geometry warnings in Photoshoot.
+- The supplied GS image was reviewed. Its exact vehicle YFT/YTD was not supplied, so this does not establish that every missing part on that specific motorcycle is repaired. Physics fragment assembly and shared GTA textures absent from supplied files are not synthesized.
+- Material preset reference: https://github.com/Sollumz/szio/blob/main/src/szio/gta5/Shaders.xml (bucket 0 vehicle presets).
+
 # v1.24.0 preview
 
 - Replaced Blender-dependent debadge with direct Legacy YFT preview and connected-part selection. Click separate badge geometry, highlight it, focus it, preview it hidden, undo/redo selections, and export using the original YFT filename.

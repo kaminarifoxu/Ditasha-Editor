@@ -242,6 +242,21 @@ module.exports = async function checkViewers(fixtures) {
       'Three-angle photoshoot lost face/hair textures: ' + JSON.stringify(panels),
     );
     assert(pixels[3] === 0, 'Transparent background became opaque');
+    const threeImage = canvas.toDataURL();
+    $('psLayout').value = 'single';
+    $('psLayout').dispatchEvent(new Event('input'));
+    await sleep(150);
+    assert(canvas.toDataURL() !== threeImage, 'Single-view layout did not render');
+    const singleImage = canvas.toDataURL();
+    $('psZoom').value = '200';
+    $('psZoom').dispatchEvent(new Event('input'));
+    await sleep(150);
+    assert(
+      $('psZoomValue').textContent === '200%' && canvas.toDataURL() !== singleImage,
+      'Expanded photoshoot zoom did not render',
+    );
+    $('psLayout').value = 'three';
+    $('psLayout').dispatchEvent(new Event('input'));
     $('psPreset').value = 'clothing';
     $('psPreset').dispatchEvent(new Event('change'));
     await sleep(150);
@@ -940,8 +955,43 @@ module.exports = async function checkViewers(fixtures) {
     $('mvModels').querySelectorAll('input[type=checkbox]').length === 1,
     'Extra YFT not removable',
   );
+  await input(
+    'mvInput',
+    [new File([new Uint8Array(fixtures.opaqueVehicleModel)], 'solid-paint.ydd')],
+    () => !$('mvOpen').disabled,
+  );
+  $('mvPhotoshoot').click();
+  $('psTitle').value = $('psCaption').value = '';
+  $('psTransparent').checked = true;
+  $('psTransparent').dispatchEvent(new Event('input'));
+  await sleep(200);
+  const solidCanvas = $('psCanvas');
+  const solidPixels = solidCanvas
+    .getContext('2d')
+    .getImageData(0, 0, solidCanvas.width, solidCanvas.height).data;
+  let solidGreen = 0;
+  for (let i = 0; i < solidPixels.length; i += 4)
+    if (
+      solidPixels[i + 3] > 200 &&
+      solidPixels[i + 1] > 60 &&
+      solidPixels[i + 1] > solidPixels[i] * 2
+    )
+      solidGreen++;
+  assert(
+    solidGreen > 1000,
+    'Opaque vehicle paint disappeared in Photoshoot because diffuse alpha was zero',
+  );
+  console.log('DITASHA_SNAPSHOT:photoshoot-solid-vehicle');
+  await sleep(200);
+  $('psClose').click();
   return {
     saves,
+    photoshoot: {
+      perAngleFit: true,
+      singleView: true,
+      extendedZoom: true,
+      opaqueVehicleAlpha: true,
+    },
     checks:
       'Vehicle A8 YTD, separate YFT livery/fragment choices, individual meshes, manual texture assignment and invalid extra retention; PNG decals render and enter Photoshoot without touching 2D; Photoshoot three views with face/hair, background/logo, transparent PNG and canceled/successful saves in both workspaces; texture gallery, exact size/zoom, grid/list, search/background, PNG/DDS/bulk export and canceled save; model LOD/parts, external/embedded textures and invalid-file retention; ped hair YDD/YTD, independent rendered face/hair materials, transforms, visibility, invalid imports and reset/removal; folder sort, text/hex inspection, paired viewers and new RPF',
   };

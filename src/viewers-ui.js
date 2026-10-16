@@ -1069,6 +1069,14 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
             camera,
             target: controls.target,
             name: modelName,
+            warnings: [
+              ...drawables.flatMap((d) => d.warnings || []),
+              ...renderedMeshes
+                .filter(
+                  (e) => e.mesh.visible && e.mesh.userData.textureBinding?.startsWith('Missing:'),
+                )
+                .map((e) => e.mesh.name + ' · ' + e.mesh.userData.textureBinding),
+            ].join('; '),
           }
         : null,
   });

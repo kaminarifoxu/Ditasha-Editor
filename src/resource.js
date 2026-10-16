@@ -323,7 +323,7 @@ function shaderInfo(r, d) {
     const params = r.ptr(shader),
       count = r.bytes[shader + 16];
     if (params === null || !count) {
-      bindings.push({});
+      bindings.push({ shaderHash: r.u32(shader + 8), shaderFileHash: r.u32(shader + 24) });
       continue;
     }
     let hashes = params + count * 16;
