@@ -1,3 +1,7 @@
+import { setProject } from './project-context.js';
+import { mountCanvasStudio } from './canvas-studio.js';
+import { mountSceneStudio } from './scene-studio.js';
+import { mountAssetWorkshopUi } from './asset-workshop-ui.js';
 import { mountWorkspaceShell } from './workspace-shell.js';
 import { mountNativeBuild } from './native-build-ui.js';
 import { decodeResource } from './resource-client.js';
@@ -29,6 +33,7 @@ import {
   eraseAt,
   resizeHandles,
   resizeFromHandle,
+  maskAt,
 } from './editor.js';
 const $ = (id) => document.getElementById(id),
   canvas = $('textureCanvas'),
@@ -43,7 +48,7 @@ let current = null,
   dirty = false,
   mapped = null,
   projectionPreview = null;
-let toastTimer, livery, nativeBuild;
+let toastTimer, livery, nativeBuild, canvasStudio, sceneStudio;
 let mode = 'move',
   gesture = null,
   cropRect = null,
@@ -194,6 +199,7 @@ const stickers3d = mountStickers3D({
   toast,
 });
 function clearModel() {
+  sceneStudio?.detach();
   stickers3d.clear();
   pedMaterials.clear();
   model.traverse((o) => {
@@ -307,6 +313,11 @@ function modelReady() {
     if (o.isMesh) meshes.push(o);
   });
   pedMaterials.setMeshes(meshes);
+  sceneStudio?.refresh(
+    (displayedModel?.name || modelFile?.name || 'model') +
+      '|' +
+      (displayedModel?.size || modelFile?.size || 0),
+  );
   frame();
 }
 function makeCanvas(t) {
@@ -360,6 +371,7 @@ function options(el, items) {
 }
 function selectFile(f) {
   activeFile = f;
+  setProject('editor', f.name);
   refreshFiles();
   if (f.resource || f.textures) {
     textures.splice(0, textures.length, ...(f.resource?.textures || f.textures));
@@ -701,8 +713,7 @@ $('wire').onclick = () => {
 };
 $('snapshot').onclick = () => {
   if (renderer) {
-    renderer.render(scene, camera);
-    png(renderer.domElement, 'ditasha-model-preview.png');
+    sceneStudio.cleanCapture(() => png(renderer.domElement, 'ditasha-model-preview.png'));
   }
 };
 $('help').onclick = () => $('helpDialog').showModal();
@@ -790,6 +801,7 @@ function renderComposite(mark = false) {
   if (mark) commit();
 }
 function syncTransform() {
+  canvasStudio?.sync();
   const l = selectedLayer();
   $('layerName').disabled = !l;
   $('layerName').value = l?.name || '';
@@ -868,7 +880,11 @@ function renderLayers() {
       const name = document.createElement('strong');
       name.textContent = l.name;
       const type = document.createElement('small');
-      type.textContent = (l.kind || 'Gambar') + (l.locked ? ' · Terkunci' : '');
+      type.textContent =
+        (l.kind || 'Gambar') +
+        (l.locked ? ' · Terkunci' : '') +
+        (l.mask ? ' · Mask' : '') +
+        (l.blend && l.blend !== 'source-over' ? ' · ' + l.blend : '');
       row.oncontextmenu = (e) => {
         e.preventDefault();
         current.selected = i;
@@ -958,18 +974,26 @@ function drawSelection() {
 function setMode(m) {
   mode = m;
   brush = m === 'brush';
-  for (const id of ['move', 'crop', 'brush', 'eraser']) $(id).classList.toggle('active', id === m);
+  for (const id of ['move', 'crop', 'brush', 'eraser', 'eyedropper'])
+    $(id)?.classList.toggle('active', id === m);
   canvas.style.cursor = m === 'move' ? 'move' : 'crosshair';
-  document.querySelector('.toolbar').classList.toggle('paintmode', m === 'brush' || m === 'eraser');
+  document
+    .querySelector('.toolbar')
+    .classList.toggle('paintmode', m === 'brush' || m === 'eraser' || m.startsWith('mask-'));
+  $('csMaskHide')?.classList.toggle('active', m === 'mask-hide');
+  $('csMaskReveal')?.classList.toggle('active', m === 'mask-reveal');
   document.querySelector('.toolbar').classList.toggle('erasemode', m === 'eraser');
-  $('toolHint').textContent =
-    m === 'crop'
-      ? 'Tarik area crop, lalu pilih Terapkan crop.'
-      : m === 'eraser'
-        ? 'Hapus bagian layer terpilih.'
-        : m === 'brush'
-          ? 'Lukis di kanvas dengan warna dan ukuran kuas.'
-          : 'Resize dari 8 titik · klik kanan untuk aksi layer.';
+  $('toolHint').textContent = m.startsWith('mask-')
+    ? 'Lukis mask untuk menyembunyikan atau memulihkan gambar sumber. Undo tersedia.'
+    : m === 'eyedropper'
+      ? 'Klik kanvas untuk mengambil warna komposit (tanpa garis UV).'
+      : m === 'crop'
+        ? 'Tarik area crop, lalu pilih Terapkan crop.'
+        : m === 'eraser'
+          ? 'Hapus bagian layer terpilih.'
+          : m === 'brush'
+            ? 'Lukis di kanvas dengan warna dan ukuran kuas.'
+            : 'Resize dari 8 titik · klik kanan untuk aksi layer.';
   drawSelection();
 }
 function point(e) {
@@ -991,13 +1015,46 @@ function brushAt(p) {
 canvas.onpointerdown = (e) => {
   if (!current || e.button !== 0) return;
   hideContext();
-  const p = point(e),
-    l = selectedLayer();
+  const p = point(e);
+  if (mode === 'move' && canvasStudio?.autoSelect()) {
+    for (let i = current.layers.length - 1; i >= 0; i--) {
+      const layer = current.layers[i],
+        q = localPoint(layer, p);
+      if (
+        layer.visible &&
+        !layer.locked &&
+        q.x >= 0 &&
+        q.y >= 0 &&
+        q.x <= layer.w &&
+        q.y <= layer.h
+      ) {
+        current.selected = i;
+        renderLayers();
+        break;
+      }
+    }
+  }
+  const l = selectedLayer();
   if (l?.locked && mode !== 'brush') {
     toast('Layer terkunci. Buka kunci lewat klik kanan.');
     return;
   }
-  if (mode === 'eraser') {
+  if (mode.startsWith('mask-')) {
+    if (!l) return toast('Pilih layer terlebih dahulu.');
+    remember();
+    if (l.mask) l.mask = copyCanvas(l.mask);
+    else {
+      l.mask = document.createElement('canvas');
+      l.mask.width = l.source.width;
+      l.mask.height = l.source.height;
+      const c = l.mask.getContext('2d');
+      c.fillStyle = '#fff';
+      c.fillRect(0, 0, l.mask.width, l.mask.height);
+    }
+    gesture = { type: 'mask', reveal: mode === 'mask-reveal', last: p };
+    maskAt(l, p, Number($('size').value) / 2, gesture.reveal);
+    renderComposite();
+  } else if (mode === 'eraser') {
     if (!l) {
       toast('Pilih layer yang ingin dihapus bagiannya.');
       return;
@@ -1075,6 +1132,12 @@ canvas.onpointerdown = (e) => {
 canvas.onpointermove = (e) => {
   if (!gesture || !current) return;
   const p = point(e);
+  if (gesture.type === 'mask') {
+    maskAt(selectedLayer(), p, Number($('size').value) / 2, gesture.reveal, gesture.last);
+    gesture.last = p;
+    renderComposite();
+    return;
+  }
   if (gesture.type === 'eraser') {
     eraseAt(selectedLayer(), p, Number($('size').value) / 2);
     renderComposite();
@@ -1095,8 +1158,9 @@ canvas.onpointermove = (e) => {
     dx = p.x - gesture.start.x,
     dy = p.y - gesture.start.y;
   if (gesture.type === 'move') {
-    l.x = Math.round(origin.x + dx);
-    l.y = Math.round(origin.y + dy);
+    const snap = canvasStudio?.snap() && !e.altKey ? 8 : 1;
+    l.x = Math.round((origin.x + dx) / snap) * snap;
+    l.y = Math.round((origin.y + dy) / snap) * snap;
   } else if (gesture.type === 'rotate') {
     let angle = normalizedAngle(
       (origin.angle || 0) +
@@ -1286,6 +1350,15 @@ $('replaceInput').onchange = async (e) => {
       sy: 0,
       sw: t.w,
       sh: t.h,
+      mask: l.mask
+        ? (() => {
+            const c = document.createElement('canvas');
+            c.width = t.w;
+            c.height = t.h;
+            c.getContext('2d').drawImage(l.mask, 0, 0, t.w, t.h);
+            return c;
+          })()
+        : null,
     };
     renderComposite(true);
     renderLayers();
@@ -1352,12 +1425,47 @@ function bakeRotation(l) {
   c.height = bounds.h;
   drawLayers(
     c.getContext('2d'),
-    [{ ...l, x: l.x - bounds.x, y: l.y - bounds.y, visible: true, opacity: 1 }],
+    [
+      {
+        ...l,
+        mask: null,
+        blend: 'source-over',
+        x: l.x - bounds.x,
+        y: l.y - bounds.y,
+        visible: true,
+        opacity: 1,
+      },
+    ],
     bounds.w,
     bounds.h,
   );
+  let mask = null;
+  if (l.mask) {
+    mask = document.createElement('canvas');
+    mask.width = bounds.w;
+    mask.height = bounds.h;
+    drawLayers(
+      mask.getContext('2d'),
+      [
+        {
+          ...l,
+          source: l.mask,
+          mask: null,
+          blend: 'source-over',
+          x: l.x - bounds.x,
+          y: l.y - bounds.y,
+          visible: true,
+          opacity: 1,
+        },
+      ],
+      bounds.w,
+      bounds.h,
+    );
+  }
   return {
     ...makeLayer(c, l.name),
+    mask,
+    blend: l.blend || 'source-over',
     x: bounds.x,
     y: bounds.y,
     visible: l.visible,
@@ -1747,6 +1855,7 @@ function saveTab() {
   finishGesture();
   activeTab.name = activeFile?.name || activeTab.name;
   activeTab.state = {
+    sceneStudio: sceneStudio?.captureSession(),
     files: [...files],
     textures: [...textures],
     current,
@@ -1776,6 +1885,7 @@ function resetWorkspace() {
   textures.splice(0);
   pedAttachments.clear();
   clearModel();
+  sceneStudio?.resetSession();
   $('canvasStack').hidden = true;
   $('emptyTexture').hidden = false;
   $('emptyModel').hidden = false;
@@ -1832,6 +1942,7 @@ function switchTab(tab) {
     dirty = state.dirty;
     applyTexture();
   }
+  if (state?.sceneStudio) sceneStudio?.restoreSession(state.sceneStudio);
   refreshFiles();
   renderTabs();
 }
@@ -1847,10 +1958,17 @@ renderTabs();
 let discardPending = null;
 function unsavedItems() {
   finishGesture();
-  return tabs.flatMap((tab) =>
-    workspaceTextures(tab === activeTab ? null : tab.state || { files: [] })
-      .filter(textureUnsaved)
-      .map((t) => ({ name: t.name, tab: tab.name })),
+  return (sceneStudio?.unsavedItems() || []).concat(
+    tabs
+      .filter((tab) => tab !== activeTab && tab.state?.sceneStudio?.dirty)
+      .map((tab) => ({ name: 'Scene Studio · scene belum disimpan', tab: tab.name }))
+      .concat(
+        tabs.flatMap((tab) =>
+          workspaceTextures(tab === activeTab ? null : tab.state || { files: [] })
+            .filter(textureUnsaved)
+            .map((t) => ({ name: t.name, tab: tab.name })),
+        ),
+      ),
   );
 }
 function confirmDiscard(reason = 'close', items = unsavedItems()) {
@@ -1913,7 +2031,15 @@ const tools = mountTools({
   preview: loadFiles,
   confirmDiscard,
   onVehicleBuild: (mode) => nativeBuild?.open(mode),
+  getSessionFiles: () => files.map(({ name, ext, size }) => ({ name, ext, size })),
+  selectSessionFile: (index) => {
+    if (files[index]) selectFile(files[index]);
+  },
 });
+$('open').onclick = () => {
+  tools.activate('editor');
+  $('fileInput').click();
+};
 mountPhotoshoot({
   container: document.querySelector('.modeltools'),
   id: 'photoshoot',
@@ -2026,8 +2152,149 @@ livery = mountLivery({
     return { identity: current, w: current.w, h: current.h, name: current.name, canvas: base };
   },
 });
-nativeBuild = mountNativeBuild({ toast });
+// All editing and viewing actions share a stable toolbar in both 2D and 3D.
+const commandbar = document.createElement('section');
+commandbar.className = 'editor-commandbar';
+commandbar.setAttribute('aria-label', 'Alat tekstur dan model');
+const toolbar = document.querySelector('.toolbar');
+commandbar.append(
+  toolbar,
+  document.querySelector('.modeltools'),
+  document.querySelector('.canvasoptions'),
+);
+document.querySelector('main').insertBefore(commandbar, document.querySelector('main').children[1]);
+const extraTools = document.createElement('div');
+extraTools.className = 'editor-layer-actions';
+extraTools.innerHTML =
+  '<button id="eyedropper" title="Ambil warna (I)" aria-label="Ambil warna (I)">Ambil warna</button><button id="fillLayer" title="Isi warna layer terpilih" aria-label="Isi warna layer terpilih">Isi warna</button><button id="centerLayer" title="Tengahkan layer" aria-label="Tengahkan layer">Tengah</button><button data-editor-action="fitImage" title="Pas layer ke kanvas" aria-label="Pas layer ke kanvas">Pas kanvas</button><button data-editor-action="rotateLeft" title="Putar kiri" aria-label="Putar kiri">Putar kiri</button><button data-editor-action="rotateRight" title="Putar kanan" aria-label="Putar kanan">Putar kanan</button><button data-editor-action="mirrorX" title="Cermin horizontal" aria-label="Cermin horizontal">Cermin</button><button data-editor-action="duplicateLayer" title="Duplikat layer (Ctrl D)" aria-label="Duplikat layer (Ctrl D)">Duplikat</button>';
+toolbar.querySelector('.spacer').before(extraTools);
+extraTools
+  .querySelectorAll('[data-editor-action]')
+  .forEach((b) => (b.onclick = () => $(b.dataset.editorAction).click()));
+$('eyedropper').onclick = () => setMode('eyedropper');
+canvas.addEventListener(
+  'pointerdown',
+  (event) => {
+    if (mode !== 'eyedropper' || !current || event.button !== 0) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const sample = document.createElement('canvas');
+    sample.width = current.w;
+    sample.height = current.h;
+    drawLayers(sample.getContext('2d'), current.layers, current.w, current.h);
+    const p = point(event);
+    const rgba = sample
+      .getContext('2d')
+      .getImageData(
+        Math.max(0, Math.min(current.w - 1, Math.floor(p.x))),
+        Math.max(0, Math.min(current.h - 1, Math.floor(p.y))),
+        1,
+        1,
+      ).data;
+    $('color').value =
+      '#' +
+      [...rgba]
+        .slice(0, 3)
+        .map((v) => v.toString(16).padStart(2, '0'))
+        .join('');
+    toast('Warna dipilih: ' + $('color').value);
+  },
+  true,
+);
+$('fillLayer').onclick = () => {
+  const layer = selectedLayer();
+  if (!layer || layer.locked) return toast('Pilih layer yang tidak terkunci.');
+  remember();
+  layer.source = copyCanvas(layer.source);
+  const ctx = layer.source.getContext('2d');
+  ctx.fillStyle = $('color').value;
+  ctx.fillRect(0, 0, layer.source.width, layer.source.height);
+  refreshEdit();
+};
+$('centerLayer').onclick = () => {
+  const layer = selectedLayer();
+  if (!layer || layer.locked) return toast('Pilih layer yang tidak terkunci.');
+  remember();
+  layer.x = (current.w - layer.w) / 2;
+  layer.y = (current.h - layer.h) / 2;
+  syncTransform();
+  refreshEdit();
+};
+document.addEventListener('keydown', (event) => {
+  if (
+    event.ctrlKey ||
+    event.metaKey ||
+    event.altKey ||
+    event.target.closest('input,select,textarea,[contenteditable=true]') ||
+    tools.isActive() ||
+    document.querySelector('dialog[open]')
+  )
+    return;
+  const action = { v: 'move', b: 'brush', e: 'eraser', i: 'eyedropper', c: 'crop' }[
+    event.key.toLowerCase()
+  ];
+  if (action) {
+    event.preventDefault();
+    $(action).click();
+  }
+});
+sceneStudio = mountSceneStudio({
+  container: document.querySelector('.inspector'),
+  viewport,
+  prefix: 'ssEditor',
+  scene,
+  camera,
+  getRenderer: () => renderer,
+  getControls: () => controls,
+  getObjects: () => {
+    const objects = [];
+    model.traverse((o) => {
+      if (o.isMesh) objects.push({ key: 'mesh:' + objects.length, object: o, label: o.name });
+    });
+    return objects;
+  },
+  download,
+  toast,
+});
+canvasStudio = mountCanvasStudio({
+  container: sidebarInspector,
+  getTexture: () => current,
+  remember,
+  refresh: refreshEdit,
+  setMode,
+  download,
+  markSaved,
+  toast,
+  onOpen: async (project) => {
+    const flattened = document.createElement('canvas');
+    flattened.width = project.w;
+    flattened.height = project.h;
+    drawLayers(flattened.getContext('2d'), project.layers, project.w, project.h);
+    const blob = await new Promise((resolve) => flattened.toBlob(resolve, 'image/png'));
+    if (!blob) throw Error('Proyek tidak dapat dirender.');
+    tools.activate('editor');
+    createTab();
+    await loadFiles([
+      new File([blob], project.name.replace(/\.[^.]+$/, '') + '.png', { type: 'image/png' }),
+    ]);
+    current.layers = project.layers;
+    current.selected = project.layers.length - 1;
+    current.history = [];
+    current.future = [];
+    refreshEdit();
+    markSaved(current, current.revision || 0);
+  },
+});
+nativeBuild = mountNativeBuild({
+  getVehicleSource: tools.getVehicleSource,
+  download,
+  toast,
+  activate: tools.activate,
+  attach: tools.attachNative,
+  confirmDiscard,
+});
 mountPerformance();
 mountMinimalUi();
 mountWorkspaceShell({ toast });
+mountAssetWorkshopUi();
 window.ditashaDesktop?.ready?.();

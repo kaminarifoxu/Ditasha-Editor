@@ -1,10 +1,23 @@
+import { mountCraft, craftWorkspaces } from './craft-ui.js';
+import { ICON_CODES } from './ui-icons.js';
 import { mountVehicleWorkspace } from './vehicle-ui.js';
 import { mountViewers } from './viewers-ui.js';
 import { mountArchives } from './archive-ui.js';
+import { mountEmbeddedIDE } from './embedded-ide-ui.js';
+import { mountHome } from './home-ui.js';
+import { mountFileManager } from './file-manager-ui.js';
 import { conversionModes, accepts, convertFile, picturesToYtd } from './converter.js';
 import { zipFiles, MAX_EXPORT, safePath } from './asset-tools.js';
 import { clothingInfo, importPath, analyzePack, buildPack } from './clothing-pack.js';
-export function mountTools({ download, toast, preview, confirmDiscard, onVehicleBuild }) {
+export function mountTools({
+  download,
+  toast,
+  preview,
+  confirmDiscard,
+  onVehicleBuild,
+  getSessionFiles,
+  selectSessionFile,
+}) {
   const $ = (id) => document.getElementById(id),
     editor = document.querySelector('main'),
     viewer = document.querySelector('.right'),
@@ -20,7 +33,7 @@ export function mountTools({ download, toast, preview, confirmDiscard, onVehicle
   root.hidden = true;
   root.innerHTML = `
  <aside class="tool-sidebar"><span class="eyebrow" id="toolEyebrow"></span><h2 id="toolHeading"></h2>
- <div id="convertSettings"><label>Konversi<select id="conversionMode"></select></label><p id="conversionHint" class="muted"></p><label>Nama YTD<input id="dictionaryName" value="ditasha_textures"></label><p class="muted">YTD / DDS: tanpa kompresi, satu mipmap. GLB: mesh & UV saja; tanpa rig, animasi atau material GTA.</p></div>
+ <div id="convertSettings"><label>Format tujuan<select id="conversionMode" hidden aria-hidden="true" tabindex="-1"></select></label><div id="conversionButtons" class="conversion-buttons" role="group" aria-label="Format konversi"></div><p id="conversionHint" class="muted"></p><label>Nama YTD<input id="dictionaryName" value="ditasha_textures"></label><p class="muted">YTD / DDS: tanpa kompresi, satu mipmap. GLB: mesh & UV saja; tanpa rig, animasi atau material GTA.</p></div>
  <div id="packSettings" hidden><label>Nama resource<input id="packName" value="ditasha_clothing" maxlength="64"></label><label>Mode pack<select id="packMode"><option value="replace">Replacement clothing</option><option value="addon">Existing add-on collection</option></select></label><p class="muted" id="packHint">Nama file menentukan ped dan slot replacement.</p><label>Catatan build<textarea id="packNote" rows="3" placeholder="Apa yang berubah?"></textarea></label></div>
  <div class="tool-buttons"><button id="toolAdd">+ File</button><button id="toolFolder">Folder</button><button id="toolClear">Kosongkan</button></div><input id="toolFileInput" type="file" multiple hidden><input id="toolFolderInput" type="file" webkitdirectory multiple hidden>
  <input id="toolSearch" class="search" placeholder="Cari file…" aria-label="Cari file tools"><select id="packFilter" aria-label="Filter ped" hidden><option value="All">All</option><option>Male</option><option>Female</option><option>Unknown</option></select><div id="toolQueue"></div><p id="toolCount" class="muted"></p></aside>
@@ -32,7 +45,23 @@ export function mountTools({ download, toast, preview, confirmDiscard, onVehicle
     o.value = id;
     o.textContent = title;
     $('conversionMode').append(o);
+    const button = document.createElement('button');
+    button.dataset.conversionMode = id;
+    button.title = title;
+    const icon =
+      id === 'glb' ? 'cube' : id === 'ytd' ? 'layers' : id === 'dds' ? 'document' : 'picture';
+    button.innerHTML = `<i class="di-icon" aria-hidden="true" data-icon="${icon}" data-glyph="${String.fromCodePoint(parseInt(ICON_CODES[icon], 16))}"></i><span>${id.toUpperCase()}</span>`;
+    button.onclick = () => {
+      if (busy) return;
+      $('conversionMode').value = id;
+      $('conversionMode').dispatchEvent(new Event('change'));
+    };
+    $('conversionButtons').append(button);
   }
+  let nativeRoot = null,
+    nativeMode = '';
+  const nativeHost = document.createElement('div');
+  nativeHost.className = 'vehicle-native-host';
   let page = 'editor',
     queue = [],
     pack = [],
@@ -60,6 +89,25 @@ export function mountTools({ download, toast, preview, confirmDiscard, onVehicle
     viewers,
   });
   const vehicles = mountVehicleWorkspace({ nav, viewers, onVehicleBuild });
+  vehicles.root.append(nativeHost);
+  const ide = mountEmbeddedIDE({ nav, toast, openQuickEditor: archives.openCode });
+  const fileManager = mountFileManager({
+    nav,
+    activate,
+    toast,
+    openFile: async (files) => {
+      const name = files[0].name;
+      if (/\.(rpf|zip|oiv)$/i.test(name)) return archives.openFile(files[0]);
+      if (/\.(ydd|ydr|yft)$/i.test(name)) {
+        activate(/\.yft$/i.test(name) ? 'vehicles' : 'modelviewer');
+        return viewers.openModels(files);
+      }
+      activate('editor');
+      return preview(files);
+    },
+  });
+  const craft = mountCraft({ nav, activate, toast, preview });
+  const homepage = mountHome({ nav, activate, preview, getSessionFiles, selectSessionFile });
   const modelHome = viewers.modelRoot.parentElement;
   const dirty = () => pack.length && revision !== savedRevision;
   const touch = () => {
@@ -69,26 +117,54 @@ export function mountTools({ download, toast, preview, confirmDiscard, onVehicle
   const mode = () => $('conversionMode').value;
   function activate(next) {
     if (busy) return;
-    if (next === 'code') {
+    if (next === 'textureviewer') next = 'editor';
+    if (nativeRoot) {
+      nativeRoot.hidden = !(
+        next === 'rig' ||
+        (next === 'vehicles' && nativeMode && nativeMode !== 'ped')
+      );
+      vehicles.host.hidden = next === 'vehicles' && !nativeRoot.hidden;
+    }
+    if (next === 'code' && !window.ditashaIDE) {
       archives.openCode();
       return;
     }
     if (page !== next) selection = null;
     page = next;
     $('workspaceLabel').textContent =
-      next === 'editor'
-        ? 'Texture & Model'
-        : next === 'pack'
-          ? 'Clothing pack'
-          : next === 'archives'
-            ? 'GTA V Explorer'
-            : next === 'vehicles'
-              ? 'Vehicle workshop'
-              : next === 'textureviewer'
-                ? 'Texture viewer'
-                : next === 'modelviewer'
-                  ? 'Model viewer'
-                  : 'Converter';
+      next === 'files'
+        ? 'File Manager'
+        : next === 'rig'
+          ? 'Auto rig ped'
+          : next === 'home'
+            ? 'Home'
+            : next === 'editor'
+              ? 'Texture & Model'
+              : next === 'pack'
+                ? 'Clothing pack'
+                : next === 'archives'
+                  ? 'GTA V Explorer'
+                  : next === 'vehicles'
+                    ? 'Vehicle workshop'
+                    : next === 'textureviewer'
+                      ? 'Texture viewer'
+                      : next === 'modelviewer'
+                        ? 'Model viewer'
+                        : next === 'code'
+                          ? 'Integrated IDE'
+                          : 'Converter';
+    craft.root.hidden = !next.startsWith('craft-');
+    if (next.startsWith('craft-')) {
+      $('workspaceLabel').textContent =
+        craftWorkspaces.find((s) => 'craft-' + s[0] === next)?.[1] || 'Creative Studio';
+      craft.activate(next);
+    }
+    ide.root.hidden = next !== 'code';
+    fileManager.root.hidden = next !== 'files';
+    homepage.root.hidden = next !== 'home';
+    document.body.dataset.workspace = next;
+    if (next === 'home') homepage.refresh();
+    if (next === 'code') ide.activate();
     editor.hidden = next !== 'editor';
     root.hidden = !['converter', 'pack'].includes(next);
     archives.root.hidden = next !== 'archives';
@@ -338,6 +414,12 @@ export function mountTools({ download, toast, preview, confirmDiscard, onVehicle
     activate('converter');
   };
   function updateHint() {
+    $('conversionButtons')
+      .querySelectorAll('button')
+      .forEach((b) => {
+        b.classList.toggle('active', b.dataset.conversionMode === mode());
+        b.setAttribute('aria-pressed', String(b.dataset.conversionMode === mode()));
+      });
     $('conversionHint').textContent = conversionModes.find((m) => m[0] === mode())[2];
     $('dictionaryName').parentElement.hidden = mode() !== 'ytd';
   }
@@ -509,7 +591,18 @@ export function mountTools({ download, toast, preview, confirmDiscard, onVehicle
     },
     true,
   );
+  activate('home');
   return {
+    getVehicleSource: viewers.getVehicleSource,
+    activate,
+    attachNative: (element, mode) => {
+      if (nativeRoot && nativeRoot !== element) nativeRoot.hidden = true;
+      nativeRoot = element;
+      nativeMode = mode;
+      (mode === 'ped' || !mode ? document.body : nativeHost).append(element);
+      element.classList.toggle('embedded-native', !!mode && mode !== 'ped');
+      if (!mode) element.hidden = true;
+    },
     unsavedItems: () => [
       ...(dirty() ? [{ name: 'Clothing pack · ' + $('packName').value }] : []),
       ...archives.unsavedItems(),

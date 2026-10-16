@@ -1,6 +1,6 @@
 # Discord Activity
 
-DITASHA Editor connects to the local Discord desktop client using Discord RPC over IPC. It publishes the active workspace and session start time; it does not publish file names, file contents, folder paths, account credentials or server details. Turning off workspace visibility publishes a generic creator activity instead.
+DITASHA Editor connects to the local Discord desktop client using Discord RPC over IPC. It publishes the active workspace and session start time. When project sharing is enabled, the activity also includes the project/asset label. Full folder paths, file contents, account credentials and server details are not published. Workspace and project visibility can be disabled separately.
 
 ## One-time setup
 
@@ -20,6 +20,10 @@ No ID is bundled in this release because the project owner has not created one y
 - **Discord menolak Activity**: check the Application ID, the Discord application and client settings, then save again.
 
 Workspace changes are coalesced to avoid flooding Discord. The session timer stays consistent after reconnect. Disabling Activity clears the published activity and disconnects; closing the editor also clears it. The engine is non-blocking and does not prevent asset editing if Discord is unavailable.
+
+## Nama proyek
+
+Activity dapat menampilkan nama aset/proyek aktif (tanpa path folder lengkap). Matikan **Tampilkan nama proyek di Activity** untuk menyembunyikannya. Isian **Nama proyek** di Pengaturan memberi nama manual yang diprioritaskan; kosongkan untuk kembali mengikuti aset aktif. Auto Rig, Explorer, Texture & Model dan Model Viewer memperbarui nama dari input yang dipilih. Untuk nama proyek Code Studio, gunakan isian manual.
 
 ## Verification
 

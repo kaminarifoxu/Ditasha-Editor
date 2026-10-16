@@ -1,4 +1,27 @@
-const { app, BrowserWindow, Menu, dialog, ipcMain, net, shell } = require('electron');
+const {
+  app,
+  BrowserWindow,
+  WebContentsView,
+  Menu,
+  dialog,
+  ipcMain,
+  net,
+  shell,
+  protocol,
+  session,
+} = require('electron');
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'ditasha-craft',
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+      stream: true,
+    },
+  },
+]);
 const path = require('node:path');
 const { isTrustedUpdateEvent } = require('./ipc-trust.cjs');
 const { startReplacement } = require('./installer.cjs');
@@ -8,6 +31,8 @@ const { createPortableUpdater } = require('./updater.cjs');
 let win,
   splash,
   updater,
+  embeddedIDE,
+  craftEngines,
   allowQuit = false,
   closingPrompt = false;
 const gotLock = app.requestSingleInstanceLock();
@@ -33,7 +58,7 @@ else {
       frame: false,
       resizable: false,
       show: false,
-      backgroundColor: '#101113',
+      backgroundColor: '#181a1b',
       icon: path.join(__dirname, '..', 'assets', 'icon.ico'),
       webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true },
     });
@@ -47,7 +72,7 @@ else {
       minWidth: 800,
       minHeight: 600,
       title: 'DITASHA Editor',
-      backgroundColor: '#101113',
+      backgroundColor: '#181a1b',
       icon: path.join(__dirname, '..', 'assets', 'icon.ico'),
       show: false,
       autoHideMenuBar: true,
@@ -75,6 +100,8 @@ else {
           "window.ditashaWorkspace ? (window.ditashaWorkspace.unsavedItems().length ? window.ditashaWorkspace.confirmDiscard('close') : 'discard') : 'discard'",
         );
         if (choice === 'discard') {
+          if (embeddedIDE && !(await embeddedIDE.requestClose())) return;
+          if (craftEngines && !(await craftEngines.requestClose())) return;
           allowQuit = true;
           win.close();
         }
@@ -145,6 +172,18 @@ else {
       if (!isTrustedUpdateEvent(event, win, path.join(__dirname, '..', 'ui', 'index.html')))
         throw Error('Untrusted update request');
     };
+    require('./file-manager.cjs').registerFileManager({ ipcMain, trusted, win, dialog, shell });
+    craftEngines = require('./craft-engines.cjs').registerCraftEngines({
+      app,
+      ipcMain,
+      protocol,
+      net,
+      session,
+      win,
+      trusted,
+      WebContentsView,
+      dialog,
+    });
     await require('./discord-presence.cjs').registerDiscordPresence({
       app,
       ipcMain,
@@ -158,6 +197,14 @@ else {
       shell,
       win,
       trusted,
+    });
+    embeddedIDE = require('./embedded-ide.cjs').registerEmbeddedIDE({
+      app,
+      ipcMain,
+      dialog,
+      win,
+      trusted,
+      WebContentsView,
     });
     ipcMain.handle('ditasha:open-icon-credits', async (event) => {
       trusted(event);
@@ -235,6 +282,7 @@ else {
         "window.ditashaWorkspace.confirmDiscard('update')",
       );
       if (choice !== 'discard') return false;
+      if (craftEngines && !(await craftEngines.requestClose())) return false;
       if (downloadFirst) {
         const state = await updater.download();
         if (state.status !== 'ready') throw Error(state.message);

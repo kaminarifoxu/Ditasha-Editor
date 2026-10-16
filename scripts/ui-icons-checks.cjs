@@ -33,8 +33,9 @@ module.exports = async function checkIcons() {
   brush.focus();
   assert(document.activeElement === brush, 'Icon action is not keyboard focusable');
   assert(
-    getComputedStyle(brush.querySelector('.control-label')).position === 'absolute',
-    'Brush text still clutters toolbar',
+    getComputedStyle(brush.querySelector('.control-label')).position === 'static' &&
+      brush.closest('[aria-label="Paint"]'),
+    'Paint action lost its visible label or toolbar group',
   );
   assert(
     !document.getElementById('ytdExport').classList.contains('compact-icon'),

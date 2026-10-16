@@ -1,0 +1,9 @@
+{
+  "name": "VSCodium Code - OSS Web Host",
+  "version": "1.140.06880",
+  "platform": "win32-x64",
+  "url": "https://github.com/VSCodium/vscodium/releases/download/1.140.06880/vscodium-reh-web-win32-x64-1.140.06880.tar.gz",
+  "sha256": "2d4dd1ecdcc397505cb766e5beab8d96bc6789b6ad74af31d3de5ed5e08af41f",
+  "size": 94038270,
+  "source": "https://github.com/VSCodium/vscodium/releases/tag/1.140.06880"
+}

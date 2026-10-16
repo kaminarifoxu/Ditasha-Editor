@@ -59,6 +59,17 @@ module.exports = async function checkTools(fixtures) {
   });
   document.querySelector('[data-page="converter"]').click();
   assert(!$('convertSettings').hidden, 'Converter not visible');
+  assert(
+    $('conversionMode').hidden && document.querySelectorAll('[data-conversion-mode]').length === 6,
+    'Converter should use six format buttons',
+  );
+  document.querySelector('[data-conversion-mode=png]').click();
+  assert(
+    $('conversionMode').value === 'png' &&
+      document.querySelector('[data-conversion-mode=png]').getAttribute('aria-pressed') === 'true',
+    'Format buttons do not change conversion mode',
+  );
+  document.querySelector('[data-conversion-mode=ytd]').click();
   await add([png]);
   $('toolRun').click();
   await wait(() => !$('toolRun').disabled, 'YTD conversion did not finish');

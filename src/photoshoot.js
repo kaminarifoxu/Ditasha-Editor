@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { photoshootPoints, fitPhotoshoot } from './photoshoot-framing.js';
 
 let studio;
 export function mountPhotoshoot({ container, id, getSource, download, toast }) {
@@ -42,6 +43,7 @@ function createStudio(download, toast) {
   dialog.innerHTML = `<div class="ps-header"><div><h2 id="psHeading">Photoshoot</h2><span id="psSource" class="muted"></span></div><button id="psClose" aria-label="Tutup Photoshoot">×</button></div>
     <div class="ps-layout"><aside class="ps-settings">
     <label>Susunan<select id="psPreset"><option value="ped">Ped · kiri / depan / kanan</option><option value="clothing">Pakaian · depan / belakang / depan</option></select></label>
+    <label>Layout<select id="psLayout"><option value="three">Tiga sudut</option><option value="single">Satu sudut · gambar besar</option></select></label>
     <label>Resolusi<select id="psSize"><option value="1920x1080">1920 × 1080</option><option value="2048x1152">2048 × 1152</option><option value="3000x2000">3000 × 2000</option></select></label>
     <label>Judul<input id="psTitle" maxlength="100" placeholder="Nama produk"></label>
     <label>Caption<input id="psCaption" maxlength="160" placeholder="Nama toko · Discord · keterangan"></label>
@@ -51,9 +53,9 @@ function createStudio(download, toast) {
     <input id="psBackgroundInput" type="file" accept="image/png,image/jpeg,image/webp" hidden><input id="psLogoInput" type="file" accept="image/png,image/jpeg,image/webp" hidden>
     <label>Arah depan<select id="psFront"><option value="camera">Dari kamera preview</option><option value="z">+Z</option><option value="nz">−Z</option><option value="x">+X</option><option value="nx">−X</option></select></label>
     <label>Sudut tinggi<input id="psElevation" type="range" min="-40" max="40" value="0"></label>
-    <label>Ukuran model<input id="psZoom" type="range" min="60" max="140" value="100"></label>
+    <label>Ukuran model <output id="psZoomValue">100%</output><input id="psZoom" type="range" min="50" max="300" value="100"></label>
     <div id="psAngles"></div><button id="psReset">Reset sudut</button>
-    <p class="muted">Tiga sudut dari model aktif, termasuk tekstur dan rambut. Ubah arah depan jika orientasi model berbeda.</p>
+    <p class="muted">Setiap sudut otomatis memenuhi panel. Zoom di atas 100% dapat memotong model. Satu sudut memakai seluruh lebar gambar.</p><p id="psWarnings" role="status" class="muted"></p>
     </aside><section class="ps-output"><div class="ps-canvas-wrap"><canvas id="psCanvas" aria-label="Preview katalog tiga sudut"></canvas></div><div class="ps-footer"><p id="psStatus" role="status">Siap.</p><button id="psExport" class="primary">Simpan PNG</button></div></section></div>`;
   document.body.append(dialog);
   const $ = (id) => dialog.querySelector('#' + id);
@@ -83,9 +85,11 @@ function createStudio(download, toast) {
     pending = 0,
     busy = false;
   const materials = [];
+  let points = [];
   const versions = { background: 0, logo: 0 };
   function clear() {
     group.clear();
+    points = [];
     materials.splice(0).forEach((m) => m.dispose());
   }
   function resetAngles() {
@@ -124,20 +128,10 @@ function createStudio(download, toast) {
         );
       }
     }
-    const box = new THREE.Box3();
-    group.updateWorldMatrix(true, true);
-    group.traverseVisible((o) => {
-      if (o.isMesh) {
-        o.geometry.computeBoundingBox();
-        box.union(o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld));
-      }
-    });
-    if (box.isEmpty()) throw Error('Tidak ada mesh untuk difoto.');
-    const center = box.getCenter(new THREE.Vector3());
-    const radius = Math.max(box.getSize(new THREE.Vector3()).length() / 2, 0.001);
-    const panelWidth = Math.floor(width * 0.31),
-      panelHeight = Math.floor(height * 0.76),
-      top = Math.floor(height * 0.14);
+    const single = $('psLayout').value === 'single';
+    const panelWidth = Math.floor(width * (single ? 0.96 : 0.31)),
+      top = Math.floor(height * ($('psTitle').value || logo ? 0.14 : 0.04)),
+      panelHeight = Math.floor(height * ($('psCaption').value ? 0.92 : 0.96)) - top;
     renderer.setSize(panelWidth, panelHeight, false);
     camera.aspect = panelWidth / panelHeight;
     const up = sourceCamera.up.clone().normalize();
@@ -150,14 +144,9 @@ function createStudio(download, toast) {
     if (front.lengthSq() < 0.000001) front.set(1, 0, 0).addScaledVector(up, -up.x);
     if (front.lengthSq() < 0.000001) front.set(0, 0, 1);
     front.normalize();
-    const vertical = THREE.MathUtils.degToRad(camera.fov / 2);
-    const limiting = Math.min(vertical, Math.atan(Math.tan(vertical) * camera.aspect));
-    const distance = ((radius / Math.sin(limiting)) * 1.08) / (Number($('psZoom').value) / 100);
-    camera.near = Math.max(0.00001, radius / 1000);
-    camera.far = distance + radius * 100;
+    $('psZoomValue').textContent = $('psZoom').value + '%';
     camera.up.copy(up);
-    camera.updateProjectionMatrix();
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < (single ? 1 : 3); i++) {
       const angle = Number($('psAngle' + i).value),
         elevation = THREE.MathUtils.degToRad(Number($('psElevation').value));
       $('psAngleValue' + i).textContent = angle + '°';
@@ -166,8 +155,19 @@ function createStudio(download, toast) {
         .applyAxisAngle(up, THREE.MathUtils.degToRad(angle))
         .multiplyScalar(Math.cos(elevation))
         .addScaledVector(up, Math.sin(elevation));
-      camera.position.copy(center).addScaledVector(direction, distance);
-      camera.lookAt(center);
+      const fit = fitPhotoshoot(
+        points,
+        direction,
+        up,
+        camera.aspect,
+        camera.fov,
+        Number($('psZoom').value) / 100,
+      );
+      camera.near = Math.max(0.00001, fit.distance / 10000);
+      camera.far = Math.max(10, fit.distance + fit.depth * 2 + 1);
+      camera.updateProjectionMatrix();
+      camera.position.copy(fit.center).addScaledVector(direction, fit.distance);
+      camera.lookAt(fit.center);
       renderer.setClearColor(0x000000, 0);
       renderer.render(scene, camera);
       ctx.drawImage(
@@ -331,6 +331,8 @@ function createStudio(download, toast) {
         group.add(copy);
       });
       $('psSource').textContent = source.name || 'Model aktif';
+      $('psWarnings').textContent = source.warnings || '';
+      points = photoshootPoints([group]);
       resetAngles();
       if (!dialog.open) dialog.showModal();
       render();

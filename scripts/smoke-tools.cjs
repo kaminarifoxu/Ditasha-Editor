@@ -15,7 +15,7 @@ app.whenReady().then(async () => {
     win = new BrowserWindow({
       width: 1500,
       height: 950,
-      show: false,
+      show: true,
       webPreferences: {
         contextIsolation: true,
         sandbox: true,
@@ -38,6 +38,30 @@ app.whenReady().then(async () => {
         );
       }
     });
+    await win.loadFile(path.resolve('ui/index.html'));
+    const homeReports = [];
+    for (const [width, height] of [
+      [1500, 950],
+      [1024, 768],
+      [800, 600],
+    ]) {
+      win.setSize(width, height);
+      homeReports.push(
+        await win.webContents.executeJavaScript(
+          '(' +
+            require('./home-ui-checks.cjs').toString() +
+            ')(' +
+            JSON.stringify({
+              ytd: [...new Uint8Array(testYtd)],
+              size: width,
+              interactions: width === 1500,
+            }) +
+            ')',
+        ),
+      );
+    }
+    await Promise.all(captures);
+    win.setSize(1500, 950);
     await win.loadFile(path.resolve('ui/index.html'));
     const shellReport = await win.webContents.executeJavaScript(
       '(' + require('./workspace-ui-checks.cjs').toString() + ')()',
@@ -102,7 +126,8 @@ app.whenReady().then(async () => {
     const faceYtd = createYtd([
       { name: 'cloth_diffuse', w: 1, h: 1, out: new Uint8Array([255, 0, 0, 255]) },
     ]);
-    const { alphaYtd, fragmentYft, bc7Ytd } = await import('../tests/vehicle-preview.test.mjs');
+    const { alphaYtd, fragmentYft, bc7Ytd, opaqueVehicleModel } =
+      await import('../tests/vehicle-preview.test.mjs');
     const viewerReport = await win.webContents.executeJavaScript(
       '(' +
         checkViewers.toString() +
@@ -119,6 +144,7 @@ app.whenReady().then(async () => {
           alphaYtd: [...new Uint8Array(alphaYtd())],
           fragmentYft: [...new Uint8Array(fragmentYft())],
           bc7Ytd: [...new Uint8Array(bc7Ytd())],
+          opaqueVehicleModel: [...new Uint8Array(opaqueVehicleModel())],
           requireWebgl: true,
         }) +
         ')',
@@ -147,7 +173,15 @@ app.whenReady().then(async () => {
       '(' +
         require('./explorer-preview-ui-checks.cjs').toString() +
         ')(' +
-        JSON.stringify({ archive: [...inlineArchive] }) +
+        JSON.stringify({
+          archive: [...inlineArchive],
+          textureFailureArchive: [
+            ...writeRpf([
+              { name: 'car.ydd', data: inlineModel },
+              { name: 'car.ytd', data: new TextEncoder().encode('invalid texture resource') },
+            ]),
+          ],
+        }) +
         ')',
     );
     const { openArchive } = await import('../src/archives.js');
@@ -164,16 +198,41 @@ app.whenReady().then(async () => {
     )
       throw Error('Code editor changes did not survive RPF export');
     inlineReport.saves = inlineReport.saves.map((s) => ({ name: s.name, size: s.data.length }));
+    await win.loadFile(path.resolve('ui/index.html'));
+    const manualStudioReport = await win.webContents.executeJavaScript(
+      '(' +
+        require('./manual-studio-ui-checks.cjs').toString() +
+        ')(' +
+        JSON.stringify({ model: [...inlineModel] }) +
+        ')',
+    );
+    const { debadgeFixture } = await import('../tests/debadge.test.mjs');
+    await win.loadFile(path.resolve('ui/index.html'));
+    const debadgeReport = await win.webContents.executeJavaScript(
+      '(' +
+        require('./debadge-ui-checks.cjs').toString() +
+        ')(' +
+        JSON.stringify({ vehicle: [...new Uint8Array(debadgeFixture())] }) +
+        ')',
+    );
+    const { readYft } = await import('../src/resource.js');
+    const indices = readYft(Uint8Array.from(debadgeReport.data).buffer)[0].geometries[0].indices;
+    if ([...indices].join(',') !== '0,1,2,0,2,3,4,4,4')
+      throw Error('UI export changed the wrong triangles');
+    delete debadgeReport.data;
     await Promise.all(captures);
     console.log(
       'PASS: ' +
         JSON.stringify({
+          homeReports,
           iconReport,
           report,
           archiveReport,
           viewerReport,
           offlineReport,
           inlineReport,
+          manualStudioReport,
+          debadgeReport,
         }),
     );
     win.destroy();

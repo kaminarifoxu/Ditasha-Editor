@@ -392,6 +392,9 @@ def run(job):
             present = {f.suffix.lower() for f in output.rglob('*') if f.is_file()}
             if not required.issubset(present) or not list(output.rglob('fxmanifest.lua')):
                 raise RuntimeError('Resource ped belum lengkap: YFT/YDD/YTD/YMT/fxmanifest diperlukan.')
+            from types import SimpleNamespace
+            rigged = [obj for obj in bpy.data.objects if obj.type == 'MESH' and getattr(obj, 'sollum_type', '') == 'sollumz_drawable_model']
+            report['preview'] = preview_scene(bpy, SimpleNamespace(children_recursive=rigged), output)
         else:
             fragment = import_vehicle(bpy, job['source'])
             report['candidates'] = badge_candidates(fragment)

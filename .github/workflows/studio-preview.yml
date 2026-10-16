@@ -1,0 +1,81 @@
+name: Test and build DITASHA studio preview
+on:
+  push:
+    branches: [codex/embedded-code-oss]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ditasha-studio-preview
+  cancel-in-progress: true
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm test
+      - run: npm run build:ui
+      - name: Check homepage, themes and existing editor tools
+        run: npx electron scripts/smoke-tools.cjs
+        timeout-minutes: 5
+      - name: Check automatic Blender and add-on setup
+        run: npx electron scripts/smoke-native-setup.cjs
+        timeout-minutes: 30
+      - name: Check File Manager and native asset sorting
+        shell: pwsh
+        run: |
+          npx electron scripts/smoke-file-manager.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'File Manager checks failed.' }
+          if (!(Test-Path 'release/qa/file-manager-result.json')) { throw 'File Manager checks exited before completion.' }
+        timeout-minutes: 3
+      - name: Prepare verified offline creative engines
+        run: npm run prepare:craft
+        timeout-minutes: 15
+      - name: Check all nine embedded creative workspaces
+        shell: pwsh
+        run: |
+          npx electron scripts/smoke-craft.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Creative engine checks failed.' }
+          if (!(Test-Path 'release/qa/creative-engines-result.json')) { throw 'Creative engine checks exited before completion.' }
+        timeout-minutes: 10
+      - name: Prepare verified native IDE engine
+        run: npm run prepare:ide
+      - name: Check the embedded IDE workbench
+        shell: pwsh
+        run: |
+          $env:DITASHA_IDE_RUNTIME = Join-Path $env:GITHUB_WORKSPACE 'ide-runtime'
+          npx electron scripts/smoke-embedded-ide.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Embedded IDE check failed.' }
+      - name: Build Windows studio preview
+        # build:win also verifies the engine before packaging it.
+        run: npm run build:win
+      - name: Verify packaged engine dependencies and workbench
+        shell: pwsh
+        run: |
+          node scripts/check-packaged-craft.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Packaged creative engine files differ.' }
+          node scripts/check-packaged-ide.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Packaged engine files differ.' }
+          $env:DITASHA_IDE_RUNTIME = Join-Path $env:GITHUB_WORKSPACE 'release/win-unpacked/resources/ide-runtime'
+          npx electron scripts/smoke-embedded-ide.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Packaged IDE check failed.' }
+      - run: node scripts/checksum.cjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DITASHA-Studio-Windows-Preview
+          path: |
+            release/DITASHA-Editor.exe
+            release/*.sha256
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: DITASHA-Studio-UI-QA
+          path: |
+            release/qa/*.png
+            release/qa/*-result.json

@@ -205,14 +205,18 @@ export function decodeTexture(r, p) {
     mipLevels: r.bytes[p + 93] || 1,
   };
 }
-export function readYtd(buffer) {
+export function readYtd(buffer, { maxDecodedBytes = 128 * 1024 * 1024 } = {}) {
   const r = new Resource(buffer, 13);
-  let pixels = 0;
-  r.textures = r.list(48, r.u16(56)).map((p) => {
-    pixels += r.u16(p + 80) * r.u16(p + 82);
-    if (pixels > 33554432) throw Error('Decoded textures exceed 128 MB.');
-    return decodeTexture(r, p);
-  });
+  const pointers = r.list(48, r.u16(56));
+  const bytes = pointers.reduce((n, p) => n + r.u16(p + 80) * r.u16(p + 82) * 4, 0);
+  if (
+    !Number.isFinite(maxDecodedBytes) ||
+    maxDecodedBytes < 0 ||
+    bytes > Math.min(maxDecodedBytes, 128 * 1024 * 1024)
+  )
+    throw Error('Decoded texture limit: 128 MB. Choose a smaller texture dictionary.');
+  // Check the entire dictionary against the remaining budget before allocating RGBA buffers.
+  r.textures = pointers.map((p) => decodeTexture(r, p));
   if (!r.textures.length) throw Error('Tidak ada tekstur dalam YTD.');
   return r;
 }
@@ -319,7 +323,7 @@ function shaderInfo(r, d) {
     const params = r.ptr(shader),
       count = r.bytes[shader + 16];
     if (params === null || !count) {
-      bindings.push({});
+      bindings.push({ shaderHash: r.u32(shader + 8), shaderFileHash: r.u32(shader + 24) });
       continue;
     }
     let hashes = params + count * 16;
@@ -577,8 +581,10 @@ export function readYft(buffer) {
   }
   if (!offsets.length) throw Error('YFT tidak memiliki drawable yang dapat ditampilkan.');
   const result = requireGeometry(readDrawables(r, [...new Set(offsets)], metadata));
-  if (r.fragmentWarnings?.length)
+  if (r.fragmentWarnings?.length) {
+    result[0].geometryWarnings = [...r.fragmentWarnings];
     result[0].warnings = [...result[0].warnings, ...r.fragmentWarnings];
+  }
   return result;
 }
 

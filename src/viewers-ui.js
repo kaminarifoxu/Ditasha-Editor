@@ -1,3 +1,5 @@
+import { setProject } from './project-context.js';
+import { mountSceneStudio } from './scene-studio.js';
 import { resolveModelTexture, modelAlphaMode } from './model-material.js';
 import { decodeResource } from './resource-client.js';
 import { mountVehicleWorkshop } from './vehicle-workshop.js';
@@ -21,7 +23,6 @@ function textureCanvas(t) {
 export function mountViewers({ nav, download, toast, activate, confirmDiscard, getActivePage }) {
   const $ = (id) => document.getElementById(id);
   for (const [page, label, path] of [
-    ['textureviewer', 'Texture viewer', 'M3 3h18v18H3Z M3 16l5-5 4 4 4-5 5 6'],
     ['modelviewer', 'Model viewer', 'm12 2 9 5v10l-9 5-9-5V7Z M3 7l9 5 9-5 M12 12v10'],
   ]) {
     const b = document.createElement('button');
@@ -124,6 +125,28 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
     toast,
     operation,
   });
+  const sceneStudio = mountSceneStudio({
+    container: modelRoot.querySelector('.tool-sidebar'),
+    viewport: $('mvViewport'),
+    prefix: 'ssModel',
+    scene,
+    camera,
+    getRenderer: () => renderer,
+    getControls: () => controls,
+    getObjects: () =>
+      renderedMeshes.map((e) => ({ key: e.key, object: e.mesh, label: e.mesh.name })),
+    onTransform: (key, mesh) => workshop.capture(key, mesh),
+    onSelect: (key) => workshop.select(key),
+    onVisibility: (key, hidden) => (hidden ? hiddenMeshes.add(key) : hiddenMeshes.delete(key)),
+    getVehicle: workshop.projectState,
+    loadVehicle: workshop.applyProject,
+    markVehicleSaved: workshop.markSaved,
+    hasExternalEdits: () => workshop.unsavedItems().length > 0,
+    download,
+    toast,
+    managedTransforms: true,
+  });
+  $('vwTransform').closest('details').hidden = true;
   function initRenderer() {
     if (renderer) return;
     try {
@@ -257,7 +280,7 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
     for (const f of files) {
       if (f.size > 64 * 1024 * 1024 || !textureExtensions.test(f.name))
         throw Error('Textures: YTD, DDS or images up to 64 MB per file.');
-      for (const t of await imageData(f)) {
+      for (const t of await imageData(f, { maxDecodedBytes: MAX_EXPORT - size })) {
         size += t.out.length;
         if (size > MAX_EXPORT) throw Error('Decoded texture limit: 128 MB.');
         out.push({ ...t, dictionary: f.name });
@@ -365,6 +388,7 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
         : 'Save canceled.';
     });
   function disposeModel() {
+    sceneStudio.detach();
     pedMaterials.clear(false);
     group.traverse((o) => {
       o.geometry?.dispose();
@@ -413,8 +437,13 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
   function materialMap(t, channel = 0) {
     if (!t) return null;
     if (mapCache.get(t)?.has(channel)) return mapCache.get(t).get(channel);
-    const canvas = textureCanvas(t),
-      map = new THREE.CanvasTexture(canvas);
+    // Canvas premultiplication discards RGB where alpha is zero. Vehicle
+    // shaders often use those RGB values even though alpha is shader data.
+    const map = new THREE.DataTexture(t.out, t.w, t.h, THREE.RGBAFormat);
+    map.generateMipmaps = true;
+    map.minFilter = THREE.LinearMipmapLinearFilter;
+    map.magFilter = THREE.LinearFilter;
+    map.needsUpdate = true;
     map.flipY = false;
     map.channel = channel;
     map.colorSpace = THREE.SRGBColorSpace;
@@ -509,6 +538,12 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
           alphaTest: t && alpha !== 'opaque' ? 0.02 : 0,
         });
         const mesh = new THREE.Mesh(geometry, material);
+        // Ped alpha controls must not turn solid vehicle paint into a cutout.
+        if (alpha === 'opaque' || override?.alpha === 'blend')
+          material.userData.previewAlphaDefault = {
+            mode: alpha,
+            cutoff: alpha === 'opaque' ? 0 : 0.02,
+          };
         if (source.transform) {
           const t = source.transform;
           mesh.position.set(t.x || 0, t.y || 0, t.z || 0);
@@ -641,13 +676,17 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
       parts.size +
       ' parts · ' +
       level.name +
-      (missing.size ? ' · Missing textures: ' + [...missing].join(', ') : '') +
+      (missing.size
+        ? ' · Missing textures: ' +
+          [...missing].join(', ') +
+          ' — pilih YTD yang sesuai atau + Textures (gambar/DDS). Tekstur eksternal tidak selalu ada di arsip.'
+        : '') +
       (d.warnings?.length ? ' · ' + d.warnings.join('; ') : '') +
       (!renderer ? ' · WebGL unavailable.' : '');
     modelOptions();
     pedMaterials.setMeshes(group.children.filter((mesh) => mesh.isMesh));
     workshop.refresh();
-    fitModel();
+    if (sceneStudio.refresh([modelName, modelSource?.size].join('|'))) fitModel();
   }
   async function parseModels(files) {
     const out = [];
@@ -834,9 +873,12 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
     $(id).onchange = bindTexture;
   async function openModels(files, options = {}) {
     if (
-      workshop.unsavedItems().length &&
+      (workshop.unsavedItems().length || sceneStudio.unsavedItems().length) &&
       confirmDiscard &&
-      (await confirmDiscard('file', workshop.unsavedItems())) !== 'discard'
+      (await confirmDiscard('file', [
+        ...workshop.unsavedItems(),
+        ...sceneStudio.unsavedItems(),
+      ])) !== 'discard'
     )
       return;
     activate(
@@ -855,7 +897,17 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
       );
       const parsed = await parseModels(candidates);
       if (!parsed.length) throw Error('Choose YFT, YDD or YDR up to 64 MB.');
-      const loaded = await readTextures(files.filter((f) => textureExtensions.test(f.name)));
+      let loaded = [],
+        textureWarning = '';
+      try {
+        loaded = await readTextures(files.filter((f) => textureExtensions.test(f.name)));
+      } catch (error) {
+        if (options.page !== 'archives') throw error;
+        textureWarning =
+          'Model loaded without external textures: ' +
+          error.message +
+          ' Select another YTD or use +Textures.';
+      }
       const extras = parsed.slice(1).flatMap((f) =>
         f.data.map((d) => ({
           id: ++extraSerial,
@@ -873,9 +925,17 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
       extraDrawables = extras;
       modelTextures = loaded;
       modelName = parsed[0].name;
+      setProject(
+        options.page === 'archives' ? 'archives' : getActivePage?.() || 'modelviewer',
+        modelName,
+      );
       modelSource = parsed[0].file;
       drawable = lod = 0;
       renderModel();
+      if (textureWarning) {
+        $('mvStatus').textContent = textureWarning;
+        toast(textureWarning);
+      }
     });
   }
   $('mvAddModels').onclick = () => {
@@ -964,8 +1024,9 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
     };
   $('mvSnapshot').onclick = () =>
     operation('model', async () => {
-      renderer.render(scene, camera);
-      const blob = await new Promise((resolve) => renderer.domElement.toBlob(resolve, 'image/png'));
+      const blob = await sceneStudio.cleanCapture(
+        () => new Promise((resolve) => renderer.domElement.toBlob(resolve, 'image/png')),
+      );
       if (!blob) throw Error('Snapshot failed.');
       $('mvStatus').textContent = (await download(blob, 'ditasha-model-viewer.png', 'image/png'))
         ? 'Snapshot saved.'
@@ -974,7 +1035,7 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
   $('open').addEventListener(
     'click',
     (e) => {
-      if (textureRoot.hidden && modelRoot.hidden) return;
+      if (textureRoot.closest('[hidden]') && modelRoot.closest('[hidden]')) return;
       e.preventDefault();
       e.stopImmediatePropagation();
       $(!textureRoot.hidden ? 'tvInput' : 'mvInput').click();
@@ -984,7 +1045,7 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
   document.addEventListener(
     'drop',
     (e) => {
-      if (textureRoot.hidden && modelRoot.hidden) return;
+      if (textureRoot.closest('[hidden]') && modelRoot.closest('[hidden]')) return;
       e.preventDefault();
       e.stopImmediatePropagation();
       const files = [...e.dataTransfer.files];
@@ -1019,6 +1080,14 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
             camera,
             target: controls.target,
             name: modelName,
+            warnings: [
+              ...drawables.flatMap((d) => d.warnings || []),
+              ...renderedMeshes
+                .filter(
+                  (e) => e.mesh.visible && e.mesh.userData.textureBinding?.startsWith('Missing:'),
+                )
+                .map((e) => e.mesh.name + ' · ' + e.mesh.userData.textureBinding),
+            ].join('; '),
           }
         : null,
   });
@@ -1026,8 +1095,12 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
     textureRoot,
     modelRoot,
     vehicleControls: workshop.root,
+    getVehicleSource: () =>
+      modelSource && /\.yft$/i.test(modelSource.name)
+        ? { file: modelSource, textures: modelTextures }
+        : null,
     openTextures,
     openModels,
-    unsavedItems: workshop.unsavedItems,
+    unsavedItems: () => [...workshop.unsavedItems(), ...sceneStudio.unsavedItems()],
   };
 }

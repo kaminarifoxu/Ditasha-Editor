@@ -1,20 +1,22 @@
-# Native game build — 1.16.0
+# Native game build — 1.20.0
 
-Tombol **Rig ped** di header serta **Debadge native / Strobo donor** dalam Vehicle workshop menjalankan Blender sebagai proses terpisah. Ini jalur baru untuk aset game; Vehicle workshop/Livery studio tetap dapat digunakan tanpa Blender. Tidak ada layanan AI, API key, atau pengunggahan model.
+Auto Rig memakai workspace sendiri; Debadge/Strobo ditampilkan langsung di Vehicle Workshop tanpa modal. Blender tetap berjalan sebagai proses lokal terpisah. Ini jalur baru untuk aset game; Vehicle workshop/Livery studio tetap dapat digunakan tanpa Blender. Tidak ada layanan AI, API key, atau pengunggahan model.
 
-## Pasang engine sekali
+## Setup otomatis (Windows x64)
 
-1. Pasang Blender. Untuk rigging gunakan **Blender 5.2**; kendaraan memakai API Blender 4.2+. Pengujian menemukan template Muto saat ini memakai format .blend 5.x yang tidak terbaca oleh Blender 4.2.
-2. Pasang dan aktifkan [Sollumz 2.9](https://github.com/Sollumz/Sollumz/releases) di Blender. Pasang dependency melalui panel resmi Sollumz, termasuk **szio/PyMateria** untuk native binary. Provider native ini memerlukan Windows. Ikuti lisensi/konfirmasi dari penyedia saat memasangnya.
-3. Untuk ped, pasang dan aktifkan [Muto Ped Rig](https://github.com/B7Kompirine/muto-ped-rig/releases).
-4. Di DITASHA pilih **Game build → Pilih blender.exe → Periksa engine & add-on**. Pilih executable Blender langsung, bukan launcher. Status probe menampilkan add-on yang aktif dan ketersediaan provider native. Probe selesai bukan berarti semua dependency sudah siap; periksa baris `native tersedia`.
+1. Buka **Auto rig ped → Download & set up**. Siapkan internet dan ruang kosong sekitar 3 GB. Download utama sekitar 410 MB, ditambah dependency Python/native.
+2. DITASHA mengunduh Blender portable 5.2.2 LTS, Sollumz 2.9.0, dan Muto Ped Rig 0.3.2 dari rilis resmi. Arsip diperiksa dengan SHA-256; dependency szio/PyMateria dipasang oleh installer Sollumz dengan versi dan hash yang dipatok add-on tersebut.
+3. Tunggu status engine terpasang. Download menampilkan progres; ekstraksi dan pemasangan memiliki log. Tombol Batalkan menghentikan setup. Coba ulang bila jaringan terputus; arsip yang selesai dan terverifikasi digunakan kembali.
+4. Pilih model, isi nama ped, klik **Buat preview rig**, periksa model 3D, lalu **Simpan hasil ped** dan pilih folder tujuan. **Periksa engine & add-on** menampilkan status Sollumz, native provider dan Muto.
 
-Gunakan Blender dengan add-on tersebut aktif di preferences. DITASHA tidak memasang, memperbarui atau mengunduh kode add-on otomatis. Setelah setup, proses build bekerja offline. Tidak ada salinan kode/aset GPL Muto/Sollumz di EXE; keduanya dipasang terpisah dan dipanggil melalui API Blender.
+Engine disimpan di profil DITASHA, bukan direktori sementara EXE portable. Konfigurasi Blender pribadi tidak diubah. Build berikutnya memakai profil terpisah ini dan berjalan offline. Kode/aset add-on dan PyMateria tidak dibundel ke EXE; pengguna mengunduhnya langsung dari penyedia saat setup. PyMateria tetap memakai [lisensi penyedianya](https://static.cfx.re/PyMateria-License-Agreement.pdf).
+
+Pilihan manual **Pilih blender.exe** tetap tersedia untuk instalasi Blender dengan Sollumz dan Muto yang sudah diaktifkan. Memilih executable manual kembali memakai preferences Blender tersebut.
 
 ## Auto rig ped
 
 - Pilih GLB, FBX atau OBJ humanoid berdiri dalam A/T-pose, lalu nama ped 3–32 karakter (`a-z`, angka, underscore; diawali huruf).
-- Pilih folder hasil, kemudian **Build native**. Muto menjalankan orientasi/skala, auto markers, fit skeleton, weight transfer, konversi pose GTA, validasi dan ekspor resource addon.
+- Klik **Buat preview rig**. Hasil ditulis ke direktori staging sementara; preview 3D muncul sebelum ekspor. Klik **Simpan hasil ped** dan pilih folder tujuan, atau **Buang hasil sementara**. Membatalkan dialog simpan mempertahankan preview untuk dicoba lagi. Muto menjalankan orientasi/skala, auto markers, fit skeleton, weight transfer, konversi pose GTA, validasi dan ekspor resource addon.
 - Proses dapat mengganti rig dan shape keys pada salinan model yang diimpor. Input asli tidak disimpan ulang. Model dengan anatomi sulit, senjata/prop, tangan menempel tubuh atau tanpa UV memerlukan koreksi marker/weights/material di `.blend` hasil.
 - DITASHA hanya melaporkan sukses bila Muto melaporkan seluruh tahap berhasil dan terdapat YFT, YDD, YTD, YMT serta fxmanifest. Simpan `batch_report.json` dan `.blend` untuk pemeriksaan. Ini tidak menjamin animasi setiap model sudah sempurna.
 

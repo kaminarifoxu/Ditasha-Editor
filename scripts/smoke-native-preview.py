@@ -40,6 +40,12 @@ with tempfile.TemporaryDirectory() as output:
     assert sum(len(e['positions'])//9 for e in data['meshes'] if e['candidate']=='body')==1, 'Preview must highlight badge faces only, not the paint face'
     assert sum(len(e['positions'])//9 for e in data['meshes'] if not e['candidate'])==2
     assert len(badge.data.polygons)==2, 'Preview must not edit source geometry'
+from types import SimpleNamespace
+with tempfile.TemporaryDirectory() as output:
+    stats = m.preview_scene(bpy, SimpleNamespace(children_recursive=[badge, shared]), output)
+    assert stats['triangles'] == 4
+    assert (Path(output) / 'preview.json').is_file()
+print('PASS_PED_PREVIEW_GEOMETRY')
 print('PASS_BADGE_PREVIEW_GEOMETRY')
 assert len(m.badge_candidates(target))==2
 assert m.debadge(target,['body'])==1

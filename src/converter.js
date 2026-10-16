@@ -23,10 +23,10 @@ export function accepts(mode, name) {
         : ['png', 'jpg', 'jpeg', 'webp', 'dds', 'ytd']
   ).includes(ext);
 }
-export async function imageData(file) {
+export async function imageData(file, options = {}) {
   const ext = file.name.split('.').at(-1).toLowerCase();
   if (ext === 'dds') return [readDds(await file.arrayBuffer(), file.name)];
-  if (ext === 'ytd') return await decodeResource('textures', await file.arrayBuffer());
+  if (ext === 'ytd') return await decodeResource('textures', await file.arrayBuffer(), options);
   const bitmap = await createImageBitmap(file);
   try {
     if (bitmap.width * bitmap.height > 16777216) throw Error('Gambar maksimum 16 megapixel.');

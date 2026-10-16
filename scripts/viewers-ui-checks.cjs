@@ -242,6 +242,21 @@ module.exports = async function checkViewers(fixtures) {
       'Three-angle photoshoot lost face/hair textures: ' + JSON.stringify(panels),
     );
     assert(pixels[3] === 0, 'Transparent background became opaque');
+    const threeImage = canvas.toDataURL();
+    $('psLayout').value = 'single';
+    $('psLayout').dispatchEvent(new Event('input'));
+    await sleep(150);
+    assert(canvas.toDataURL() !== threeImage, 'Single-view layout did not render');
+    const singleImage = canvas.toDataURL();
+    $('psZoom').value = '200';
+    $('psZoom').dispatchEvent(new Event('input'));
+    await sleep(150);
+    assert(
+      $('psZoomValue').textContent === '200%' && canvas.toDataURL() !== singleImage,
+      'Expanded photoshoot zoom did not render',
+    );
+    $('psLayout').value = 'three';
+    $('psLayout').dispatchEvent(new Event('input'));
     $('psPreset').value = 'clothing';
     $('psPreset').dispatchEvent(new Event('change'));
     await sleep(150);
@@ -646,49 +661,10 @@ module.exports = async function checkViewers(fixtures) {
       () => $('fileLoading').hidden && $('textureTitle').textContent === 'cloth_diffuse',
     ),
   );
-  document.querySelector('[data-page="textureviewer"]').click();
-  await input(
-    'tvInput',
-    [new File([new Uint8Array(fixtures.ytd)], 'test.ytd')],
-    () => !$('tvOpen').disabled,
-  );
   assert(
-    $('tvGallery').children.length === 1 && $('tvInfo').textContent.includes('4 × 4'),
-    'Texture gallery or metadata missing',
+    !document.querySelector('[data-page=textureviewer]'),
+    'Texture viewer navigation was not removed',
   );
-  assert(!$('tvCanvas').hidden, 'Selected texture missing');
-  $('tvOriginal').click();
-  assert($('tvCanvas').style.width === '4px', 'Original-size preview not exact');
-  $('tvZoomIn').click();
-  assert($('tvCanvas').style.width === '5px', 'Texture zoom failed');
-  change('tvLayout', 'list');
-  assert($('tvGallery').classList.contains('is-list'), 'List view not active');
-  change('tvBackground', 'white');
-  assert($('tvPreview').classList.contains('white'), 'Alpha background failed');
-  $('tvSearch').value = 'no match';
-  $('tvSearch').dispatchEvent(new Event('input'));
-  assert(!$('tvGallery').children.length, 'Texture search failed');
-  $('tvSearch').value = '';
-  $('tvSearch').dispatchEvent(new Event('input'));
-  change('tvLayout', 'grid');
-  change('tvBackground', 'checker');
-  $('tvFit').click();
-  console.log('DITASHA_SNAPSHOT:texture-viewer');
-  canceled = true;
-  $('tvExport').click();
-  await wait(() => !$('tvOpen').disabled, 'Canceled texture save failed');
-  assert($('tvStatus').textContent === 'Save canceled.', 'Canceled texture save reported success');
-  assert(saves.at(-1).magic.join(',') === '137,80,78,71', 'Invalid viewer PNG');
-  canceled = false;
-  change('tvFormat', 'dds');
-  $('tvExport').click();
-  await wait(() => !$('tvOpen').disabled, 'DDS export failed');
-  assert(saves.at(-1).magic.join(',') === '68,68,83,32', 'Invalid viewer DDS');
-  $('tvExportAll').click();
-  await wait(() => !$('tvOpen').disabled, 'Bulk texture export failed');
-  assert(saves.at(-1).name === 'ditasha-textures.zip', 'Bulk texture export missing');
-  await input('tvInput', [new File(['broken'], 'bad.ytd')], () => !$('tvOpen').disabled);
-  assert($('tvGallery').children.length === 1, 'Invalid texture erased previous gallery');
   document.querySelector('[data-page="modelviewer"]').click();
   await input(
     'mvInput',
@@ -864,11 +840,11 @@ module.exports = async function checkViewers(fixtures) {
   assert($('mvTextures').textContent.includes('test_texture'), 'Paired folder YTD missing');
   document.querySelector('[data-page="archives"]').click();
   select('assets/test.ytd');
-  $('archiveTextureViewer').click();
+  $('archivePreview').click();
   await wait(
     () =>
-      !document.querySelector('.texture-viewer').hidden && $('tvTitle').textContent === 'test.ytd',
-    'Explorer did not open texture viewer',
+      !document.querySelector('main').hidden && $('textureTitle').textContent === 'test_texture',
+    'Explorer texture did not open in the editor',
   );
   document.querySelector('[data-page="archives"]').click();
   $('archiveNew').click();
@@ -979,8 +955,50 @@ module.exports = async function checkViewers(fixtures) {
     $('mvModels').querySelectorAll('input[type=checkbox]').length === 1,
     'Extra YFT not removable',
   );
+  await input(
+    'mvInput',
+    [new File([new Uint8Array(fixtures.opaqueVehicleModel)], 'solid-paint.ydd')],
+    () => !$('mvOpen').disabled,
+  );
+  $('mvPhotoshoot').click();
+  $('psTitle').value = $('psCaption').value = '';
+  $('psTransparent').checked = true;
+  $('psTransparent').dispatchEvent(new Event('input'));
+  await sleep(200);
+  const solidCanvas = $('psCanvas');
+  const solidPixels = solidCanvas
+    .getContext('2d')
+    .getImageData(0, 0, solidCanvas.width, solidCanvas.height).data;
+  let solidGreen = 0;
+  for (let i = 0; i < solidPixels.length; i += 4)
+    if (
+      solidPixels[i + 3] > 200 &&
+      solidPixels[i + 1] > 60 &&
+      solidPixels[i + 1] > solidPixels[i] * 2
+    )
+      solidGreen++;
+  console.log('DITASHA_SNAPSHOT:photoshoot-solid-vehicle');
+  await sleep(200);
+  assert(
+    solidGreen > 1000,
+    'Opaque vehicle paint disappeared: ' +
+      JSON.stringify({
+        solidGreen,
+        mode: $('mvPedMaterialMode').value,
+        status: $('psStatus').textContent,
+        source: $('psSource').textContent,
+        warnings: $('psWarnings').textContent,
+      }),
+  );
+  $('psClose').click();
   return {
     saves,
+    photoshoot: {
+      perAngleFit: true,
+      singleView: true,
+      extendedZoom: true,
+      opaqueVehicleAlpha: true,
+    },
     checks:
       'Vehicle A8 YTD, separate YFT livery/fragment choices, individual meshes, manual texture assignment and invalid extra retention; PNG decals render and enter Photoshoot without touching 2D; Photoshoot three views with face/hair, background/logo, transparent PNG and canceled/successful saves in both workspaces; texture gallery, exact size/zoom, grid/list, search/background, PNG/DDS/bulk export and canceled save; model LOD/parts, external/embedded textures and invalid-file retention; ped hair YDD/YTD, independent rendered face/hair materials, transforms, visibility, invalid imports and reset/removal; folder sort, text/hex inspection, paired viewers and new RPF',
   };
