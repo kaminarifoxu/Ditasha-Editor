@@ -13,7 +13,7 @@ module.exports = async function checkHome({ ytd, size, interactions }) {
   };
   const home = document.querySelector('.home-workspace');
   document.getElementById('openHome').click();
-  await sleep(100);
+  await sleep(500);
   document.getElementById('toast').style.display = 'none';
   assert(
     !home.hidden && document.querySelector('main').hidden,
@@ -35,6 +35,32 @@ module.exports = async function checkHome({ ytd, size, interactions }) {
   console.log('DITASHA_SNAPSHOT:home-' + size);
   if (!interactions) return { size, fits: true };
   assert(home.querySelectorAll('.home-suite-card').length === 9, 'Creative workspaces missing');
+  for (const [group, count] of [
+    ['DESIGN', 3],
+    ['MOTION', 2],
+    ['OFFICE', 4],
+    ['ALL', 9],
+  ]) {
+    const filter = home.querySelector(`[data-studio-filter="${group}"]`);
+    filter.click();
+    assert(
+      home.querySelectorAll('.home-suite-card:not([hidden])').length === count &&
+        filter.getAttribute('aria-pressed') === 'true',
+      'Studio filter failed: ' + group,
+    );
+  }
+  document.getElementById('openSettings').click();
+  const motion = document.getElementById('appearanceMotion');
+  motion.value = 'reduced';
+  motion.dispatchEvent(new Event('change'));
+  assert(
+    localStorage.getItem('ditasha.motion') === 'reduced' &&
+      getComputedStyle(home.querySelector('.studio-shape')).animationName === 'none',
+    'Reduced-motion preference did not disable decorative animation',
+  );
+  motion.value = 'system';
+  motion.dispatchEvent(new Event('change'));
+  document.getElementById('settingsClose').click();
   const title = document.title;
   document.querySelector('header .brand').click();
   assert(document.title === title && !home.hidden, 'Brand does not safely return home');

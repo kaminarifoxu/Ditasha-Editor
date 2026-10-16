@@ -1,3 +1,13 @@
+# v1.25.0 preview — Expressive studio UI and motion
+
+DITASHA has a richer shared desktop/web shell: ink-blue panels, warm gold actions, violet design studios, teal office tools, deeper surfaces, stronger toolbar groups and clearer navigation states. Both Midnight and Light themes use the shared palette.
+
+Home now has a responsive canvas illustration, a gently floating geometric form, Design / Video & motion / Office filters, quick workspace links and elevated studio cards. Transitions use 100–400 ms motion tokens; the decoration runs only on Home. Settings → Tampilan → Animasi can reduce motion, and the operating system reduced-motion preference is always honored. The creative engine contents retain their own original interfaces; this release restyles DITASHA's shared shell and tool panels.
+
+Design references supplied by the user were reviewed through GitHub. Motion-system and design-token guidance from https://github.com/Owl-Listener/designer-skills was applied to original DITASHA CSS/markup. The other repositories are ChatGPT app scaffolding, a chat UI, broad skill collections and web design book examples; their unrelated authentication/AI/application code is not integrated. No new runtime service or network-dependent visual asset was added.
+
+Validation covers existing editor workflows, responsive home layouts at 800/1024/1500 px, filtering, keyboard workspace search, themes, session navigation, reduced motion, packaged creative engines and embedded IDE dependencies.
+
 # v1.24.1 preview — Photoshoot framing and vehicle materials
 
 - Fit each camera angle to visible indexed geometry, instead of a shared sphere. Hidden parts, unused vertices and collapsed badge triangles no longer make the subject smaller.
