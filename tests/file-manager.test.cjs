@@ -198,7 +198,33 @@ test('Every File Manager IPC route validates its caller', async () => {
     dialog: {},
     shell: {},
   });
-  assert.equal(handlers.size, 8);
+  assert.equal(handlers.size, 9);
   for (const handler of handlers.values())
     assert.throws(() => handler('wrong caller'), /Untrusted/);
+});
+
+test('Browser ordering is applied before pagination and folder tree remains available with recursive filters', async (t) => {
+  const { api } = await fixture(t, {
+    'images/2.png': 'xx',
+    'images/10.png': '12345',
+    'images/1.png': '1',
+  });
+  assert.deepEqual(
+    api.list({ recursive: true, orderBy: 'name' }).files.map((f) => f.name),
+    ['1.png', '2.png', '10.png'],
+  );
+  assert.deepEqual(
+    api.list({ recursive: true, orderBy: 'size', descending: true }).files.map((f) => f.size),
+    [5, 2, 1],
+  );
+  assert.deepEqual(
+    api.list({ recursive: true }).navigationFolders.map((f) => f.name),
+    ['images'],
+  );
+  assert.equal(api.list({ folder: 'images', recursive: true }).navigationFolders.length, 0);
+  await assert.rejects(
+    api.filesApp({ action: 'open', folder: '../outside' }),
+    /Folder tidak valid/,
+  );
+  await assert.rejects(api.filesApp({ action: 'something' }), /Aksi Files tidak valid/);
 });

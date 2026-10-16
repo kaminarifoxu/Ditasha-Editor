@@ -5,6 +5,7 @@ const path = require('node:path');
 const os = require('node:os');
 const assert = require('node:assert/strict');
 const { registerFileManager } = require('../electron/file-manager.cjs');
+const { createFilesApp } = require('../electron/files-app.cjs');
 app.whenReady().then(async () => {
   let win, scratch;
   const timeout = setTimeout(() => {
@@ -44,13 +45,19 @@ app.whenReady().then(async () => {
         backgroundThrottling: false,
       },
     });
-    const picks = [source, output];
+    const picks = [source, output],
+      nativeURLs = [];
     registerFileManager({
       win,
       ipcMain,
       trusted: (event) => assert.equal(event.sender, win.webContents),
       dialog: { showOpenDialog: async () => ({ canceled: false, filePaths: [picks.shift()] }) },
       shell: {},
+      filesApp: createFilesApp({
+        platform: 'win32',
+        app: { getApplicationNameForProtocol: (url) => (url === 'files-stable:' ? 'Files' : '') },
+        shell: { openExternal: async (url) => nativeURLs.push(url) },
+      }),
     });
     ipcMain.handle('gano:update-state', () => ({
       status: 'idle',
@@ -61,6 +68,11 @@ app.whenReady().then(async () => {
     await win.loadFile(path.resolve('ui/index.html'));
     const report = await win.webContents.executeJavaScript(
       '(' + require('./file-manager-ui-checks.cjs').toString() + ')()',
+    );
+    assert.equal(nativeURLs.length, 1);
+    assert.equal(
+      new URL(nativeURLs[0]).searchParams.get('cmd'),
+      'files-stable.exe -Directory \"' + source + '\"',
     );
     const directories = await fs.readdir(output);
     assert.equal(directories.length, 1);
@@ -78,6 +90,22 @@ app.whenReady().then(async () => {
       path.resolve('release/qa/file-manager.png'),
       (await win.webContents.capturePage()).toPNG(),
     );
+    for (const width of [1500, 1024, 800]) {
+      win.setContentSize(width, 900);
+      await new Promise((r) => setTimeout(r, 120));
+      for (const mode of ['Grid', 'List']) {
+        await win.webContents.executeJavaScript(`document.getElementById('fm${mode}View').click()`);
+        await new Promise((r) => setTimeout(r, 200));
+        const overflow = await win.webContents.executeJavaScript(
+          `(()=>{const e=document.querySelector('.file-manager');return e.scrollWidth > e.clientWidth+1})()`,
+        );
+        assert.equal(overflow, false, 'File browser overflows at ' + width);
+        await fs.writeFile(
+          path.resolve(`release/qa/files-${mode.toLowerCase()}-${width}.png`),
+          (await win.webContents.capturePage()).toPNG(),
+        );
+      }
+    }
     await fs.writeFile(path.resolve('release/qa/file-manager-result.json'), JSON.stringify(report));
     console.log('PASS: File Manager UI and real native file copy ' + JSON.stringify(report));
     clearTimeout(timeout);

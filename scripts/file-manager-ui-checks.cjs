@@ -116,6 +116,50 @@ module.exports = async function checkFileManager() {
   );
   $('fmPlanClose').click();
   await wait(() => $('fmPlanPanel').hidden, 'Sorting plan did not close');
+  $('fmOrder').value = 'name';
+  $('fmOrder').dispatchEvent(new Event('change'));
+  await wait(() => !$('fmChoose').disabled, 'Name sort failed');
+  const firstName = $('fmList').querySelector('[data-file-id]').textContent;
+  $('fmDescending').click();
+  await wait(() => !$('fmChoose').disabled, 'Descending sort failed');
+  assert(
+    $('fmList').querySelector('[data-file-id]').textContent !== firstName,
+    'Ordering did not change',
+  );
+  $('fmGridView').click();
+  await wait(
+    () => !$('fmChoose').disabled && $('fmList').classList.contains('fm-grid'),
+    'Grid mode failed',
+  );
+  await wait(
+    () => $('fmList').querySelectorAll('.fm-thumbnail').length === 2,
+    'PNG grid thumbnails failed',
+  );
+  assert($('fmTree').querySelectorAll('button').length >= 4, 'Folder tree missing');
+  $('fmNewTab').click();
+  await wait(
+    () => !$('fmChoose').disabled && $('fmTabs').querySelectorAll('[role=tab]').length === 2,
+    'Folder tabs failed',
+  );
+  $('fmCategory').value = 'vehicles';
+  $('fmCategory').dispatchEvent(new Event('change'));
+  await wait(
+    () => !$('fmChoose').disabled && $('fmList').querySelectorAll('[data-file-id]').length === 2,
+    'New tab filter failed',
+  );
+  $('fmTabs').querySelector('[role=tab]').click();
+  await wait(
+    () => !$('fmChoose').disabled && $('fmList').querySelectorAll('[data-file-id]').length === 6,
+    'Tab state was not restored',
+  );
+  assert($('fmCategory').value === '', 'Tab lost its category');
+  $('fmListView').click();
+  await wait(() => !$('fmChoose').disabled, 'List restore failed');
+  $('fmNative').click();
+  await wait(
+    () => !$('fmChoose').disabled && $('fmStatus').textContent.includes('dibuka di aplikasi Files'),
+    'Native Files connection failed',
+  );
   const box = document.querySelector('.file-manager').getBoundingClientRect();
   const nav = document.querySelector('.workspace-nav').getBoundingClientRect();
   assert(
@@ -140,5 +184,9 @@ module.exports = async function checkFileManager() {
     filters: true,
     navigation: true,
     gtaPlan: true,
+    nativeFilesProtocol: true,
+    tabs: true,
+    gridThumbnails: true,
+    ordering: true,
   };
 };

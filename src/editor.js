@@ -59,6 +59,8 @@ export const blendModes = [
 let maskBuffer;
 export function drawLayers(ctx, layers, w, h) {
   ctx.clearRect(0, 0, w, h);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
   for (const l of layers) {
     if (l.visible) {
       ctx.save();

@@ -125,7 +125,22 @@ function applyArtwork(source, name, binding) {
     throw Error('Pilih kembali tekstur tempat artwork ini dipasang.');
   if (!current || current.isUV) throw Error('Pilih tekstur yang dapat diedit terlebih dahulu.');
   initLayers(current);
+  if (!validSize(source.width, source.height)) throw Error('Ukuran artwork tidak valid.');
   remember();
+  if (source.width !== current.w || source.height !== current.h) {
+    const sx = source.width / current.w,
+      sy = source.height / current.h;
+    for (const layer of current.layers) {
+      layer.x *= sx;
+      layer.y *= sy;
+      layer.w *= sx;
+      layer.h *= sy;
+    }
+    current.w = source.width;
+    current.h = source.height;
+    cropRect = null;
+    $('dimensions').textContent = `${current.w} × ${current.h}`;
+  }
   const id = binding?.id || crypto.randomUUID();
   const layer = { ...makeLayer(source, name), projectionId: id };
   const index = current.layers.findIndex((l) => l.projectionId === id);
@@ -139,6 +154,7 @@ function applyArtwork(source, name, binding) {
   renderTextures();
   drawGuide();
   applyTexture();
+  fitCanvas();
   return { texture: current, id };
 }
 const stickers3d = mountStickers3D({
@@ -239,9 +255,9 @@ function applyTexture() {
     );
     if (mapped) {
       mapped.flipY = false;
-      mapped.generateMipmaps = false;
-      mapped.minFilter = THREE.LinearFilter;
-      mapped.anisotropy = Math.min(8, renderer?.capabilities.getMaxAnisotropy() || 1);
+      mapped.generateMipmaps = true;
+      mapped.minFilter = THREE.LinearMipmapLinearFilter;
+      mapped.anisotropy = Math.min(16, renderer?.capabilities.getMaxAnisotropy() || 1);
       mapped.colorSpace = THREE.SRGBColorSpace;
     }
   }
@@ -279,6 +295,7 @@ function showDrawable(index) {
         side: THREE.DoubleSide,
       }),
     );
+    mesh.userData.diffuseTexture = g.diffuseTexture || null;
     mesh.name =
       'Part ' +
       ((g.part ?? 0) + 1) +

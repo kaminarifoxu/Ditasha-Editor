@@ -172,7 +172,14 @@ else {
       if (!isTrustedUpdateEvent(event, win, path.join(__dirname, '..', 'ui', 'index.html')))
         throw Error('Untrusted update request');
     };
-    require('./file-manager.cjs').registerFileManager({ ipcMain, trusted, win, dialog, shell });
+    require('./file-manager.cjs').registerFileManager({
+      ipcMain,
+      trusted,
+      win,
+      dialog,
+      shell,
+      app,
+    });
     craftEngines = require('./craft-engines.cjs').registerCraftEngines({
       app,
       ipcMain,

@@ -5,6 +5,7 @@ const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { pipeline } = require('node:stream/promises');
 const { CATEGORIES, classifyAssets } = require('./asset-sort.cjs');
+const { createFilesApp } = require('./files-app.cjs');
 const MAX_ENTRIES = 100000;
 const within = (root, target) => {
   const relative = path.relative(root, target);
@@ -13,7 +14,14 @@ const within = (root, target) => {
     (!relative.startsWith('..' + path.sep) && relative !== '..' && !path.isAbsolute(relative))
   );
 };
-function createFileManager({ dialog, win, shell, onState = () => {} }) {
+function createFileManager({
+  dialog,
+  win,
+  shell,
+  app,
+  filesApp = createFilesApp({ app, shell }),
+  onState = () => {},
+}) {
   let session, plan, controller, lastOutput;
   let state = { busy: false, message: 'Buka folder aset untuk memulai.', processed: 0 };
   function emit(patch) {
@@ -179,9 +187,21 @@ function createFileManager({ dialog, win, shell, onState = () => {} }) {
     },
     list(value = {}) {
       idle();
-      const files = query(value).sort((a, b) =>
-        a.relative.localeCompare(b.relative, undefined, { numeric: true }),
-      );
+      const key = ['name', 'size', 'modified', 'type'].includes(value.orderBy)
+        ? value.orderBy
+        : 'name';
+      const direction = value.descending === true ? -1 : 1;
+      const files = query(value).sort((a, b) => {
+        const order =
+          key === 'size' || key === 'modified'
+            ? a[key] - b[key]
+            : key === 'type'
+              ? path.extname(a.name).localeCompare(path.extname(b.name))
+              : a.name.localeCompare(b.name, undefined, { numeric: true });
+        return (
+          direction * (order || a.relative.localeCompare(b.relative, undefined, { numeric: true }))
+        );
+      });
       const offset = Number.isSafeInteger(value.offset) && value.offset >= 0 ? value.offset : 0;
       const folders =
         value.search || value.category || value.recursive
@@ -206,7 +226,29 @@ function createFileManager({ dialog, win, shell, onState = () => {} }) {
         totalItems: files.length + folders.length,
         bytes: files.reduce((n, f) => n + f.size, 0),
         counts,
+        navigationFolders: [...ready().folders]
+          .filter((f) => f && path.posix.dirname(f) === (value.folder || '.'))
+          .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+          .slice(0, 200)
+          .map((relative) => ({ relative, name: path.posix.basename(relative) })),
       };
+    },
+    async filesApp(value = {}) {
+      idle();
+      if (value.action === 'status') return filesApp.state();
+      if (value.action === 'download') return filesApp.download();
+      if (value.action !== 'open') throw Error('Aksi Files tidak valid.');
+      const current = ready();
+      const folder = value.folder || '';
+      if (typeof folder !== 'string' || !current.folders.has(folder))
+        throw Error('Folder tidak valid.');
+      const target = path.join(current.root, folder);
+      if (
+        !within(current.root, await fs.realpath(target)) ||
+        (await fs.lstat(target)).isSymbolicLink()
+      )
+        throw Error('Folder berubah menjadi tautan atau berada di luar sumber.');
+      return filesApp.open(target);
     },
     async read(id) {
       idle();
@@ -381,7 +423,17 @@ function registerFileManager({ ipcMain, trusted, win, ...options }) {
       if (!win.isDestroyed()) win.webContents.send('ditasha:files-progress', state);
     },
   });
-  for (const name of ['state', 'choose', 'list', 'read', 'plan', 'sort', 'cancel', 'reveal']) {
+  for (const name of [
+    'state',
+    'choose',
+    'list',
+    'read',
+    'plan',
+    'sort',
+    'cancel',
+    'reveal',
+    'filesApp',
+  ]) {
     ipcMain.handle('ditasha:files-' + name, (event, value) => {
       trusted(event);
       return manager[name](value);

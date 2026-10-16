@@ -30,6 +30,8 @@ module.exports = async function checkViewers(fixtures) {
     $(id).dispatchEvent(new Event('change'));
   };
   async function checkSticker3d() {
+    // Small-atlas editing remains available; a separate check below exercises 2K.
+    $('stickerResolution').value = '0';
     $('canvasW').value = $('canvasH').value = '128';
     $('confirmSize').click();
     const original2d = $('textureCanvas').toDataURL();
@@ -187,6 +189,26 @@ module.exports = async function checkViewers(fixtures) {
     assert(
       $('textureCanvas').toDataURL() === original2d,
       'Removing tattoo retained projected pixels',
+    );
+    $('stickerResolution').value = '2048';
+    $('stickerPlace').click();
+    $('viewport').dispatchEvent(
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        button: 0,
+        clientX: rect.left + (xsum / count / sample.width) * rect.width,
+        clientY: rect.top + (ysum / count / sample.height) * rect.height,
+      }),
+    );
+    assert(
+      $('textureCanvas').width === 2048 && $('textureCanvas').height === 2048,
+      'High quality tattoo was baked into the low-resolution source atlas',
+    );
+    assert($('stickerStatus').textContent.includes('2048 × 2048'), 'Baking resolution missing');
+    $('undo').click();
+    assert(
+      $('textureCanvas').toDataURL() === original2d,
+      '2K placement undo failed to restore original pixels and size',
     );
     $('stickerClear').click();
     $('editTexture3d').click();

@@ -1,3 +1,17 @@
+# v1.26.0 preview — Files navigation and continuous tattoo projection
+
+The internal File Manager is rebuilt around Files-style navigation: folder tabs (within the scanned root), back/forward history, clickable breadcrumbs, a bounded folder tree, category quick access, list/grid layouts with local image thumbnails, details toggle, and name/type/size/modified ordering applied before pagination. Existing native classification, reviewed sorting plans, streamed copies, source protection, cancellation and editor opening remain available.
+
+DITASHA connects to installed Files Community stable/preview/dev through its registered command protocol. **Buka di Files** opens the active authorized folder in the real native Files application; **Dapatkan Files** opens the official download page if it is missing. Files is WinUI/C#, not an embeddable Electron web engine. This does not bundle/rebrand upstream Files, auto-install it, or replace the system file manager. The embedded browser is DITASHA code inspired by Files navigation.
+
+Tattoo projection defaults to all visible meshes sharing the clicked mesh's diffuse texture and a deeper adjustable volume, avoiding a cut at mesh boundaries and curved neck surfaces. Single-mesh and explicit shared-atlas modes remain available. The temporary decal now applies the same front/back face test as UV baking. Both previews and baking use the same target set and volume.
+
+New baking resolution options retain the original size or increase the atlas to at least 2K (default)/4K without downsampling an already larger texture. PNG source pixels remain unchanged for subsequent edits. Resolution scaling and artwork insertion share one undo checkpoint. Texture compositing uses high quality resampling, and the 3D editor uses mipmapped, anisotropic filtering. Upsizing increases tattoo sampling density; it cannot recover lost detail in a low-resolution skin source.
+
+The supplied cropped screenshot was inspected, but its original tattoo PNG and matching ped YDD/YTD were not provided. Synthetic curved-neck, separated-mesh, UV seam and alpha tests cover the repaired pipeline; exact placement on that asset and in-game appearance still need those files.
+
+Validation adds native Files protocol/absence/authorized-folder tests, ordering/tree tests, multi-mesh and curved-neck regression tests, 2K baking/undo UI checks, actual folder copy plus grid/tab/navigation checks, and responsive screenshots at 800/1024/1500 px.
+
 # v1.25.1 preview — Asset Workshop control layout
 
 Asset Workshop controls now use spaced action groups instead of a single compressed icon strip. The shared 2D/3D shelf groups Paint, Transform, Layer, History/Zoom, Model/Camera and Canvas controls; important paint/transform actions show text labels. Groups wrap in place at smaller widths, with a bounded scrollable shelf so the editing surfaces remain usable.

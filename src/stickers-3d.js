@@ -1,6 +1,10 @@
 import * as THREE from 'three';
 import { projectTexture } from './project-texture.js';
-import { DecalGeometry } from 'three/addons/geometries/DecalGeometry.js';
+import {
+  projectionResolution,
+  projectionTargets,
+  projectionGeometry,
+} from './sticker-projection.js';
 
 export function mountStickers3D({
   scene,
@@ -33,10 +37,14 @@ export function mountStickers3D({
       <label class="tattoo-control"><span>Rotasi</span><div><input aria-label="Rotasi tattoo" id="stickerRotation" type="range" min="-180" max="180" value="0"><input aria-label="Rotasi tattoo derajat" id="stickerRotationNumber" type="number" min="-180" max="180" value="0"><span>°</span></div></label>
       <label class="tattoo-control"><span>Opacity</span><div><input aria-label="Opacity tattoo" id="stickerOpacity" type="range" min="1" max="100" value="100"><input aria-label="Opacity tattoo persen" id="stickerOpacityNumber" type="number" min="1" max="100" value="100"><span>%</span></div></label>
     </div>
+    <label class="tattoo-control"><span>Kedalaman permukaan</span><div><input aria-label="Kedalaman tattoo" id="stickerDepth" type="range" min="10" max="300" value="150"><input aria-label="Kedalaman tattoo persen" id="stickerDepthNumber" type="number" min="10" max="300" value="150"><span>%</span></div></label>
+    <label>Area proyeksi<select id="stickerScope"><option value="texture">Semua mesh dengan tekstur sama</option><option value="mesh">Hanya mesh yang diklik</option><option value="all">Semua mesh · satu atlas UV</option></select></label>
+    <label>Resolusi baking<select id="stickerResolution"><option value="0">Resolusi tekstur asli</option><option value="2048" selected>Minimal 2K · disarankan</option><option value="4096">Minimal 4K · detail tinggi</option></select></label>
+    <p id="stickerQuality" class="muted">PNG asli dipertahankan. Baking tidak memperkecil tekstur. Peningkatan resolusi tidak memulihkan detail kulit yang sudah hilang.</p>
     <button id="stickerBake" disabled>Sinkronkan 2D</button>
     <p id="stickerStatus" role="status" class="muted">Tambah PNG untuk mulai.</p>
     <div class="tattoo-actions"><button id="stickerRemove" disabled>Hapus tattoo</button><button id="stickerClear" disabled>Reset kontrol</button></div>
-    <details class="tattoo-help"><summary>Cara pakai</summary><p>Tarik tattoo, atau pilih Pindahkan lalu klik permukaan baru. Perubahan masuk ke layer 2D setelah kontrol dilepas. Hapus tattoo menghapus layer; Reset kontrol mempertahankan layer. Ekspor YTD untuk menyimpan.</p></details>`;
+    <details class="tattoo-help"><summary>Cara pakai</summary><p>Tarik tattoo, atau pilih Pindahkan lalu klik permukaan baru. Jika tattoo terpotong di leher atau sambungan mesh, gunakan area tekstur sama dan tambah kedalaman. Semua mesh hanya untuk model yang berbagi satu atlas UV. Bagian di luar permukaan model tidak dapat menerima tattoo. Perubahan masuk ke layer 2D setelah kontrol dilepas. Hapus tattoo menghapus layer; Reset kontrol mempertahankan layer. Ekspor YTD untuk menyimpan.</p></details>`;
   root.querySelector('.tattoo-actions').before(open);
   container.prepend(root);
   const $ = (id) => root.querySelector('#' + id),
@@ -73,11 +81,13 @@ export function mountStickers3D({
         $('stickerSize').value = item.size;
         $('stickerRotation').value = item.rotation;
         $('stickerOpacity').value = item.opacity;
+        $('stickerDepth').value = item.depth;
+        $('stickerScope').value = item.scope;
         refresh();
       };
       $('stickerList').append(b);
     }
-    for (const id of ['stickerSize', 'stickerRotation', 'stickerOpacity']) {
+    for (const id of ['stickerSize', 'stickerRotation', 'stickerOpacity', 'stickerDepth']) {
       $(id + 'Number').value = $(id).value;
       $(id).disabled = $(id + 'Number').disabled = !asset && !selected;
     }
@@ -96,8 +106,9 @@ export function mountStickers3D({
     });
     item.meshes = [];
     const box = new THREE.Box3();
-    const targets = item.target ? [item.target] : getMeshes().filter((m) => m.visible);
-    targets.forEach((m) => {
+    const targets = projectionTargets(getMeshes(), item.target, item.scope);
+    item.targets = targets;
+    [item.target].filter(Boolean).forEach((m) => {
       m.updateWorldMatrix(true, false);
       m.geometry.computeBoundingBox();
       box.union(m.geometry.boundingBox.clone().applyMatrix4(m.matrixWorld));
@@ -110,14 +121,14 @@ export function mountStickers3D({
     const size = new THREE.Vector3(
       width,
       (width * item.asset.bitmap.height) / item.asset.bitmap.width,
-      width * 0.4,
+      (width * item.depth) / 100,
     );
     projector.updateMatrixWorld();
     item.projector = projector.matrixWorld.clone();
     item.projectorSize = size;
     for (const mesh of targets) {
-      const geometry = new DecalGeometry(mesh, item.point, projector.rotation, size);
-      if (!geometry.getAttribute('position').count) {
+      const geometry = projectionGeometry(mesh, item.point, projector.rotation, size, item.side);
+      if (!geometry.index.count) {
         geometry.dispose();
         continue;
       }
@@ -130,6 +141,7 @@ export function mountStickers3D({
         polygonOffsetFactor: -4,
         roughness: 0.8,
         alphaTest: 0.005,
+        side: THREE.DoubleSide,
       });
       const decal = new THREE.Mesh(geometry, material);
       decal.name = 'PNG 3D · ' + item.name;
@@ -161,6 +173,7 @@ export function mountStickers3D({
       }
       const map = new THREE.Texture(bitmap);
       map.colorSpace = THREE.SRGBColorSpace;
+      map.anisotropy = 8;
       map.needsUpdate = true;
       asset = { map, bitmap, pixels, name: file.name };
       assets.push(asset);
@@ -212,6 +225,11 @@ export function mountStickers3D({
       if (!dimensions) throw Error('Pilih tekstur untuk menyimpan tattoo ke kanvas 2D.');
       if (item.binding && item.binding.texture !== dimensions.texture)
         throw Error('Pilih kembali tekstur tempat tattoo ini dipasang.');
+      const resolution = projectionResolution(
+        dimensions.w,
+        dimensions.h,
+        Number($('stickerResolution').value),
+      );
       const source = document.createElement('canvas');
       source.width = item.asset.bitmap.width;
       source.height = item.asset.bitmap.height;
@@ -220,26 +238,30 @@ export function mountStickers3D({
       context.scale(1, -1);
       context.drawImage(item.asset.bitmap, 0, 0);
       const pixels = projectTexture(
-        item.target ? [item.target] : getMeshes(),
+        projectionTargets(getMeshes(), item.target, item.scope),
         item.projector,
         item.projectorSize,
         context.getImageData(0, 0, source.width, source.height),
-        dimensions.w,
-        dimensions.h,
+        resolution.w,
+        resolution.h,
         item.opacity / 100,
         item.side,
       );
       const layer = document.createElement('canvas');
-      layer.width = dimensions.w;
-      layer.height = dimensions.h;
+      layer.width = resolution.w;
+      layer.height = resolution.h;
       layer.getContext('2d').putImageData(new ImageData(pixels, layer.width, layer.height), 0, 0);
       previewTextureLayer(null);
       item.binding = addTextureLayer(layer, item.name, item.binding);
       item.meshes.forEach((m) => (m.visible = false));
-      $('stickerStatus').textContent = 'Layer 2D diperbarui · belum diekspor.';
+      $('stickerStatus').textContent =
+        `Layer 2D diperbarui · ${resolution.w} × ${resolution.h} · ${item.targets.length} mesh · belum diekspor.`;
       render();
       return true;
     } catch (error) {
+      previewTextureLayer(null);
+      if (item.binding) item.meshes.forEach((m) => (m.visible = false));
+      render();
       $('stickerStatus').textContent = error.message;
       toast(error.message);
       return false;
@@ -292,6 +314,8 @@ export function mountStickers3D({
         size: Number($('stickerSize').value),
         rotation: Number($('stickerRotation').value),
         opacity: Number($('stickerOpacity').value),
+        depth: Number($('stickerDepth').value),
+        scope: $('stickerScope').value,
         meshes: [],
       };
       locate(item, hit);
@@ -357,6 +381,7 @@ export function mountStickers3D({
     ['stickerSize', 'size'],
     ['stickerRotation', 'rotation'],
     ['stickerOpacity', 'opacity'],
+    ['stickerDepth', 'depth'],
   ]) {
     for (const control of [id, id + 'Number']) {
       $(control).oninput = () => {
@@ -377,6 +402,15 @@ export function mountStickers3D({
       };
     }
   }
+  $('stickerScope').onchange = () => {
+    if (!selected) return;
+    selected.scope = $('stickerScope').value;
+    rebuild(selected);
+    sync(selected);
+  };
+  $('stickerResolution').onchange = () => {
+    if (selected) sync(selected);
+  };
   $('stickerBake').onclick = () => selected && sync(selected);
   $('stickerRemove').onclick = () => {
     if (!selected) return;
