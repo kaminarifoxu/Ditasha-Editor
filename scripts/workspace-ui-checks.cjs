@@ -14,6 +14,7 @@ module.exports = async function checkWorkspaceShell() {
     document.querySelector('[data-page="archives"]').nextElementSibling.dataset.page === 'vehicles',
     'Vehicle placement changed',
   );
+  document.querySelector('[data-page="editor"]').click();
   const original = window.ditashaDiscord,
     calls = [];
   window.ditashaDiscord = {

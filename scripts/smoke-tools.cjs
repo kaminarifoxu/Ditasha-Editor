@@ -39,6 +39,10 @@ app.whenReady().then(async () => {
       }
     });
     await win.loadFile(path.resolve('ui/index.html'));
+    const studioReport = await win.webContents.executeJavaScript(
+      '(' + require('./studio-ui-checks.cjs').toString() + ')()',
+    );
+    console.log('Studio home:', studioReport);
     const shellReport = await win.webContents.executeJavaScript(
       '(' + require('./workspace-ui-checks.cjs').toString() + ')()',
     );

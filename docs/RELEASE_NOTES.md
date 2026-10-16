@@ -1,3 +1,12 @@
+## 1.19.0 — Animated DITASHA Studio
+
+- Home studio baru dengan logo DITASHA, aksen emas/violet/teal, dan sembilan shortcut workspace.
+- Pencarian serta filter kategori untuk menemukan tool, plus tombol lanjut ke workspace terakhir tanpa membuang tab atau edit.
+- Animasi perpindahan workspace, kartu bertahap, hover, dialog, serta logo/orbit yang lembut.
+- Tombol untuk mematikan animasi, dukungan reduced motion dari perangkat, dan pause saat aplikasi tidak terlihat.
+- Tema terang/gelap dan area editor tetap memakai pengaturan yang sudah ada.
+- Desain motion mengacu pada panduan Owl-Listener/designer-skills. Detail dan sumber referensi ada di docs/STUDIO_UI.md.
+
 DITASHA Editor 1.18.1 — Fixed editor toolbar and discoverable previews
 
 - Keep document tabs and Edit 2D / Edit 3D controls in one full-width top bar. Switching modes changes the panels below without moving the tabs or controls.

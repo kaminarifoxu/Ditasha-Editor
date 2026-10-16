@@ -1,3 +1,4 @@
+import { mountStudioMotion } from './studio-motion.js';
 import { mountWorkspaceShell } from './workspace-shell.js';
 import { mountNativeBuild } from './native-build-ui.js';
 import { decodeResource } from './resource-client.js';
@@ -576,6 +577,7 @@ async function imageTexture(file) {
   };
 }
 async function loadFiles(list) {
+  if (list.length && tools.isHome()) tools.activate('editor');
   for (const file of list) {
     $('fileLoading').hidden = false;
     $('fileLoadingName').textContent = 'Membuka ' + file.name + '…';
@@ -2030,4 +2032,6 @@ nativeBuild = mountNativeBuild({ toast });
 mountPerformance();
 mountMinimalUi();
 mountWorkspaceShell({ toast });
+mountStudioMotion();
+tools.activate('home');
 window.ditashaDesktop?.ready?.();

@@ -1,3 +1,4 @@
+import { mountStudioHome } from './studio-home.js';
 import { mountVehicleWorkspace } from './vehicle-ui.js';
 import { mountViewers } from './viewers-ui.js';
 import { mountArchives } from './archive-ui.js';
@@ -60,6 +61,7 @@ export function mountTools({ download, toast, preview, confirmDiscard, onVehicle
     viewers,
   });
   const vehicles = mountVehicleWorkspace({ nav, viewers, onVehicleBuild });
+  const studioHome = mountStudioHome({ nav, activate });
   const modelHome = viewers.modelRoot.parentElement;
   const dirty = () => pack.length && revision !== savedRevision;
   const touch = () => {
@@ -74,21 +76,26 @@ export function mountTools({ download, toast, preview, confirmDiscard, onVehicle
       return;
     }
     if (page !== next) selection = null;
+    const changed = page !== next;
     page = next;
+    studioHome.root.hidden = next !== 'home';
+    document.body.dataset.workspace = next;
     $('workspaceLabel').textContent =
-      next === 'editor'
-        ? 'Texture & Model'
-        : next === 'pack'
-          ? 'Clothing pack'
-          : next === 'archives'
-            ? 'GTA V Explorer'
-            : next === 'vehicles'
-              ? 'Vehicle workshop'
-              : next === 'textureviewer'
-                ? 'Texture viewer'
-                : next === 'modelviewer'
-                  ? 'Model viewer'
-                  : 'Converter';
+      next === 'home'
+        ? 'Home studio'
+        : next === 'editor'
+          ? 'Texture & Model'
+          : next === 'pack'
+            ? 'Clothing pack'
+            : next === 'archives'
+              ? 'GTA V Explorer'
+              : next === 'vehicles'
+                ? 'Vehicle workshop'
+                : next === 'textureviewer'
+                  ? 'Texture viewer'
+                  : next === 'modelviewer'
+                    ? 'Model viewer'
+                    : 'Converter';
     editor.hidden = next !== 'editor';
     root.hidden = !['converter', 'pack'].includes(next);
     archives.root.hidden = next !== 'archives';
@@ -111,6 +118,8 @@ export function mountTools({ download, toast, preview, confirmDiscard, onVehicle
     nav
       .querySelectorAll('button')
       .forEach((b) => b.classList.toggle('active', b.dataset.page === next));
+    if (changed)
+      document.dispatchEvent(new CustomEvent('ditasha:workspace', { detail: { page: next } }));
     if (!['converter', 'pack'].includes(next)) {
       home.append(viewer);
       return;
@@ -516,5 +525,7 @@ export function mountTools({ download, toast, preview, confirmDiscard, onVehicle
       ...viewers.unsavedItems(),
     ],
     isActive: () => page !== 'editor',
+    isHome: () => page === 'home',
+    activate,
   };
 }

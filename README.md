@@ -257,3 +257,7 @@ Open **Vehicle workshop**, immediately after **GTA V Explorer**, for vehicle YFT
 The workspace navigation is now on the left. Auto rig ped, GPU and Settings are in the lower navigation section; Vehicle workshop follows GTA V Explorer. Settings contains persistent Midnight/Light themes, Comfortable/Compact density, and Discord Activity preferences.
 
 Discord Activity uses the installed Discord desktop client. Create an application named DITASHA Editor in [Discord Developer Portal](https://discord.com/developers/applications), copy its public Application ID, and enter it in Settings. No bot token or client secret is needed. Activity becomes available after configuration and follows Discord Activity Privacy. See [Discord setup](docs/DISCORD_ACTIVITY.md).
+
+### Animated studio home
+
+Versi 1.19.0 menambahkan Home studio dengan shortcut workspace, pencarian, filter dan animasi yang dapat dimatikan. Navigasi kembali ke editor mempertahankan tab dan edit yang sedang terbuka. [Detail UI dan sumber desain](docs/STUDIO_UI.md).
