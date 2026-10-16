@@ -78,7 +78,11 @@ export function mountMaterialPreview({ container, prefix, onChange }) {
           pixels.data.set(hairTexturePixels({ out: pixels.data }, true));
           ctx.putImageData(pixels, 0, 0);
           map = source.clone();
-          map.source = new THREE.Source(canvas);
+          map.source = new THREE.Source(
+            source.isDataTexture
+              ? { data: new Uint8Array(pixels.data), width: image.width, height: image.height }
+              : canvas,
+          );
           map.needsUpdate = true;
           keyedMaps.add(map);
           cache.set(source, map);
