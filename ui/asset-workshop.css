@@ -1,0 +1,612 @@
+/* Asset Workshop: readable action groups, consistent spacing and stable toolbars. */
+.workspace-shell .asset-workshop-surface {
+  --workshop-gap: 12px;
+  --workshop-inset: 16px;
+  --workshop-button: 36px;
+}
+.workspace-shell .asset-workshop-surface :is(button, input, select, textarea) {
+  min-width: 0;
+}
+.workspace-shell .asset-workshop-surface button {
+  min-height: var(--workshop-button);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 11px;
+  line-height: 1.4;
+  gap: 8px;
+  white-space: normal;
+  flex-shrink: 0;
+}
+.workspace-shell .asset-workshop-surface button:disabled {
+  opacity: 0.42;
+}
+.workspace-shell
+  .asset-workshop-surface
+  :is(.tool-sidebar, .tool-details, .debadge-sidebar, .debadge-inspector, .files) {
+  padding: 18px 16px;
+  scrollbar-gutter: stable;
+}
+.workspace-shell
+  .asset-workshop-surface
+  :is(.tool-sidebar, .tool-details, .debadge-sidebar, .debadge-inspector)
+  label:not(.check):not(.ratio) {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.workspace-shell
+  .asset-workshop-surface
+  :is(.tool-sidebar, .tool-details, .debadge-sidebar, .debadge-inspector)
+  :is(input:not([type='checkbox']):not([type='range']):not([type='color']), select, textarea) {
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 10px;
+  box-sizing: border-box;
+}
+.workspace-shell
+  .asset-workshop-surface
+  :is(.tool-sidebar, .tool-details, .debadge-sidebar, .debadge-inspector)
+  :is(.check, .ratio) {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 9px;
+  line-height: 1.5;
+  min-height: 30px;
+  margin: 0;
+}
+.workspace-shell .asset-workshop-surface input[type='checkbox'] {
+  flex: 0 0 auto;
+}
+.workspace-shell
+  .asset-workshop-surface
+  :is(
+    .tool-sidebar,
+    .tool-details,
+    .debadge-sidebar,
+    .debadge-inspector,
+    .native-build-layout,
+    .inspector
+  )
+  p {
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+}
+.workspace-shell
+  .asset-workshop-surface
+  :is(
+    .tool-sidebar,
+    .tool-details,
+    .native-build-layout,
+    .inspector,
+    .debadge-sidebar,
+    .debadge-inspector
+  )
+  button.icon-control
+  .control-label {
+  position: static;
+  width: auto;
+  height: auto;
+  clip: auto;
+  clip-path: none;
+  overflow: visible;
+  white-space: normal;
+  display: inline;
+}
+.workspace-shell
+  .asset-workshop-surface
+  :is(
+    .tool-sidebar,
+    .tool-details,
+    .native-build-layout,
+    .inspector,
+    .debadge-sidebar,
+    .debadge-inspector
+  )
+  button.compact-icon {
+  width: auto;
+  min-width: 36px;
+  padding: 8px 10px;
+}
+.workspace-shell .workshop-control-group {
+  min-width: 0;
+  padding: 14px;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--field);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.workspace-shell .workshop-control-group > h3 {
+  font-size: 11px;
+  line-height: 1.5;
+  font-weight: 650;
+  margin: 0 0 2px;
+  padding: 0 0 10px;
+  border-bottom: 1px solid var(--line);
+  color: var(--text);
+}
+.workspace-shell .asset-workshop-surface .viewer-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.workspace-shell .asset-workshop-surface .tool-sidebar .viewer-button-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.workspace-shell .asset-workshop-surface .tool-sidebar .viewer-button-row button {
+  width: 100%;
+}
+.workspace-shell
+  .asset-workshop-surface
+  .tool-sidebar
+  :is(.ped-attachments, .material-preview, .material-binding, .vehicle-workshop, .scene-studio) {
+  margin: 4px 0 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--field);
+}
+.workspace-shell
+  .asset-workshop-surface
+  :is(.ped-attachments, .material-preview, .material-binding, .vehicle-workshop, .scene-studio)
+  > summary {
+  padding: 2px 0;
+  margin-bottom: 4px;
+  font-size: 11px;
+  line-height: 1.6;
+  font-weight: 650;
+  cursor: pointer;
+}
+.workspace-shell
+  .asset-workshop-surface
+  :is(
+    .ped-attachments,
+    .material-preview,
+    .material-binding,
+    .vehicle-workshop,
+    .scene-studio
+  )[open]
+  > summary {
+  margin-bottom: 14px;
+}
+.workspace-shell
+  .asset-workshop-surface
+  :is(.ped-attachments, .material-preview, .material-binding, .vehicle-workshop, .scene-studio)
+  > :is(label, button, details, .studio-fields) {
+  margin-top: 10px;
+}
+.workspace-shell .asset-workshop-surface .viewer-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.workspace-shell .asset-workshop-surface .viewer-options label {
+  margin: 0;
+}
+.workspace-shell #mvParts {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 320px;
+  overflow: auto;
+  padding-right: 3px;
+}
+.workspace-shell #mvParts > label {
+  padding: 8px;
+  background: var(--panel);
+  border-radius: 6px;
+}
+.workspace-shell #mvParts .mesh-parts {
+  margin: 0 0 6px;
+  padding: 0 0 0 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.workspace-shell #mvTextures {
+  max-height: 200px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.workspace-shell #mvTextures p {
+  margin: 0;
+}
+.workspace-shell #mvTextures .viewer-button-row {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: space-between;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line);
+}
+.workspace-shell #mvTextures .viewer-button-row button {
+  flex: 0 0 32px;
+  width: 32px;
+  min-height: 32px;
+  padding: 6px;
+}
+.workspace-shell #mvTextures .viewer-button-row button .control-label {
+  display: none;
+}
+.workspace-shell
+  .asset-workshop-surface
+  :is(
+    .viewer-toolbar,
+    .archive-toolbar,
+    .vehicle-workspace-head,
+    .debadge-head,
+    .embedded-ide-toolbar
+  ) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+}
+.workspace-shell
+  .asset-workshop-surface
+  :is(.viewer-toolbar, .archive-toolbar, .vehicle-workspace-head, .debadge-head)
+  h2 {
+  margin: 5px 0 0;
+  line-height: 1.35;
+}
+.workspace-shell
+  .asset-workshop-surface
+  :is(.viewer-toolbar, .vehicle-workspace-head, .debadge-head)
+  > :first-child {
+  margin-right: auto;
+  min-width: 0;
+}
+/* Fixed groups in both 2D and 3D; controls wrap instead of piling into one line. */
+.workspace-shell > main,
+.workspace-shell > main.texture-mode-3d {
+  grid-template-rows: 42px auto minmax(0, 1fr);
+}
+.workspace-shell main > .editor-commandbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 10px;
+  padding: 12px;
+  min-height: 92px;
+  max-height: 196px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+.workspace-shell .editor-commandbar .toolbar {
+  display: contents;
+}
+.workspace-shell .editor-commandbar .toolbar > .spacer {
+  display: none;
+}
+.workspace-shell .editor-commandbar .workshop-tool-cluster {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  align-content: center;
+  gap: 8px;
+  flex: 0 1 auto;
+  max-width: 100%;
+  min-width: 0;
+  padding: 25px 10px 9px;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--field);
+}
+.workspace-shell .editor-commandbar .workshop-tool-cluster::before {
+  content: attr(data-label);
+  position: absolute;
+  left: 12px;
+  top: 7px;
+  font-size: 8px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  line-height: 1;
+}
+.workspace-shell .editor-commandbar [data-label='Paint'] {
+  order: 0;
+}
+.workspace-shell .editor-commandbar [data-label='Transform'] {
+  order: 1;
+}
+.workspace-shell .editor-commandbar [data-label='Layer'] {
+  order: 2;
+}
+.workspace-shell .editor-commandbar [data-label='History / zoom'] {
+  order: 3;
+}
+.workspace-shell .editor-commandbar [data-label='Model / camera'] {
+  order: 4;
+}
+.workspace-shell .editor-commandbar [data-label='Canvas'] {
+  order: 5;
+}
+.workspace-shell .editor-commandbar button {
+  min-width: 34px;
+  min-height: 34px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  background: var(--raised);
+  border-radius: 6px;
+}
+.workspace-shell .editor-commandbar button.workshop-show-label {
+  width: auto;
+  padding: 8px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.workspace-shell .editor-commandbar button.workshop-show-label .control-label {
+  position: static;
+  width: auto;
+  height: auto;
+  clip: auto;
+  clip-path: none;
+  overflow: visible;
+  white-space: nowrap;
+}
+.workspace-shell .editor-commandbar #size {
+  width: 68px;
+  margin: 0 3px;
+}
+.workspace-shell .editor-commandbar #color {
+  width: 34px;
+  height: 34px;
+}
+.workspace-shell .editor-commandbar #toolHint {
+  display: none;
+}
+.workspace-shell .editor-commandbar #expand3d {
+  margin-left: 0;
+}
+.workspace-shell .asset-workshop-surface .transformbar {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px 0;
+  align-items: end;
+}
+.workspace-shell .asset-workshop-surface .transformbar > span {
+  grid-column: 1 / -1;
+}
+.workspace-shell .asset-workshop-surface .transformbar label:not(.ratio) {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 0;
+}
+.workspace-shell .asset-workshop-surface .transformbar input {
+  width: 100%;
+  min-width: 0;
+}
+.workspace-shell .asset-workshop-surface .fliptools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 10px 0;
+}
+.workspace-shell .asset-workshop-surface .inspector {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.workspace-shell
+  .asset-workshop-surface
+  .inspector
+  > :is(.scene-studio, .stickers-3d, .material-preview, .ped-attachments, .layerinspector) {
+  margin: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--field);
+}
+.workspace-shell .asset-workshop-surface .layeractions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.workspace-shell .asset-workshop-surface .studio-fields {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 12px 0;
+}
+.workspace-shell .asset-workshop-surface .studio-fields label {
+  min-width: 0;
+}
+.workspace-shell .asset-workshop-surface .studio-fields input {
+  width: 100%;
+  min-width: 0;
+  min-height: 34px;
+}
+.workspace-shell
+  .asset-workshop-surface
+  :is(.hair-actions, .scene-actions, .native-actions, .tool-buttons) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 14px 0;
+}
+.workspace-shell
+  .asset-workshop-surface
+  :is(.scene-actions, .native-actions, .tool-buttons)
+  button {
+  flex: 1 1 110px;
+}
+.workspace-shell .asset-workshop-surface #convertSettings,
+.workspace-shell .asset-workshop-surface #packSettings {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--field);
+}
+.workspace-shell .asset-workshop-surface .conversion-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.workspace-shell .asset-workshop-surface .conversion-buttons button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 44px;
+}
+.workspace-shell .asset-workshop-surface .conversion-buttons button.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.workspace-shell .asset-workshop-surface :is(.tool-bottom, .archive-actions) {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.workspace-shell .asset-workshop-surface .tool-bottom {
+  padding-top: 18px;
+  margin-top: 18px;
+  border-top: 1px solid var(--line);
+}
+.workspace-shell .asset-workshop-surface .archive-actions {
+  margin: 14px 0;
+}
+.workspace-shell .asset-workshop-surface .workshop-action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.workspace-shell .workshop-action-grid > h3 {
+  grid-column: 1 / -1;
+}
+.workspace-shell .workshop-action-grid button {
+  width: 100%;
+}
+.workspace-shell .asset-workshop-surface .explorer-preview-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+}
+.workspace-shell .asset-workshop-surface .explorer-preview-bar label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  flex: 1 1 160px;
+  min-width: 0;
+}
+.workspace-shell .asset-workshop-surface .debadge-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 14px;
+  align-items: center;
+}
+.workspace-shell .asset-workshop-surface .debadge-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.workspace-shell .asset-workshop-surface .debadge-picked {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.workspace-shell .asset-workshop-surface .db-part {
+  margin-bottom: 10px;
+  padding: 10px;
+}
+.workspace-shell .asset-workshop-surface .native-build-layout {
+  gap: 18px;
+}
+.workspace-shell .asset-workshop-surface .native-build-layout > :is(aside, section) {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+}
+.workspace-shell
+  .asset-workshop-surface
+  .native-build-layout
+  :is(label, .studio-fields, .native-links, .native-actions) {
+  margin-top: 14px;
+}
+.workspace-shell .asset-workshop-surface .native-build-layout label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.workspace-shell .asset-workshop-surface .native-build-layout > aside > button {
+  margin: 6px 0;
+}
+.workspace-shell .asset-workshop-surface .native-actions button {
+  margin: 0;
+}
+.workspace-shell
+  .asset-workshop-surface
+  :is(
+    #mvModels,
+    #mvParts,
+    #toolQueue,
+    #dbParts,
+    .extra-transform,
+    .material-binding,
+    .workshop-section
+  ) {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 1100px) {
+  .workspace-shell .asset-workshop-surface {
+    --workshop-inset: 12px;
+  }
+  .workspace-shell main > .editor-commandbar {
+    padding: 10px;
+    gap: 8px;
+    max-height: 196px;
+  }
+  .workspace-shell .editor-commandbar .workshop-tool-cluster {
+    gap: 6px;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+  .workspace-shell
+    .asset-workshop-surface
+    :is(.viewer-toolbar, .archive-toolbar, .vehicle-workspace-head, .debadge-head) {
+    padding: 12px;
+  }
+  .workspace-shell .asset-workshop-surface .viewer-toolbar > .viewer-button-row {
+    width: 100%;
+  }
+}
+@media (max-width: 900px) {
+  .workspace-shell .asset-workshop-surface .native-build-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .workspace-shell .asset-workshop-surface .native-build-layout > aside:last-child {
+    grid-column: 1;
+  }
+  .workspace-shell .asset-workshop-surface .native-build-layout {
+    overflow: visible;
+  }
+  .workspace-shell .asset-workshop-surface .workshop-action-grid {
+    grid-template-columns: 1fr;
+  }
+}

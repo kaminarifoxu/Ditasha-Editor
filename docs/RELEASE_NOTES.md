@@ -1,3 +1,11 @@
+# v1.25.1 preview — Asset Workshop control layout
+
+Asset Workshop controls now use spaced action groups instead of a single compressed icon strip. The shared 2D/3D shelf groups Paint, Transform, Layer, History/Zoom, Model/Camera and Canvas controls; important paint/transform actions show text labels. Groups wrap in place at smaller widths, with a bounded scrollable shelf so the editing surfaces remain usable.
+
+Model and vehicle viewers separate files/textures, preview/LOD, parts/visibility and loaded textures. GTA Explorer actions are grouped into Open/Inspect, Copy/Extract and Modify Archive. Side panels use consistent field spacing, readable action labels and minimum 36px buttons. Converter formats use a two-column grid; clothing, rigging, donor strobo and debadge share roomier action rows and field grids. Existing control nodes, IDs, event handlers and document state are preserved.
+
+Validation includes toolbar collision/overflow checks and screenshots at 800/1024/1500px, existing 2D/3D, model, archive, converter, clothing, native rig/strobo, debadge and export checks, and packaged runtime verification.
+
 # v1.25.0 preview — Expressive studio UI and motion
 
 DITASHA has a richer shared desktop/web shell: ink-blue panels, warm gold actions, violet design studios, teal office tools, deeper surfaces, stronger toolbar groups and clearer navigation states. Both Midnight and Light themes use the shared palette.

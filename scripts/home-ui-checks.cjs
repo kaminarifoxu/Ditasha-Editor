@@ -33,7 +33,36 @@ module.exports = async function checkHome({ ytd, size, interactions }) {
     assert(box.width > 150 && box.right <= innerWidth, 'Workspace card does not fit at ' + size);
   }
   console.log('DITASHA_SNAPSHOT:home-' + size);
-  if (!interactions) return { size, fits: true };
+  document.querySelector('.workspace-nav [data-page="editor"]').click();
+  const shelf = document.querySelector('.editor-commandbar');
+  assert(
+    shelf.scrollWidth <= shelf.clientWidth + 2,
+    'Workshop toolbar overflows horizontally at ' + size,
+  );
+  const controls = [...shelf.querySelectorAll('button,input[type=color],input[type=range]')].filter(
+    (el) => el.getClientRects().length && !el.hidden,
+  );
+  for (let a = 0; a < controls.length; a++) {
+    const x = controls[a].getBoundingClientRect();
+    for (let b = a + 1; b < controls.length; b++) {
+      const y = controls[b].getBoundingClientRect();
+      assert(
+        Math.min(x.right, y.right) - Math.max(x.left, y.left) < 1 ||
+          Math.min(x.bottom, y.bottom) - Math.max(x.top, y.top) < 1,
+        'Workshop controls overlap at ' + size + ': ' + controls[a].id + ' / ' + controls[b].id,
+      );
+    }
+  }
+  console.log('DITASHA_SNAPSHOT:workshop-toolbar-' + size);
+  await sleep(200);
+  for (const page of ['modelviewer', 'archives', 'converter', 'pack']) {
+    document.querySelector('.workspace-nav [data-page="' + page + '"]').click();
+    await sleep(100);
+    console.log('DITASHA_SNAPSHOT:workshop-' + page + '-' + size);
+    await sleep(100);
+  }
+  document.getElementById('openHome').click();
+  if (!interactions) return { size, fits: true, workshopToolbar: true };
   assert(home.querySelectorAll('.home-suite-card').length === 9, 'Creative workspaces missing');
   for (const [group, count] of [
     ['DESIGN', 3],

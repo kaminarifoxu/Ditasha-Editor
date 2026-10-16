@@ -1,6 +1,7 @@
 import { setProject } from './project-context.js';
 import { mountCanvasStudio } from './canvas-studio.js';
 import { mountSceneStudio } from './scene-studio.js';
+import { mountAssetWorkshopUi } from './asset-workshop-ui.js';
 import { mountWorkspaceShell } from './workspace-shell.js';
 import { mountNativeBuild } from './native-build-ui.js';
 import { decodeResource } from './resource-client.js';
@@ -2295,4 +2296,5 @@ nativeBuild = mountNativeBuild({
 mountPerformance();
 mountMinimalUi();
 mountWorkspaceShell({ toast });
+mountAssetWorkshopUi();
 window.ditashaDesktop?.ready?.();
