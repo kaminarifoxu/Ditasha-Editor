@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { MAX_DECODED_TEXTURE_BYTES } from './texture-memory.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { decodeResource } from './resource-client.js';
-import { resolveModelTexture, modelAlphaMode } from './model-material.js';
+import { resolveModelTexture, modelAlphaMode, modelPreviewAlpha } from './model-material.js';
 import {
   liveryReference,
   resolveVehicleLivery,
@@ -164,7 +164,8 @@ export function mountDebadge({ download, toast, confirmDiscard, back }) {
         side: THREE.DoubleSide,
         roughness: 0.65,
         transparent: !!map && alpha === 'blend',
-        alphaTest: map && alpha === 'blend' ? 0.02 : 0,
+        alphaTest: map && alpha === 'blend' ? (modelPreviewAlpha(g)?.cutoff ?? 0.02) : 0,
+        depthWrite: !map || alpha !== 'blend',
       });
       if (livery && g.uvs2) {
         geometry.setAttribute('ditashaLiveryUv', new THREE.BufferAttribute(g.uvs2, 2));

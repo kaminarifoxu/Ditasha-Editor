@@ -6,6 +6,15 @@ import {
   textureBudgetLabel,
 } from './texture-memory.js';
 
+// A shared dictionary must not delete a vehicle's identically named map.
+// Only a map from the same dictionary is a replacement.
+const textureKey = (t) =>
+  JSON.stringify([(t.dictionary || '').toLowerCase(), t.name.toLowerCase()]);
+export function mergeVehicleTextures(existing, incoming) {
+  const replacements = new Set(incoming.map(textureKey));
+  return [...existing.filter((t) => !replacements.has(textureKey(t))), ...incoming];
+}
+
 export function modelTextureReferences(drawables) {
   return [
     ...new Set(
@@ -32,9 +41,13 @@ export async function loadVehicleTextures(files, references, { decode, image, ex
       let metadata;
       if (ytd) metadata = await decode('texture-index', await file.arrayBuffer());
       // Replacing a map releases its old budget; unrelated dictionaries remain counted.
-      const incoming = metadata || [{ name: file.name }];
-      const retained = [...existing, ...textures].filter(
-        (t) => !incoming.some((m) => t.name.toLowerCase() === m.name.toLowerCase()),
+      const incoming = (metadata || [{ name: file.name }]).map((t) => ({
+        ...t,
+        dictionary: file.name,
+      }));
+      const incomingKeys = new Set(incoming.map(textureKey));
+      const retained = mergeVehicleTextures(existing, textures).filter(
+        (t) => !incomingKeys.has(textureKey(t)),
       );
       const available = MAX_DECODED_TEXTURE_BYTES - retained.reduce((n, t) => n + t.out.length, 0);
       let names;
@@ -60,10 +73,11 @@ export async function loadVehicleTextures(files, references, { decode, image, ex
         : { textures: await image(file, { maxDecodedBytes: available }), warnings: [] };
       if (result.textures.reduce((n, t) => n + t.out.length, 0) > available)
         throw Error('Model textures exceed ' + textureBudgetLabel + '.');
-      const replaced = new Set(result.textures.map((t) => t.name.toLowerCase()));
-      for (let i = textures.length - 1; i >= 0; i--)
-        if (replaced.has(textures[i].name.toLowerCase())) textures.splice(i, 1);
-      textures.push(...result.textures.map((t) => ({ ...t, dictionary: file.name })));
+      const merged = mergeVehicleTextures(
+        textures,
+        result.textures.map((t) => ({ ...t, dictionary: file.name })),
+      );
+      textures.splice(0, textures.length, ...merged);
       warnings.push(...result.warnings.map((w) => file.name + ': ' + w));
     } catch (error) {
       warnings.push(file.name + ': ' + error.message);

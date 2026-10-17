@@ -1,4 +1,4 @@
-import { resolveModelTexture, modelAlphaMode } from './model-material.js';
+import { resolveModelTexture, modelAlphaMode, modelPreviewAlpha } from './model-material.js';
 import { liveryReference, setVehicleLivery } from './vehicle-livery.js';
 import { composeProjectionLayers } from './projection-composite.js';
 import {
@@ -383,6 +383,8 @@ function showDrawable(index) {
     );
     mesh.userData.diffuseTexture = g.diffuseTexture || null;
     mesh.userData.liveryTexture = liveryReference(g);
+    const alphaDefault = modelPreviewAlpha(g);
+    if (alphaDefault) mesh.material.userData.previewAlphaDefault = alphaDefault;
     if (
       modelAlphaMode(g) === 'opaque' ||
       /^(sbase|head_diff|uppr_diff|lowr_diff|body_diff)/i.test(g.diffuseTexture || '')

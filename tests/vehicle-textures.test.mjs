@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { indexYtd, readYtd } from '../src/resource.js';
 import { performResourceJob } from '../src/resource-jobs.js';
 import { resolveModelTexture } from '../src/model-material.js';
-import { hashName } from '../src/asset-tools.js';
-import { loadVehicleTextures } from '../src/vehicle-textures.js';
+import { hashName, createYtd } from '../src/asset-tools.js';
+import { loadVehicleTextures, mergeVehicleTextures } from '../src/vehicle-textures.js';
 import { indexTextureFiles, planTextureSearch, loadSearchTextures } from '../src/texture-search.js';
 import { keyedVehicleDictionary } from './fixtures/vehicle-dictionary.mjs';
 import { largeYtdFixture } from './fixtures/large-ytd.mjs';
@@ -16,6 +16,28 @@ const file = (name, buffer) => ({
   arrayBuffer: async () => buffer.slice(0),
 });
 const decode = async (...args) => performResourceJob(...args);
+test('Adding shared YTD preserves model-owned maps with identical names and refreshes only its own dictionary', async () => {
+  const dictionary = (color) =>
+    createYtd([{ name: 'black', w: 1, h: 1, out: new Uint8Array(color) }]).buffer;
+  const own = file('car.ytd', dictionary([15, 15, 15, 255]));
+  const shared = file('vehshare.ytd', dictionary([180, 180, 180, 255]));
+  const result = await loadVehicleTextures([own, shared], ['black'], { decode });
+  assert.equal(result.textures.length, 2);
+  assert.deepEqual(
+    [...resolveModelTexture('black', result.textures, [], 'car.yft').out],
+    [15, 15, 15, 255],
+  );
+  const update = await loadVehicleTextures(
+    [file('vehshare.ytd', dictionary([200, 200, 200, 255]))],
+    ['black'],
+    { decode, existing: result.textures },
+  );
+  const merged = mergeVehicleTextures(result.textures, update.textures);
+  assert.equal(merged.length, 2);
+  assert.equal(resolveModelTexture('black', merged, [], 'car_hi.yft').out[0], 15);
+  assert.equal(merged.find((t) => t.dictionary === 'vehshare.ytd').out[0], 200);
+  assert.deepEqual(mergeVehicleTextures(merged, []), merged);
+});
 test('Dictionary lookup keys resolve renamed labels and a broken entry does not discard readable vehicle maps', async () => {
   const buffer = keyedVehicleDictionary(),
     snapshot = new Uint8Array(buffer).slice();

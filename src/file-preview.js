@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { decodeResource } from './resource-client.js';
 import { readDds } from './asset-tools.js';
-import { resolveModelTexture, modelAlphaMode } from './model-material.js';
+import { resolveModelTexture, modelAlphaMode, modelPreviewAlpha } from './model-material.js';
 import { resolveVehicleLivery, setVehicleLivery } from './vehicle-livery.js';
 
 // One owned preview at a time; selecting a different file releases its WebGL
@@ -132,7 +132,8 @@ export function createFilePreview(container) {
             roughness: 0.8,
             side: THREE.DoubleSide,
             transparent: !!map && !opaque,
-            alphaTest: opaque ? 0 : 0.01,
+            alphaTest: opaque ? 0 : (modelPreviewAlpha(g)?.cutoff ?? 0.01),
+            depthWrite: opaque || !map,
           }),
         );
         if (livery && g.uvs2) {

@@ -92,3 +92,30 @@ export function modelAlphaMode(geometry, override = 'auto') {
     ? 'opaque'
     : 'blend';
 }
+
+// Vehicle bucket-1 materials need continuous texture alpha. Ped cutout defaults
+// must never turn a 45%-opaque window into an opaque surface.
+const blendedVehicle = new Set(
+  [
+    'vehicle_vehglass',
+    'vehicle_vehglass_inner',
+    'vehicle_lights',
+    'vehicle_lightsemissive',
+    'vehicle_badges',
+    'vehicle_decal',
+    'vehicle_emissive_alpha',
+    'vehicle_dash_emissive',
+    'vehicle_blurredrotor',
+    'vehicle_track_siren',
+    'vehicle_blurredrotor_emissive',
+    'vehicle_lightsemissive_siren',
+  ].flatMap((name) => [hashName(name), hashName(name + '.sps')]),
+);
+export function modelPreviewAlpha(geometry, override = 'auto') {
+  if (override !== 'auto') return { mode: override, cutoff: override === 'opaque' ? 0 : 0.02 };
+  if (opaqueVehicle.has(geometry.shaderHash) || opaqueVehicle.has(geometry.shaderFileHash))
+    return { mode: 'opaque', cutoff: 0 };
+  if (blendedVehicle.has(geometry.shaderHash) || blendedVehicle.has(geometry.shaderFileHash))
+    return { mode: 'blend', cutoff: 0.001 };
+  return null;
+}

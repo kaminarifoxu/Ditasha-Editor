@@ -1,3 +1,15 @@
+# v1.34.0 preview — Preserve vehicle glass alpha and dictionary ownership
+
+Vehicle bucket-1 glass, badges, decals, dashboard/emissive and related verified presets now retain continuous alpha when passing through the shared ped material controls in Vehicle Workshop / Model Viewer and Texture & Model. Previously these controls reset such materials to cutout, making partially transparent windows opaque. Transparent File Manager and Debadge surfaces no longer write depth and use the vehicle alpha cutoff. Opaque vehicle paint remains opaque; ped cutout defaults and explicit material overrides remain available. Photoshoot clones preserve the material defaults.
+
+The supplied GT3RS glass_clear map decodes as 64×64 with alpha 115/255 at every pixel. Its texture was available: the opaque appearance was caused by preview material settings. Removing four shared YTD entries in the user's OpenIV screenshot leaves the model visually textured with only gt3rs.ytd listed; those four entries are not established as necessary to reproduce this particular screenshot. No claim is made about OpenIV cache behavior.
+
+Loading multiple YTDs, adding another YTD manually, dropping it into Vehicle Workshop, and automatic repair now retain identically named maps from different dictionaries. Only the same dictionary/name pair is refreshed. Previously global name-only replacement deleted the vehicle-owned map when a later shared dictionary contained the same name. Decoded-memory accounting retains unrelated dictionaries rather than pretending their maps were released. Existing source ownership/native-hash matching selects the model's own map.
+
+Validation adds a shared-YTD name collision with model-owned pixels preserved, same-dictionary refresh, and vehicle alpha defaults surviving Photoshoot cloning. Windows GPU/UI checks compare alpha-115 glass against an explicit opaque override, verify the editor's blend default, and preserve green base / blue livery pixels after loading a conflicting shared map. The six original base YFT/YTD pairs were audited again with unchanged hashes and missing-reference lists.
+
+Limits: this fixes two app defects. It does not recreate genuinely absent image data, generate blank Aventador livery pixels, or reproduce the entire GTA/OpenIV material, lighting and reflection pipeline. The missing dependencies documented in docs/VEHICLE_TEXTURE_AUDIT.md still require their original images or a deliberate manual material binding. Source YFT/YTD files are not modified.
+
 # v1.33.0 preview — Audited vehicle layers and reusable shared texture sources
 
 The supplied Sanchezpol, Polaleutian, Aventador, GT3RS, GMCEVP and SS2RB pairs were audited locally. All 441 YTD textures decoded without entry warnings, including GT3RS's 653 MB decoded dictionary. Available high variants parsed too. Source files were not rewritten or bundled. The full list of missing references and how to repeat the audit is in docs/VEHICLE_TEXTURE_AUDIT.md.

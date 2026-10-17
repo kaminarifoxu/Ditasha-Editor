@@ -71,6 +71,17 @@ module.exports = async function checkVehicleLivery(fixtures) {
   );
   console.log('DITASHA_SNAPSHOT:vehicle-livery-viewer');
   await sleep(200);
+  upload('mvTextureInput', [['vehshare.ytd', fixtures.conflictingDictionary]]);
+  await wait(
+    () => !$('mvOpen').disabled && $('mvStatus').textContent.includes('3 external textures'),
+    'Shared YTD replaced a vehicle-owned map',
+  );
+  await sleep(200);
+  const collision = colors($('mvViewport').querySelector('canvas'));
+  assert(
+    collision.green > 20 && collision.blue > 20,
+    'Shared YTD changed the vehicle-owned base/livery pixels: ' + JSON.stringify(collision),
+  );
   $('mvPhotoshoot').click();
   await sleep(150);
   const photo = colors($('psCanvas'));
@@ -264,6 +275,50 @@ module.exports = async function checkVehicleLivery(fixtures) {
   );
   console.log('DITASHA_SNAPSHOT:vehicle-livery-editor');
   await sleep(200);
+  document.querySelector('[data-page="modelviewer"]').click();
+  upload('mvInput', [
+    ['glass.yft', fixtures.glassModel],
+    ['glass.ytd', fixtures.glassDictionary],
+  ]);
+  await wait(
+    () => !$('mvOpen').disabled && $('mvTitle').textContent === 'glass.yft',
+    'Glass model did not load',
+  );
+  await sleep(200);
+  assert($('mvPedMaterialMode').value === 'blend', 'Ped controls turned vehicle glass into cutout');
+  const greenEnergy = () => {
+    const canvas = $('mvViewport').querySelector('canvas'),
+      c = document.createElement('canvas');
+    c.width = canvas.width;
+    c.height = canvas.height;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(canvas, 0, 0);
+    const pixels = ctx.getImageData(0, 0, c.width, c.height).data;
+    let sum = 0;
+    for (let i = 0; i < pixels.length; i += 4)
+      sum += Math.max(0, pixels[i + 1] - Math.max(pixels[i], pixels[i + 2]));
+    return sum;
+  };
+  const blendedGreen = greenEnergy();
+  console.log('DITASHA_SNAPSHOT:vehicle-glass-alpha');
+  await sleep(200);
+  $('mvPedMaterialMode').value = 'opaque';
+  $('mvPedMaterialMode').dispatchEvent(new Event('change'));
+  await sleep(200);
+  const opaqueGreen = greenEnergy();
+  assert(
+    blendedGreen > 100 && opaqueGreen > blendedGreen * 1.15,
+    'Glass alpha was not blended on GPU: ' + JSON.stringify({ blendedGreen, opaqueGreen }),
+  );
+  document.querySelector('[data-page="editor"]').click();
+  upload('fileInput', [
+    ['glass.yft', fixtures.glassModel],
+    ['glass.ytd', fixtures.glassDictionary],
+  ]);
+  await wait(
+    () => $('fileLoading').hidden && $('pedMaterialMode').value === 'blend',
+    'Texture & Model overwrote glass alpha',
+  );
   return {
     viewer,
     photo,
@@ -279,5 +334,7 @@ module.exports = async function checkVehicleLivery(fixtures) {
     secondaryUv: true,
     transparentBasePreserved: true,
     manualOverride: true,
+    sameNameDictionaryPreserved: true,
+    glassAlpha: { blendedGreen, opaqueGreen },
   };
 };

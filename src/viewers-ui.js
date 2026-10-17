@@ -1,6 +1,11 @@
 import { setProject } from './project-context.js';
 import { mountSceneStudio } from './scene-studio.js';
-import { resolveModelTexture, modelAlphaMode, textureDependency } from './model-material.js';
+import {
+  resolveModelTexture,
+  modelAlphaMode,
+  modelPreviewAlpha,
+  textureDependency,
+} from './model-material.js';
 import {
   liveryReference,
   resolveVehicleLivery,
@@ -14,7 +19,11 @@ import {
   mergeTextureSearchFiles,
 } from './texture-search.js';
 import { decodeResource } from './resource-client.js';
-import { loadVehicleTextures, modelTextureReferences } from './vehicle-textures.js';
+import {
+  loadVehicleTextures,
+  modelTextureReferences,
+  mergeVehicleTextures,
+} from './vehicle-textures.js';
 import {
   MAX_DECODED_TEXTURE_BYTES,
   MAX_YTD_INPUT_BYTES,
@@ -592,12 +601,8 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
           setVehicleLivery(material, materialMap(livery, 1));
           liveryMeshes++;
         }
-        // Ped alpha controls must not turn solid vehicle paint into a cutout.
-        if (alpha === 'opaque' || override?.alpha === 'blend')
-          material.userData.previewAlphaDefault = {
-            mode: alpha,
-            cutoff: alpha === 'opaque' ? 0 : 0.02,
-          };
+        const alphaDefault = modelPreviewAlpha(g, override?.alpha || 'auto');
+        if (alphaDefault) material.userData.previewAlphaDefault = alphaDefault;
         if (source.transform) {
           const t = source.transform;
           mesh.position.set(t.x || 0, t.y || 0, t.z || 0);
@@ -1097,7 +1102,7 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
           $('mvTextureSearchStatus').textContent = 'Memuat: ' + path;
         },
       });
-      modelTextures.push(...result.textures);
+      modelTextures = mergeVehicleTextures(modelTextures, result.textures);
       // Record this request before rendering, so unresolved/ambiguous names do not loop.
       textureSearchAttempt = JSON.stringify([modelRevision, libraryRevision, missingRequests]);
       renderModel();
@@ -1226,8 +1231,7 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
         );
         const next = result.textures;
         modelTextureWarnings = result.warnings;
-        const names = new Set(next.map((t) => t.name.toLowerCase()));
-        const merged = [...modelTextures.filter((t) => !names.has(t.name.toLowerCase())), ...next];
+        const merged = mergeVehicleTextures(modelTextures, next);
         if (merged.reduce((n, t) => n + t.out.length, 0) > MAX_DECODED_TEXTURE_BYTES)
           throw Error('Model textures exceed ' + textureBudgetLabel + '.');
         modelTextures = merged;
@@ -1313,11 +1317,7 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
           );
           const next = result.textures;
           modelTextureWarnings = result.warnings;
-          const names = new Set(next.map((t) => t.name.toLowerCase()));
-          const merged = [
-            ...modelTextures.filter((t) => !names.has(t.name.toLowerCase())),
-            ...next,
-          ];
+          const merged = mergeVehicleTextures(modelTextures, next);
           if (merged.reduce((n, t) => n + t.out.length, 0) > MAX_DECODED_TEXTURE_BYTES)
             throw Error('Model textures exceed ' + textureBudgetLabel + '.');
           modelTextures = merged;

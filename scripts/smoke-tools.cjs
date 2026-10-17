@@ -258,6 +258,21 @@ app.whenReady().then(async () => {
         ')(' +
         JSON.stringify({
           model: [...new Uint8Array(liveryYftFixture(viewerModel))],
+          glassModel: [
+            ...new Uint8Array(
+              liveryYftFixture(viewerModel, { embedded: false, shader: 'vehicle_vehglass' }),
+            ),
+          ],
+          glassDictionary: [
+            ...createYtd([
+              { name: 'cloth_diffuse', w: 1, h: 1, out: new Uint8Array([0, 255, 0, 115]) },
+            ]),
+          ],
+          conflictingDictionary: [
+            ...createYtd([
+              { name: 'cloth_diffuse', w: 1, h: 1, out: new Uint8Array([255, 0, 0, 255]) },
+            ]),
+          ],
           keyedDictionary: [...new Uint8Array(keyedVehicleDictionary())],
           paint4Model: [
             ...new Uint8Array(

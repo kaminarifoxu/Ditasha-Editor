@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { photoshootPoints, fitPhotoshoot } from '../src/photoshoot-framing.js';
-import { modelAlphaMode } from '../src/model-material.js';
+import { modelAlphaMode, modelPreviewAlpha } from '../src/model-material.js';
 import { hashName } from '../src/asset-tools.js';
 import { defaultPreviewSettings, previewAlpha } from '../src/material-preview.js';
 
@@ -72,5 +72,33 @@ test('Ped material defaults cannot overwrite the solid vehicle shader mode', () 
     transparent: false,
     alphaTest: 0,
     depthWrite: true,
+  });
+});
+
+test('Vehicle windows and decals preserve continuous alpha through ped controls and Photoshoot cloning', () => {
+  for (const name of [
+    'vehicle_vehglass',
+    'vehicle_vehglass_inner',
+    'vehicle_badges',
+    'vehicle_decal',
+    'vehicle_lightsemissive',
+  ]) {
+    const material = new THREE.MeshStandardMaterial();
+    material.userData.previewAlphaDefault = modelPreviewAlpha({
+      shaderFileHash: hashName(name + '.sps'),
+    });
+    for (const m of [material, material.clone()]) {
+      assert.deepEqual(previewAlpha(defaultPreviewSettings(m), true), {
+        transparent: true,
+        alphaTest: 0.001,
+        depthWrite: false,
+      });
+      assert.ok(115 / 255 > defaultPreviewSettings(m).cutoff);
+    }
+  }
+  assert.equal(modelPreviewAlpha({ shaderHash: hashName('ped_default') }), null);
+  assert.deepEqual(modelPreviewAlpha({ shaderHash: hashName('vehicle_vehglass') }, 'opaque'), {
+    mode: 'opaque',
+    cutoff: 0,
   });
 });

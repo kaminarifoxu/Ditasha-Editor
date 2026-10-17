@@ -11,6 +11,14 @@ The six supplied base YFT/YTD pairs were read locally without rewriting source f
 | gmcevp      |           63 |        233 |                      6 |                  3 |
 | ss2rb(1)    |          129 |        233 |                      8 |                  3 |
 
+## Follow-up material audit — v1.34
+
+The new OpenIV screenshot lists only `gt3rs.ytd`, with the same visible livery and transparent windows after the four shared dictionary entries were removed. The screenshot does not establish whether OpenIV retained cached data, so the earlier shared-dictionary list alone cannot explain the visual difference.
+
+Locally, GT3RS `glass_clear` decodes correctly at 64×64 with every alpha byte equal to 115 (45.1%). DITASHA's shared ped controls were resetting the glass material to cutout, losing continuous translucency. Verified vehicle bucket-1 presets now retain blend/depth settings in Vehicle Workshop and Texture & Model; Photoshoot retains them when cloning. File Manager and Debadge transparent materials no longer write depth. A separate dictionary merge defect is corrected: loading a later YTD no longer removes a model-owned map merely because both dictionaries contain the same name.
+
+The six source pairs were re-audited with the same SHA256 values and missing lists. These material/merge corrections do not supply the absent references below. Complete OpenIV visual parity, including game-specific specular/normal processing and reflections, is not claimed.
+
 ## Confirmed app changes
 
 - Polaleutian uses `vehicle_paint4` with `polaleutian_sign_1` in `DiffuseSampler2`. Four complete-vehicle meshes reference that layer. The previous paint3-only resolver ignored it. Paint4, paint4_enveff, paint4_emissive, paint5_enveff, paint6/enveff and paint7/enveff now resolve their supported second diffuse layer on UV2. Paint8/9 are not guessed because their primary UV layouts differ.
