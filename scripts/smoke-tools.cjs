@@ -250,6 +250,7 @@ app.whenReady().then(async () => {
         JSON.stringify([...new Uint8Array(wheelYftFixture(viewerModel))]) +
         ')',
     );
+    const { keyedVehicleDictionary } = await import('../tests/fixtures/vehicle-dictionary.mjs');
     const { liveryYftFixture } = await import('../tests/fixtures/livery-yft.mjs');
     const liveryReport = await win.webContents.executeJavaScript(
       '(' +
@@ -257,6 +258,7 @@ app.whenReady().then(async () => {
         ')(' +
         JSON.stringify({
           model: [...new Uint8Array(liveryYftFixture(viewerModel))],
+          keyedDictionary: [...new Uint8Array(keyedVehicleDictionary())],
           searchModel: [...new Uint8Array(liveryYftFixture(viewerModel, { embedded: false }))],
           base: [
             ...createYtd([

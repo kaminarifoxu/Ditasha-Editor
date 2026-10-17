@@ -258,8 +258,13 @@ function createFileManager({
         !/\.(png|jpe?g|webp|gif|bmp|ytd|dds|ydd|ydr|yft|rpf|zip|oiv)$/i.test(entry.name)
       )
         throw Error('Format ini belum memiliki preview internal.');
-      if (entry.size > 64 * 1024 * 1024)
-        throw Error('Preview maksimum 64 MB per file. Sorting tetap dapat menyalin file besar.');
+      const previewLimit = /\.ytd$/i.test(entry.name) ? 256 : 64;
+      if (entry.size > previewLimit * 1024 * 1024)
+        throw Error(
+          'Preview maksimum ' +
+            previewLimit +
+            ' MB per file. Sorting tetap dapat menyalin file besar.',
+        );
       const handle = await source(entry);
       try {
         const paired = /\.(ydd|ydr|yft)$/i.test(entry.name)

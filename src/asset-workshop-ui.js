@@ -56,14 +56,48 @@ export function mountAssetWorkshopUi() {
   );
   const sidebar = document.querySelector('.model-viewer .tool-sidebar');
   if (sidebar) {
-    group('File & textures', [$('mvOpen')?.parentElement, $('mvAddModels'), $('mvModels')]);
-    group('Preview & LOD', [sidebar.querySelector('.viewer-options')]);
+    sidebar.classList.add('vehicle-control-sidebar');
+    function fold(title, nodes, open = false) {
+      const box = group(title, nodes);
+      if (!box) return null;
+      const details = document.createElement('details');
+      details.className = box.className + ' workshop-fold';
+      details.open = open;
+      const summary = document.createElement('summary');
+      summary.textContent = title;
+      box.querySelector('h3').remove();
+      box.replaceWith(details);
+      details.append(summary, ...box.childNodes);
+      return details;
+    }
+    const files = group('File & textures', [$('mvOpen')?.parentElement]);
+    const extras = fold('Extra models & fragments', [$('mvAddModels'), $('mvModels')]);
+    const preview = fold('Preview & LOD', [sidebar.querySelector('.viewer-options')], true);
     const partsTitle = $('mvParts')?.previousElementSibling?.previousElementSibling;
     if (partsTitle?.tagName === 'H3') partsTitle.remove();
-    group('Parts & visibility', [$('mvShowAll')?.parentElement, $('mvParts')]);
+    fold('Parts & visibility', [$('mvShowAll')?.parentElement, $('mvParts')]);
     const texturesTitle = $('mvTextures')?.previousElementSibling;
     if (texturesTitle?.tagName === 'H3') texturesTitle.remove();
-    group('Loaded textures', [$('mvTextures')]);
+    fold('Loaded textures & memory', [$('mvTextureMemory'), $('mvTextures')]);
+    const repair = $('mvTextureFolder')?.closest('details');
+    repair?.classList.add('texture-repair-panel');
+    const scene = sidebar.querySelector('.scene-studio');
+    if (scene) {
+      scene.open = false;
+      sidebar.append(scene);
+    }
+    sidebar.prepend(
+      ...[
+        sidebar.querySelector(':scope > .eyebrow'),
+        sidebar.querySelector(':scope > h2'),
+        files,
+        repair,
+        extras,
+        preview,
+      ].filter(Boolean),
+    );
+    const workshop = $('vehicleWorkshop');
+    if (workshop && preview) preview.after(workshop);
   }
   const actions = document.querySelector('.archive-actions');
   if (actions) {

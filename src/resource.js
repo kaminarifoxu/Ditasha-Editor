@@ -213,22 +213,36 @@ export function decodeTexture(r, p) {
     mipLevels: r.bytes[p + 93] || 1,
   };
 }
+function dictionaryTextures(r, dictionary = 0) {
+  const hashes = r.ptr(dictionary + 32),
+    hashCount = r.u16(dictionary + 40);
+  return r.list(dictionary + 48, r.u16(dictionary + 56)).map((p, i) => {
+    const nameHash = hashes !== null && i < hashCount ? r.u32(hashes + i * 4) : undefined;
+    return {
+      p,
+      nameHash,
+      name:
+        r.str(r.ptr(p + 40)) ||
+        (nameHash === undefined ? 'texture' : 'hash_' + nameHash.toString(16).padStart(8, '0')),
+    };
+  });
+}
 // Metadata-only indexing does not allocate decoded pixel buffers.
 export function indexYtd(buffer) {
   const r = new Resource(buffer, 13, MAX_YTD_RESOURCE_BYTES);
-  return r.list(48, r.u16(56)).map((p) => ({
-    name: r.str(r.ptr(p + 40)) || 'texture',
+  return dictionaryTextures(r).map(({ p, ...t }) => ({
+    ...t,
     w: r.u16(p + 80),
     h: r.u16(p + 82),
   }));
 }
-export function readYtd(buffer, { maxDecodedBytes = MAX_DECODED_TEXTURE_BYTES, names } = {}) {
+export function readYtd(
+  buffer,
+  { maxDecodedBytes = MAX_DECODED_TEXTURE_BYTES, names, tolerateErrors = false } = {},
+) {
   const r = new Resource(buffer, 13, MAX_YTD_RESOURCE_BYTES);
-  const pointers = r
-    .list(48, r.u16(56))
-    .filter((p) => !names || names.includes(r.str(r.ptr(p + 40)) || 'texture'));
-
-  const bytes = pointers.reduce((n, p) => n + r.u16(p + 80) * r.u16(p + 82) * 4, 0);
+  const entries = dictionaryTextures(r).filter((t) => !names || names.includes(t.name));
+  const bytes = entries.reduce((n, { p }) => n + r.u16(p + 80) * r.u16(p + 82) * 4, 0);
   if (
     !Number.isFinite(maxDecodedBytes) ||
     maxDecodedBytes < 0 ||
@@ -239,11 +253,19 @@ export function readYtd(buffer, { maxDecodedBytes = MAX_DECODED_TEXTURE_BYTES, n
         Math.floor(
           Math.min(Math.max(0, maxDecodedBytes || 0), MAX_DECODED_TEXTURE_BYTES) / 1048576,
         ) +
-        ' MB available. Close other textures or split this dictionary.',
+        ' MB available. Close other textures or load only referenced maps.',
     );
-  // Check the entire dictionary against the remaining budget before allocating RGBA buffers.
-  r.textures = pointers.map((p) => decodeTexture(r, p));
-  if (!r.textures.length) throw Error('Tidak ada tekstur dalam YTD.');
+  r.textures = [];
+  r.warnings = [];
+  for (const entry of entries) {
+    try {
+      r.textures.push({ ...decodeTexture(r, entry.p), name: entry.name, nameHash: entry.nameHash });
+    } catch (error) {
+      if (!tolerateErrors) throw error;
+      r.warnings.push(entry.name + ': ' + error.message);
+    }
+  }
+  if (!r.textures.length && !tolerateErrors) throw Error('Tidak ada tekstur dalam YTD.');
   return r;
 }
 export function writeYtd(r, textures) {
@@ -277,7 +299,7 @@ export function writeYtd(r, textures) {
     r.bytes.length - r.sys + changed.reduce((n, t) => n + Math.ceil(t.out.length / 16) * 16, 0);
   if (total > MAX_YTD_GRAPHICS_BYTES)
     throw Error(
-      'Data grafis YTD setelah edit melebihi 256 MB. Pisahkan dictionary sebelum menambah tekstur besar.',
+      'Data grafis YTD setelah edit melebihi 512 MB. Pisahkan dictionary sebelum menambah tekstur besar.',
     );
   const large = total > 16777216,
     unit = large ? 8192 : 512,
@@ -285,7 +307,7 @@ export function writeYtd(r, textures) {
   if (exp > 15) throw Error('Ekspor melebihi ukuran yang didukung.');
   const gfxSize = unit * 2 ** exp;
   if (r.sys + gfxSize > MAX_YTD_RESOURCE_BYTES)
-    throw Error('Resource YTD setelah edit melebihi 384 MB.');
+    throw Error('Resource YTD setelah edit melebihi 768 MB.');
   const bytes = new Uint8Array(r.sys + gfxSize);
   bytes.set(r.bytes);
   const v = new DataView(bytes.buffer);
@@ -357,11 +379,11 @@ function shaderInfo(r, d) {
   const dictionary = r.ptr(group + 8);
   if (dictionary !== null) {
     let pixels = 0;
-    for (const p of r.list(dictionary + 48, r.u16(dictionary + 56))) {
+    for (const { p, name, nameHash } of dictionaryTextures(r, dictionary)) {
       pixels += r.u16(p + 80) * r.u16(p + 82);
       if (pixels > 33554432) throw Error('Embedded textures exceed 128 MB.');
       try {
-        embeddedTextures.push(decodeTexture(r, p));
+        embeddedTextures.push({ ...decodeTexture(r, p), name, nameHash });
       } catch (e) {
         warnings.push(e.message);
       }

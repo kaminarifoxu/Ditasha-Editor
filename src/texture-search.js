@@ -1,5 +1,9 @@
 import { textureNameMatches } from './model-material.js';
-import { MAX_DECODED_TEXTURE_BYTES } from './texture-memory.js';
+import {
+  MAX_DECODED_TEXTURE_BYTES,
+  MAX_YTD_INPUT_BYTES,
+  textureBudgetLabel,
+} from './texture-memory.js';
 
 const supported = /\.(ytd|dds|png|jpe?g|webp)$/i;
 export const textureFilePath = (file) => file.webkitRelativePath || file.name;
@@ -25,7 +29,8 @@ export async function indexTextureFiles(files, { decode, signal, progress = () =
     progress(i + 1, candidates.length, textureFilePath(file));
     check(signal);
     try {
-      if (file.size > 64 * 1024 ** 2) throw Error('File melebihi 64 MB.');
+      const maxInput = /\.ytd$/i.test(file.name) ? MAX_YTD_INPUT_BYTES : 64 * 1024 ** 2;
+      if (file.size > maxInput) throw Error('File melebihi ' + maxInput / 1048576 + ' MB.');
       const metadata = /\.ytd$/i.test(file.name)
         ? await decode('texture-index', await file.arrayBuffer())
         : [{ name: file.name.replace(/\.[^.]+$/, '') }];
@@ -47,7 +52,7 @@ export function planTextureSearch(requests, entries) {
     absent = [];
   const unique = new Map(requests.map((r) => [JSON.stringify([r.name, r.source]), r]));
   for (const request of unique.values()) {
-    const matches = entries.filter((t) => textureNameMatches(request.name, t.name));
+    const matches = entries.filter((t) => textureNameMatches(request.name, t));
     const owned = matches.filter(
       (t) => stem(t.dictionary) === stem(request.source.split(' · ')[0]),
     );
@@ -78,12 +83,15 @@ export async function loadSearchTextures(
     check(signal);
     try {
       const options = { names, maxDecodedBytes: MAX_DECODED_TEXTURE_BYTES - bytes };
-      const decoded = /\.ytd$/i.test(file.name)
-        ? await decode('textures', await file.arrayBuffer(), options)
-        : await image(file, options);
+      const result = /\.ytd$/i.test(file.name)
+        ? await decode('texture-set', await file.arrayBuffer(), options)
+        : { textures: await image(file, options), warnings: [] };
+      const decoded = result.textures;
+      errors.push(...result.warnings.map((message) => ({ path: textureFilePath(file), message })));
       check(signal);
       const size = decoded.reduce((n, t) => n + t.out.length, 0);
-      if (bytes + size > MAX_DECODED_TEXTURE_BYTES) throw Error('Model textures exceed 512 MB.');
+      if (bytes + size > MAX_DECODED_TEXTURE_BYTES)
+        throw Error('Model textures exceed ' + textureBudgetLabel + '.');
       bytes += size;
       textures.push(
         ...decoded.map((t) => ({ ...t, dictionary: file.name, searchPath: textureFilePath(file) })),

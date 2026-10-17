@@ -1,7 +1,10 @@
 // RGBA memory is separate from compressed file size and native RSC graphics pages.
-export const MAX_DECODED_TEXTURE_BYTES = 512 * 1024 * 1024;
-export const MAX_YTD_RESOURCE_BYTES = 384 * 1024 * 1024;
-export const MAX_YTD_GRAPHICS_BYTES = 256 * 1024 * 1024;
+export const MAX_DECODED_TEXTURE_BYTES = 1024 * 1024 * 1024;
+export const MAX_YTD_RESOURCE_BYTES = 768 * 1024 * 1024;
+export const MAX_YTD_GRAPHICS_BYTES = 512 * 1024 * 1024;
+
+export const MAX_YTD_INPUT_BYTES = 256 * 1024 * 1024;
+export const textureBudgetLabel = Math.round(MAX_DECODED_TEXTURE_BYTES / 1048576) + ' MB';
 
 export function textureThumbnail(t, size = 96) {
   const ratio = Math.min(1, size / t.w, size / t.h),

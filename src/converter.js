@@ -1,3 +1,4 @@
+import { MAX_YTD_INPUT_BYTES } from './texture-memory.js';
 import { decodeResource } from './resource-client.js';
 import * as THREE from 'three';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
@@ -65,7 +66,8 @@ async function picture(t, mode) {
   return new Uint8Array(await blob.arrayBuffer());
 }
 export async function convertFile(file, mode) {
-  if (file.size > 64 * 1024 * 1024) throw Error('File maksimum 64 MB.');
+  if (file.size > (/\.ytd$/i.test(file.name) ? MAX_YTD_INPUT_BYTES : 64 * 1024 ** 2))
+    throw Error('YTD maksimum 256 MB; format lain 64 MB.');
   if (!accepts(mode, file.name)) throw Error('Format input tidak sesuai konversi.');
   const base = file.name.replace(/\.[^.]+$/, '');
   if (mode === 'glb') {

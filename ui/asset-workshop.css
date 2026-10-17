@@ -1,4 +1,77 @@
 /* Asset Workshop: readable action groups, consistent spacing and stable toolbars. */
+.workspace-shell .asset-viewer.model-viewer:not(.explorer-embedded) {
+  grid-template-columns: 320px minmax(0, 1fr);
+}
+.workspace-shell .vehicle-control-sidebar > .workshop-control-group,
+.workspace-shell .vehicle-control-sidebar > details {
+  flex: 0 0 auto;
+}
+.workspace-shell .vehicle-control-sidebar .workshop-fold > summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 650;
+  padding: 2px 0;
+}
+.workspace-shell .vehicle-control-sidebar .workshop-fold[open] > summary {
+  margin-bottom: 12px;
+}
+.workspace-shell .vehicle-control-sidebar .workshop-fold:not([open]) {
+  display: block;
+}
+.workspace-shell .vehicle-control-sidebar #mvModels,
+.workspace-shell .vehicle-control-sidebar #mvParts,
+.workspace-shell .vehicle-control-sidebar #mvTextures {
+  max-height: 300px;
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+.workspace-shell .vehicle-control-sidebar .extra-model-card {
+  border-bottom: 1px solid var(--line);
+  padding: 10px 0;
+}
+.workspace-shell .vehicle-control-sidebar #mvModels .extra-model-row,
+.workspace-shell .vehicle-control-sidebar #mvTextures .viewer-button-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  gap: 10px;
+  align-items: start;
+}
+.workspace-shell .vehicle-control-sidebar .extra-model-row .check {
+  min-width: 0;
+  align-items: start;
+}
+.workspace-shell .vehicle-control-sidebar .extra-model-row .check span {
+  overflow-wrap: anywhere;
+  line-height: 1.55;
+}
+.workspace-shell .vehicle-control-sidebar .extra-model-row button,
+.workspace-shell .vehicle-control-sidebar #mvTextures .viewer-button-row button {
+  min-width: 34px;
+  width: 34px;
+  height: 34px;
+  padding: 6px;
+}
+.workspace-shell .vehicle-control-sidebar .texture-repair-panel .viewer-button-row {
+  grid-template-columns: 1fr;
+}
+.workspace-shell .vehicle-control-sidebar .texture-repair-panel button {
+  justify-content: flex-start;
+}
+.workspace-shell .vehicle-control-sidebar #mvTextureSearchReport {
+  max-height: 220px;
+  overflow: auto;
+  font-size: 11px;
+}
+@media (max-width: 1100px) {
+  .workspace-shell .asset-viewer.model-viewer:not(.explorer-embedded) {
+    grid-template-columns: 280px minmax(0, 1fr);
+  }
+}
+@media (max-width: 760px) {
+  .workspace-shell .asset-viewer.model-viewer:not(.explorer-embedded) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 .workspace-shell .asset-workshop-surface {
   --workshop-gap: 12px;
   --workshop-inset: 16px;
@@ -753,4 +826,9 @@
 .native-build-workspace .rig-pose-controls span {
   flex: 1;
   min-width: 180px;
+}
+
+.workspace-shell .vehicle-control-sidebar .extra-model-row button .control-label,
+.workspace-shell .vehicle-control-sidebar #mvTextures .viewer-button-row button .control-label {
+  display: none !important;
 }

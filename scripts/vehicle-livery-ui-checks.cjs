@@ -93,6 +93,44 @@ module.exports = async function checkVehicleLivery(fixtures) {
     colors($('mvViewport').querySelector('canvas')).blue > 20,
     'Automatic livery did not recover',
   );
+  // A dictionary's native key may differ from the texture label. One broken entry
+  // must not prevent the green body and blue UV2 livery from reaching the GPU.
+  $('mvTextureAuto').checked = false;
+  upload('mvInput', [
+    ['keyed.yft', fixtures.searchModel],
+    ['keyed.ytd', fixtures.keyedDictionary],
+  ]);
+  await wait(
+    () =>
+      !$('mvOpen').disabled &&
+      $('mvTitle').textContent === 'keyed.yft' &&
+      $('mvStatus').textContent.includes('2 external textures'),
+    'Keyed/partly broken dictionary did not load',
+  );
+  await sleep(200);
+  const keyed = colors($('mvViewport').querySelector('canvas'));
+  assert(
+    keyed.green > 20 && keyed.blue > 20,
+    'Dictionary native hash was lost before GPU material binding',
+  );
+  assert(
+    $('mvStatus').textContent.includes('broken_unused'),
+    'Broken texture entry was hidden from the report',
+  );
+  assert(
+    $('mvTextureMemory').textContent.includes('1024 MB'),
+    'Raised texture memory budget was not displayed',
+  );
+  // Controls remain accessible before potentially hundreds of fragments.
+  const sidebar = $('mvOpen').closest('aside'),
+    repair = $('mvTextureFolder').closest('details');
+  assert(sidebar.children[3] === repair, 'Auto repair is buried below the parts list');
+  const extras = $('mvModels').closest('details');
+  assert(extras && !extras.open, 'Extra fragments must start in a collapsed section');
+  assert(sidebar.getBoundingClientRect().width >= 280, 'Vehicle control sidebar is too narrow');
+  console.log('DITASHA_SNAPSHOT:vehicle-workshop-textures');
+  await sleep(200);
+  $('mvTextureAuto').checked = true;
   // Search an explicitly selected folder, decode only missing maps and preserve UV2 layering.
   upload('mvInput', [['livery.yft', fixtures.searchModel]]);
   await wait(
@@ -183,6 +221,9 @@ module.exports = async function checkVehicleLivery(fixtures) {
     viewer,
     photo,
     editor,
+    keyedDictionaryPixels: keyed,
+    corruptEntryRetainedValidMaps: true,
+    vehicleControlsGrouped: true,
     autoTextureRepair: true,
     folderReused: true,
     ambiguousSearchRefused: true,

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createYtd, hashName } from '../src/asset-tools.js';
+import { MAX_DECODED_TEXTURE_BYTES } from '../src/texture-memory.js';
 import { performResourceJob } from '../src/resource-jobs.js';
 import { indexTextureFiles, planTextureSearch, loadSearchTextures } from '../src/texture-search.js';
 
@@ -29,7 +30,7 @@ test('Folder indexing reads names without RGBA and decodes only requested maps u
   );
   const loaded = await loadSearchTextures(plan.selected, {
     decode,
-    usedBytes: 512 * 1024 ** 2 - 4,
+    usedBytes: MAX_DECODED_TEXTURE_BYTES - 4,
   });
   assert.deepEqual(
     loaded.textures.map((t) => t.name),
@@ -38,7 +39,10 @@ test('Folder indexing reads names without RGBA and decodes only requested maps u
   assert.equal(loaded.textures[0].searchPath, 'library/shared.ytd');
   assert.deepEqual([...loaded.textures[0].out], [25, 50, 100, 255]);
   assert.deepEqual(new Uint8Array(await f.arrayBuffer()), original);
-  const denied = await loadSearchTextures(plan.selected, { decode, usedBytes: 512 * 1024 ** 2 });
+  const denied = await loadSearchTextures(plan.selected, {
+    decode,
+    usedBytes: MAX_DECODED_TEXTURE_BYTES,
+  });
   assert.equal(denied.textures.length, 0);
   assert.match(denied.errors[0].message, /limit/);
 });

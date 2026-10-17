@@ -6,21 +6,24 @@ const normalize = (name = '') =>
     .replace(/\.(yft|ydd|ydr|ytd|dds|png|jpe?g|webp)$/i, '')
     .toLowerCase();
 export function textureNameMatches(name, candidate) {
-  const key = normalize(name);
+  const texture = typeof candidate === 'string' ? { name: candidate } : candidate;
+  const key = normalize(name),
+    candidateName = normalize(texture.name);
+  const hash = /^hash_[0-9a-f]{8}$/i.test(key) ? parseInt(key.slice(5), 16) : hashName(key);
   return (
-    normalize(candidate) === key ||
-    (/^hash_[0-9a-f]{8}$/i.test(key) &&
-      hashName(normalize(candidate)) === parseInt(key.slice(5), 16))
+    candidateName === key ||
+    (!!key && Number.isInteger(texture.nameHash) && texture.nameHash === hash) ||
+    (/^hash_[0-9a-f]{8}$/i.test(key) && hashName(candidateName) === hash)
   );
 }
 // External replacements belong to a dictionary; embedded maps belong to one drawable.
 export function resolveModelTexture(name, external, embedded, sourceName) {
   if (!name) return null;
-  const matches = external.filter((texture) => textureNameMatches(name, texture.name));
+  const matches = external.filter((texture) => textureNameMatches(name, texture));
   const source = normalize((sourceName || '').split(' · ')[0]).replace(/_hi$/, '');
   const owned = matches.filter((t) => normalize(t.dictionary).replace(/_hi$/, '') === source);
   if (owned.length) return owned.at(-1);
-  const local = embedded.find((texture) => textureNameMatches(name, texture.name));
+  const local = embedded.find((texture) => textureNameMatches(name, texture));
   if (matches.length === 1) return matches[0];
   return local || null;
 }

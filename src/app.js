@@ -1,7 +1,11 @@
 import { resolveModelTexture, modelAlphaMode } from './model-material.js';
 import { liveryReference, setVehicleLivery } from './vehicle-livery.js';
 import { composeProjectionLayers } from './projection-composite.js';
-import { MAX_DECODED_TEXTURE_BYTES, textureThumbnail } from './texture-memory.js';
+import {
+  MAX_DECODED_TEXTURE_BYTES,
+  MAX_YTD_INPUT_BYTES,
+  textureThumbnail,
+} from './texture-memory.js';
 import { setProject } from './project-context.js';
 import { mountCanvasStudio } from './canvas-studio.js';
 import { mountSceneStudio } from './scene-studio.js';
@@ -718,7 +722,8 @@ async function loadFiles(list) {
     $('fileLoadingName').textContent = 'Membuka ' + file.name + '…';
     await new Promise((resolve) => setTimeout(resolve, 20));
     try {
-      if (file.size > 64 * 1024 * 1024) throw Error('File terlalu besar (maksimum 64 MB).');
+      if (file.size > (/\.ytd$/i.test(file.name) ? MAX_YTD_INPUT_BYTES : 64 * 1024 ** 2))
+        throw Error('File terlalu besar: YTD maksimum 256 MB; format lain 64 MB.');
       const ext = file.name.split('.').pop().toLowerCase(),
         f = { name: file.name, ext, size: file.size };
       toast('Membuka ' + file.name + '…');
@@ -1445,7 +1450,8 @@ $('addImage').onclick = $('addImageSidebar').onclick = () => $('addInput').click
 $('addInput').onchange = async (e) => {
   for (const f of e.target.files) {
     try {
-      if (f.size > 64 * 1024 * 1024) throw Error('File terlalu besar.');
+      if (f.size > (/\.ytd$/i.test(f.name) ? MAX_YTD_INPUT_BYTES : 64 * 1024 ** 2))
+        throw Error('File terlalu besar: YTD maksimum 256 MB; format lain 64 MB.');
       if (f.name.toLowerCase().endsWith('.ytd')) {
         if (pendingYtd) throw Error('Pilih tekstur dari satu YTD terlebih dahulu.');
         const resource = await decodeResource('ytd', await f.arrayBuffer(), {

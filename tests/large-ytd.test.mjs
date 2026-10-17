@@ -37,8 +37,8 @@ test('A 192 MB decoded vehicle dictionary opens, edits and saves without expandi
 });
 
 test('Decoded YTD limits still reject oversized or invalid budgets before allocating texture pixels', () => {
-  const input = largeYtdFixture(9);
-  assert.throws(() => readYtd(input), /Decoded texture limit: 512 MB/);
+  const input = largeYtdFixture(17);
+  assert.throws(() => readYtd(input), /Decoded texture limit: 1024 MB/);
   assert.throws(
     () => readYtd(input, { maxDecodedBytes: MAX_DECODED_TEXTURE_BYTES * 2 }),
     /Decoded texture limit/,
