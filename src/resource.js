@@ -370,6 +370,14 @@ function nameHash(name) {
   h ^= h >>> 11;
   return (h + (h << 15)) >>> 0;
 }
+const shaderNumericComponents = new Map(
+  [
+    ['bumpiness', 1],
+    ['specMapIntMask', 3],
+    ['specularIntensityMult', 1],
+    ['specularFalloffMult', 1],
+  ].map(([name, count]) => [nameHash(name), count]),
+);
 function shaderInfo(r, d) {
   const group = r.ptr(d + 16),
     bindings = [],
@@ -407,10 +415,23 @@ function shaderInfo(r, d) {
     }
     let hashes = params + count * 16;
     for (let i = 0; i < count; i++) hashes += r.bytes[params + i * 16] * 16;
-    const refs = [];
+    const refs = [],
+      shaderParameters = [];
     for (let i = 0; i < count; i++) {
-      const p = params + i * 16;
-      if (r.bytes[p] !== 0) continue;
+      const p = params + i * 16,
+        hash = r.u32(hashes + i * 4);
+      if (r.bytes[p] !== 0) {
+        const components = shaderNumericComponents.get(hash);
+        if (components) {
+          const data = r.ptr(p + 8);
+          if (data !== null) {
+            const values = Array.from({ length: components }, (_, k) => r.f32(data + k * 4));
+            if (!values.every(Number.isFinite)) throw Error('Invalid non-finite shader parameter.');
+            shaderParameters.push({ hash, values });
+          }
+        }
+        continue;
+      }
       const texture = r.ptr(p + 8);
       if (texture !== null)
         refs.push({ hash: r.u32(hashes + i * 4), name: r.str(r.ptr(texture + 40)) });
@@ -426,6 +447,7 @@ function shaderInfo(r, d) {
       diffuseTexture: diffuse?.name || null,
       textureNames: refs.map((t) => t.name).filter(Boolean),
       textureSamplers: refs,
+      shaderParameters,
       shaderHash: r.u32(shader + 8),
       shaderFileHash: r.u32(shader + 24),
     });
@@ -654,6 +676,7 @@ function readDrawables(r, drawables, metadata = new Map()) {
                 diffuseTexture: binding?.diffuseTexture || null,
                 textureNames: binding?.textureNames || [],
                 textureSamplers: binding?.textureSamplers || [],
+                shaderParameters: binding?.shaderParameters || [],
               });
             }
           }

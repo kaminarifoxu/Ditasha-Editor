@@ -1,5 +1,6 @@
 import { textureNameMatches } from './model-material.js';
 import { liveryReference } from './vehicle-livery.js';
+import { surfaceReferences } from './vehicle-surface.js';
 import {
   MAX_DECODED_TEXTURE_BYTES,
   MAX_YTD_INPUT_BYTES,
@@ -28,7 +29,11 @@ export function modelTextureReferences(drawables) {
       drawables
         .flatMap((d) =>
           d.lods.flatMap((l) =>
-            l.geometries.flatMap((g) => [g.diffuseTexture, liveryReference(g)]),
+            l.geometries.flatMap((g) => [
+              g.diffuseTexture,
+              liveryReference(g),
+              ...Object.values(surfaceReferences(g)),
+            ]),
           ),
         )
         .filter(Boolean),

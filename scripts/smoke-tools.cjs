@@ -323,6 +323,45 @@ app.whenReady().then(async () => {
         }) +
         ')',
     );
+    await win.loadFile(path.resolve('ui/index.html'));
+    const { surfaceYftFixture } = await import('../tests/fixtures/surface-yft.mjs');
+    const surfaceDictionary = (normal, specular, base = true) => [
+      ...createYtd([
+        ...(base
+          ? [{ name: 'cloth_diffuse', w: 1, h: 1, out: new Uint8Array([50, 50, 50, 255]) }]
+          : []),
+        { name: 'surface_normal', w: 1, h: 1, out: new Uint8Array(normal) },
+        { name: 'surface_spec', w: 1, h: 1, out: new Uint8Array(specular) },
+      ]),
+    ];
+    const surfaceReport = await win.webContents.executeJavaScript(
+      '(' +
+        require('./vehicle-surface-ui-checks.cjs').toString() +
+        ')(' +
+        JSON.stringify({
+          model: [...new Uint8Array(surfaceYftFixture(viewerModel, { falloff: 4 }))],
+          flat: surfaceDictionary([128, 128, 0, 255], [0, 255, 0, 255]),
+          shiny: surfaceDictionary([128, 128, 0, 255], [255, 0, 0, 255]),
+          tilted: surfaceDictionary([240, 128, 0, 255], [0, 255, 0, 255]),
+          aux: surfaceDictionary([128, 128, 0, 255], [0, 255, 0, 255], false),
+          wrong: [
+            ...createYtd([
+              { name: 'cloth_diffuse', w: 1, h: 1, out: new Uint8Array([255, 0, 0, 255]) },
+            ]),
+          ],
+          parent: [
+            ...createYtd([
+              { name: 'cloth_diffuse', w: 1, h: 1, out: new Uint8Array([0, 255, 0, 255]) },
+            ]),
+          ],
+          metadata: [
+            ...new TextEncoder().encode(
+              '<CVehicleModelInfo__InitDataList><txdRelationships><Item><parent>base</parent><child>surface</child></Item></txdRelationships></CVehicleModelInfo__InitDataList>',
+            ),
+          ],
+        }) +
+        ')',
+    );
     await Promise.all(captures);
     console.log(
       'PASS: ' +
@@ -339,6 +378,7 @@ app.whenReady().then(async () => {
           largeYtdReport,
           wheelReport,
           liveryReport,
+          surfaceReport,
         }),
     );
     win.destroy();

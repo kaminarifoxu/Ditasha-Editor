@@ -13,6 +13,26 @@ export function textureDependency(name = '') {
   return /^(vehicle_generic_|vehiclelights|plate\d)/i.test(normalize(name)) ? 'shared' : 'asset';
 }
 export const isSharedDictionary = (name) => textureDictionaryFamily(name) === 'vehshare';
+// Only follow explicitly supplied relationships. Stop at conflicts/cycles.
+export function textureParentChain(source, parents = []) {
+  const chain = [],
+    seen = new Set([textureDictionaryFamily(source)]);
+  let child = textureDictionaryFamily(source);
+  for (let i = 0; i < 32; i++) {
+    const choices = [
+      ...new Set(
+        parents
+          .filter((p) => textureDictionaryFamily(p.child) === child)
+          .map((p) => textureDictionaryFamily(p.parent)),
+      ),
+    ];
+    if (choices.length !== 1 || seen.has(choices[0])) break;
+    child = choices[0];
+    seen.add(child);
+    chain.push(child);
+  }
+  return chain;
+}
 export function textureNameMatches(name, candidate) {
   const texture = typeof candidate === 'string' ? { name: candidate } : candidate;
   const key = normalize(name),
@@ -25,7 +45,7 @@ export function textureNameMatches(name, candidate) {
   );
 }
 // External replacements belong to a dictionary; embedded maps belong to one drawable.
-export function resolveModelTexture(name, external, embedded, sourceName) {
+export function resolveModelTexture(name, external, embedded, sourceName, parents = []) {
   if (!name) return null;
   const matches = external.filter((texture) => textureNameMatches(name, texture));
   const source = textureDictionaryFamily(sourceName);
@@ -35,6 +55,11 @@ export function resolveModelTexture(name, external, embedded, sourceName) {
   // Folder search results never receive this priority and remain ambiguity-safe.
   const manual = matches.filter((t) => Number.isFinite(t.manualPriority) && t.manualPriority > 0);
   if (manual.length) return manual.reduce((a, b) => (b.manualPriority >= a.manualPriority ? b : a));
+  for (const dictionary of textureParentChain(sourceName, parents)) {
+    const candidates = matches.filter((t) => textureDictionaryFamily(t.dictionary) === dictionary);
+    if (candidates.length === 1) return candidates[0];
+    if (candidates.length > 1) return null;
+  }
   const local = embedded.find((texture) => textureNameMatches(name, texture));
   if (matches.length === 1) return matches[0];
   const shared =

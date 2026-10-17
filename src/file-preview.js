@@ -4,6 +4,7 @@ import { decodeResource } from './resource-client.js';
 import { readDds } from './asset-tools.js';
 import { resolveModelTexture, modelAlphaMode, modelPreviewAlpha } from './model-material.js';
 import { resolveVehicleLivery, setVehicleLivery } from './vehicle-livery.js';
+import { createModelMaterial, resolveSurfaceMaps, setSurfaceMaps } from './vehicle-surface.js';
 
 // One owned preview at a time; selecting a different file releases its WebGL
 // context, controls, decoded resources and observer before displaying the next.
@@ -108,15 +109,16 @@ export function createFilePreview(container) {
           drawable.embeddedTextures || [],
           file.name,
         );
-        const textureMap = (t) => {
+        const textureMap = (t, role = 'color') => {
           if (!t) return null;
-          if (mapCache.has(t)) return mapCache.get(t);
+          if (mapCache.get(t)?.has(role)) return mapCache.get(t).get(role);
           const map = new THREE.DataTexture(t.out, t.w, t.h, THREE.RGBAFormat);
           map.flipY = false;
-          map.colorSpace = THREE.SRGBColorSpace;
+          map.colorSpace = role === 'data' ? THREE.NoColorSpace : THREE.SRGBColorSpace;
           map.needsUpdate = true;
           maps.push(map);
-          mapCache.set(t, map);
+          if (!mapCache.has(t)) mapCache.set(t, new Map());
+          mapCache.get(t).set(role, map);
           return map;
         };
         const map = textureMap(t),
@@ -126,7 +128,7 @@ export function createFilePreview(container) {
           /^(sbase|head_diff|uppr_diff|body_diff)/i.test(g.diffuseTexture || '');
         const mesh = new THREE.Mesh(
           geometry,
-          new THREE.MeshStandardMaterial({
+          createModelMaterial(g, {
             map,
             color: map ? 0xffffff : 0xb6bfcc,
             roughness: 0.8,
@@ -135,6 +137,11 @@ export function createFilePreview(container) {
             alphaTest: opaque ? 0 : (modelPreviewAlpha(g)?.cutoff ?? 0.01),
             depthWrite: opaque || !map,
           }),
+        );
+        setSurfaceMaps(
+          mesh.material,
+          g.uvs ? resolveSurfaceMaps(g, external, drawable.embeddedTextures || [], file.name) : {},
+          textureMap,
         );
         if (livery && g.uvs2) {
           geometry.setAttribute('ditashaLiveryUv', new THREE.BufferAttribute(g.uvs2, 2));

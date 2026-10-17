@@ -1,5 +1,6 @@
 import { resolveModelTexture, modelAlphaMode, modelPreviewAlpha } from './model-material.js';
 import { liveryReference, setVehicleLivery } from './vehicle-livery.js';
+import { createModelMaterial, resolveSurfaceMaps, setSurfaceMaps } from './vehicle-surface.js';
 import { composeProjectionLayers } from './projection-composite.js';
 import {
   MAX_DECODED_TEXTURE_BYTES,
@@ -312,23 +313,24 @@ function applyTexture() {
       ),
     );
   const cache = new Map();
-  const textureMap = (texture) => {
+  const textureMap = (texture, role = 'color') => {
     if (!texture) return null;
-    if (mapped && texture === current) return mapped;
-    if (cache.has(texture)) return cache.get(texture);
+    if (role === 'color' && mapped && texture === current) return mapped;
+    if (cache.get(texture)?.has(role)) return cache.get(texture).get(role);
     const map = new THREE.DataTexture(
-      new Uint8Array(texture.previewPixels || texture.out),
+      new Uint8Array(role === 'color' ? texture.previewPixels || texture.out : texture.out),
       texture.w,
       texture.h,
       THREE.RGBAFormat,
     );
     map.flipY = false;
-    map.colorSpace = THREE.SRGBColorSpace;
+    map.colorSpace = role === 'data' ? THREE.NoColorSpace : THREE.SRGBColorSpace;
     map.generateMipmaps = true;
     map.minFilter = THREE.LinearMipmapLinearFilter;
     map.anisotropy = Math.min(16, renderer?.capabilities.getMaxAnisotropy() || 1);
     map.needsUpdate = true;
-    cache.set(texture, map);
+    if (!cache.has(texture)) cache.set(texture, new Map());
+    cache.get(texture).set(role, map);
     materialMaps.push(map);
     return map;
   };
@@ -350,6 +352,13 @@ function applyTexture() {
     for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
       m.map = map || m.userData.originalMap || null;
       setVehicleLivery(m, liveryMap);
+      setSurfaceMaps(
+        m,
+        o.geometry.getAttribute('uv')
+          ? resolveSurfaceMaps(o.userData.surfaceBinding || {}, available, [], displayedModel?.name)
+          : {},
+        textureMap,
+      );
       m.color?.set(m.map ? 0xffffff : 0xb3bbc8);
       m.wireframe = wire;
       m.needsUpdate = true;
@@ -374,7 +383,7 @@ function showDrawable(index) {
     else geo.computeVertexNormals();
     const mesh = new THREE.Mesh(
       geo,
-      new THREE.MeshStandardMaterial({
+      createModelMaterial(g, {
         color: 0xb3bbc8,
         roughness: 0.75,
         metalness: 0,
@@ -383,6 +392,10 @@ function showDrawable(index) {
     );
     mesh.userData.diffuseTexture = g.diffuseTexture || null;
     mesh.userData.liveryTexture = liveryReference(g);
+    mesh.userData.surfaceBinding = {
+      textureSamplers: g.textureSamplers || [],
+      shaderParameters: g.shaderParameters || [],
+    };
     const alphaDefault = modelPreviewAlpha(g);
     if (alphaDefault) mesh.material.userData.previewAlphaDefault = alphaDefault;
     if (

@@ -12,6 +12,13 @@ import {
 import { managePreview } from './performance.js';
 import { zipFiles } from './asset-tools.js';
 import { setProject } from './project-context.js';
+import {
+  createModelMaterial,
+  resolveSurfaceMaps,
+  setSurfaceMaps,
+  copyVehicleSurface,
+  surfaceReferences,
+} from './vehicle-surface.js';
 export function mountDebadge({ download, toast, confirmDiscard, back }) {
   const root = document.createElement('section');
   root.className = 'debadge-workspace';
@@ -117,16 +124,17 @@ export function mountDebadge({ download, toast, confirmDiscard, back }) {
     maps = [];
     mapCache.clear();
   }
-  function materialMap(t) {
+  function materialMap(t, role = 'color') {
     if (!t) return null;
-    if (mapCache.has(t)) return mapCache.get(t);
+    if (mapCache.get(t)?.has(role)) return mapCache.get(t).get(role);
     const m = new THREE.DataTexture(t.out, t.w, t.h, THREE.RGBAFormat);
-    m.colorSpace = THREE.SRGBColorSpace;
+    m.colorSpace = role === 'data' ? THREE.NoColorSpace : THREE.SRGBColorSpace;
     m.wrapS = m.wrapT = THREE.RepeatWrapping;
     m.flipY = false;
     m.needsUpdate = true;
     maps.push(m);
-    mapCache.set(t, m);
+    if (!mapCache.has(t)) mapCache.set(t, new Map());
+    mapCache.get(t).set(role, m);
     return m;
   }
   function renderModel(fitCamera = false) {
@@ -158,7 +166,7 @@ export function mountDebadge({ download, toast, confirmDiscard, back }) {
       if (liveryReference(g) && !livery) missing.add(liveryReference(g));
       const map = materialMap(t),
         alpha = modelAlphaMode(g);
-      const base = new THREE.MeshStandardMaterial({
+      const base = createModelMaterial(g, {
         map,
         color: map ? 0xffffff : 0xb6bec9,
         side: THREE.DoubleSide,
@@ -167,14 +175,23 @@ export function mountDebadge({ download, toast, confirmDiscard, back }) {
         alphaTest: map && alpha === 'blend' ? (modelPreviewAlpha(g)?.cutoff ?? 0.02) : 0,
         depthWrite: !map || alpha !== 'blend',
       });
+      const surfaces = resolveSurfaceMaps(
+        g,
+        external,
+        d.embeddedTextures || [],
+        current().file.name,
+      );
+      setSurfaceMaps(base, g.uvs ? surfaces : {}, materialMap);
+      for (const [role, name] of Object.entries(surfaceReferences(g)))
+        if (name && !surfaces[role]) missing.add(name);
       if (livery && g.uvs2) {
         geometry.setAttribute('ditashaLiveryUv', new THREE.BufferAttribute(g.uvs2, 2));
         setVehicleLivery(base, materialMap(livery));
       }
-      const marked = copyVehicleLivery(base, base.clone());
+      const marked = copyVehicleLivery(base, copyVehicleSurface(base, base.clone()));
       marked.emissive.set(0xcf294b);
       marked.emissiveIntensity = 0.9;
-      const hidden = copyVehicleLivery(base, base.clone());
+      const hidden = copyVehicleLivery(base, copyVehicleSurface(base, base.clone()));
       hidden.visible = false;
       const mesh = new THREE.Mesh(geometry, [base, marked, hidden]);
       mesh.userData.source = g;

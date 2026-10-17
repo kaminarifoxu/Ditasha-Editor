@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import { readYft, indexYtd, readYtd } from '../src/resource.js';
 import { resolveModelTexture, textureDependency } from '../src/model-material.js';
 import { liveryReference, hasVisibleLiveryPixels } from '../src/vehicle-livery.js';
+import { surfaceReferences, surfaceProfile } from '../src/vehicle-surface.js';
 import { MAX_YTD_INPUT_BYTES } from '../src/texture-memory.js';
 
 const [folder, ...models] = process.argv.slice(2);
@@ -49,6 +50,34 @@ for (const name of models) {
       layerReferences: layerNames,
       emptyLayers: layers.filter((t) => !hasVisibleLiveryPixels(t)).map((t) => t.name),
       missing: missing.map((ref) => ({ name: ref, source: textureDependency(ref) })),
+      materialSurfaces: Object.fromEntries(
+        ['normal', 'specular'].map((role) => {
+          const refs = [
+            ...new Set(
+              drawables[0].lods[0].geometries
+                .map((g) => surfaceReferences(g)[role])
+                .filter(Boolean),
+            ),
+          ];
+          return [
+            role,
+            {
+              references: refs.length,
+              available: refs.filter((ref) =>
+                resolveModelTexture(
+                  ref,
+                  metadata,
+                  drawables[0].embeddedTextures || [],
+                  name + '.yft',
+                ),
+              ).length,
+            },
+          ];
+        }),
+      ),
+      nativeMaterialParameters: drawables[0].lods[0].geometries.filter(
+        (g) => g.shaderParameters?.length,
+      ).length,
       warnings: drawables.flatMap((d) => d.warnings || []),
     }),
   );

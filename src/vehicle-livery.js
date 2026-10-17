@@ -29,8 +29,8 @@ export function hasVisibleLiveryPixels(texture) {
   for (let i = 3; i < texture.out.length; i += 4) if (texture.out[i] > 0) return true;
   return false;
 }
-export function resolveVehicleLivery(geometry, external, embedded, source) {
-  return resolveModelTexture(liveryReference(geometry), external, embedded, source);
+export function resolveVehicleLivery(geometry, external, embedded, source, parents = []) {
+  return resolveModelTexture(liveryReference(geometry), external, embedded, source, parents);
 }
 // Keep GPU maps out of userData: Three serializes it when cloning a Photoshoot scene.
 const states = new WeakMap();

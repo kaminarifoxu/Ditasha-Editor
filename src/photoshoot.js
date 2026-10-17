@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { copyVehicleLivery } from './vehicle-livery.js';
+import { copyVehicleSurface } from './vehicle-surface.js';
 import { photoshootPoints, fitPhotoshoot } from './photoshoot-framing.js';
 
 let studio;
@@ -322,7 +323,7 @@ function createStudio(download, toast) {
         copy.traverse((o) => {
           if (!o.isMesh) return;
           const clone = (material) => {
-            const m = copyVehicleLivery(material, material.clone());
+            const m = copyVehicleLivery(material, copyVehicleSurface(material, material.clone()));
             m.wireframe = false;
             materials.push(m);
             return m;
