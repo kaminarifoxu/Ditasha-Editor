@@ -18,7 +18,8 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
     mode = 'debadge',
     selected = new Set(),
     placing = false,
-    serial = 0;
+    serial = 0,
+    sourcePreview = false;
   const scene = new THREE.Scene(),
     camera = new THREE.PerspectiveCamera(40, 1, 0.01, 1000);
   const base = new THREE.Group(),
@@ -87,7 +88,10 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
         onPick(hit.object.userData.candidate);
       else if (mode === 'ped')
         $('nbPreviewStatus').textContent =
-          hit.object.name + ' · periksa deformasi pada setiap pose.';
+          hit.object.name +
+          (sourcePreview
+            ? ' · model sumber, belum dirig.'
+            : ' · periksa deformasi pada setiap pose.');
       else
         $('nbPreviewStatus').textContent =
           hit.object.name + ' · bukan kandidat badge dari analisis engine.';
@@ -156,6 +160,7 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
   }
   async function load(data, { preserveCamera = false } = {}) {
     clear();
+    sourcePreview = data?.source === true;
     const revision = serial;
     if (
       data?.version !== 1 ||
@@ -211,9 +216,19 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
       geometry.setAttribute('uv', new THREE.Float32BufferAttribute(item.uvs, 2));
       geometry.computeVertexNormals();
       const map = Number.isInteger(item.texture) ? maps[item.texture] : null;
+      const color =
+        Array.isArray(item.color) &&
+        item.color.length === 3 &&
+        item.color.every((v) => Number.isFinite(v) && v >= 0 && v <= 1)
+          ? new THREE.Color().setRGB(...item.color)
+          : map
+            ? 0xffffff
+            : item.kind === 'donor'
+              ? 0x9d9dff
+              : 0xb3bbc8;
       const material = new THREE.MeshStandardMaterial({
         map: map || null,
-        color: map ? 0xffffff : item.kind === 'donor' ? 0x9d9dff : 0xb3bbc8,
+        color,
         side: THREE.DoubleSide,
         roughness: 0.7,
         transparent: !!map && item.alpha === 'blend',
@@ -240,9 +255,11 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
     if (!preserveCamera) fit();
     $('nbPreviewStatus').textContent =
       triangles.toLocaleString() +
-      (mode === 'ped'
-        ? ' triangles · pose uji weights hasil Blender.'
-        : ' triangles · merah = badge dipilih · sumbu = posisi donor.');
+      (mode === 'ped' && sourcePreview
+        ? ' triangles · model sumber, belum dirig.'
+        : mode === 'ped'
+          ? ' triangles · pose uji weights hasil Blender.'
+          : ' triangles · merah = badge dipilih · sumbu = posisi donor.');
   }
   $('nbPreviewFit').onclick = fit;
   $('nbPreviewPlace').onclick = () => {

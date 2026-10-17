@@ -4,9 +4,17 @@
 
 1. Buka **Asset Workshop → Auto Rig** pada aplikasi desktop.
 2. Pilih model **GLB, FBX, atau OBJ** beserta teksturnya. File Sims `.package` perlu diekspor lewat alat Sims terlebih dahulu; file itu bukan input langsung Auto Rig.
-3. Pilih folder tujuan dan nama ped, lalu periksa pengaturan rig sebelum memulai.
+3. Klik **Periksa & preview model sumber** untuk melihat model sebelum rig. Isi nama ped dan pengaturan rig setelah meninjau laporan; folder tujuan dipilih saat menyimpan hasil.
 
 Blender, Sollumz dan Muto disiapkan melalui setup engine DITASHA. Perhatikan status unduhan/setup sebelum menjalankan rig. Model dengan proporsi ekstrem, aksesori terpisah atau geometri bermasalah tetap dapat membutuhkan koreksi manual.
+
+## Pemeriksaan model sumber
+
+Pemeriksaan memerlukan Blender, tetapi belum memerlukan Muto atau provider ekspor GTA. Panel menampilkan jumlah mesh/vertex/triangle, armature yang sudah ada, ukuran X/Y/Z menurut unit scene, UV, gambar base color yang tidak terbaca, rotation/scale yang belum diterapkan, transform cermin dan triangle hampir tanpa area. Buka detail untuk melihat nama objek/material.
+
+Preview mengenali gambar yang terhubung langsung ke Base Color shader Principled dan pemilihan UV Map. Material tanpa gambar langsung dicatat terpisah dari gambar rusak/hilang; shader kompleks disederhanakan. Buffer gambar Blender yang belum dimuat dibaca terlebih dahulu. Batas preview tidak menurunkan resolusi sumber.
+
+Tahap ini tidak mengubah model, mentransfer weights, membuat `.blend`, atau mengekspor resource game. **Simpan hasil ped** dan pose uji tetap nonaktif. Periksa A/T-pose dan proporsi sendiri; laporan bukan deteksi anatomi otomatis atau jaminan rig berhasil. Mengganti sumber menghapus laporan/preview lama. Setelah rig menghasilkan resource sementara, simpan atau buang hasil tersebut sebelum mengganti sumber.
 
 ## Pengaturan rig
 

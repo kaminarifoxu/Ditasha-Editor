@@ -6,6 +6,7 @@ const { execFileSync } = require('node:child_process');
 test('Native build accepts bounded job settings and refuses arbitrary task/transform data', () => {
   assert.equal(validateJob({ mode: 'strobo_preview' }).mode, 'strobo_preview');
   assert.equal(validateJob({ mode: 'ped', name: 'ditasha_ped' }).name, 'ditasha_ped');
+  assert.equal(validateJob({ mode: 'ped_preview' }).mode, 'ped_preview');
   assert.deepEqual(
     validateJob({
       mode: 'ped',
@@ -123,8 +124,11 @@ test('Ped builds stage a preview before exporting; canceled/invalid saves preser
           JSON.stringify({
             ok: !failBuild,
             error: failBuild ? 'fixture rig validation failed' : undefined,
-            mode: 'ped',
-            preview: { meshes: 1, poses: [{ id: 'rest' }, { id: 'arms' }] },
+            mode: job.mode,
+            preview:
+              job.mode === 'ped'
+                ? { meshes: 1, poses: [{ id: 'rest' }, { id: 'arms' }] }
+                : { meshes: 1 },
           }),
         );
         await fs.writeFile(
@@ -136,7 +140,8 @@ test('Ped builds stage a preview before exporting; canceled/invalid saves preser
           path.join(job.output, 'preview-arms.json'),
           JSON.stringify({ version: 1, pose: 'arms' }),
         );
-        await fs.writeFile(path.join(job.output, 'ditasha-result.blend'), 'review project');
+        if (job.mode === 'ped')
+          await fs.writeFile(path.join(job.output, 'ditasha-result.blend'), 'review project');
         process.emit('close', 0);
       });
       return process;
@@ -146,7 +151,32 @@ test('Ped builds stage a preview before exporting; canceled/invalid saves preser
   await call('pick', 'engine');
   pick = source;
   const input = await call('pick', 'ped');
+  await call('start', { mode: 'ped_preview', inputs: { ped: input.id } });
+  let sourceState;
+  for (let i = 0; i < 200; i++) {
+    sourceState = await call('state');
+    if (!sourceState.running) break;
+    await new Promise((r) => setTimeout(r, 5));
+  }
+  const sourceRoot = path.dirname(specPath);
+  assert.equal(sourceState.status, 'success');
+  assert(sourceState.previewId && !sourceState.stagedId && !sourceState.reviewId);
+  assert.equal(sourceState.output, null);
+  assert.equal(chosenFolders, 0);
+  await assert.rejects(call('save', sourceState.previewId), /preview/);
+  await assert.rejects(
+    handlers.get('ditasha:native-preview')('trusted', sourceState.previewId, 'arms'),
+    /Pose/,
+  );
+  await call('pick', 'ped');
+  await assert.rejects(call('preview', sourceState.previewId), /kedaluwarsa/);
+  assert.equal((await call('state')).report, null, 'New source must invalidate the old report');
   await call('start', { mode: 'ped', name: 'test_ped', inputs: { ped: input.id } });
+  await assert.rejects(
+    fs.stat(sourceRoot),
+    /ENOENT/,
+    'Source preview staging should be cleaned on the next job',
+  );
   let state;
   for (let i = 0; i < 200; i++) {
     state = await call('state');
@@ -157,6 +187,7 @@ test('Ped builds stage a preview before exporting; canceled/invalid saves preser
   assert.equal(state.status, 'success');
   assert(state.previewId && state.stagedId);
   assert(state.reviewId);
+  await assert.rejects(call('pick', 'ped'), /Simpan atau buang/);
   const readPose = (pose) =>
     handlers.get('ditasha:native-preview')('trusted', state.previewId, pose);
   assert.equal((await readPose('arms')).pose, 'arms');

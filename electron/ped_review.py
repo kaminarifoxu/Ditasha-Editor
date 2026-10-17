@@ -12,6 +12,85 @@ POSES = (
 )
 
 
+def import_source(bpy, filename):
+    file = Path(filename)
+    if file.suffix.lower() == '.glb':
+        result = bpy.ops.import_scene.gltf(filepath=str(file))
+    elif file.suffix.lower() == '.fbx':
+        result = bpy.ops.import_scene.fbx(filepath=str(file))
+    elif file.suffix.lower() == '.obj':
+        result = bpy.ops.wm.obj_import(filepath=str(file))
+    else:
+        raise ValueError('Pilih GLB, FBX atau OBJ.')
+    if 'FINISHED' not in result:
+        raise ValueError('Blender gagal mengimpor model sumber.')
+    bpy.context.view_layer.update()
+    objects = [o for o in bpy.data.objects if o.type == 'MESH' and len(o.data.polygons)]
+    if not objects:
+        raise ValueError('Model sumber tidak memiliki mesh berisi face.')
+    return objects
+
+
+def audit_source(bpy, objects, image_node):
+    from mathutils import Vector
+    result = dict(meshes=len(objects), vertices=0, triangles=0, armatures=0,
+                  missingUV=[], missingTextures=[], solidMaterials=[], unappliedTransforms=[],
+                  negativeScale=[], degenerateTriangles=0)
+    minimum, maximum = [math.inf] * 3, [-math.inf] * 3
+    missing, solid, arms = set(), set(), set()
+    for obj in objects:
+        mesh = obj.data
+        result['vertices'] += len(mesh.vertices)
+        if result['vertices'] > 2000000:
+            raise ValueError('Pemeriksaan sumber maksimum 2 juta vertex.')
+        if not mesh.uv_layers:
+            result['missingUV'].append(obj.name)
+        if any(abs(v - 1) > 1e-4 for v in obj.scale) or obj.rotation_euler.to_matrix().to_quaternion().angle > 1e-4:
+            result['unappliedTransforms'].append(obj.name)
+        if obj.matrix_world.to_3x3().determinant() < 0:
+            result['negativeScale'].append(obj.name)
+        arm = armature_for(obj)
+        if arm:
+            arms.add(arm.name)
+        for corner in obj.bound_box:
+            point = obj.matrix_world @ Vector(corner)
+            if not all(math.isfinite(v) for v in point):
+                raise ValueError('Koordinat model sumber tidak valid.')
+            for axis in range(3):
+                minimum[axis] = min(minimum[axis], point[axis])
+                maximum[axis] = max(maximum[axis], point[axis])
+        mesh.calc_loop_triangles()
+        result['triangles'] += len(mesh.loop_triangles)
+        result['degenerateTriangles'] += sum(t.area < 1e-12 for t in mesh.loop_triangles)
+        if not mesh.materials:
+            solid.add(obj.name + ' (tanpa material)')
+        for material in mesh.materials:
+            node = image_node(material)
+            if node and (not node.image or not node.image.has_data):
+                missing.add(material.name)
+            elif not node:
+                solid.add(material.name if material else '(material kosong)')
+    result['armatures'] = len(arms)
+    result['dimensions'] = [round(maximum[i] - minimum[i], 6) for i in range(3)]
+    result['unitScale'] = bpy.context.scene.unit_settings.scale_length
+    result['dimensionsMeters'] = [round(v * result['unitScale'], 6) for v in result['dimensions']]
+    result['missingTextures'], result['solidMaterials'] = sorted(missing)[:64], sorted(solid)[:64]
+    for key in ('missingUV', 'unappliedTransforms', 'negativeScale'):
+        result[key] = result[key][:64]
+    warnings = []
+    for key, text in [('missingUV', 'objek belum memiliki UV'), ('missingTextures', 'material memiliki gambar base color yang tidak dapat dibaca'),
+                      ('unappliedTransforms', 'objek memiliki rotation/scale yang belum diterapkan'), ('negativeScale', 'objek memakai transform cermin')]:
+        if result[key]:
+            warnings.append(f'{len(result[key])} {text}. Periksa di Blender sebelum rig.')
+    if result['degenerateTriangles']:
+        warnings.append(f"{result['degenerateTriangles']} triangle memiliki area hampir nol.")
+    if result['triangles'] > 250000:
+        warnings.append('Model melebihi batas preview 250 ribu triangle; kurangi geometri untuk preview.')
+    warnings.append('Periksa A/T-pose dan proporsi secara visual; pemeriksaan ini tidak menilai anatomi atau menjamin rig berhasil.')
+    result['warnings'] = warnings
+    return result
+
+
 def configure_muto(settings, options):
     """Use the pinned engine's real reference-body/settings API, not a fake rig type."""
     reference = options.get('reference', 'auto')

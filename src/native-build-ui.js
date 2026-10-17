@@ -25,6 +25,10 @@ export function mountNativeBuild({
   rigSettings.open = true;
   rigSettings.innerHTML = `<summary>Referensi tubuh & kualitas rig</summary><div class="studio-fields"><label>Referensi weights<select id="nbReference"><option value="auto">Auto · paling sesuai</option><option value="mp_m">Laki-laki · freemode</option><option value="mp_f">Perempuan · freemode</option></select></label><label>Tinggi target · meter<input id="nbHeight" type="number" min="0" max="3" step="0.01" value="0"></label></div><p class="muted">0 = ikuti ukuran model setelah koreksi unit engine. Tinggi khusus: 0,5–3 m. Semua pilihan memakai skeleton humanoid GTA; referensi mengatur sumber transfer weights.</p><div class="rig-option-grid"><label class="check"><input id="nbFingers" type="checkbox" checked>Rig jari</label><label class="check"><input id="nbFace" type="checkbox" checked>Rig wajah</label><label class="check"><input id="nbHandTemplate" type="checkbox" checked>Template tangan</label><label class="check"><input id="nbFaceTemplate" type="checkbox" checked>Template wajah</label><label class="check"><input id="nbHeadParts" type="checkbox" checked>Rambut/topi ikut kepala</label></div><p class="muted">Template tangan mengikuti opsi jari; template wajah mengikuti opsi wajah. LOD dibuat otomatis. Model anak atau proporsi ekstrem tetap perlu pemeriksaan marker dan weights.</p>`;
   dialog.querySelector('#nbPed').append(rigSettings);
+  const sourceButton = document.createElement('button');
+  sourceButton.id = 'nbSourcePreview';
+  sourceButton.textContent = 'Periksa & preview model sumber';
+  dialog.querySelector('[data-pick="ped"]').after(sourceButton);
   const debadge = mountDebadge({
     download,
     toast,
@@ -103,6 +107,7 @@ export function mountNativeBuild({
   const api = () => window.ditashaNative;
   const matchesPreview = () => {
     const value = $('nbMode').value;
+    if (value === 'ped') return ['ped', 'ped_preview'].includes(state.report?.mode);
     return (
       state.report?.mode ===
       (value === 'ped' ? 'ped' : value === 'strobo' ? 'strobo_preview' : 'debadge_analyze')
@@ -153,6 +158,8 @@ export function mountNativeBuild({
     rigSettings
       .querySelectorAll('input,select')
       .forEach((e) => (e.disabled = state.running || requesting || !!state.stagedId));
+    sourceButton.disabled = state.running || requesting || !!state.stagedId;
+    dialog.querySelector('[data-pick="ped"]').disabled ||= !!state.stagedId;
     $('nbHandTemplate').disabled ||= !$('nbFingers').checked;
     $('nbFaceTemplate').disabled ||= !$('nbFace').checked;
     poseSelect.disabled = state.running;
@@ -182,6 +189,54 @@ export function mountNativeBuild({
         ' · Tinggi: ' +
         (report.pedOptions.height ? report.pedOptions.height + ' m' : 'ukuran model');
       $('nbReport').append(p);
+    }
+    if (report.sourceQuality) {
+      const q = report.sourceQuality,
+        title = document.createElement('h3'),
+        list = document.createElement('dl');
+      title.textContent = 'Pemeriksaan model sumber';
+      list.className = 'rig-quality';
+      for (const [label, value] of [
+        ['Mesh', q.meshes],
+        ['Vertex', q.vertices],
+        ['Triangle', q.triangles],
+        ['Armature sumber', q.armatures],
+        ['Objek tanpa UV', q.missingUV?.length || 0],
+        ['Gambar tidak terbaca', q.missingTextures?.length || 0],
+        ['Rotation/scale belum apply', q.unappliedTransforms?.length || 0],
+      ]) {
+        const dt = document.createElement('dt'),
+          dd = document.createElement('dd');
+        dt.textContent = label;
+        dd.textContent = Number(value || 0).toLocaleString('id-ID');
+        list.append(dt, dd);
+      }
+      const size = document.createElement('p');
+      size.className = 'muted';
+      size.textContent =
+        'Ukuran X/Y/Z: ' +
+        (q.dimensionsMeters || [])
+          .map((n) => Number(n).toLocaleString('id-ID', { maximumFractionDigits: 3 }))
+          .join(' / ') +
+        ' m menurut unit scene. Belum ada transfer weights atau ekspor ped. Preview mendukung gambar base color yang terhubung langsung; shader kompleks disederhanakan.';
+      const details = document.createElement('details'),
+        summary = document.createElement('summary'),
+        items = document.createElement('ul');
+      summary.textContent = 'Objek dan material yang perlu diperiksa';
+      for (const [key, label] of [
+        ['missingUV', 'Tanpa UV'],
+        ['missingTextures', 'Gambar tidak terbaca'],
+        ['solidMaterials', 'Tanpa gambar base color langsung'],
+        ['unappliedTransforms', 'Transform'],
+        ['negativeScale', 'Cermin'],
+      ])
+        for (const name of q[key] || []) {
+          const li = document.createElement('li');
+          li.textContent = label + ': ' + name;
+          items.append(li);
+        }
+      details.append(summary, items);
+      $('nbReport').append(title, list, size, details);
     }
     if (report.rigging?.steps) {
       const details = document.createElement('details'),
@@ -408,6 +463,23 @@ export function mountNativeBuild({
             loadedPreviewId = state.previewId || null;
             preview.clear();
           }
+          if (b.dataset.pick === 'ped') {
+            state = {
+              ...state,
+              status: 'idle',
+              message: 'Model sumber dipilih. Periksa sebelum rig.',
+              previewId: null,
+              report: null,
+              reviewId: null,
+              output: null,
+            };
+            loadedPreviewId = null;
+            ++poseSerial;
+            previewReady = false;
+            preview.clear();
+            rigSettings.open = true;
+            draw();
+          }
         } catch (e) {
           toast(e.message);
         }
@@ -439,6 +511,7 @@ export function mountNativeBuild({
   $('nbProbe').onclick = () => start('probe');
   $('nbAnalyze').onclick = () => start('debadge_analyze');
   $('nbRun').onclick = () => start($('nbMode').value);
+  sourceButton.onclick = () => start('ped_preview');
   $('nbCancel').onclick = async () => {
     await api()?.cancel();
     await refresh();

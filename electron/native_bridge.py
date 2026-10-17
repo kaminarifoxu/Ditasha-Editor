@@ -250,18 +250,47 @@ def transfer_sirens(bpy, target, donor, job):
     return {'parts': len(candidates), 'bones': sorted(names)}
 
 
-def preview_scene(bpy, fragment, output, donor=None, filename='preview.json', evaluated=False, texture_cache=None):
+def source_image_node(material):
+    if not material or not material.node_tree:
+        return None
+    output = next((n for n in material.node_tree.nodes if n.type == 'OUTPUT_MATERIAL' and n.is_active_output), None)
+    surface = output.inputs.get('Surface') if output else None
+    shader = surface.links[0].from_node if surface and surface.links else None
+    color = shader.inputs.get('Base Color') if shader and shader.type == 'BSDF_PRINCIPLED' else None
+    node = color.links[0].from_node if color and color.links else None
+    if node and node.type == 'TEX_IMAGE' and node.image and not node.image.has_data:
+        # Blender importers can defer decoding valid packed/external images.
+        # Access the pixel view without copying its full buffer into Python.
+        try:
+            len(node.image.pixels)
+        except RuntimeError:
+            pass
+    return node if node and node.type == 'TEX_IMAGE' else None
+
+
+def source_color(material):
+    if not material:
+        return [.7, .7, .7]
+    output = next((n for n in material.node_tree.nodes if n.type == 'OUTPUT_MATERIAL' and n.is_active_output), None) if material.node_tree else None
+    surface = output.inputs.get('Surface') if output else None
+    shader = surface.links[0].from_node if surface and surface.links else None
+    color = shader.inputs.get('Base Color') if shader and shader.type == 'BSDF_PRINCIPLED' else None
+    values = list(color.default_value[:3] if color else material.diffuse_color[:3])
+    return [max(0, min(1, v)) if math.isfinite(v) else .7 for v in values]
+
+
+def preview_scene(bpy, fragment, output, donor=None, filename='preview.json', evaluated=False, texture_cache=None, source=False):
     """Bounded world-space geometry from the exact imported native objects/LOD materials."""
     import base64
     from array import array
     bpy.context.view_layer.update()
     cache = texture_cache if texture_cache is not None else {'ids': {}, 'textures': []}
-    result = {'version': 1, 'meshes': [], 'textures': cache['textures'], 'basis': 'gta-z-up', 'triangles': 0}
+    result = {'version': 1, 'meshes': [], 'textures': cache['textures'], 'basis': 'gta-z-up', 'triangles': 0, 'source': source}
     images = cache['ids']
     def texture(material):
         if not material or not material.node_tree:
             return None
-        node = next((material.node_tree.nodes.get(n) for n in ('DiffuseSampler', 'TextureSampler', 'DiffuseSampler2') if material.node_tree.nodes.get(n)), None)
+        node = source_image_node(material) if source else next((material.node_tree.nodes.get(n) for n in ('DiffuseSampler', 'TextureSampler', 'DiffuseSampler2') if material.node_tree.nodes.get(n)), None)
         image = getattr(node, 'image', None)
         if not image or not image.has_data:
             return None
@@ -315,10 +344,12 @@ def preview_scene(bpy, fragment, output, donor=None, filename='preview.json', ev
             if key not in groups:
                 alpha = 'blend' if any(n in shader.lower() for n in ('glass', 'badge', 'decal', 'lightsemissive', 'alpha')) else 'opaque'
                 groups[key] = {'name': obj.name, 'kind': kind, 'candidate': obj.name if badge else None, 'positions': [], 'uvs': [], 'texture': texture(material), 'alpha': alpha}
+                if source:
+                    groups[key]['color'] = source_color(material)
             item = groups[key]
             uv_layer = mesh.uv_layers.active
             if material and material.node_tree:
-                image_node = next((material.node_tree.nodes.get(n) for n in ('DiffuseSampler', 'TextureSampler', 'DiffuseSampler2') if material.node_tree.nodes.get(n)), None)
+                image_node = source_image_node(material) if source else next((material.node_tree.nodes.get(n) for n in ('DiffuseSampler', 'TextureSampler', 'DiffuseSampler2') if material.node_tree.nodes.get(n)), None)
                 vector = image_node.inputs.get('Vector') if image_node else None
                 if vector and vector.links:
                     uv_node = vector.links[0].from_node
@@ -360,7 +391,7 @@ def preview_scene(bpy, fragment, output, donor=None, filename='preview.json', ev
             if clone is not None:
                 bpy.data.objects.remove(clone, do_unlink=True)
     for obj in fragment.children_recursive:
-        if obj.type == 'MESH' and getattr(obj, 'sollum_type', '') == 'sollumz_drawable_model' and 'damaged' not in obj.name.lower():
+        if obj.type == 'MESH' and (source or (getattr(obj, 'sollum_type', '') == 'sollumz_drawable_model' and 'damaged' not in obj.name.lower())):
             append(obj, 'base')
     if donor:
         parts, _ = siren_parts(donor)
@@ -396,6 +427,19 @@ def run(job):
     report = {'ok': False, 'mode': job['mode'], 'engine': engine_info(bpy)}
     try:
         if job['mode'] == 'probe':
+            report['ok'] = True
+            return report
+        if job['mode'] == 'ped_preview':
+            from types import SimpleNamespace
+            spec = importlib.util.spec_from_file_location('ditasha_ped_review', Path(__file__).with_name('ped_review.py'))
+            review = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(review)
+            for obj in list(bpy.data.objects):
+                bpy.data.objects.remove(obj, do_unlink=True)
+            objects = review.import_source(bpy, job['source'])
+            report['sourceQuality'] = review.audit_source(bpy, objects, source_image_node)
+            report['warnings'] = report['sourceQuality']['warnings']
+            report['preview'] = preview_scene(bpy, SimpleNamespace(children_recursive=objects), output, evaluated=True, source=True)
             report['ok'] = True
             return report
         if not report['engine']['sollumz'] or not report['engine']['native']:

@@ -16,7 +16,7 @@ Pilihan manual **Pilih blender.exe** tetap tersedia untuk instalasi Blender deng
 ## Auto rig ped
 
 - Pilih GLB, FBX atau OBJ humanoid berdiri dalam A/T-pose, lalu nama ped 3–32 karakter (`a-z`, angka, underscore; diawali huruf).
-- Klik **Buat preview rig**. Hasil ditulis ke direktori staging sementara; preview 3D muncul sebelum ekspor. Klik **Simpan hasil ped** dan pilih folder tujuan, atau **Buang hasil sementara**. Membatalkan dialog simpan mempertahankan preview untuk dicoba lagi. Muto menjalankan orientasi/skala, auto markers, fit skeleton, weight transfer, konversi pose GTA, validasi dan ekspor resource addon.
+- Klik **Buat preview rig**. Hasil ditulis ke direktori staging sementara; preview 3D muncul sebelum resource disimpan ke folder tujuan. Klik **Simpan hasil ped** dan pilih folder tujuan, atau **Buang hasil sementara**. Membatalkan dialog simpan mempertahankan preview untuk dicoba lagi. Muto menjalankan orientasi/skala, auto markers, fit skeleton, weight transfer, konversi pose GTA, validasi dan ekspor resource addon.
 - Proses dapat mengganti rig dan shape keys pada salinan model yang diimpor. Input asli tidak disimpan ulang. Model dengan anatomi sulit, senjata/prop, tangan menempel tubuh atau tanpa UV memerlukan koreksi marker/weights/material di `.blend` hasil.
 - DITASHA hanya melaporkan sukses bila Muto melaporkan seluruh tahap berhasil dan terdapat YFT, YDD, YTD, YMT serta fxmanifest. Simpan `batch_report.json` dan `.blend` untuk pemeriksaan. Ini tidak menjamin animasi setiap model sudah sempurna.
 
@@ -70,3 +70,7 @@ Referensi weights: Auto, Laki-laki (mp_m), atau Perempuan (mp_f). Semua memakai 
 Sesudah build, baca laporan weights/UV/material/LOD, lalu pilih Pose awal, Uji lengan dan Uji kaki jika tersedia. Ini pose statis hasil evaluasi modifier Blender untuk memeriksa deformasi. Pose gagal tidak dimasukkan sebagai preview valid. Save menunggu preview terpilih selesai dimuat. Bone dan pose asli dipulihkan setelah evaluasi; file game tidak diekspor ulang dari pose uji.
 
 Tombol **Salin .blend untuk koreksi** tersedia ketika engine berhasil menyimpan proyek, termasuk pada beberapa kegagalan rig. Dialog ini hanya menyalin proyek koreksi. Simpan hasil ped tetap menjadi aksi terpisah setelah preview berhasil. Sesudah mengedit marker/weights/material/LOD di Blender, ekspor ulang dari Blender untuk memperbarui game resource. Skeleton bayi/kustom dan facial behavior tetap memerlukan referensi serta pemeriksaan yang sesuai, bukan sekadar mengganti label preset.
+
+## Periksa sumber sebelum rig
+
+Tombol **Periksa & preview model sumber** memakai importer GLB/FBX/OBJ Blender tanpa Muto/provider native, lalu membuat laporan UV, gambar base color, geometri, ukuran dan transform. Tidak menjalankan rig atau ekspor game. Source preview tidak memiliki stagedId/reviewId dan tidak dapat disimpan sebagai hasil ped. Shader kompleks disederhanakan; ukuran memakai unit scene dan A/T-pose perlu diperiksa visual. File input tidak ditulis ulang. Pergantian sumber membatalkan token/report lama; hasil rig yang belum disimpan mengunci pergantian sumber.

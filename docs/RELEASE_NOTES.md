@@ -1,3 +1,15 @@
+# v1.29.0 preview — Inspect source models before rigging
+
+Auto Rig adds **Periksa & preview model sumber**. Blender imports GLB, FBX or OBJ without running Muto, fitting a skeleton, changing weights, saving a Blender project or exporting game resources. The report shows mesh/vertex/triangle counts, existing armatures, world-space dimensions interpreted through scene units, missing UVs, unreadable base-color images, unapplied local rotation/scale, mirrored transforms and near-zero-area triangles. Object/material names are available in expandable details. A/T-pose, anatomy and suitability for rigging still need visual review.
+
+Source preview supports directly connected Principled base-color images, UV-map selection and base-color factors. Lazy Blender image buffers are read before classifying an image as missing; unrelated normal-map/image nodes are never chosen as diffuse textures. Complex material graphs are explicitly simplified, and untextured materials are listed separately from unreadable images. Preview budgets remain 250,000 triangles, 32 thumbnails at most 512px and 48 MB JSON; source resolution is unchanged.
+
+Source previews never enable ped Save or pose tests. Selecting a new source invalidates previous preview/report tokens; a staged rig locks source replacement until saved/discarded. Source preview temporary files are removed on the next job. Completed previews lead the workspace; source settings remain accessible below them.
+
+Validation includes real Blender 5.2.2 GLB/FBX/OBJ export/import/preview round trips without Sollumz/Muto, readable textures and UVs, transform/dimension diagnostics, missing-image/UV/mirror detection, source-byte preservation and absence of game/project exports. IPC tests cover source selection, stale tokens, temporary cleanup and refusing source-preview saves; renderer checks cover source reports, stage separation, source changes and the subsequent rig/review/save flow. Existing rig-pose/native/editor/creative/IDE checks remain in place.
+
+See docs/PED_WORKFLOW.md and docs/NATIVE_BUILD.md.
+
 # v1.28.0 preview — Guided ped rig review and deformation tests
 
 Auto Rig exposes Muto's actual reference-body choices (Automatic/Male/Female), target height (0 or 0.5–3 m), finger/face detail, hand/face templates and head-attached parts. All choices retain the GTA humanoid skeleton; female reference weights are not a different arbitrary skeleton import. Options are validated in IPC and applied after model import as well, so a scene-changing GLB cannot silently revert them. Native LOD generation and multi-body weight voting remain enabled.

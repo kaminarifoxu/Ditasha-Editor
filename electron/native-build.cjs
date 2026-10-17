@@ -18,9 +18,15 @@ const PICK_TYPES = {
 function validateJob(payload) {
   if (
     !payload ||
-    !['probe', 'ped', 'debadge_analyze', 'debadge', 'strobo', 'strobo_preview'].includes(
-      payload.mode,
-    )
+    ![
+      'probe',
+      'ped',
+      'ped_preview',
+      'debadge_analyze',
+      'debadge',
+      'strobo',
+      'strobo_preview',
+    ].includes(payload.mode)
   )
     throw Error('Mode build tidak valid.');
   if (payload.mode === 'ped' && !/^[a-z][a-z0-9_]{2,31}$/.test(payload.name || ''))
@@ -112,6 +118,7 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
     managedRoot = null,
     setupController = null,
     stagedPed = null;
+  let sourcePreviewRoot = null;
   let state = {
     status: 'idle',
     message: 'Pilih Blender dan periksa engine.',
@@ -152,6 +159,7 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
   ipcMain.handle('ditasha:native-pick', async (event, kind) => {
     trusted(event);
     if (running) throw Error('Tunggu setup/build selesai.');
+    if (kind === 'ped' && stagedPed) throw Error('Simpan atau buang hasil rig sebelumnya dahulu.');
     if (kind === 'output') {
       const r = await dialog.showOpenDialog(win, {
         title: 'Folder hasil build baru',
@@ -190,6 +198,17 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
     }
     const id = randomUUID();
     inputs.set(id, { kind, path: file, size: stat.size, mtime: stat.mtimeMs });
+    if (kind === 'ped') {
+      preview = null;
+      reviewFile = null;
+      state = {
+        status: 'idle',
+        message: 'Model sumber dipilih. Periksa sebelum rig.',
+        log: '',
+        report: null,
+        output: null,
+      };
+    }
     return { id, name: path.basename(file) };
   });
   ipcMain.handle('ditasha:native-setup', async (event) => {
@@ -407,16 +426,23 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
           throw Error('Input berubah. Pilih ulang file ' + kind + '.');
         return v.path;
       };
-    if (job.mode === 'ped') job.source = await get('ped');
+    if (['ped', 'ped_preview'].includes(job.mode)) job.source = await get('ped');
     else if (job.mode !== 'probe') job.source = await get('vehicle');
     if (job.mode === 'strobo_preview') job.donor = await get('donor');
     if (job.mode === 'strobo')
       for (const kind of ['donor', 'carcols', 'variations', 'vehicles'])
         job[kind] = await get(kind);
-    const base = ['probe', 'ped', 'debadge_analyze', 'strobo_preview'].includes(job.mode)
+    if (sourcePreviewRoot) {
+      await fs.rm(sourcePreviewRoot, { recursive: true, force: true }).catch(() => {});
+      sourcePreviewRoot = null;
+    }
+    const base = ['probe', 'ped', 'ped_preview', 'debadge_analyze', 'strobo_preview'].includes(
+      job.mode,
+    )
       ? os.tmpdir()
       : await get('output');
     const root = await fs.mkdtemp(path.join(base, 'ditasha-build-'));
+    if (job.mode === 'ped_preview') sourcePreviewRoot = root;
     job.output = path.join(root, 'output');
     await fs.mkdir(job.output);
     const script = path.join(root, 'native_bridge.py'),
@@ -434,7 +460,7 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
       message: 'Menjalankan Blender…',
       log: '',
       report: null,
-      output: ['probe', 'ped'].includes(job.mode) ? null : root,
+      output: ['probe', 'ped', 'ped_preview'].includes(job.mode) ? null : root,
       cancelled: false,
     };
     running = true;
@@ -513,9 +539,11 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
           ? 'Build dibatalkan; hasil parsial jangan dipakai.'
           : rep.error ||
             error ||
-            (job.mode === 'ped'
-              ? 'Preview rig siap. Periksa model 3D, lalu Simpan hasil ped.'
-              : 'Proses selesai. Periksa report dan hasil sebelum dipakai di game.');
+            (job.mode === 'ped_preview'
+              ? 'Model sumber siap diperiksa. Belum ada proses rig atau ekspor game.'
+              : job.mode === 'ped'
+                ? 'Preview rig siap. Periksa model 3D, lalu Simpan hasil ped.'
+                : 'Proses selesai. Periksa report dan hasil sebelum dipakai di game.');
       } catch {
         state.status = 'error';
         state.message = error || 'Engine tidak menghasilkan report. Periksa log.';

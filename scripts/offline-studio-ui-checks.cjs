@@ -312,6 +312,71 @@ module.exports = async function checkOfflineStudio(fixtures) {
   $('nbClose').click();
   $('openNativeBuild').click();
   await sleep(40);
+  const originalSourcePreview = window.ditashaNative.preview;
+  window.ditashaNative.preview = async (id) => {
+    assert(id === 'source-preview', 'Source preview token lost');
+    return { ...(await originalSourcePreview()), source: true };
+  };
+  window.ditashaNative.start = async (payload) => {
+    assert(
+      payload.mode === 'ped_preview' && payload.inputs.ped === 'ped-token',
+      'Source check must use the selected ped without running rig',
+    );
+    nativeState = {
+      status: 'success',
+      running: false,
+      previewId: 'source-preview',
+      output: null,
+      message: 'Model sumber siap diperiksa.',
+      report: {
+        ok: true,
+        mode: 'ped_preview',
+        preview: { meshes: 1 },
+        sourceQuality: {
+          meshes: 1,
+          vertices: 3,
+          triangles: 1,
+          armatures: 0,
+          missingUV: ['SourceBody'],
+          missingTextures: ['Skin'],
+          solidMaterials: [],
+          unappliedTransforms: ['SourceBody'],
+          negativeScale: [],
+          dimensionsMeters: [1, 0.2, 1.8],
+        },
+        warnings: ['1 objek belum memiliki UV.'],
+      },
+    };
+    return nativeState;
+  };
+  $('nativeBuildDialog').querySelector('[data-pick="ped"]').click();
+  await sleep(40);
+  $('nbSourcePreview').click();
+  await wait(
+    () =>
+      $('nbPreviewStatus').textContent.includes('model sumber') && !$('nbSourcePreview').disabled,
+    'Source preview did not load',
+  );
+  assert(
+    $('nbSave').disabled && $('nbDiscard').disabled,
+    'Source preview must never become a staged ped export',
+  );
+  assert(
+    $('nbReport').textContent.includes('Pemeriksaan model sumber') &&
+      $('nbReport').textContent.includes('Tanpa UV: SourceBody') &&
+      $('nbReport').textContent.includes('Skin'),
+    'Source quality issues missing',
+  );
+  assert($('nbPedPose').closest('.rig-pose-controls').hidden, 'Source preview offered rig poses');
+  console.log('DITASHA_SNAPSHOT:ped-source-preview');
+  await sleep(250);
+  $('nativeBuildDialog').querySelector('[data-pick="ped"]').click();
+  await sleep(40);
+  assert(
+    !$('nbReport').textContent && $('nbViewport').closest('.native-preview').hidden,
+    'Changing source retained stale quality or preview',
+  );
+  window.ditashaNative.preview = originalSourcePreview;
   $('nbReference').value = 'mp_f';
   $('nbHeight').value = '1.62';
   $('nbFingers').checked = false;
@@ -401,6 +466,11 @@ module.exports = async function checkOfflineStudio(fixtures) {
     'Rig result did not show a preview before save',
   );
   assert(!savedPed, 'Rig result was saved before user approval');
+  assert(
+    $('nbSourcePreview').disabled &&
+      $('nativeBuildDialog').querySelector('[data-pick="ped"]').disabled,
+    'Staged results must lock source replacement/checks',
+  );
   assert(
     !document.querySelector('.rig-settings').open,
     'Completed rig settings should collapse to make room for the preview',
