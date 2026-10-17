@@ -1,3 +1,11 @@
+# v1.27.1 preview — Large vehicle YTD support
+
+Fixes the app-side “Decoded texture limit: 128 MB” rejection for large vehicle dictionaries. YTD decoding now permits up to 512 MB of RGBA pixels; the editor accounts for already-open workspace textures before allocating another dictionary. Model viewer and Debadge use the same bounded texture budget. Compressed input remains limited to 64 MB, individual textures to 16 megapixels, and other model/archive limits are unchanged.
+
+Texture-strip and YTD-import thumbnails are at most 96 px. Full-resolution canvases/layers are created only for textures selected for editing, without resizing source pixels. YTD saving retains original native bytes, compression and mipmaps for unchanged textures; only edited textures are appended as lossless RGBA with one mip. The native graphics address range remains capped at 256 MB and complete YTD resources at 384 MB. Other export formats keep their existing size limits.
+
+Regression coverage includes a synthetic three-texture 4K DXT1 dictionary (192 MB decoded), remaining-budget/512 MB rejection, thumbnail allocation, source resolution, texture switching, editing, export/reopen and exact preservation of untouched compressed mip chains. The user's screenshot was inspected; bearcat.ytd itself was not supplied, so exact file-specific verification is pending.
+
 # v1.27.0 preview — Explorer layout and source-preserving tattoo projection
 
 Replaces the stretched Workshop toolbar cards with compact control rows. Camera actions no longer stretch every group to their height. File Manager uses a familiar Explorer arrangement: folder tree, tabs, address/search row, compact commands, direct-folder browsing by default, and a right-hand preview pane. Asset category and recursive filters move into an optional Filter menu; the native Files launcher stays in the overflow menu. Selection survives switching between list and grid. PNG/JPG/WebP previews remain, and YTD/DDS texture selection plus interactive Legacy YDD/YDR/YFT model previews are now available directly in the pane.

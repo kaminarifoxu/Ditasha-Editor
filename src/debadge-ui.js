@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { MAX_DECODED_TEXTURE_BYTES } from './texture-memory.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { decodeResource } from './resource-client.js';
 import { resolveModelTexture, modelAlphaMode } from './model-material.js';
@@ -405,7 +406,7 @@ export function mountDebadge({ download, toast, confirmDiscard, back }) {
       for (const file of ytds) {
         if (file.size > 64 * 1024 * 1024) throw Error('YTD input exceeds 64 MB.');
         const ts = await decodeResource('textures', await file.arrayBuffer(), {
-          maxDecodedBytes: 128 * 1024 * 1024 - used,
+          maxDecodedBytes: MAX_DECODED_TEXTURE_BYTES - used,
         });
         for (const t of ts) t.dictionary = file.name;
         used += ts.reduce((n, t) => n + t.out.byteLength, 0);

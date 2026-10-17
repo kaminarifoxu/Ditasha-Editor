@@ -1,6 +1,11 @@
 import { decodeBC7 } from 'tex-decoder/build/esm/bc7.js';
 import { Matrix3, Matrix4, Quaternion, Vector3 } from 'three';
 import { deflateRaw, Inflate } from 'pako';
+import {
+  MAX_DECODED_TEXTURE_BYTES,
+  MAX_YTD_RESOURCE_BYTES,
+  MAX_YTD_GRAPHICS_BYTES,
+} from './texture-memory.js';
 export const pageSize = (f) =>
   512 *
   2 ** (f & 15) *
@@ -14,7 +19,7 @@ export const pageSize = (f) =>
     ((f >>> 5) & 3) * 128 +
     ((f >>> 4) & 1) * 256);
 export class Resource {
-  constructor(buffer, version) {
+  constructor(buffer, version, maxBytes = 128 * 1024 * 1024) {
     this.header = new Uint8Array(buffer.slice(0, 16));
     const h = new DataView(buffer);
     if (h.getUint32(0, true) !== 0x37435352)
@@ -23,8 +28,10 @@ export class Resource {
       throw Error('Versi resource ini belum didukung. Gunakan GTA V Legacy.');
     this.sys = pageSize(h.getUint32(8, true));
     const expected = this.sys + pageSize(h.getUint32(12, true));
-    if (expected > 128 * 1024 * 1024 || expected < 64)
-      throw Error('Ukuran resource tidak didukung (maksimum 128 MB).');
+    if (expected > maxBytes || expected < 64)
+      throw Error(
+        'Ukuran resource tidak didukung (maksimum ' + Math.round(maxBytes / 1048576) + ' MB).',
+      );
     let parts = [],
       total = 0;
     let inf = new Inflate({ raw: true });
@@ -205,37 +212,74 @@ export function decodeTexture(r, p) {
     mipLevels: r.bytes[p + 93] || 1,
   };
 }
-export function readYtd(buffer, { maxDecodedBytes = 128 * 1024 * 1024 } = {}) {
-  const r = new Resource(buffer, 13);
+export function readYtd(buffer, { maxDecodedBytes = MAX_DECODED_TEXTURE_BYTES } = {}) {
+  const r = new Resource(buffer, 13, MAX_YTD_RESOURCE_BYTES);
   const pointers = r.list(48, r.u16(56));
   const bytes = pointers.reduce((n, p) => n + r.u16(p + 80) * r.u16(p + 82) * 4, 0);
   if (
     !Number.isFinite(maxDecodedBytes) ||
     maxDecodedBytes < 0 ||
-    bytes > Math.min(maxDecodedBytes, 128 * 1024 * 1024)
+    bytes > Math.min(maxDecodedBytes, MAX_DECODED_TEXTURE_BYTES)
   )
-    throw Error('Decoded texture limit: 128 MB. Choose a smaller texture dictionary.');
+    throw Error(
+      'Decoded texture limit: ' +
+        Math.floor(
+          Math.min(Math.max(0, maxDecodedBytes || 0), MAX_DECODED_TEXTURE_BYTES) / 1048576,
+        ) +
+        ' MB available. Close other textures or split this dictionary.',
+    );
   // Check the entire dictionary against the remaining budget before allocating RGBA buffers.
   r.textures = pointers.map((p) => decodeTexture(r, p));
   if (!r.textures.length) throw Error('Tidak ada tekstur dalam YTD.');
   return r;
 }
 export function writeYtd(r, textures) {
-  let total = textures.reduce((n, t) => n + Math.ceil((t.w * t.h * 4) / 16) * 16, 0);
-  if (total + r.sys > 128 * 1024 * 1024)
-    throw Error('Ekspor melebihi 128 MB. Kurangi ukuran kanvas.');
+  // Retain native compressed data/mipmaps for unchanged textures. Expanding the
+  // entire dictionary to RGBA can make a perfectly valid vehicle YTD unsavable.
+  const changed = [];
+  for (const t of textures) {
+    if (
+      !Number.isInteger(t.w) ||
+      !Number.isInteger(t.h) ||
+      t.w < 1 ||
+      t.h < 1 ||
+      t.w > 8192 ||
+      t.h > 8192 ||
+      t.w * t.h > 16777216 ||
+      t.out?.length !== t.w * t.h * 4
+    )
+      throw Error('Dimensi/data tekstur tidak valid.');
+    const original = decodeTexture(r, t.p);
+    let same = t.w === original.w && t.h === original.h;
+    if (same)
+      for (let i = 0; i < t.out.length; i++)
+        if (t.out[i] !== original.out[i]) {
+          same = false;
+          break;
+        }
+    if (same) continue;
+    changed.push(t);
+  }
+  let total =
+    r.bytes.length - r.sys + changed.reduce((n, t) => n + Math.ceil(t.out.length / 16) * 16, 0);
+  if (total > MAX_YTD_GRAPHICS_BYTES)
+    throw Error(
+      'Data grafis YTD setelah edit melebihi 256 MB. Pisahkan dictionary sebelum menambah tekstur besar.',
+    );
   const large = total > 16777216,
     unit = large ? 8192 : 512,
     exp = Math.max(0, Math.ceil(Math.log2(total / unit)));
   if (exp > 15) throw Error('Ekspor melebihi ukuran yang didukung.');
   const gfxSize = unit * 2 ** exp;
+  if (r.sys + gfxSize > MAX_YTD_RESOURCE_BYTES)
+    throw Error('Resource YTD setelah edit melebihi 384 MB.');
   const bytes = new Uint8Array(r.sys + gfxSize);
-  bytes.set(r.bytes.subarray(0, r.sys));
+  bytes.set(r.bytes);
   const v = new DataView(bytes.buffer);
   const pages = r.ptr(8);
   if (pages !== null && pages < r.sys - 16) v.setUint8(pages + 9, 1);
-  let offset = 0;
-  for (const t of textures) {
+  let offset = r.bytes.length - r.sys;
+  for (const t of changed) {
     v.setUint16(t.p + 80, t.w, true);
     v.setUint16(t.p + 82, t.h, true);
     v.setUint16(t.p + 84, 1, true);

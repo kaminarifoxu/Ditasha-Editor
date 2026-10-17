@@ -2,6 +2,7 @@ import { setProject } from './project-context.js';
 import { mountSceneStudio } from './scene-studio.js';
 import { resolveModelTexture, modelAlphaMode } from './model-material.js';
 import { decodeResource } from './resource-client.js';
+import { MAX_DECODED_TEXTURE_BYTES } from './texture-memory.js';
 import { mountVehicleWorkshop } from './vehicle-workshop.js';
 import { managePreview } from './performance.js';
 import * as THREE from 'three';
@@ -280,9 +281,9 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
     for (const f of files) {
       if (f.size > 64 * 1024 * 1024 || !textureExtensions.test(f.name))
         throw Error('Textures: YTD, DDS or images up to 64 MB per file.');
-      for (const t of await imageData(f, { maxDecodedBytes: MAX_EXPORT - size })) {
+      for (const t of await imageData(f, { maxDecodedBytes: MAX_DECODED_TEXTURE_BYTES - size })) {
         size += t.out.length;
-        if (size > MAX_EXPORT) throw Error('Decoded texture limit: 128 MB.');
+        if (size > MAX_DECODED_TEXTURE_BYTES) throw Error('Decoded texture limit: 512 MB.');
         out.push({ ...t, dictionary: f.name });
       }
     }
@@ -977,8 +978,8 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
         const next = await readTextures(files);
         const names = new Set(next.map((t) => t.name.toLowerCase()));
         const merged = [...modelTextures.filter((t) => !names.has(t.name.toLowerCase())), ...next];
-        if (merged.reduce((n, t) => n + t.out.length, 0) > MAX_EXPORT)
-          throw Error('Model textures exceed 128 MB.');
+        if (merged.reduce((n, t) => n + t.out.length, 0) > MAX_DECODED_TEXTURE_BYTES)
+          throw Error('Model textures exceed 512 MB.');
         modelTextures = merged;
         if (drawables.length) renderModel();
       });
@@ -1061,8 +1062,8 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
             ...modelTextures.filter((t) => !names.has(t.name.toLowerCase())),
             ...next,
           ];
-          if (merged.reduce((n, t) => n + t.out.length, 0) > MAX_EXPORT)
-            throw Error('Model textures exceed 128 MB.');
+          if (merged.reduce((n, t) => n + t.out.length, 0) > MAX_DECODED_TEXTURE_BYTES)
+            throw Error('Model textures exceed 512 MB.');
           modelTextures = merged;
           if (drawables.length) renderModel();
         });

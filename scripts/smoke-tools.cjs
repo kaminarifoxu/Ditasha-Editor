@@ -220,6 +220,27 @@ app.whenReady().then(async () => {
     if ([...indices].join(',') !== '0,1,2,0,2,3,4,4,4')
       throw Error('UI export changed the wrong triangles');
     delete debadgeReport.data;
+    await win.loadFile(path.resolve('ui/index.html'));
+    const { largeYtdFixture } = await import('../tests/fixtures/large-ytd.mjs');
+    const largeYtdReport = await win.webContents.executeJavaScript(
+      '(' +
+        require('./large-ytd-ui-checks.cjs').toString() +
+        ')(' +
+        JSON.stringify([...new Uint8Array(largeYtdFixture())]) +
+        ')',
+    );
+    const { readYtd } = await import('../src/resource.js');
+    const largeSaved = readYtd(Uint8Array.from(largeYtdReport.data).buffer);
+    if (
+      largeSaved.textures[0].format !== 'DXT1' ||
+      largeSaved.textures[0].mipLevels !== 2 ||
+      largeSaved.textures[1].format !== 'DXT1' ||
+      largeSaved.textures[1].mipLevels !== 2 ||
+      largeSaved.textures[2].format !== 'RGBA' ||
+      [...largeSaved.textures[2].out.slice(4095 * 4, 4096 * 4)].join(',') !== '255,0,0,255'
+    )
+      throw Error('Large YTD edit/export did not preserve source textures or mirrored pixels');
+    delete largeYtdReport.data;
     await Promise.all(captures);
     console.log(
       'PASS: ' +
@@ -233,6 +254,7 @@ app.whenReady().then(async () => {
           inlineReport,
           manualStudioReport,
           debadgeReport,
+          largeYtdReport,
         }),
     );
     win.destroy();

@@ -1,5 +1,6 @@
 import { resolveModelTexture, modelAlphaMode } from './model-material.js';
 import { composeProjectionLayers } from './projection-composite.js';
+import { MAX_DECODED_TEXTURE_BYTES, textureThumbnail } from './texture-memory.js';
 import { setProject } from './project-context.js';
 import { mountCanvasStudio } from './canvas-studio.js';
 import { mountSceneStudio } from './scene-studio.js';
@@ -415,12 +416,28 @@ function modelReady() {
   frame();
 }
 function makeCanvas(t) {
+  if (t.canvas) return t;
   const c = document.createElement('canvas');
   c.width = t.w;
   c.height = t.h;
   c.getContext('2d').putImageData(new ImageData(t.out, t.w, t.h), 0, 0);
   t.canvas = c;
   return t;
+}
+function thumbnailURL(t) {
+  const c = document.createElement('canvas');
+  if (t.canvas) {
+    const ratio = Math.min(1, 96 / t.w, 96 / t.h);
+    c.width = Math.max(1, Math.round(t.w * ratio));
+    c.height = Math.max(1, Math.round(t.h * ratio));
+    c.getContext('2d').drawImage(t.canvas, 0, 0, c.width, c.height);
+  } else {
+    const thumb = textureThumbnail(t);
+    c.width = thumb.w;
+    c.height = thumb.h;
+    c.getContext('2d').putImageData(new ImageData(thumb.out, thumb.w, thumb.h), 0, 0);
+  }
+  return c.toDataURL();
 }
 function refreshFiles() {
   renderTabs();
@@ -521,7 +538,7 @@ function renderTextures() {
     const b = document.createElement('button');
     b.className = 'texcard' + (t === current ? ' active' : '');
     const im = document.createElement('img');
-    im.src = t.canvas.toDataURL();
+    im.src = thumbnailURL(t);
     if (t.isUV) im.style.background = '#3948f0';
     const s = document.createElement('span');
     s.textContent = t.name;
@@ -535,6 +552,7 @@ function renderTextures() {
 }
 function initLayers(t) {
   if (t.layers) return;
+  if (!t.isUV) makeCanvas(t);
   t.layers = t.isUV ? [] : [makeLayer(copyCanvas(t.canvas), t.name, t.w, t.h)];
   if (!t.isUV && t.out?.length === t.w * t.h * 4)
     t.layers[0].originalPixels = { w: t.w, h: t.h, data: new Uint8ClampedArray(t.out) };
@@ -695,10 +713,13 @@ async function loadFiles(list) {
         f = { name: file.name, ext, size: file.size };
       toast('Membuka ' + file.name + '…');
       if (ext === 'ytd') {
-        f.resource = await decodeResource('ytd', await file.arrayBuffer());
+        f.resource = await decodeResource('ytd', await file.arrayBuffer(), {
+          maxDecodedBytes:
+            MAX_DECODED_TEXTURE_BYTES -
+            workspaceTextures().reduce((n, t) => n + t.out.byteLength, 0),
+        });
         f.resource.textures.forEach((t) => {
           t.dictionary = f.name;
-          makeCanvas(t);
         });
       } else if (['ydd', 'ydr', 'yft'].includes(ext)) {
         f.drawables = await decodeResource(ext, await file.arrayBuffer());
@@ -1391,6 +1412,7 @@ $('cancelCrop').onclick = () => {
 $('deleteLayer').onclick = () => current && deleteLayerAt(current.selected);
 function addTextureLayer(t) {
   if (!current) return;
+  makeCanvas(t);
   initLayers(current);
   remember();
   const l = makeLayer(copyCanvas(t.canvas), t.name),
@@ -1416,8 +1438,11 @@ $('addInput').onchange = async (e) => {
       if (f.size > 64 * 1024 * 1024) throw Error('File terlalu besar.');
       if (f.name.toLowerCase().endsWith('.ytd')) {
         if (pendingYtd) throw Error('Pilih tekstur dari satu YTD terlebih dahulu.');
-        const resource = await decodeResource('ytd', await f.arrayBuffer());
-        resource.textures.forEach(makeCanvas);
+        const resource = await decodeResource('ytd', await f.arrayBuffer(), {
+          maxDecodedBytes:
+            MAX_DECODED_TEXTURE_BYTES -
+            workspaceTextures().reduce((n, t) => n + t.out.byteLength, 0),
+        });
         openYtdLayers({ name: f.name, ext: 'ytd', size: f.size, resource });
         continue;
       }
@@ -1701,7 +1726,7 @@ function openYtdLayers(f) {
     input.value = i;
     input.checked = i === 0;
     const image = document.createElement('img');
-    image.src = t.canvas.toDataURL();
+    image.src = thumbnailURL(t);
     const text = document.createElement('span'),
       name = document.createElement('strong'),
       info = document.createElement('small');

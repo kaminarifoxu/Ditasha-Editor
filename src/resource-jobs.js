@@ -6,7 +6,7 @@ export function performResourceJob(kind, buffer, options = {}) {
     throw Error('Resource input maksimum 64 MB.');
   if (kind === 'debadge-read') return analyzeDebadge(buffer);
   if (kind === 'debadge-write') return removeVehicleParts(buffer, options.selected);
-  if (kind === 'ytd') return readYtd(buffer);
+  if (kind === 'ytd') return readYtd(buffer, options);
   if (kind === 'textures') return readYtd(buffer, options).textures;
   if (kind === 'mask') return maskResourceGeometry(buffer, options.selected, options.extension);
   const read = { ydd: readYdd, ydr: readYdr, yft: readYft }[kind];
