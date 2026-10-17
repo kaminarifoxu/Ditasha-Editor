@@ -15,7 +15,9 @@ import {
 test('Vehicle paint3 retains its primary map while resolving secondary livery from its own dictionary', () => {
   const data = liveryYftFixture(viewerModel),
     snapshot = new Uint8Array(data).slice();
-  const g = readYft(data)[0].geometries[0];
+  const drawable = readYft(data)[0];
+  assert.equal(drawable.geometries.length, 1, 'GPU fixture must isolate one visible material');
+  const g = drawable.geometries[0];
   assert.equal(g.diffuseTexture, 'cloth_diffuse');
   assert.equal(liveryReference(g), 'vehicle_sign_1');
   assert(g.uvs2 && g.uvs2[0] !== g.uvs[0]);

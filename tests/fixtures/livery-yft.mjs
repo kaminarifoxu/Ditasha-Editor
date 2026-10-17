@@ -7,6 +7,9 @@ export function liveryYftFixture(model) {
   const ptr = (at, to) => v.setBigUint64(at, BigInt(0x50000000 + to), true);
   ptr(48, 128);
   v.setUint32(72, 0, true);
+  // One visible surface: manual replacement targets one selected mesh.
+  // The source fixture has two coincident meshes, which would hide each other.
+  v.setUint16(512 + 8, 1, true);
   v.setUint32(2176 + 8, hashName('vehicle_paint3'), true);
   v.setUint32(2176 + 24, hashName('vehicle_paint3.sps'), true);
   r.bytes[2176 + 16] = 2;

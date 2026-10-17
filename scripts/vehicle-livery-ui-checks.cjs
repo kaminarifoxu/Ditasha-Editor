@@ -51,7 +51,7 @@ module.exports = async function checkVehicleLivery(fixtures) {
   );
   upload('mvTextureInput', [['livery.ytd', fixtures.livery]]);
   await wait(
-    () => !$('mvOpen').disabled && $('mvStatus').textContent.includes('2 livery meshes'),
+    () => !$('mvOpen').disabled && $('mvStatus').textContent.includes('1 livery meshes'),
     'Adding YTD did not activate secondary livery',
   );
   await sleep(200);
