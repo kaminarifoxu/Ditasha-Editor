@@ -213,9 +213,21 @@ export function decodeTexture(r, p) {
     mipLevels: r.bytes[p + 93] || 1,
   };
 }
-export function readYtd(buffer, { maxDecodedBytes = MAX_DECODED_TEXTURE_BYTES } = {}) {
+// Metadata-only indexing does not allocate decoded pixel buffers.
+export function indexYtd(buffer) {
   const r = new Resource(buffer, 13, MAX_YTD_RESOURCE_BYTES);
-  const pointers = r.list(48, r.u16(56));
+  return r.list(48, r.u16(56)).map((p) => ({
+    name: r.str(r.ptr(p + 40)) || 'texture',
+    w: r.u16(p + 80),
+    h: r.u16(p + 82),
+  }));
+}
+export function readYtd(buffer, { maxDecodedBytes = MAX_DECODED_TEXTURE_BYTES, names } = {}) {
+  const r = new Resource(buffer, 13, MAX_YTD_RESOURCE_BYTES);
+  const pointers = r
+    .list(48, r.u16(56))
+    .filter((p) => !names || names.includes(r.str(r.ptr(p + 40)) || 'texture'));
+
   const bytes = pointers.reduce((n, p) => n + r.u16(p + 80) * r.u16(p + 82) * 4, 0);
   if (
     !Number.isFinite(maxDecodedBytes) ||

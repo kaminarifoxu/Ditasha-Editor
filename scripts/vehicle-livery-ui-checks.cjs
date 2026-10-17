@@ -14,7 +14,12 @@ module.exports = async function checkVehicleLivery(fixtures) {
   };
   const upload = (id, files) => {
     const dt = new DataTransfer();
-    for (const [name, bytes] of files) dt.items.add(new File([new Uint8Array(bytes)], name));
+    for (const [name, bytes] of files) {
+      const file = new File([new Uint8Array(bytes)], name.split('/').at(-1));
+      if (id === 'mvTextureFolderInput')
+        Object.defineProperty(file, 'webkitRelativePath', { value: name });
+      dt.items.add(file);
+    }
     $(id).files = dt.files;
     $(id).dispatchEvent(new Event('change'));
   };
@@ -88,6 +93,70 @@ module.exports = async function checkVehicleLivery(fixtures) {
     colors($('mvViewport').querySelector('canvas')).blue > 20,
     'Automatic livery did not recover',
   );
+  // Search an explicitly selected folder, decode only missing maps and preserve UV2 layering.
+  upload('mvInput', [['livery.yft', fixtures.model]]);
+  await wait(
+    () => !$('mvOpen').disabled && $('mvStatus').textContent.includes('0 external textures'),
+    'Untextured model did not load',
+  );
+  upload('mvTextureFolderInput', [['library/shared.ytd', fixtures.combined]]);
+  await wait(
+    () =>
+      !$('mvOpen').disabled &&
+      $('mvTextureSearchStatus').textContent.includes('2 tekstur dipasang'),
+    'Folder repair did not attach both maps',
+  );
+  await sleep(200);
+  const repaired = colors($('mvViewport').querySelector('canvas'));
+  assert(repaired.green > 20 && repaired.blue > 20, 'Folder repair lost livery/base GPU pixels');
+  assert(
+    $('mvTextureSearchReport').textContent.includes('library/shared.ytd'),
+    'Repair report lost source path',
+  );
+  console.log('DITASHA_SNAPSHOT:texture-auto-repair');
+  await sleep(200);
+  upload('mvInput', [['next.yft', fixtures.model]]);
+  await wait(
+    () =>
+      !$('mvOpen').disabled &&
+      $('mvTitle').textContent === 'next.yft' &&
+      $('mvStatus').textContent.includes('2 external textures'),
+    'Next model did not automatically reuse folder index',
+  );
+  $('mvTextureAuto').checked = false;
+  upload('mvInput', [['third.yft', fixtures.model]]);
+  await wait(
+    () => !$('mvOpen').disabled && $('mvTitle').textContent === 'third.yft',
+    'Third model did not load',
+  );
+  upload('mvTextureFolderInput', [
+    ['library/a.ytd', fixtures.combined],
+    ['library/b.ytd', fixtures.combined],
+  ]);
+  await wait(
+    () =>
+      !$('mvOpen').disabled &&
+      $('mvTextureSearchReport').textContent.includes('Perlu dipilih manual'),
+    'Ambiguous textures were not reported',
+  );
+  assert(
+    $('mvStatus').textContent.includes('0 external textures'),
+    'Ambiguous search guessed a dictionary',
+  );
+  const stableReport = $('mvTextureSearchStatus').textContent;
+  $('mvTextureAuto').checked = true;
+  $('mvTextureAuto').dispatchEvent(new Event('change'));
+  await sleep(600);
+  assert(
+    !$('mvOpen').disabled && $('mvTextureSearchStatus').textContent === stableReport,
+    'Unresolved textures caused an automatic search loop',
+  );
+  // The existing manual upload remains usable after an ambiguous search.
+  upload('mvTextureInput', [['third.ytd', fixtures.combined]]);
+  await wait(
+    () => !$('mvOpen').disabled && $('mvStatus').textContent.includes('2 external textures'),
+    'Manual texture selection failed after ambiguous repair',
+  );
   document.querySelector('[data-page="editor"]').click();
   upload('fileInput', [
     ['livery.yft', fixtures.model],
@@ -114,6 +183,9 @@ module.exports = async function checkVehicleLivery(fixtures) {
     viewer,
     photo,
     editor,
+    autoTextureRepair: true,
+    folderReused: true,
+    ambiguousSearchRefused: true,
     secondaryUv: true,
     transparentBasePreserved: true,
     manualOverride: true,
