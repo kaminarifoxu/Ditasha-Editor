@@ -28,7 +28,7 @@ export function wheelYftFixture(drawableBuffer, { damaged = true, pose = false }
     v.setUint16(child + 18, tags[i], true);
     ptr(child + 160, i === 4 ? 3456 : d); // One explicit shared drawable instance too.
     const at = 7072 + i * 64;
-    for (const n of [0, 5, 10, 15]) v.setFloat32(at + n * 4, 1, true);
+    for (const n of [0, 5, 10]) v.setFloat32(at + n * 4, 1, true);
     v.setFloat32(at + 48, i % 2 ? 2 : -2, true);
     v.setFloat32(at + 52, i < 2 ? 3 : i < 4 ? -3 : 0, true);
     v.setFloat32(at + 56, 0.75, true);

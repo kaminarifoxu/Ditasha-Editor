@@ -437,6 +437,10 @@ function rigidGeometry(data, matrix) {
   for (let i = 0; i < positions.length; i += 3) {
     // Undo GTA -> Three basis, transform in GTA coordinates, then restore basis.
     point.set(positions[i], -positions[i + 2], positions[i + 1]).applyMatrix4(matrix);
+    if (
+      ![point.x, point.y, point.z].every((v) => Number.isFinite(v) && Math.abs(v) <= 3.402823466e38)
+    )
+      throw Error('Invalid transformed vertex position.');
     positions.set([point.x, point.z, -point.y], i);
   }
   let normals = data.normals;

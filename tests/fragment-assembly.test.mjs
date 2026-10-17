@@ -12,6 +12,10 @@ test('Complete vehicle includes six wheel instances, placeholder donors and sepa
     full = ds[0];
   assert.equal(full.assembledVehicle, true);
   assert.equal(full.geometries.length, 14);
+  assert.ok(
+    full.geometries.every((g) => g.positions.every(Number.isFinite)),
+    'Native zero M44 is affine padding, not a perspective divide',
+  );
   const pristine = ds.filter((d) => d.fragmentState === 'Pristine');
   assert.equal(pristine.length, 6);
   assert.equal(ds.filter((d) => d.fragmentState === 'Damaged').length, 1);

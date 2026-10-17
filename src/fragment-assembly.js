@@ -59,8 +59,13 @@ export function fragmentChildren(r, main, inheritedBones) {
       const values = Array.from({ length: 16 }, (_, i) =>
         r.f32(transforms + 32 + c.index * 64 + i * 4),
       );
-      if (!values.every(Number.isFinite)) throw Error('Invalid fragment placement matrix.');
+      if (!values.every((v, i) => i % 4 === 3 || Number.isFinite(v)))
+        throw Error('Invalid fragment placement matrix.');
       transform = new Matrix4().fromArray(values);
+      // GTA uses only the affine 3x4 portion. Its unused fourth column can be
+      // zero (including M44); Three would otherwise divide vertex positions by zero.
+      for (const i of [3, 7, 11]) transform.elements[i] = 0;
+      transform.elements[15] = 1;
       // Native matrices use row-vector translation; fromArray transposes it for Three.
       transform.elements[12] += offset[0];
       transform.elements[13] += offset[1];
