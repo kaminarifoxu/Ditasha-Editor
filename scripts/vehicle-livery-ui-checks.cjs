@@ -292,6 +292,9 @@ module.exports = async function checkVehicleLivery(fixtures) {
     c.width = canvas.width;
     c.height = canvas.height;
     const ctx = c.getContext('2d');
+    // Unpremultiplied RGB alone cannot distinguish green at alpha 115/255.
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, c.width, c.height);
     ctx.drawImage(canvas, 0, 0);
     const pixels = ctx.getImageData(0, 0, c.width, c.height).data;
     let sum = 0;
