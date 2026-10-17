@@ -1,6 +1,7 @@
 import { decodeBC7 } from 'tex-decoder/build/esm/bc7.js';
 import { Matrix3, Matrix4, Quaternion, Vector3 } from 'three';
 import { deflateRaw, Inflate } from 'pako';
+import { fragmentPose, fragmentChildren, assembleFragments } from './fragment-assembly.js';
 import {
   MAX_DECODED_TEXTURE_BYTES,
   MAX_YTD_RESOURCE_BYTES,
@@ -457,7 +458,9 @@ function readDrawables(r, drawables, metadata = new Map()) {
   const cache = new Map(),
     shaderCache = new Map();
   let vertices = 0,
-    indexTotal = 0;
+    indexTotal = 0,
+    instanceVertices = 0,
+    instanceIndices = 0;
   function geometry(g) {
     if (cache.has(g)) return cache.get(g);
     const vb = r.ptr(g + 24),
@@ -557,10 +560,13 @@ function readDrawables(r, drawables, metadata = new Map()) {
     return result;
   }
   return drawables
-    .map((d, di) => {
-      const details = metadata.get(d) || {};
+    .map((entry, di) => {
+      const d = typeof entry === 'number' ? entry : entry.pointer;
+      const details = typeof entry === 'number' ? metadata.get(d) || {} : entry;
       try {
-        const bones = drawableBones(r, d);
+        const ownBones = drawableBones(r, d);
+        const bones =
+          details.boneMatrices || (ownBones.length ? ownBones : details.inheritedBones || []);
         const lods = [],
           shaderDrawable = r.ptr(d + 16) === null ? (details.shaderParent ?? d) : d,
           key = r.ptr(shaderDrawable + 16);
@@ -584,10 +590,14 @@ function readDrawables(r, drawables, metadata = new Map()) {
               if (g === null) continue;
               const data = geometry(g);
               if (!data) continue;
+              instanceVertices += data.positions.length / 3;
+              instanceIndices += data.indices.length;
+              if (instanceVertices > 2000000 || instanceIndices > 6000000)
+                throw Error('Assembled model exceeds 2 million vertices or 6 million indices.');
               const shaderIndex = mapping === null ? 0 : r.u16(mapping + gi * 2),
                 binding = info.bindings[shaderIndex];
               geometries.push({
-                ...rigidGeometry(data, rigid ? bones[boneIndex] : null),
+                ...rigidGeometry(data, rigid ? details.transform || bones[boneIndex] : null),
                 boneIndex,
                 name: 'Part ' + (mi + 1) + ' / Mesh ' + (gi + 1),
                 part: mi,
@@ -610,6 +620,10 @@ function readDrawables(r, drawables, metadata = new Map()) {
           lods,
           ...info,
           fragmentChild: details.fragmentChild || false,
+          fragmentState: details.fragmentState,
+          fragmentIndex: details.fragmentIndex,
+          fragmentBoneTag: details.fragmentBoneTag,
+          sourceDrawable: d,
         };
       } catch (e) {
         if (!details.fragmentChild) throw e;
@@ -631,38 +645,34 @@ export function readYdr(buffer) {
 }
 export function readYft(buffer) {
   const r = new Resource(buffer, 162),
-    offsets = [],
-    metadata = new Map();
+    offsets = [];
   const main = r.ptr(48);
   if (main !== null) offsets.push(main);
   const count = r.u32(72);
   if (count) offsets.push(...r.list(56, count));
   const cloth = r.ptr(248);
   if (cloth !== null) offsets.push(cloth);
-  // FragType.PhysicsLODGroup (0xF0), LOD1 (0x10), Children (0xD0/0x11D).
-  // Pristine and damaged child drawables are separate inspection choices, not stacked.
-  const physics = r.ptr(240),
-    physicsLod = physics === null ? null : r.ptr(physics + 16);
-  if (physicsLod !== null) {
-    const children = r.list(physicsLod + 208, r.bytes[physicsLod + 285]);
-    children.forEach((child, index) => {
-      for (const [offset, label] of [
-        [160, 'Pristine'],
-        [168, 'Damaged'],
-      ]) {
-        const d = r.ptr(child + offset);
-        if (d === null || offsets.includes(d)) continue;
-        offsets.push(d);
-        metadata.set(d, {
-          name: `Fragment ${index + 1} · bone ${r.u16(child + 18)} · ${label}`,
-          shaderParent: main,
-          fragmentChild: true,
-        });
-      }
-    });
+  let inheritedBones = main === null ? [] : drawableBones(r, main);
+  let children = [];
+  try {
+    const pose = fragmentPose(r);
+    if (pose?.length) inheritedBones = inheritedBones.map((bone, i) => pose[i] || bone);
+  } catch (e) {
+    (r.fragmentWarnings ||= []).push('Fragment pose: ' + e.message);
   }
-  if (!offsets.length) throw Error('YFT tidak memiliki drawable yang dapat ditampilkan.');
-  const result = requireGeometry(readDrawables(r, [...new Set(offsets)], metadata));
+  try {
+    children = fragmentChildren(r, main, inheritedBones);
+  } catch (e) {
+    (r.fragmentWarnings ||= []).push('Fragment assembly: ' + e.message);
+  }
+  const entries = [...new Set(offsets)].map((pointer) => ({
+    pointer,
+    boneMatrices: pointer === main ? inheritedBones : undefined,
+  }));
+  entries.push(...children);
+  if (!entries.length) throw Error('YFT tidak memiliki drawable yang dapat ditampilkan.');
+  const result = requireGeometry(readDrawables(r, entries));
+  assembleFragments(result, main);
   if (r.fragmentWarnings?.length) {
     result[0].geometryWarnings = [...r.fragmentWarnings];
     result[0].warnings = [...result[0].warnings, ...r.fragmentWarnings];

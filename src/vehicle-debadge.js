@@ -83,14 +83,14 @@ export function analyzeDebadge(buffer) {
   for (const d of drawables)
     for (const lod of d.lods)
       for (const g of lod.geometries) {
-        if (!cache.has(g.sourceGeometry)) {
+        if (!cache.has(g.positions)) {
           const parts = connectedParts(g);
           totalParts += parts.length;
           if (totalParts > 100000) throw Error('Too many disconnected parts (maximum 100,000).');
-          cache.set(g.sourceGeometry, parts);
+          cache.set(g.positions, parts);
         }
         // Keep only component data; the vertex/index buffers remain shared inside this result.
-        g.parts = cache.get(g.sourceGeometry);
+        g.parts = cache.get(g.positions);
       }
   return drawables;
 }

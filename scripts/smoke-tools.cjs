@@ -241,6 +241,15 @@ app.whenReady().then(async () => {
     )
       throw Error('Large YTD edit/export did not preserve source textures or mirrored pixels');
     delete largeYtdReport.data;
+    await win.loadFile(path.resolve('ui/index.html'));
+    const { wheelYftFixture } = await import('../tests/fixtures/wheel-yft.mjs');
+    const wheelReport = await win.webContents.executeJavaScript(
+      '(' +
+        require('./wheel-yft-ui-checks.cjs').toString() +
+        ')(' +
+        JSON.stringify([...new Uint8Array(wheelYftFixture(viewerModel))]) +
+        ')',
+    );
     await Promise.all(captures);
     console.log(
       'PASS: ' +
@@ -255,6 +264,7 @@ app.whenReady().then(async () => {
           manualStudioReport,
           debadgeReport,
           largeYtdReport,
+          wheelReport,
         }),
     );
     win.destroy();

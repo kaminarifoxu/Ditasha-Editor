@@ -1,3 +1,13 @@
+# v1.27.2 preview — Complete YFT vehicle and wheel assembly
+
+The default YFT drawable now includes readable pristine physics children instead of displaying the vehicle body alone. Wheels retain per-child placement matrices plus the physics position offset, right-side orientation, inherited shader bindings and root default pose. Empty wheel drawable placeholders reuse the appropriate available front/rear wheel geometry at their own placement; shared drawable pointers no longer collapse distinct wheel instances. Individual pristine/damaged inspection choices remain available, and damaged alternatives are excluded from the default assembly.
+
+The shared parser supplies Texture & Model, Model viewer, Photoshoot, File Manager and native vehicle preview consumers. Part numbers remain distinct within the assembled view. Native geometry/index identities remain intact; the input resource is not rewritten by preview assembly. Debadge component bounds are cached by positioned vertex buffers so different instances of a shared wheel do not inherit another wheel's focus bounds. Existing native geometry/assembled-instance budgets still apply, and damaged/unreadable children produce warnings without discarding a readable body.
+
+Validation includes a six-wheel synthetic fragment with empty placeholders, shared donor pointers, front/rear selection, right-wheel orientation, native position offset, root default pose, unchanged input bytes and placement-specific component bounds. Windows renderer checks exercise the complete default view, individual fragment choices, Photoshoot and Texture & Model. The previously supplied GS base/high YFT files also parse into complete assemblies with their four readable wheel-related fragments and no warnings. The armored vehicle in the new screenshot has not been supplied as YFT/YTD, so that exact vehicle remains unverified.
+
+Layout/transform references: https://github.com/dexyfex/CodeWalker/blob/master/CodeWalker.Core/GameFiles/Resources/Frag.cs and https://github.com/dexyfex/CodeWalker/blob/master/CodeWalker/Rendering/Renderer.cs and https://github.com/dexyfex/CodeWalker/blob/master/CodeWalker/Rendering/Renderable.cs. Implementation is original DITASHA JavaScript; CodeWalker binaries are not bundled.
+
 # v1.27.1 preview — Large vehicle YTD support
 
 Fixes the app-side “Decoded texture limit: 128 MB” rejection for large vehicle dictionaries. YTD decoding now permits up to 512 MB of RGBA pixels; the editor accounts for already-open workspace textures before allocating another dictionary. Model viewer and Debadge use the same bounded texture budget. Compressed input remains limited to 64 MB, individual textures to 16 megapixels, and other model/archive limits are unchanged.
