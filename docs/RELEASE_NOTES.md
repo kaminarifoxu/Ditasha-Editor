@@ -1,3 +1,15 @@
+# v1.28.0 preview — Guided ped rig review and deformation tests
+
+Auto Rig exposes Muto's actual reference-body choices (Automatic/Male/Female), target height (0 or 0.5–3 m), finger/face detail, hand/face templates and head-attached parts. All choices retain the GTA humanoid skeleton; female reference weights are not a different arbitrary skeleton import. Options are validated in IPC and applied after model import as well, so a scene-changing GLB cannot silently revert them. Native LOD generation and multi-body weight voting remain enabled.
+
+The result reports weighted vertex counts, unweighted vertices, >4 influences, normalization/invalid-weight issues and missing UV, diffuse textures or LOD coverage. Static arm and leg stress poses are evaluated by Blender's actual armature modifiers and exposed alongside the initial pose. Each pose uses a separate bounded preview file, preserving source resolution/export quality and the viewing camera on pose switches. Bone matrices and pose mode are restored even if a pose fails; pose tests never re-export game resources. Save stays disabled until the selected preview loads successfully.
+
+A token-guarded correction-project export copies the generated .blend through a Save dialog. A recoverable failed rig can offer its project without being marked as a successful ped export. Images are packed where available; packing failures are reported. Copying or canceling a correction project does not commit/discard the staged game resource. Manual marker, weight-paint, material and LOD corrections are performed in Blender and require a subsequent export.
+
+Validation includes real Blender 5.2.2 (official bpy) armature deformation, distinct arm/leg geometry, shared preview textures, bone/pose restoration on success/failure, evaluated-object cleanup and unchanged native sentinel bytes; rig-option validation, remaining opaque IPC tokens, pose allowlists and relocation after saving; and renderer checks for option forwarding, quality reporting, delayed/failed pose loads, save gating, recovery and correction-project copying. Existing editor/native/creative/IDE checks continue to run. This is not in-game animation certification for an arbitrary user model.
+
+See docs/PED_WORKFLOW.md and docs/NATIVE_BUILD.md. Tutorial sources were reviewed through available descriptions and chapter lists; full subtitle access was rate-limited. The workflow is implemented with DITASHA's pinned Muto/Sollumz engine rather than assuming every manual tutorial step is automated.
+
 # v1.27.2 preview — Complete YFT vehicle and wheel assembly
 
 The default YFT drawable now includes readable pristine physics children instead of displaying the vehicle body alone. Wheels retain per-child placement matrices plus the physics position offset, right-side orientation, inherited shader bindings and root default pose. Empty wheel drawable placeholders reuse the appropriate available front/rear wheel geometry at their own placement; shared drawable pointers no longer collapse distinct wheel instances. Individual pristine/damaged inspection choices remain available, and damaged alternatives are excluded from the default assembly.

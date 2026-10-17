@@ -20,6 +20,11 @@ export function mountNativeBuild({
   dialog.id = 'nativeBuildDialog';
   dialog.innerHTML = `<div class="studio-dialog-head"><div><span class="eyebrow">OFFLINE · BLENDER ENGINE</span><h2 id="nbTitle">Auto rig ped</h2></div><button id="nbClose" aria-label="Kembali ke workspace">Kembali</button></div><div class="native-build-layout"><aside><h3>1 · Persiapan engine</h3><button id="nbSetup" class="primary">Download & set up</button><p class="muted">Pasang Blender 5.2.2, Sollumz dan Muto otomatis. Download awal sekitar 410 MB + dependency; siapkan ruang kosong 3 GB. Setelah terpasang, rigging berjalan offline.</p><progress id="nbSetupProgress" hidden max="100" value="0" aria-label="Download engine"></progress><button data-pick="engine">Pilih blender.exe</button><p id="nbEngine" class="muted">Belum dipilih</p><button id="nbProbe">Periksa engine & add-on</button><p class="muted">Blender 5.2 direkomendasikan untuk ped; kendaraan 4.2+. Sollumz 2.9 dan dependency native szio/PyMateria. Rigging memerlukan Muto Ped Rig aktif. Instal add-on di Blender sekali; build berikutnya berjalan offline.</p><div class="native-links"><button data-doc="blender">Blender</button><button data-doc="sollumz">Sollumz</button><button data-doc="muto">Muto Ped Rig</button></div><label hidden>Operasi<select id="nbMode"><option value="ped">Auto rig humanoid → ped FiveM</option><option value="debadge">Debadge native · seluruh LOD</option><option value="strobo">Transfer strobo donor → YFT</option></select></label><button data-pick="output">Folder hasil</button><p id="nbOutput" class="muted">Hasil ditulis ke subfolder baru; input asli tidak ditimpa.</p></aside><section><div id="nbPed"><h3>2 · Pilih model humanoid</h3><details class="rig-guide"><summary>Cara pakai Auto Rig</summary><ol class="muted"><li>Klik Download & set up sekali dan tunggu selesai.</li><li>Pilih model GLB / FBX / OBJ dalam A/T-pose. Untuk OBJ, letakkan MTL dan tekstur di folder yang sama.</li><li>Isi nama ped dan klik Buat preview rig.</li><li>Periksa hasil rig di preview 3D. Model belum disimpan ke folder tujuan.</li><li>Klik Simpan hasil ped untuk memilih folder tujuan. Tes animasi ped pada server FiveM uji.</li></ol></details><button data-pick="ped">Pilih GLB / FBX / OBJ humanoid</button><p data-file="ped" class="muted">Belum dipilih</p><label>Nama ped<input id="nbPedName" maxlength="32" value="ditasha_ped"></label><p class="muted">Gunakan humanoid dalam A/T-pose. Preview hasil rig sebelum disimpan; koreksi lanjutan tersedia di file .blend.</p></div><div id="nbVehicle" hidden><button data-pick="vehicle">Pilih YFT dasar kendaraan</button><p data-file="vehicle" class="muted">Taruh _hi.YFT dan YTD pasangannya di folder yang sama.</p></div><div id="nbDebadge" hidden><h3>Debadge native</h3><p class="muted">Analisis nama mesh/material/shader badge dan emblem pada semua LOD. Pilih kandidat yang benar sebelum build; engine menghapus face badge tanpa memotong mesh lain yang memakai material berbeda.</p><button id="nbAnalyze">Analisis badge</button><div id="nbCandidates"></div></div><div id="nbStrobo" hidden><h3>Strobo dari donor</h3><p class="muted">Pilih kendaraan donor dengan mesh rigid terikat ke siren1–20 dan tekstur lampu embedded. Target harus belum memakai bone siren yang sama. Housing, donor skinned dan lampu bertekstur eksternal tidak dipindahkan otomatis.</p><button data-pick="donor">YFT donor</button><p data-file="donor" class="muted">Belum dipilih</p><button data-pick="carcols">carcols.meta donor</button><p data-file="carcols" class="muted">Belum dipilih</p><button data-pick="variations">carvariations.meta target</button><p data-file="variations" class="muted">Belum dipilih</p><button data-pick="vehicles">vehicles.meta target</button><p data-file="vehicles" class="muted">Belum dipilih</p><div class="studio-fields"><label>ID siren baru<input id="nbSirenId" type="number" min="1" max="254" value="100"></label><label>ID donor · 0=auto<input id="nbDonorId" type="number" min="0" max="65534" value="0"></label><label>Offset X · kanan<input id="nbX" type="number" step=".01" value="0"></label><label>Offset Y · depan<input id="nbY" type="number" step=".01" value="0"></label><label>Offset Z · atas<input id="nbZ" type="number" step=".01" value="0"></label><label>Scale<input id="nbScale" type="number" min=".1" max="5" step=".1" value="1"></label></div><p class="muted">Offset memakai sumbu GTA/Blender dalam meter, bukan sumbu preview Three.js. Hasil berupa patch resource; resource kendaraan asli tetap dimuat dahulu. Gunakan ID siren yang tidak berbenturan di server.</p></div><div class="native-actions"><button id="nbRun" class="primary">Build native</button><button id="nbCancel" disabled>Batalkan build</button><button id="nbSave" class="primary" disabled>Simpan hasil ped</button><button id="nbDiscard" disabled>Buang hasil sementara</button><button id="nbReveal" disabled>Buka folder hasil</button></div></section><aside><h3>Status build</h3><p id="nbStatus" role="status">Periksa engine sebelum build.</p><div id="nbReport"></div><details><summary>Log engine</summary><pre id="nbLog"></pre></details><p class="muted">File hasil dan report diperiksa sebelum status sukses. Rigging, ekspor native dan kompatibilitas game tetap bergantung pada model dan engine yang terpasang. Tes spawn/animasi/siren pada server uji sebelum digunakan.</p></aside></div>`;
   document.body.append(dialog);
+  const rigSettings = document.createElement('details');
+  rigSettings.className = 'rig-settings';
+  rigSettings.open = true;
+  rigSettings.innerHTML = `<summary>Referensi tubuh & kualitas rig</summary><div class="studio-fields"><label>Referensi weights<select id="nbReference"><option value="auto">Auto · paling sesuai</option><option value="mp_m">Laki-laki · freemode</option><option value="mp_f">Perempuan · freemode</option></select></label><label>Tinggi target · meter<input id="nbHeight" type="number" min="0" max="3" step="0.01" value="0"></label></div><p class="muted">0 = ikuti ukuran model setelah koreksi unit engine. Tinggi khusus: 0,5–3 m. Semua pilihan memakai skeleton humanoid GTA; referensi mengatur sumber transfer weights.</p><div class="rig-option-grid"><label class="check"><input id="nbFingers" type="checkbox" checked>Rig jari</label><label class="check"><input id="nbFace" type="checkbox" checked>Rig wajah</label><label class="check"><input id="nbHandTemplate" type="checkbox" checked>Template tangan</label><label class="check"><input id="nbFaceTemplate" type="checkbox" checked>Template wajah</label><label class="check"><input id="nbHeadParts" type="checkbox" checked>Rambut/topi ikut kepala</label></div><p class="muted">Template tangan mengikuti opsi jari; template wajah mengikuti opsi wajah. LOD dibuat otomatis. Model anak atau proporsi ekstrem tetap perlu pemeriksaan marker dan weights.</p>`;
+  dialog.querySelector('#nbPed').append(rigSettings);
   const debadge = mountDebadge({
     download,
     toast,
@@ -37,6 +42,8 @@ export function mountNativeBuild({
     requesting = false,
     candidateKey = '',
     loadedPreviewId = null,
+    poseSerial = 0,
+    previewReady = false,
     displayedMode = 'ped';
   const previewRoot = document.createElement('section');
   previewRoot.className = 'native-preview';
@@ -55,6 +62,35 @@ export function mountNativeBuild({
     },
     onTransform: (offset) => ['nbX', 'nbY', 'nbZ'].forEach((id, i) => ($(id).value = offset[i])),
   });
+  const poseControls = document.createElement('div');
+  poseControls.className = 'rig-pose-controls';
+  poseControls.hidden = true;
+  poseControls.innerHTML =
+    '<label>Pose uji<select id="nbPedPose"><option value="rest">Pose awal</option></select></label><span class="muted">Pose statis untuk memeriksa deformasi weights. Periksa juga gerakan di FiveM.</span>';
+  previewRoot.prepend(poseControls);
+  const poseSelect = $('nbPedPose');
+  async function loadPreview(id, pose = 'rest', preserveCamera = false) {
+    const serial = ++poseSerial;
+    previewReady = false;
+    $('nbSave').disabled = true;
+    try {
+      const data = await api().preview(id, pose);
+      if (serial !== poseSerial || id !== loadedPreviewId || id !== state.previewId) return;
+      await preview.load(data, { preserveCamera });
+      if (serial !== poseSerial || id !== loadedPreviewId) return;
+      syncTransform();
+      preview.updateSelection(selectedNames());
+      previewReady = true;
+      draw();
+    } catch (e) {
+      if (serial !== poseSerial) return;
+      preview.clear();
+      previewReady = false;
+      toast('Preview: ' + e.message);
+    }
+  }
+  poseSelect.onchange = () =>
+    loadedPreviewId && loadPreview(loadedPreviewId, poseSelect.value, true);
   const syncTransform = () =>
     preview.setTransform(
       ['nbX', 'nbY', 'nbZ'].map((id) => Number($(id).value)),
@@ -77,6 +113,8 @@ export function mountNativeBuild({
     if (value !== displayedMode) {
       preview.clear();
       loadedPreviewId = null;
+      ++poseSerial;
+      previewReady = false;
       displayedMode = value;
     }
     $('nbPed').hidden = value !== 'ped';
@@ -110,20 +148,111 @@ export function mountNativeBuild({
     dialog
       .querySelectorAll('[data-pick],#nbMode,#nbRun,#nbAnalyze,#nbProbe,#nbPreviewLoad,#nbSetup')
       .forEach((e) => (e.disabled = state.running || requesting));
+    rigSettings
+      .querySelectorAll('input,select')
+      .forEach((e) => (e.disabled = state.running || requesting || !!state.stagedId));
+    $('nbHandTemplate').disabled ||= !$('nbFingers').checked;
+    $('nbFaceTemplate').disabled ||= !$('nbFace').checked;
+    poseSelect.disabled = state.running;
     $('nbCancel').disabled = !state.running;
     $('nbReveal').disabled = !state.output;
-    $('nbSave').disabled = state.running || requesting || !state.stagedId || !state.previewId;
+    $('nbSave').disabled =
+      state.running || requesting || !state.stagedId || !state.previewId || !previewReady;
     $('nbDiscard').disabled = state.running || requesting || !state.stagedId;
     if ($('nbMode').value === 'ped')
       previewRoot.hidden = !state.previewId || !matchesPreview() || dialog.hidden;
     $('nbReport').replaceChildren();
     const report = state.report;
+    poseControls.hidden = $('nbMode').value !== 'ped' || !report?.preview?.poses?.length;
     if (!report) return;
     if (report.engine) {
       const p = document.createElement('p');
       p.className = 'muted';
       p.textContent = `Blender ${report.engine.blender} · Sollumz ${report.engine.sollumz ? 'aktif' : 'belum aktif'} · native ${report.engine.native ? 'tersedia' : 'belum tersedia'} · Muto ${report.engine.muto ? 'aktif' : 'belum aktif'}`;
       $('nbReport').append(p);
+    }
+    if (report.pedOptions) {
+      const p = document.createElement('p');
+      p.textContent =
+        'Referensi: ' +
+        ({ auto: 'Auto', mp_m: 'Laki-laki', mp_f: 'Perempuan' }[report.pedOptions.reference] ||
+          'Auto') +
+        ' · Tinggi: ' +
+        (report.pedOptions.height ? report.pedOptions.height + ' m' : 'ukuran model');
+      $('nbReport').append(p);
+    }
+    if (report.rigging?.steps) {
+      const details = document.createElement('details'),
+        summary = document.createElement('summary'),
+        list = document.createElement('ul');
+      summary.textContent = 'Tahap rig dari engine';
+      const labels = {
+        strip: 'Siapkan model',
+        orient: 'Orientasi dan skala',
+        markers: 'Marker anatomi',
+        fit: 'Fit skeleton',
+        weights: 'Transfer weights',
+        gta_rest: 'Pose dasar GTA',
+        validate: 'Validasi',
+        export: 'Ekspor native',
+      };
+      for (const [key, value] of Object.entries(report.rigging.steps)) {
+        const item = document.createElement('li');
+        item.textContent =
+          (labels[key] || key) +
+          ' · ' +
+          (value === 'FINISHED' ? 'Selesai' : value === 'SKIPPED' ? 'Dilewati' : 'Perlu diperiksa');
+        list.append(item);
+      }
+      details.append(summary, list);
+      $('nbReport').append(details);
+    }
+    if (report.quality) {
+      const q = report.quality,
+        list = document.createElement('dl');
+      list.className = 'rig-quality';
+      for (const [label, value] of [
+        ['Vertex diperiksa', q.vertices],
+        ['Tulang', q.bones],
+        ['Tanpa weights', q.unweighted],
+        ['Lebih dari 4 pengaruh', q.overFour],
+        ['Total weights bermasalah', q.unnormalized],
+        ['Weights tidak valid', q.invalidWeights],
+      ]) {
+        const term = document.createElement('dt'),
+          description = document.createElement('dd');
+        term.textContent = label;
+        description.textContent = Number(value || 0).toLocaleString('id-ID');
+        list.append(term, description);
+      }
+      const guide = document.createElement('p');
+      guide.className = 'muted';
+      guide.textContent =
+        'Setelah disimpan, .blend hasil tersedia untuk koreksi marker, weight painting, material dan LOD di Blender. Perubahan .blend perlu diekspor ulang untuk memperbarui file game.';
+      $('nbReport').append(list, guide);
+    }
+    if (state.reviewId && api()?.saveReview) {
+      const copy = document.createElement('button');
+      copy.textContent = 'Salin .blend untuk koreksi';
+      copy.disabled = state.running || requesting;
+      copy.onclick = async () => {
+        if (requesting || state.running) return;
+        const id = state.reviewId;
+        requesting = true;
+        draw();
+        try {
+          if (await api().saveReview(id))
+            toast(
+              'Proyek Blender disalin. Koreksi weights/material, lalu ekspor ulang dari Blender.',
+            );
+        } catch (e) {
+          toast(e.message);
+        } finally {
+          requesting = false;
+          draw();
+        }
+      };
+      $('nbReport').append(copy);
     }
     if (state.status === 'error' && report.error) {
       const p = document.createElement('p');
@@ -184,19 +313,19 @@ export function mountNativeBuild({
     ) {
       const id = state.previewId;
       loadedPreviewId = id;
-      api()
-        ?.preview(id)
-        .then((data) => {
-          if (id !== loadedPreviewId) return;
-          return preview.load(data).then(() => {
-            syncTransform();
-            preview.updateSelection(selectedNames());
-          });
-        })
-        .catch((e) => {
-          preview.clear();
-          toast('Preview: ' + e.message);
-        });
+      const poses = (report.preview?.poses || [{ id: 'rest', label: 'Pose awal' }]).filter((p) =>
+        ['rest', 'arms', 'legs'].includes(p.id),
+      );
+      poseSelect.replaceChildren(
+        ...poses.map((p) => {
+          const option = document.createElement('option');
+          option.value = p.id;
+          option.textContent = p.label;
+          return option;
+        }),
+      );
+      poseSelect.value = 'rest';
+      loadPreview(id);
     }
   }
   async function refresh() {
@@ -224,6 +353,15 @@ export function mountNativeBuild({
       state = await api().start({
         mode: task,
         name: $('nbPedName').value,
+        pedOptions: {
+          reference: $('nbReference').value,
+          height: Number($('nbHeight').value),
+          fingers: $('nbFingers').checked,
+          face: $('nbFace').checked,
+          handTemplate: $('nbHandTemplate').checked,
+          faceTemplate: $('nbFaceTemplate').checked,
+          headParts: $('nbHeadParts').checked,
+        },
         inputs: { ...inputs },
         selected,
         offset: ['nbX', 'nbY', 'nbZ'].map((id) => Number($(id).value)),
@@ -306,7 +444,7 @@ export function mountNativeBuild({
     activate(ped ? 'home' : 'vehicles');
   };
   $('nbSave').onclick = async () => {
-    if (!state.stagedId || requesting) return;
+    if (!state.stagedId || requesting || !previewReady) return;
     requesting = true;
     draw();
     try {
@@ -329,6 +467,8 @@ export function mountNativeBuild({
     try {
       await api().discard(state.stagedId);
       loadedPreviewId = null;
+      ++poseSerial;
+      previewReady = false;
       preview.clear();
       await refresh();
     } catch (error) {
@@ -352,6 +492,7 @@ export function mountNativeBuild({
     refresh();
   }
   $('nbPedName').oninput = () => setProject('rig', $('nbPedName').value);
+  $('nbFingers').onchange = $('nbFace').onchange = () => draw();
   trigger.onclick = () => open('ped');
   mode();
   return {

@@ -85,6 +85,9 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
         showMode();
       } else if (mode === 'debadge' && hit.object.userData.candidate)
         onPick(hit.object.userData.candidate);
+      else if (mode === 'ped')
+        $('nbPreviewStatus').textContent =
+          hit.object.name + ' · periksa deformasi pada setiap pose.';
       else
         $('nbPreviewStatus').textContent =
           hit.object.name + ' · bukan kandidat badge dari analisis engine.';
@@ -151,7 +154,7 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
     donor.scale.setScalar(scale);
     render();
   }
-  async function load(data) {
+  async function load(data, { preserveCamera = false } = {}) {
     clear();
     const revision = serial;
     if (
@@ -234,9 +237,12 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
     }
     setTransform([0, 0, 0], 1);
     showMode();
-    fit();
+    if (!preserveCamera) fit();
     $('nbPreviewStatus').textContent =
-      triangles.toLocaleString() + ' triangles · merah = badge dipilih · sumbu = posisi donor.';
+      triangles.toLocaleString() +
+      (mode === 'ped'
+        ? ' triangles · pose uji weights hasil Blender.'
+        : ' triangles · merah = badge dipilih · sumbu = posisi donor.');
   }
   $('nbPreviewFit').onclick = fit;
   $('nbPreviewPlace').onclick = () => {

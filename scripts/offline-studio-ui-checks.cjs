@@ -312,8 +312,36 @@ module.exports = async function checkOfflineStudio(fixtures) {
   $('nbClose').click();
   $('openNativeBuild').click();
   await sleep(40);
+  $('nbReference').value = 'mp_f';
+  $('nbHeight').value = '1.62';
+  $('nbFingers').checked = false;
+  $('nbFingers').dispatchEvent(new Event('change'));
+  assert($('nbHandTemplate').disabled, 'Hand template must follow the fingers option');
+  let resolveArmPose,
+    armRequested = false,
+    failLegPose = false;
+  const basePreview = window.ditashaNative.preview;
+  window.ditashaNative.preview = async (id, pose = 'rest') => {
+    assert(id === 'ped-result-preview', 'Pose did not use the current preview token');
+    const data = await basePreview();
+    if (pose === 'arms') {
+      armRequested = true;
+      await new Promise((resolve) => {
+        resolveArmPose = resolve;
+      });
+      data.meshes[0].positions[8] = 1;
+    }
+    if (pose === 'legs' && failLegPose) throw Error('Pose uji sengaja gagal');
+    return data;
+  };
   window.ditashaNative.start = async (payload) => {
     assert(payload.mode === 'ped', 'Rig preview requested wrong operation');
+    assert(
+      payload.pedOptions.reference === 'mp_f' &&
+        payload.pedOptions.height === 1.62 &&
+        !payload.pedOptions.fingers,
+      'Rig settings did not reach the native job',
+    );
     nativeState = {
       ...nativeState,
       status: 'success',
@@ -321,12 +349,38 @@ module.exports = async function checkOfflineStudio(fixtures) {
       output: null,
       stagedId: 'staged-ped',
       previewId: 'ped-result-preview',
-      report: { ok: true, mode: 'ped' },
+      reviewId: 'review-project',
+      report: {
+        ok: true,
+        mode: 'ped',
+        pedOptions: payload.pedOptions,
+        preview: {
+          poses: [
+            { id: 'rest', label: 'Pose awal' },
+            { id: 'arms', label: 'Uji lengan' },
+            { id: 'legs', label: 'Uji kaki' },
+          ],
+        },
+        quality: {
+          vertices: 6,
+          bones: 128,
+          unweighted: 0,
+          overFour: 0,
+          unnormalized: 0,
+          invalidWeights: 0,
+        },
+      },
       message: 'Preview rig siap.',
     };
     return nativeState;
   };
   let savedPed = false;
+  let copiedReview = false;
+  window.ditashaNative.saveReview = async (id) => {
+    assert(id === 'review-project', 'Correction project token lost');
+    copiedReview = true;
+    return true;
+  };
   window.ditashaNative.save = async (id) => {
     assert(id === 'staged-ped', 'Save did not use staged result');
     savedPed = true;
@@ -347,6 +401,35 @@ module.exports = async function checkOfflineStudio(fixtures) {
     'Rig result did not show a preview before save',
   );
   assert(!savedPed, 'Rig result was saved before user approval');
+  assert(
+    document.querySelector('.rig-quality') && $('nbPedPose').options.length === 3,
+    'Rig quality report or test poses missing',
+  );
+  $('nbPedPose').value = 'arms';
+  $('nbPedPose').dispatchEvent(new Event('change'));
+  await wait(
+    () => armRequested && $('nbSave').disabled,
+    'Saving was enabled while the pose was still loading',
+  );
+  $('nbSave').click();
+  assert(!savedPed, 'Unloaded pose bypassed the preview-before-save gate');
+  resolveArmPose();
+  await wait(() => !$('nbSave').disabled, 'Arm pose did not finish loading');
+  failLegPose = true;
+  $('nbPedPose').value = 'legs';
+  $('nbPedPose').dispatchEvent(new Event('change'));
+  await sleep(100);
+  assert($('nbSave').disabled, 'A failed pose preview must not enable Save');
+  $('nbPedPose').value = 'rest';
+  $('nbPedPose').dispatchEvent(new Event('change'));
+  await wait(() => !$('nbSave').disabled, 'Rest pose did not recover after a failed pose');
+  [...$('nbReport').querySelectorAll('button')]
+    .find((b) => b.textContent.includes('.blend'))
+    .click();
+  await wait(
+    () => copiedReview && !$('nbSave').disabled,
+    'Correction project copy did not restore the save controls',
+  );
   assert(
     window.ditashaWorkspace.unsavedItems().some((v) => v.name.includes('Hasil rig')),
     'Staged rig is not tracked as unsaved',

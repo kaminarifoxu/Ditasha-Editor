@@ -5,6 +5,7 @@ const fs = require('node:fs/promises'),
 const { spawn } = require('node:child_process');
 const { randomUUID } = require('node:crypto');
 const { setupNative, managedEnv } = require('./native-setup.cjs');
+const PED_POSES = { rest: 'preview.json', arms: 'preview-arms.json', legs: 'preview-legs.json' };
 const PICK_TYPES = {
   engine: { name: 'Blender', extensions: process.platform === 'win32' ? ['exe'] : ['*'] },
   ped: { name: 'Humanoid model', extensions: ['glb', 'fbx', 'obj'] },
@@ -24,6 +25,34 @@ function validateJob(payload) {
     throw Error('Mode build tidak valid.');
   if (payload.mode === 'ped' && !/^[a-z][a-z0-9_]{2,31}$/.test(payload.name || ''))
     throw Error('Nama ped: 3–32 huruf kecil/angka/underscore, diawali huruf.');
+  if (
+    payload.pedOptions !== undefined &&
+    (!payload.pedOptions ||
+      typeof payload.pedOptions !== 'object' ||
+      Array.isArray(payload.pedOptions))
+  )
+    throw Error('Opsi rig tidak valid.');
+  const pedOptions = {
+    reference: 'auto',
+    height: 0,
+    fingers: true,
+    face: true,
+    handTemplate: true,
+    faceTemplate: true,
+    headParts: true,
+    ...payload.pedOptions,
+  };
+  if (payload.mode === 'ped') {
+    if (
+      !['auto', 'mp_m', 'mp_f'].includes(pedOptions.reference) ||
+      !Number.isFinite(pedOptions.height) ||
+      (pedOptions.height !== 0 && (pedOptions.height < 0.5 || pedOptions.height > 3))
+    )
+      throw Error('Referensi tubuh tidak valid atau tinggi di luar 0,5–3 meter (0 = otomatis).');
+    for (const key of ['fingers', 'face', 'handTemplate', 'faceTemplate', 'headParts'])
+      if (typeof pedOptions[key] !== 'boolean')
+        throw Error('Opsi rig harus bernilai aktif/nonaktif.');
+  }
   const selected = payload.selected || [];
   if (
     !Array.isArray(selected) ||
@@ -46,7 +75,20 @@ function validateJob(payload) {
   const donorSirenId = payload.donorSirenId ?? 0;
   if (!Number.isInteger(donorSirenId) || donorSirenId < 0 || donorSirenId > 65534)
     throw Error('ID donor 0 (otomatis tunggal) atau 1–65534.');
-  return { mode: payload.mode, name: payload.name, selected, offset, scale, sirenId, donorSirenId };
+  return {
+    mode: payload.mode,
+    name: payload.name,
+    selected,
+    offset,
+    scale,
+    sirenId,
+    donorSirenId,
+    pedOptions: Object.fromEntries(
+      ['reference', 'height', 'fingers', 'face', 'handTemplate', 'faceTemplate', 'headParts'].map(
+        (k) => [k, pedOptions[k]],
+      ),
+    ),
+  };
 }
 function blenderArgs(script, job) {
   return [
@@ -66,6 +108,7 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
     child = null,
     running = false,
     preview = null,
+    reviewFile = null,
     managedRoot = null,
     setupController = null,
     stagedPed = null;
@@ -236,12 +279,15 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
       });
     return { ...state, running, engine: engine ? path.basename(engine) : null };
   });
-  ipcMain.handle('ditasha:native-preview', async (event, id) => {
+  ipcMain.handle('ditasha:native-preview', async (event, id, pose = 'rest') => {
     trusted(event);
     if (!preview || preview.id !== id) throw Error('Preview kedaluwarsa; muat ulang preview.');
-    const stat = await fs.stat(preview.path);
+    if (!Object.hasOwn(PED_POSES, pose) || (pose !== 'rest' && !preview.poses?.includes(pose)))
+      throw Error('Pose preview tidak tersedia.');
+    const file = path.join(path.dirname(preview.path), PED_POSES[pose]);
+    const stat = await fs.stat(file);
     if (stat.size > 48 * 1024 * 1024) throw Error('Preview melebihi batas 48 MB.');
-    return JSON.parse(await fs.readFile(preview.path, 'utf8'));
+    return JSON.parse(await fs.readFile(file, 'utf8'));
   });
   ipcMain.handle('ditasha:native-doc', async (event, kind) => {
     trusted(event);
@@ -269,6 +315,7 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
     await fs.rm(stagedPed.root, { recursive: true, force: true });
     stagedPed = null;
     preview = null;
+    reviewFile = null;
     state = {
       status: 'idle',
       message: 'Hasil sementara dibuang.',
@@ -299,6 +346,7 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
           force: false,
         });
       preview.path = path.join(destination, 'preview.json');
+      if (reviewFile) reviewFile.path = path.join(destination, 'ditasha-result.blend');
       state.output = destination;
       delete state.stagedId;
       state.message = 'Resource ped disimpan. Uji spawn dan animasi pada server FiveM.';
@@ -316,6 +364,33 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
     trusted(event);
     if (state.output) await shell.openPath(state.output);
     return true;
+  });
+  ipcMain.handle('ditasha:native-save-review', async (event, id) => {
+    trusted(event);
+    if (running || !reviewFile || reviewFile.id !== id)
+      throw Error('Proyek koreksi tidak tersedia.');
+    const source = reviewFile.path;
+    const stat = await fs.stat(source);
+    if (!stat.isFile() || stat.size > 1024 * 1024 * 1024)
+      throw Error('Proyek koreksi melebihi 1 GB.');
+    const choice = await dialog.showSaveDialog(win, {
+      title: 'Salin proyek Blender untuk koreksi',
+      defaultPath: 'ditasha-ped-review.blend',
+      filters: [{ name: 'Blender project', extensions: ['blend'] }],
+    });
+    if (choice.canceled || !choice.filePath) return false;
+    if (path.extname(choice.filePath).toLowerCase() !== '.blend')
+      throw Error('Gunakan ekstensi .blend.');
+    if (running || !reviewFile || reviewFile.id !== id || reviewFile.path !== source)
+      throw Error('Proyek koreksi berubah; coba lagi.');
+    running = true;
+    try {
+      if (path.resolve(source) !== path.resolve(choice.filePath))
+        await fs.copyFile(source, choice.filePath);
+      return true;
+    } finally {
+      running = false;
+    }
   });
   ipcMain.handle('ditasha:native-start', async (event, payload) => {
     trusted(event);
@@ -347,7 +422,13 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
     const script = path.join(root, 'native_bridge.py'),
       spec = path.join(root, 'job.json');
     await fs.writeFile(script, await fs.readFile(path.join(__dirname, 'native_bridge.py')));
+    await fs.writeFile(
+      path.join(root, 'ped_review.py'),
+      await fs.readFile(path.join(__dirname, 'ped_review.py')),
+    );
     await fs.writeFile(spec, JSON.stringify(job));
+    preview = null;
+    reviewFile = null;
     state = {
       status: 'running',
       message: 'Menjalankan Blender…',
@@ -397,11 +478,29 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
           throw Error('Report engine terlalu besar.');
         const rep = JSON.parse(await fs.readFile(reportFile, 'utf8'));
         state.report = rep;
+        reviewFile = null;
+        if (job.mode === 'ped') {
+          const project = path.join(job.output, 'ditasha-result.blend');
+          const projectStat = await fs.stat(project).catch(() => null);
+          if (projectStat?.isFile() && projectStat.size <= 1024 * 1024 * 1024) {
+            reviewFile = { id: randomUUID(), path: project };
+            state.reviewId = reviewFile.id;
+          }
+        }
         if (rep.ok && rep.preview && !error && !state.cancelled) {
           const previewPath = path.join(job.output, 'preview.json');
           if ((await fs.stat(previewPath)).size > 48 * 1024 * 1024)
             throw Error('Preview terlalu besar.');
-          preview = { id: randomUUID(), path: previewPath };
+          preview = {
+            id: randomUUID(),
+            path: previewPath,
+            poses:
+              job.mode === 'ped'
+                ? (rep.preview.poses || [])
+                    .map((p) => p.id)
+                    .filter((p) => Object.hasOwn(PED_POSES, p))
+                : [],
+          };
           state.previewId = preview.id;
         }
         if (job.mode === 'ped' && rep.ok && !error && !state.cancelled) {

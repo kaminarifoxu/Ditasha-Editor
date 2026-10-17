@@ -2,7 +2,9 @@
 No network access, pip installation, or downloads are performed by this script.
 """
 import importlib
+import importlib.util
 import json
+import math
 import re
 import sys
 import traceback
@@ -248,13 +250,14 @@ def transfer_sirens(bpy, target, donor, job):
     return {'parts': len(candidates), 'bones': sorted(names)}
 
 
-def preview_scene(bpy, fragment, output, donor=None):
+def preview_scene(bpy, fragment, output, donor=None, filename='preview.json', evaluated=False, texture_cache=None):
     """Bounded world-space geometry from the exact imported native objects/LOD materials."""
     import base64
     from array import array
     bpy.context.view_layer.update()
-    result = {'version': 1, 'meshes': [], 'textures': [], 'basis': 'gta-z-up', 'triangles': 0}
-    images = {}
+    cache = texture_cache if texture_cache is not None else {'ids': {}, 'textures': []}
+    result = {'version': 1, 'meshes': [], 'textures': cache['textures'], 'basis': 'gta-z-up', 'triangles': 0}
+    images = cache['ids']
     def texture(material):
         if not material or not material.node_tree:
             return None
@@ -301,11 +304,7 @@ def preview_scene(bpy, fragment, output, donor=None):
             return index
         finally:
             bpy.data.images.remove(copy)
-    def append(obj, kind):
-        # One intact highest available LOD: overlaying all LODs would misrepresent the surface.
-        mesh = next((m for m in mesh_levels(obj) if len(m.polygons)), None)
-        if mesh is None:
-            return
+    def append_mesh(obj, mesh, kind, world):
         mesh.calc_loop_triangles()
         groups = {}
         for tri in mesh.loop_triangles:
@@ -327,13 +326,39 @@ def preview_scene(bpy, fragment, output, donor=None):
                         uv_layer = mesh.uv_layers.get(uv_node.uv_map) or uv_layer
             # Sollumz UV values are Blender-oriented here; Three texture loader flips PNG by default.
             for loop in tri.loops:
-                point = obj.matrix_world @ mesh.vertices[mesh.loops[loop].vertex_index].co
+                point = world @ mesh.vertices[mesh.loops[loop].vertex_index].co
+                if not all(math.isfinite(v) for v in point):
+                    raise ValueError('Koordinat preview hasil deformasi tidak valid.')
                 item['positions'].extend(round(v, 6) for v in point)
                 item['uvs'].extend(round(v, 6) for v in (uv_layer.data[loop].uv if uv_layer else (0, 0)))
             result['triangles'] += 1
             if result['triangles'] > 250000:
                 raise ValueError('Preview melebihi 250 ribu triangle. Pilih kendaraan lebih ringan; build tidak diubah.')
         result['meshes'].extend(groups.values())
+    def append(obj, kind):
+        # Evaluate the actual armature modifier for ped pose tests. Temporary
+        # objects/meshes are released even when a preview exceeds its budget.
+        mesh = next((m for m in mesh_levels(obj) if len(m.polygons)), None)
+        if mesh is None:
+            return
+        clone = evaluated_obj = None
+        try:
+            if evaluated:
+                clone = obj.copy()
+                clone.data = mesh
+                bpy.context.collection.objects.link(clone)
+                bpy.context.view_layer.update()
+                graph = bpy.context.evaluated_depsgraph_get()
+                evaluated_obj = clone.evaluated_get(graph)
+                mesh = evaluated_obj.to_mesh(preserve_all_data_layers=True, depsgraph=graph)
+                append_mesh(obj, mesh, kind, evaluated_obj.matrix_world)
+            else:
+                append_mesh(obj, mesh, kind, obj.matrix_world)
+        finally:
+            if evaluated_obj is not None:
+                evaluated_obj.to_mesh_clear()
+            if clone is not None:
+                bpy.data.objects.remove(clone, do_unlink=True)
     for obj in fragment.children_recursive:
         if obj.type == 'MESH' and getattr(obj, 'sollum_type', '') == 'sollumz_drawable_model' and 'damaged' not in obj.name.lower():
             append(obj, 'base')
@@ -346,7 +371,7 @@ def preview_scene(bpy, fragment, output, donor=None):
     data = json.dumps(result, separators=(',', ':'))
     if len(data.encode('utf-8')) > 48 * 1024 * 1024:
         raise ValueError('Preview melebihi batas 48 MB.')
-    (Path(output) / 'preview.json').write_text(data, encoding='utf-8')
+    (Path(output) / filename).write_text(data, encoding='utf-8')
     return {'triangles': result['triangles'], 'meshes': len(result['meshes'])}
 
 
@@ -384,17 +409,33 @@ def run(job):
             if not module:
                 raise RuntimeError('Muto Ped Rig belum aktif pada Blender ini.')
             worker = importlib.import_module(module + '.bl.batch_worker')
-            result = worker.run({'src': job['source'], 'out': str(output), 'ped': job['name'], 'mode': 'ADDON', 'tex': 'YTD', 'rig': 'mp_m'})
+            review_spec = importlib.util.spec_from_file_location('ditasha_ped_review', Path(__file__).with_name('ped_review.py'))
+            review = importlib.util.module_from_spec(review_spec)
+            review_spec.loader.exec_module(review)
+            options = job.get('pedOptions', {})
+            result = review.run_muto(worker, bpy, {'src': job['source'], 'out': str(output), 'ped': job['name'], 'mode': 'ADDON', 'tex': 'YTD', 'rig': 'mp_m'}, options)
+            report['pedOptions'] = options
             report['rigging'] = result
+            # A self-contained correction project remains available even when
+            # marker fitting/weights fail before native export completes.
+            try:
+                bpy.ops.file.pack_all()
+            except Exception as exc:
+                report.setdefault('warnings', []).append('Sebagian file belum dapat di-pack ke proyek: ' + str(exc))
+            try:
+                bpy.ops.wm.save_as_mainfile(filepath=str(output / 'ditasha-result.blend'), copy=True)
+            except Exception as exc:
+                report.setdefault('warnings', []).append('Proyek koreksi: ' + str(exc))
             if not result.get('ok'):
                 raise RuntimeError('Auto rig gagal. Buka .blend untuk memeriksa marker/weights dan lihat batch_report.json.')
             required = {'.yft', '.ydd', '.ytd', '.ymt'}
             present = {f.suffix.lower() for f in output.rglob('*') if f.is_file()}
             if not required.issubset(present) or not list(output.rglob('fxmanifest.lua')):
                 raise RuntimeError('Resource ped belum lengkap: YFT/YDD/YTD/YMT/fxmanifest diperlukan.')
-            from types import SimpleNamespace
             rigged = [obj for obj in bpy.data.objects if obj.type == 'MESH' and getattr(obj, 'sollum_type', '') == 'sollumz_drawable_model']
-            report['preview'] = preview_scene(bpy, SimpleNamespace(children_recursive=rigged), output)
+            report['quality'] = review.audit_rig(rigged, mesh_levels)
+            report['preview'] = review.create_pose_previews(bpy, rigged, output, preview_scene)
+            report['warnings'] = report.get('warnings', []) + result.get('warnings', []) + report['quality']['warnings'] + report['preview']['warnings']
         else:
             fragment = import_vehicle(bpy, job['source'])
             report['candidates'] = badge_candidates(fragment)

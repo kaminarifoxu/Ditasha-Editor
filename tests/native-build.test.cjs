@@ -6,11 +6,33 @@ const { execFileSync } = require('node:child_process');
 test('Native build accepts bounded job settings and refuses arbitrary task/transform data', () => {
   assert.equal(validateJob({ mode: 'strobo_preview' }).mode, 'strobo_preview');
   assert.equal(validateJob({ mode: 'ped', name: 'ditasha_ped' }).name, 'ditasha_ped');
+  assert.deepEqual(
+    validateJob({
+      mode: 'ped',
+      name: 'female_ped',
+      pedOptions: { reference: 'mp_f', height: 1.62, face: false },
+    }).pedOptions,
+    {
+      reference: 'mp_f',
+      height: 1.62,
+      fingers: true,
+      face: false,
+      handTemplate: true,
+      faceTemplate: true,
+      headParts: true,
+    },
+  );
   assert.equal(validateJob({ mode: 'strobo', donorSirenId: 986, sirenId: 100 }).donorSirenId, 986);
   for (const value of [
     { mode: 'shell' },
     { mode: 'ped', name: '../../escape' },
     { mode: 'ped', name: 'abc;calc' },
+    { mode: 'ped', name: 'valid_ped', pedOptions: { reference: 'custom.blend' } },
+    { mode: 'ped', name: 'valid_ped', pedOptions: { height: NaN } },
+    { mode: 'ped', name: 'valid_ped', pedOptions: { height: 0.1 } },
+    { mode: 'ped', name: 'valid_ped', pedOptions: { height: 4 } },
+    { mode: 'ped', name: 'valid_ped', pedOptions: { fingers: 'false' } },
+    { mode: 'ped', name: 'valid_ped', pedOptions: [] },
     { mode: 'strobo', offset: [NaN, 0, 0] },
     { mode: 'strobo', offset: [0, 0, 21] },
     { mode: 'strobo', sirenId: 255 },
@@ -68,7 +90,8 @@ test('Ped builds stage a preview before exporting; canceled/invalid saves preser
   let pick = engine,
     cancelSave = true,
     chosenFolders = 0,
-    specPath;
+    specPath,
+    failBuild = false;
   require('../electron/native-build.cjs').registerNativeBuild({
     app: { getPath: () => root, on: () => {} },
     ipcMain: { handle: (name, fn) => handlers.set(name, fn) },
@@ -83,6 +106,10 @@ test('Ped builds stage a preview before exporting; canceled/invalid saves preser
         }
         return { canceled: false, filePaths: [pick] };
       },
+      showSaveDialog: async () => ({
+        canceled: false,
+        filePath: path.join(root, 'review-copy.blend'),
+      }),
     },
     spawnProcess: (_executable, args) => {
       specPath = args.at(-1);
@@ -93,13 +120,23 @@ test('Ped builds stage a preview before exporting; canceled/invalid saves preser
         const job = JSON.parse(await fs.readFile(specPath, 'utf8'));
         await fs.writeFile(
           path.join(job.output, 'report.json'),
-          JSON.stringify({ ok: true, mode: 'ped', preview: { meshes: 1 } }),
+          JSON.stringify({
+            ok: !failBuild,
+            error: failBuild ? 'fixture rig validation failed' : undefined,
+            mode: 'ped',
+            preview: { meshes: 1, poses: [{ id: 'rest' }, { id: 'arms' }] },
+          }),
         );
         await fs.writeFile(
           path.join(job.output, 'preview.json'),
           JSON.stringify({ version: 1, meshes: [], textures: [] }),
         );
         await fs.writeFile(path.join(job.output, 'fxmanifest.lua'), 'fixture resource');
+        await fs.writeFile(
+          path.join(job.output, 'preview-arms.json'),
+          JSON.stringify({ version: 1, pose: 'arms' }),
+        );
+        await fs.writeFile(path.join(job.output, 'ditasha-result.blend'), 'review project');
         process.emit('close', 0);
       });
       return process;
@@ -119,6 +156,15 @@ test('Ped builds stage a preview before exporting; canceled/invalid saves preser
   t.after(() => fs.rm(path.dirname(specPath), { recursive: true, force: true }));
   assert.equal(state.status, 'success');
   assert(state.previewId && state.stagedId);
+  assert(state.reviewId);
+  const readPose = (pose) =>
+    handlers.get('ditasha:native-preview')('trusted', state.previewId, pose);
+  assert.equal((await readPose('arms')).pose, 'arms');
+  for (const bad of ['../../secret', '__proto__', 'legs'])
+    await assert.rejects(readPose(bad), /Pose/);
+  await assert.rejects(call('save-review', 'forged-id'), /koreksi/);
+  assert.equal(await call('save-review', state.reviewId), true);
+  assert.equal(await fs.readFile(path.join(root, 'review-copy.blend'), 'utf8'), 'review project');
   assert.equal(state.output, null);
   assert.equal(chosenFolders, 0, 'Do not ask for an export directory before preview');
   await assert.rejects(call('save', 'forged-id'), /preview/);
@@ -137,4 +183,40 @@ test('Ped builds stage a preview before exporting; canceled/invalid saves preser
     'fixture resource',
   );
   assert.equal((await call('preview', saved.previewId)).version, 1);
+  assert.equal(
+    (await handlers.get('ditasha:native-preview')('trusted', saved.previewId, 'arms')).pose,
+    'arms',
+  );
+  assert.equal(
+    await call('save-review', saved.reviewId),
+    true,
+    'Correction project should remain readable after saving moves the staged folder',
+  );
+  failBuild = true;
+  await call('start', { mode: 'ped', name: 'failed_ped', inputs: { ped: input.id } });
+  let failed;
+  for (let i = 0; i < 200; i++) {
+    failed = await call('state');
+    if (!failed.running) break;
+    await new Promise((r) => setTimeout(r, 5));
+  }
+  assert.equal(failed.status, 'error');
+  assert(
+    failed.reviewId && !failed.stagedId && !failed.previewId,
+    'Failed builds offer correction only, not a successful game export',
+  );
+  await assert.rejects(
+    handlers.get('ditasha:native-preview')('trusted', saved.previewId),
+    /kedaluwarsa/,
+  );
+  assert.equal(await call('save-review', failed.reviewId), true);
+});
+
+test('Rig review audits weights, UV/material/LOD coverage and maps supported Muto options', () => {
+  const result = execFileSync(
+    process.platform === 'win32' ? 'python' : 'python3',
+    ['tests/ped-review-checks.py'],
+    { encoding: 'utf8' },
+  );
+  assert.match(result, /PASS_PED_REVIEW/);
 });
