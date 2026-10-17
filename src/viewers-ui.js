@@ -23,6 +23,7 @@ import {
   loadVehicleTextures,
   modelTextureReferences,
   mergeVehicleTextures,
+  selectVehicleTextures,
 } from './vehicle-textures.js';
 import {
   MAX_DECODED_TEXTURE_BYTES,
@@ -1231,7 +1232,7 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
         );
         const next = result.textures;
         modelTextureWarnings = result.warnings;
-        const merged = mergeVehicleTextures(modelTextures, next);
+        const merged = selectVehicleTextures(modelTextures, next);
         if (merged.reduce((n, t) => n + t.out.length, 0) > MAX_DECODED_TEXTURE_BYTES)
           throw Error('Model textures exceed ' + textureBudgetLabel + '.');
         modelTextures = merged;
@@ -1317,7 +1318,7 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
           );
           const next = result.textures;
           modelTextureWarnings = result.warnings;
-          const merged = mergeVehicleTextures(modelTextures, next);
+          const merged = selectVehicleTextures(modelTextures, next);
           if (merged.reduce((n, t) => n + t.out.length, 0) > MAX_DECODED_TEXTURE_BYTES)
             throw Error('Model textures exceed ' + textureBudgetLabel + '.');
           modelTextures = merged;

@@ -31,6 +31,10 @@ export function resolveModelTexture(name, external, embedded, sourceName) {
   const source = textureDictionaryFamily(sourceName);
   const owned = matches.filter((t) => textureDictionaryFamily(t.dictionary) === source);
   if (owned.length) return owned.at(-1);
+  // An explicit +Textures choice can replace an unowned/embedded reference.
+  // Folder search results never receive this priority and remain ambiguity-safe.
+  const manual = matches.filter((t) => Number.isFinite(t.manualPriority) && t.manualPriority > 0);
+  if (manual.length) return manual.reduce((a, b) => (b.manualPriority >= a.manualPriority ? b : a));
   const local = embedded.find((texture) => textureNameMatches(name, texture));
   if (matches.length === 1) return matches[0];
   const shared =

@@ -4,7 +4,11 @@ import { indexYtd, readYtd } from '../src/resource.js';
 import { performResourceJob } from '../src/resource-jobs.js';
 import { resolveModelTexture } from '../src/model-material.js';
 import { hashName, createYtd } from '../src/asset-tools.js';
-import { loadVehicleTextures, mergeVehicleTextures } from '../src/vehicle-textures.js';
+import {
+  loadVehicleTextures,
+  mergeVehicleTextures,
+  selectVehicleTextures,
+} from '../src/vehicle-textures.js';
 import { indexTextureFiles, planTextureSearch, loadSearchTextures } from '../src/texture-search.js';
 import { keyedVehicleDictionary } from './fixtures/vehicle-dictionary.mjs';
 import { largeYtdFixture } from './fixtures/large-ytd.mjs';
@@ -16,6 +20,20 @@ const file = (name, buffer) => ({
   arrayBuffer: async () => buffer.slice(0),
 });
 const decode = async (...args) => performResourceJob(...args);
+test('Explicit manual YTD choice replaces unowned embedded maps without guessing folder ambiguity or shadowing vehicle ownership', () => {
+  const embedded = [{ name: 'cloth_diffuse' }];
+  const a = { name: 'cloth_diffuse', dictionary: 'a.ytd' },
+    b = { name: 'cloth_diffuse', dictionary: 'b.ytd' };
+  assert.equal(resolveModelTexture('cloth_diffuse', [a, b], embedded, 'ped.ydd'), embedded[0]);
+  const first = selectVehicleTextures([], [a]);
+  const second = selectVehicleTextures(first, [b]);
+  assert.equal(
+    resolveModelTexture('cloth_diffuse', second, embedded, 'ped.ydd').dictionary,
+    'b.ytd',
+  );
+  assert.equal(resolveModelTexture('cloth_diffuse', second, embedded, 'a.yft').dictionary, 'a.ytd');
+  assert.equal(second.length, 2);
+});
 test('Adding shared YTD preserves model-owned maps with identical names and refreshes only its own dictionary', async () => {
   const dictionary = (color) =>
     createYtd([{ name: 'black', w: 1, h: 1, out: new Uint8Array(color) }]).buffer;

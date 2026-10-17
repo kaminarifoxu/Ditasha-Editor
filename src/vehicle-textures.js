@@ -14,6 +14,13 @@ export function mergeVehicleTextures(existing, incoming) {
   const replacements = new Set(incoming.map(textureKey));
   return [...existing.filter((t) => !replacements.has(textureKey(t))), ...incoming];
 }
+export function selectVehicleTextures(existing, incoming) {
+  const priority = existing.reduce((n, t) => Math.max(n, t.manualPriority || 0), 0) + 1;
+  return mergeVehicleTextures(
+    existing,
+    incoming.map((t) => ({ ...t, manualPriority: priority })),
+  );
+}
 
 export function modelTextureReferences(drawables) {
   return [
