@@ -1,4 +1,5 @@
 import { resolveModelTexture, modelAlphaMode } from './model-material.js';
+import { liveryReference, setVehicleLivery } from './vehicle-livery.js';
 import { composeProjectionLayers } from './projection-composite.js';
 import { MAX_DECODED_TEXTURE_BYTES, textureThumbnail } from './texture-memory.js';
 import { setProject } from './project-context.js';
@@ -301,12 +302,32 @@ function applyTexture() {
   });
   const matching =
     current &&
-    meshes.some(
-      (o) =>
-        resolveModelTexture(o.userData.diffuseTexture, [current], [], displayedModel?.name) ===
-        current,
+    meshes.some((o) =>
+      [o.userData.diffuseTexture, o.userData.liveryTexture].some(
+        (name) => resolveModelTexture(name, [current], [], displayedModel?.name) === current,
+      ),
     );
   const cache = new Map();
+  const textureMap = (texture) => {
+    if (!texture) return null;
+    if (mapped && texture === current) return mapped;
+    if (cache.has(texture)) return cache.get(texture);
+    const map = new THREE.DataTexture(
+      new Uint8Array(texture.previewPixels || texture.out),
+      texture.w,
+      texture.h,
+      THREE.RGBAFormat,
+    );
+    map.flipY = false;
+    map.colorSpace = THREE.SRGBColorSpace;
+    map.generateMipmaps = true;
+    map.minFilter = THREE.LinearMipmapLinearFilter;
+    map.anisotropy = Math.min(16, renderer?.capabilities.getMaxAnisotropy() || 1);
+    map.needsUpdate = true;
+    cache.set(texture, map);
+    materialMaps.push(map);
+    return map;
+  };
   for (const o of meshes) {
     const texture =
       $('apply').checked &&
@@ -317,27 +338,14 @@ function applyTexture() {
         resolveModelTexture(o.userData.diffuseTexture, [current], [], displayedModel?.name) ===
           current);
     let map = useCurrent ? mapped : null;
-    if (!map && texture) {
-      map = cache.get(texture);
-      if (!map) {
-        map = new THREE.DataTexture(
-          new Uint8Array(texture.previewPixels || texture.out),
-          texture.w,
-          texture.h,
-          THREE.RGBAFormat,
-        );
-        map.flipY = false;
-        map.colorSpace = THREE.SRGBColorSpace;
-        map.generateMipmaps = true;
-        map.minFilter = THREE.LinearMipmapLinearFilter;
-        map.anisotropy = Math.min(16, renderer?.capabilities.getMaxAnisotropy() || 1);
-        map.needsUpdate = true;
-        cache.set(texture, map);
-        materialMaps.push(map);
-      }
-    }
+    if (!map && texture) map = textureMap(texture);
+    const livery =
+      $('apply').checked &&
+      resolveModelTexture(o.userData.liveryTexture, available, [], displayedModel?.name);
+    const liveryMap = o.geometry.getAttribute('ditashaLiveryUv') ? textureMap(livery) : null;
     for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
       m.map = map || m.userData.originalMap || null;
+      setVehicleLivery(m, liveryMap);
       m.color?.set(m.map ? 0xffffff : 0xb3bbc8);
       m.wireframe = wire;
       m.needsUpdate = true;
@@ -356,6 +364,7 @@ function showDrawable(index) {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(g.positions, 3));
     if (g.uvs) geo.setAttribute('uv', new THREE.BufferAttribute(g.uvs, 2));
+    if (g.uvs2) geo.setAttribute('ditashaLiveryUv', new THREE.BufferAttribute(g.uvs2, 2));
     geo.setIndex(new THREE.BufferAttribute(g.indices, 1));
     if (g.normals) geo.setAttribute('normal', new THREE.BufferAttribute(g.normals, 3));
     else geo.computeVertexNormals();
@@ -369,6 +378,7 @@ function showDrawable(index) {
       }),
     );
     mesh.userData.diffuseTexture = g.diffuseTexture || null;
+    mesh.userData.liveryTexture = liveryReference(g);
     if (
       modelAlphaMode(g) === 'opaque' ||
       /^(sbase|head_diff|uppr_diff|lowr_diff|body_diff)/i.test(g.diffuseTexture || '')

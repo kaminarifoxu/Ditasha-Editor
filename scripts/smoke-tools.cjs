@@ -250,6 +250,42 @@ app.whenReady().then(async () => {
         JSON.stringify([...new Uint8Array(wheelYftFixture(viewerModel))]) +
         ')',
     );
+    const { liveryYftFixture } = await import('../tests/fixtures/livery-yft.mjs');
+    const liveryReport = await win.webContents.executeJavaScript(
+      '(' +
+        require('./vehicle-livery-ui-checks.cjs').toString() +
+        ')(' +
+        JSON.stringify({
+          model: [...new Uint8Array(liveryYftFixture(viewerModel))],
+          base: [
+            ...createYtd([
+              { name: 'cloth_diffuse', w: 1, h: 1, out: new Uint8Array([0, 255, 0, 255]) },
+            ]),
+          ],
+          livery: [
+            ...createYtd([
+              {
+                name: 'vehicle_sign_1',
+                w: 4,
+                h: 1,
+                out: new Uint8Array([0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 0, 0, 255, 255]),
+              },
+            ]),
+          ],
+          combined: [
+            ...createYtd([
+              { name: 'cloth_diffuse', w: 1, h: 1, out: new Uint8Array([0, 255, 0, 255]) },
+              {
+                name: 'vehicle_sign_1',
+                w: 4,
+                h: 1,
+                out: new Uint8Array([0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 0, 0, 255, 255]),
+              },
+            ]),
+          ],
+        }) +
+        ')',
+    );
     await Promise.all(captures);
     console.log(
       'PASS: ' +
@@ -265,6 +301,7 @@ app.whenReady().then(async () => {
           debadgeReport,
           largeYtdReport,
           wheelReport,
+          liveryReport,
         }),
     );
     win.destroy();

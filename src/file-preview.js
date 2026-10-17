@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { decodeResource } from './resource-client.js';
 import { readDds } from './asset-tools.js';
 import { resolveModelTexture, modelAlphaMode } from './model-material.js';
+import { resolveVehicleLivery, setVehicleLivery } from './vehicle-livery.js';
 
 // One owned preview at a time; selecting a different file releases its WebGL
 // context, controls, decoded resources and observer before displaying the next.
@@ -107,32 +108,38 @@ export function createFilePreview(container) {
           drawable.embeddedTextures || [],
           file.name,
         );
-        let map = null;
-        if (t) map = mapCache.get(t) || null;
-        if (t && !map) {
-          map = new THREE.DataTexture(new Uint8Array(t.out), t.w, t.h, THREE.RGBAFormat);
+        const textureMap = (t) => {
+          if (!t) return null;
+          if (mapCache.has(t)) return mapCache.get(t);
+          const map = new THREE.DataTexture(t.out, t.w, t.h, THREE.RGBAFormat);
           map.flipY = false;
           map.colorSpace = THREE.SRGBColorSpace;
           map.needsUpdate = true;
           maps.push(map);
           mapCache.set(t, map);
-        }
+          return map;
+        };
+        const map = textureMap(t),
+          livery = resolveVehicleLivery(g, external, drawable.embeddedTextures || [], file.name);
         const opaque =
           modelAlphaMode(g) === 'opaque' ||
           /^(sbase|head_diff|uppr_diff|body_diff)/i.test(g.diffuseTexture || '');
-        group.add(
-          new THREE.Mesh(
-            geometry,
-            new THREE.MeshStandardMaterial({
-              map,
-              color: map ? 0xffffff : 0xb6bfcc,
-              roughness: 0.8,
-              side: THREE.DoubleSide,
-              transparent: !!map && !opaque,
-              alphaTest: opaque ? 0 : 0.01,
-            }),
-          ),
+        const mesh = new THREE.Mesh(
+          geometry,
+          new THREE.MeshStandardMaterial({
+            map,
+            color: map ? 0xffffff : 0xb6bfcc,
+            roughness: 0.8,
+            side: THREE.DoubleSide,
+            transparent: !!map && !opaque,
+            alphaTest: opaque ? 0 : 0.01,
+          }),
         );
+        if (livery && g.uvs2) {
+          geometry.setAttribute('ditashaLiveryUv', new THREE.BufferAttribute(g.uvs2, 2));
+          setVehicleLivery(mesh.material, textureMap(livery));
+        }
+        group.add(mesh);
       }
       const box = new THREE.Box3().setFromObject(group),
         center = box.getCenter(new THREE.Vector3()),

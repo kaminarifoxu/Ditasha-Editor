@@ -474,6 +474,12 @@ function readDrawables(r, drawables, metadata = new Map()) {
       count = r.u32(vb + 24),
       data = r.ptr(vb + 16) ?? r.ptr(vb + 32),
       decl = r.ptr(vb + 48);
+    // Empty native geometry placeholders occur in otherwise readable vehicles.
+    // Nonempty/mismatched buffers still go through every validation below.
+    if (count === 0 && r.u32(ib + 8) === 0) {
+      cache.set(g, null);
+      return null;
+    }
     if (
       !stride ||
       !count ||

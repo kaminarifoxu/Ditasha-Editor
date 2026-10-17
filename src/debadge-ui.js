@@ -3,6 +3,12 @@ import { MAX_DECODED_TEXTURE_BYTES } from './texture-memory.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { decodeResource } from './resource-client.js';
 import { resolveModelTexture, modelAlphaMode } from './model-material.js';
+import {
+  liveryReference,
+  resolveVehicleLivery,
+  setVehicleLivery,
+  copyVehicleLivery,
+} from './vehicle-livery.js';
 import { managePreview } from './performance.js';
 import { zipFiles } from './asset-tools.js';
 import { setProject } from './project-context.js';
@@ -143,6 +149,13 @@ export function mountDebadge({ download, toast, confirmDiscard, back }) {
         current().file.name,
       );
       if (g.diffuseTexture && !t) missing.add(g.diffuseTexture);
+      const livery = resolveVehicleLivery(
+        g,
+        external,
+        d.embeddedTextures || [],
+        current().file.name,
+      );
+      if (liveryReference(g) && !livery) missing.add(liveryReference(g));
       const map = materialMap(t),
         alpha = modelAlphaMode(g);
       const base = new THREE.MeshStandardMaterial({
@@ -153,10 +166,14 @@ export function mountDebadge({ download, toast, confirmDiscard, back }) {
         transparent: !!map && alpha === 'blend',
         alphaTest: map && alpha === 'blend' ? 0.02 : 0,
       });
-      const marked = base.clone();
+      if (livery && g.uvs2) {
+        geometry.setAttribute('ditashaLiveryUv', new THREE.BufferAttribute(g.uvs2, 2));
+        setVehicleLivery(base, materialMap(livery));
+      }
+      const marked = copyVehicleLivery(base, base.clone());
       marked.emissive.set(0xcf294b);
       marked.emissiveIntensity = 0.9;
-      const hidden = base.clone();
+      const hidden = copyVehicleLivery(base, base.clone());
       hidden.visible = false;
       const mesh = new THREE.Mesh(geometry, [base, marked, hidden]);
       mesh.userData.source = g;

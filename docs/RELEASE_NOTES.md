@@ -1,3 +1,17 @@
+# v1.30.0 preview — Vehicle liveries on UV2 and empty native mesh placeholders
+
+Vehicle paint3-family previews retain the primary diffuse on UV1 and resolve the livery sampler separately on UV2: DiffuseSampler2 for vehicle_paint3/vehicle_paint3_enveff and DiffuseSampler3 for vehicle_paint3_lvr. The livery is alpha-composited over the primary colour; its alpha does not turn opaque vehicle paint into transparent geometry. Unrecognized shaders are not guessed. Existing dictionary ownership/hash-name resolution, texture budgets, full-resolution pixels and manual material replacement remain in place.
+
+The shared livery preview is used by Model/Vehicle Viewer, Texture & Model, direct Debadge, File Manager and Photoshoot clones. Viewer status reports loaded external texture counts and active livery mesh counts; material details identify the resolved livery and UV2 availability. Missing referenced liveries are reported alongside missing primary textures. Loaded texture rows identify their dictionary. This is a static preview of the verified paint3 family, not an implementation of all GTA paint, dirt, lighting or livery-variant systems. Custom shader layers are not baked into GLB material exports.
+
+Native geometry records containing both zero vertices and zero indices are skipped as empty placeholders instead of rejecting an otherwise readable model. Nonempty/mismatched buffers, invalid indices, unsupported vertex layouts and existing geometry budgets retain their validation.
+
+The supplied Demon material uses vehicle_paint3 with demon_sign_1 in DiffuseSampler2, which is present in demon.ytd. The supplied SS2RB has the same livery arrangement with tc_ss2_sign_1 plus an empty native geometry record that previously aborted parsing. Both original/base and high files were inspected locally without rewriting them. Some primary/shared texture names requested by Demon really are absent from its supplied YTD and remain reported; the preview does not manufacture missing source textures.
+
+Regression coverage includes a native dual-sampler/two-UV fixture, dictionary ownership and shader allowlisting, cloning/removal of the livery shader, empty placeholders versus corrupt buffer pairs, and actual Windows GPU pixels before/after adding a YTD, transparent livery/base separation, manual override recovery, Texture & Model and Photoshoot. Existing editor/native/rig/creative/IDE and packaging checks continue to run.
+
+References: https://github.com/Sollumz/wiki/blob/main/documentation/fragments.yft/vehicle-shaders.md and https://github.com/dexyfex/CodeWalker/blob/master/CodeWalker.Shaders/BasicPS.hlsl. DITASHA's Three.js layer implementation is original; CodeWalker shader binaries are not bundled.
+
 # v1.29.0 preview — Inspect source models before rigging
 
 Auto Rig adds **Periksa & preview model sumber**. Blender imports GLB, FBX or OBJ without running Muto, fitting a skeleton, changing weights, saving a Blender project or exporting game resources. The report shows mesh/vertex/triangle counts, existing armatures, world-space dimensions interpreted through scene units, missing UVs, unreadable base-color images, unapplied local rotation/scale, mirrored transforms and near-zero-area triangles. Object/material names are available in expandable details. A/T-pose, anatomy and suitability for rigging still need visual review.

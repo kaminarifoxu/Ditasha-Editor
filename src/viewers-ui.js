@@ -1,6 +1,7 @@
 import { setProject } from './project-context.js';
 import { mountSceneStudio } from './scene-studio.js';
 import { resolveModelTexture, modelAlphaMode } from './model-material.js';
+import { liveryReference, resolveVehicleLivery, setVehicleLivery } from './vehicle-livery.js';
 import { decodeResource } from './resource-client.js';
 import { MAX_DECODED_TEXTURE_BYTES } from './texture-memory.js';
 import { mountVehicleWorkshop } from './vehicle-workshop.js';
@@ -496,7 +497,8 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
       })),
     ];
     let triangles = 0,
-      vertices = 0;
+      vertices = 0,
+      liveryMeshes = 0;
     const missing = new Set(),
       parts = new Map();
     for (const source of sources)
@@ -520,6 +522,13 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
               source.name,
             );
         if (g.diffuseTexture && !t) missing.add(g.diffuseTexture);
+        const liveryName = !override?.name ? liveryReference(g) : null;
+        const livery = liveryName
+          ? resolveVehicleLivery(g, modelTextures, source.data.embeddedTextures || [], source.name)
+          : null;
+        if (liveryName && !livery) missing.add(liveryName);
+        if (livery && g.uvs2)
+          geometry.setAttribute('ditashaLiveryUv', new THREE.BufferAttribute(g.uvs2, 2));
         const channel = override?.channel === 1 && g.uvs2 ? 1 : 0;
         const uv = geometry.getAttribute(channel ? 'uv1' : 'uv');
         if (uv && (override?.flipU || override?.flipV))
@@ -540,6 +549,10 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
           alphaTest: t && alpha !== 'opaque' ? 0.02 : 0,
         });
         const mesh = new THREE.Mesh(geometry, material);
+        if (livery && g.uvs2) {
+          setVehicleLivery(material, materialMap(livery, 1));
+          liveryMeshes++;
+        }
         // Ped alpha controls must not turn solid vehicle paint into a cutout.
         if (alpha === 'opaque' || override?.alpha === 'blend')
           material.userData.previewAlphaDefault = {
@@ -574,6 +587,15 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
         mesh.userData.textureBinding = t
           ? `${t.name} · ${t.dictionary || source.name + ' embedded'}`
           : `Missing: ${g.diffuseTexture || 'tanpa diffuse'}`;
+        if (liveryName)
+          mesh.userData.textureBinding +=
+            ' · Livery UV 2: ' +
+            liveryName +
+            (livery && g.uvs2
+              ? ' · aktif'
+              : !g.uvs2
+                ? ' · UV 2 tidak tersedia'
+                : ' · belum ditemukan');
         mesh.visible = !hiddenMeshes.has(meshKey);
         renderedMeshes.push({ mesh, key: meshKey, geometry: g });
         const partKey =
@@ -647,7 +669,8 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
     for (const t of [...embedded, ...modelTextures]) {
       const p = document.createElement('p');
       p.className = 'muted';
-      p.textContent = t.name + ' · ' + t.w + ' × ' + t.h;
+      p.textContent =
+        t.name + ' · ' + t.w + ' × ' + t.h + (t.dictionary ? ' · ' + t.dictionary : '');
       if (modelTextures.includes(t)) {
         const row = document.createElement('div');
         row.className = 'viewer-button-row';
@@ -678,6 +701,11 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
       parts.size +
       ' parts · ' +
       level.name +
+      ' · ' +
+      modelTextures.length +
+      ' external textures · ' +
+      liveryMeshes +
+      ' livery meshes' +
       (missing.size
         ? ' · Missing textures: ' +
           [...missing].join(', ') +
