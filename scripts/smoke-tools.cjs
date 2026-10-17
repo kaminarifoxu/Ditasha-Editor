@@ -257,6 +257,7 @@ app.whenReady().then(async () => {
         ')(' +
         JSON.stringify({
           model: [...new Uint8Array(liveryYftFixture(viewerModel))],
+          searchModel: [...new Uint8Array(liveryYftFixture(viewerModel, { embedded: false }))],
           base: [
             ...createYtd([
               { name: 'cloth_diffuse', w: 1, h: 1, out: new Uint8Array([0, 255, 0, 255]) },

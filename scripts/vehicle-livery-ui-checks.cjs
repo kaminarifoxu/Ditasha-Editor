@@ -94,7 +94,7 @@ module.exports = async function checkVehicleLivery(fixtures) {
     'Automatic livery did not recover',
   );
   // Search an explicitly selected folder, decode only missing maps and preserve UV2 layering.
-  upload('mvInput', [['livery.yft', fixtures.model]]);
+  upload('mvInput', [['livery.yft', fixtures.searchModel]]);
   await wait(
     () => !$('mvOpen').disabled && $('mvStatus').textContent.includes('0 external textures'),
     'Untextured model did not load',
@@ -115,7 +115,7 @@ module.exports = async function checkVehicleLivery(fixtures) {
   );
   console.log('DITASHA_SNAPSHOT:texture-auto-repair');
   await sleep(200);
-  upload('mvInput', [['next.yft', fixtures.model]]);
+  upload('mvInput', [['next.yft', fixtures.searchModel]]);
   await wait(
     () =>
       !$('mvOpen').disabled &&
@@ -124,7 +124,7 @@ module.exports = async function checkVehicleLivery(fixtures) {
     'Next model did not automatically reuse folder index',
   );
   $('mvTextureAuto').checked = false;
-  upload('mvInput', [['third.yft', fixtures.model]]);
+  upload('mvInput', [['third.yft', fixtures.searchModel]]);
   await wait(
     () => !$('mvOpen').disabled && $('mvTitle').textContent === 'third.yft',
     'Third model did not load',

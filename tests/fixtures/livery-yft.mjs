@@ -1,10 +1,11 @@
 import { deflateRaw } from 'pako';
 import { Resource } from '../../src/resource.js';
 import { hashName } from '../../src/asset-tools.js';
-export function liveryYftFixture(model) {
+export function liveryYftFixture(model, { embedded = true } = {}) {
   const r = new Resource(model, 165),
     v = r.v;
   const ptr = (at, to) => v.setBigUint64(at, BigInt(0x50000000 + to), true);
+  if (!embedded) v.setBigUint64(2048 + 8, 0n, true);
   ptr(48, 128);
   v.setUint32(72, 0, true);
   // One visible surface: manual replacement targets one selected mesh.
