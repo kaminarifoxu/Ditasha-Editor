@@ -344,6 +344,18 @@ app.whenReady().then(async () => {
           shiny: surfaceDictionary([128, 128, 0, 255], [255, 0, 0, 255]),
           tilted: surfaceDictionary([240, 128, 0, 255], [0, 255, 0, 255]),
           aux: surfaceDictionary([128, 128, 0, 255], [0, 255, 0, 255], false),
+          striped: [
+            ...createYtd([
+              { name: 'cloth_diffuse', w: 1, h: 1, out: new Uint8Array([50, 50, 50, 255]) },
+              {
+                name: 'surface_normal',
+                w: 2,
+                h: 1,
+                out: new Uint8Array([128, 128, 0, 255, 240, 128, 0, 255]),
+              },
+              { name: 'surface_spec', w: 1, h: 1, out: new Uint8Array([0, 255, 0, 255]) },
+            ]),
+          ],
           wrong: [
             ...createYtd([
               { name: 'cloth_diffuse', w: 1, h: 1, out: new Uint8Array([255, 0, 0, 255]) },

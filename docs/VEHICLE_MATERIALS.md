@@ -15,7 +15,7 @@ Defaults when a parameter is absent are bumpiness 1, specular intensity 0.2, fal
 
 ## Using the new lookup
 
-Open the vehicle and paired YTD as usual. Available normal/specular maps now apply automatically. Open **Material & livery**, choose a mesh, and read each role's source/status. The bottom status also counts meshes with active normal/specular maps. Missing map names remain in the dependency report and participate in automatic repair.
+Open the vehicle and paired YTD as usual. Available normal/specular maps now apply automatically. Selecting one of these maps for editing preserves the base diffuse, and pixel edits refresh its linear preview map. Open **Material & livery**, choose a mesh, and read each role's source/status. The bottom status also counts meshes with active normal/specular maps. Missing map names remain in the dependency report and participate in automatic repair.
 
 If an asset pack has parent dictionaries, choose its texture folder under **Auto texture repair**. Include its YTDs and plain XML vehicles.meta / gtxd.meta (or gtxd.xml / exported gtxd.ymt.xml / vehicles.meta.xml). For example:
 

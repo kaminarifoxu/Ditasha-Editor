@@ -1,6 +1,11 @@
 import { resolveModelTexture, modelAlphaMode, modelPreviewAlpha } from './model-material.js';
 import { liveryReference, setVehicleLivery } from './vehicle-livery.js';
-import { createModelMaterial, resolveSurfaceMaps, setSurfaceMaps } from './vehicle-surface.js';
+import {
+  createModelMaterial,
+  resolveSurfaceMaps,
+  setSurfaceMaps,
+  surfaceReferences,
+} from './vehicle-surface.js';
 import { composeProjectionLayers } from './projection-composite.js';
 import {
   MAX_DECODED_TEXTURE_BYTES,
@@ -59,6 +64,7 @@ let current = null,
   projectionPreview = null;
 let toastTimer, livery, nativeBuild, canvasStudio, sceneStudio;
 const materialMaps = [];
+const previewMapSources = new WeakMap();
 let mode = 'move',
   gesture = null,
   cropRect = null,
@@ -308,9 +314,11 @@ function applyTexture() {
   const matching =
     current &&
     meshes.some((o) =>
-      [o.userData.diffuseTexture, o.userData.liveryTexture].some(
-        (name) => resolveModelTexture(name, [current], [], displayedModel?.name) === current,
-      ),
+      [
+        o.userData.diffuseTexture,
+        o.userData.liveryTexture,
+        ...Object.values(surfaceReferences(o.userData.surfaceBinding || {})),
+      ].some((name) => resolveModelTexture(name, [current], [], displayedModel?.name) === current),
     );
   const cache = new Map();
   const textureMap = (texture, role = 'color') => {
@@ -318,7 +326,7 @@ function applyTexture() {
     if (role === 'color' && mapped && texture === current) return mapped;
     if (cache.get(texture)?.has(role)) return cache.get(texture).get(role);
     const map = new THREE.DataTexture(
-      new Uint8Array(role === 'color' ? texture.previewPixels || texture.out : texture.out),
+      new Uint8Array(texture.previewPixels || texture.out),
       texture.w,
       texture.h,
       THREE.RGBAFormat,
@@ -331,6 +339,7 @@ function applyTexture() {
     map.needsUpdate = true;
     if (!cache.has(texture)) cache.set(texture, new Map());
     cache.get(texture).set(role, map);
+    previewMapSources.set(map, texture);
     materialMaps.push(map);
     return map;
   };
@@ -959,6 +968,16 @@ function renderComposite(mark = false) {
     };
   }
   if (mapped) mapped.needsUpdate = true;
+  // Native data-role maps are separate linear textures, so refresh them too.
+  let surfacePixels;
+  for (const map of materialMaps)
+    if (previewMapSources.get(map) === current) {
+      surfacePixels ||= new Uint8Array(
+        current.previewPixels || ctx.getImageData(0, 0, current.w, current.h).data,
+      );
+      map.image = { data: surfacePixels, width: current.w, height: current.h };
+      map.needsUpdate = true;
+    }
   drawSelection();
   syncTransform();
   if (mark) commit();

@@ -23,8 +23,8 @@ module.exports = async function checkVehicleSurface(fixtures) {
     $(id).files = dt.files;
     $(id).dispatchEvent(new Event('change'));
   };
-  const energy = () => {
-    const source = $('mvViewport').querySelector('canvas'),
+  const energy = (viewport = 'mvViewport') => {
+    const source = $(viewport).querySelector('canvas'),
       canvas = document.createElement('canvas');
     canvas.width = source.width;
     canvas.height = source.height;
@@ -107,6 +107,34 @@ module.exports = async function checkVehicleSurface(fixtures) {
   assert($('mvMaterialInfo').textContent.includes('base.ytd'), 'Chosen parent source not shown');
   console.log('DITASHA_SNAPSHOT:vehicle-surface-parent');
   await sleep(150);
+  document.querySelector('[data-page="editor"]').click();
+  upload('fileInput', [
+    ['surface.yft', fixtures.model],
+    ['surface.ytd', fixtures.striped],
+  ]);
+  await wait(
+    () => $('fileLoading').hidden && $('material').options.length >= 3,
+    'Editor surface files not loaded',
+  );
+  const option = [...$('material').options].find((o) => o.textContent.includes('surface_normal'));
+  assert(option, 'Normal map absent from texture editor');
+  $('material').value = option.value;
+  $('material').dispatchEvent(new Event('change'));
+  await sleep(300);
+  const editorBefore = energy('viewport');
+  assert(editorBefore.green < 20, 'Selecting normal data replaced diffuse with the normal image');
+  const beforePixel = [...$('textureCanvas').getContext('2d').getImageData(0, 0, 1, 1).data];
+  $('mirrorX').click();
+  await sleep(300);
+  const afterPixel = [...$('textureCanvas').getContext('2d').getImageData(0, 0, 1, 1).data],
+    editorAfter = energy('viewport');
+  assert(beforePixel[0] !== afterPixel[0], 'Normal-map mirror did not edit pixels');
+  assert(
+    Math.abs(editorAfter.value - editorBefore.value) > 1000,
+    'Edited normal pixels did not refresh linear GPU maps',
+  );
+  console.log('DITASHA_SNAPSHOT:vehicle-surface-editor');
+  await sleep(150);
   return {
     flat,
     shiny,
@@ -116,5 +144,6 @@ module.exports = async function checkVehicleSurface(fixtures) {
     specularRgbMask: true,
     photoshoot: true,
     parentMetadata: true,
+    editorDataRole: { before: editorBefore, after: editorAfter },
   };
 };
