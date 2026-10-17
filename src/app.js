@@ -1,3 +1,5 @@
+import { resolveModelTexture, modelAlphaMode } from './model-material.js';
+import { composeProjectionLayers } from './projection-composite.js';
 import { setProject } from './project-context.js';
 import { mountCanvasStudio } from './canvas-studio.js';
 import { mountSceneStudio } from './scene-studio.js';
@@ -49,6 +51,7 @@ let current = null,
   mapped = null,
   projectionPreview = null;
 let toastTimer, livery, nativeBuild, canvasStudio, sceneStudio;
+const materialMaps = [];
 let mode = 'move',
   gesture = null,
   cropRect = null,
@@ -126,7 +129,7 @@ function applyArtwork(source, name, binding) {
   if (!current || current.isUV) throw Error('Pilih tekstur yang dapat diedit terlebih dahulu.');
   initLayers(current);
   if (!validSize(source.width, source.height)) throw Error('Ukuran artwork tidak valid.');
-  remember();
+  remember(true);
   if (source.width !== current.w || source.height !== current.h) {
     const sx = source.width / current.w,
       sy = source.height / current.h;
@@ -142,7 +145,12 @@ function applyArtwork(source, name, binding) {
     $('dimensions').textContent = `${current.w} × ${current.h}`;
   }
   const id = binding?.id || crypto.randomUUID();
-  const layer = { ...makeLayer(source, name), projectionId: id };
+  const layer = {
+    ...makeLayer(source, name),
+    projectionId: id,
+    projectionPixels: source.projectionPixels,
+    preserveSourceAlpha: source.preserveSourceAlpha,
+  };
   const index = current.layers.findIndex((l) => l.projectionId === id);
   if (index < 0) current.layers.push(layer);
   else current.layers[index] = layer;
@@ -159,32 +167,50 @@ function applyArtwork(source, name, binding) {
 }
 const stickers3d = mountStickers3D({
   getTextureSize: () =>
-    current && !current.isUV ? { w: current.w, h: current.h, texture: current } : null,
+    current && !current.isUV
+      ? {
+          w: current.w,
+          h: current.h,
+          texture: current,
+          skin: /^(sbase|head_diff|uppr_diff|lowr_diff|body_diff)/i.test(current.name),
+        }
+      : null,
   addTextureLayer: (source, name, binding) => applyArtwork(source, 'PNG 3D · ' + name, binding),
-  previewTextureLayer: (binding) => {
-    if (!binding) {
+  previewTextureLayer: (binding, preview) => {
+    if (!binding && !preview) {
       if (!projectionPreview) return;
       projectionPreview = null;
       applyTexture();
       return;
     }
-    if (binding.texture !== current) return;
-    if (projectionPreview?.id === binding.id && projectionPreview.revision === current.revision)
-      return;
+    if (binding && binding.texture !== current) return;
     const source = document.createElement('canvas');
     source.width = current.w;
     source.height = current.h;
-    drawLayers(
-      source.getContext('2d'),
-      current.layers.filter((l) => l.projectionId !== binding.id),
-      current.w,
-      current.h,
-    );
+    const layers = current.layers.filter((l) => !binding || l.projectionId !== binding.id);
+    if (preview) {
+      const projected = document.createElement('canvas');
+      projected.width = current.w;
+      projected.height = current.h;
+      projected
+        .getContext('2d')
+        .putImageData(new ImageData(preview.pixels, current.w, current.h), 0, 0);
+      layers.push({
+        ...makeLayer(projected, 'Preview'),
+        projectionPixels: preview.pixels,
+        preserveSourceAlpha: preview.skin,
+      });
+    }
+    const pixels = composeProjectionLayers(layers, current.w, current.h);
+    if (pixels)
+      source.getContext('2d').putImageData(new ImageData(pixels, current.w, current.h), 0, 0);
+    else drawLayers(source.getContext('2d'), layers, current.w, current.h);
     projectionPreview = {
-      id: binding.id,
+      id: binding?.id,
       texture: current,
       revision: current.revision,
       canvas: source,
+      pixels,
     };
     applyTexture();
   },
@@ -192,7 +218,7 @@ const stickers3d = mountStickers3D({
     if (binding.texture !== current) return;
     const index = current.layers.findIndex((l) => l.projectionId === binding.id);
     if (index < 0) return;
-    remember();
+    remember(true);
     current.layers.splice(index, 1);
     current.selected = Math.min(current.selected, current.layers.length - 1);
     renderComposite(true);
@@ -245,14 +271,20 @@ function frame() {
   renderer?.render(scene, camera);
 }
 function applyTexture() {
+  materialMaps.splice(0).forEach((map) => map.dispose());
   if (mapped) {
     mapped.dispose();
     mapped = null;
   }
   if (current && $('apply').checked && (!current.isUV || current.layers?.some((l) => l.visible))) {
-    mapped = new THREE.CanvasTexture(
-      projectionPreview?.texture === current ? projectionPreview.canvas : canvas,
-    );
+    const pixels =
+      projectionPreview?.texture === current ? projectionPreview.pixels : current.previewPixels;
+    mapped = pixels
+      ? new THREE.DataTexture(new Uint8Array(pixels), current.w, current.h, THREE.RGBAFormat)
+      : new THREE.CanvasTexture(
+          projectionPreview?.texture === current ? projectionPreview.canvas : canvas,
+        );
+    mapped.needsUpdate = true;
     if (mapped) {
       mapped.flipY = false;
       mapped.generateMipmaps = true;
@@ -261,16 +293,51 @@ function applyTexture() {
       mapped.colorSpace = THREE.SRGBColorSpace;
     }
   }
+  const available = workspaceTextures().filter((t) => !t.isUV && t.out?.length === t.w * t.h * 4);
+  const meshes = [];
   model.traverse((o) => {
-    if (o.isMesh) {
-      for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
-        m.map = mapped || m.userData.originalMap || null;
-        m.color?.set(mapped ? 0xffffff : 0xb3bbc8);
-        m.wireframe = wire;
-        m.needsUpdate = true;
+    if (o.isMesh) meshes.push(o);
+  });
+  const matching =
+    current &&
+    meshes.some(
+      (o) =>
+        resolveModelTexture(o.userData.diffuseTexture, [current], [], displayedModel?.name) ===
+        current,
+    );
+  const cache = new Map();
+  for (const o of meshes) {
+    const texture =
+      $('apply').checked &&
+      resolveModelTexture(o.userData.diffuseTexture, available, [], displayedModel?.name);
+    const useCurrent = mapped && (!matching || texture === current);
+    let map = useCurrent ? mapped : null;
+    if (!map && texture) {
+      map = cache.get(texture);
+      if (!map) {
+        map = new THREE.DataTexture(
+          new Uint8Array(texture.previewPixels || texture.out),
+          texture.w,
+          texture.h,
+          THREE.RGBAFormat,
+        );
+        map.flipY = false;
+        map.colorSpace = THREE.SRGBColorSpace;
+        map.generateMipmaps = true;
+        map.minFilter = THREE.LinearMipmapLinearFilter;
+        map.anisotropy = Math.min(16, renderer?.capabilities.getMaxAnisotropy() || 1);
+        map.needsUpdate = true;
+        cache.set(texture, map);
+        materialMaps.push(map);
       }
     }
-  });
+    for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+      m.map = map || m.userData.originalMap || null;
+      m.color?.set(m.map ? 0xffffff : 0xb3bbc8);
+      m.wireframe = wire;
+      m.needsUpdate = true;
+    }
+  }
   pedMaterials.apply();
   renderer?.render(scene, camera);
 }
@@ -285,7 +352,8 @@ function showDrawable(index) {
     geo.setAttribute('position', new THREE.BufferAttribute(g.positions, 3));
     if (g.uvs) geo.setAttribute('uv', new THREE.BufferAttribute(g.uvs, 2));
     geo.setIndex(new THREE.BufferAttribute(g.indices, 1));
-    geo.computeVertexNormals();
+    if (g.normals) geo.setAttribute('normal', new THREE.BufferAttribute(g.normals, 3));
+    else geo.computeVertexNormals();
     const mesh = new THREE.Mesh(
       geo,
       new THREE.MeshStandardMaterial({
@@ -296,6 +364,11 @@ function showDrawable(index) {
       }),
     );
     mesh.userData.diffuseTexture = g.diffuseTexture || null;
+    if (
+      modelAlphaMode(g) === 'opaque' ||
+      /^(sbase|head_diff|uppr_diff|lowr_diff|body_diff)/i.test(g.diffuseTexture || '')
+    )
+      mesh.material.userData.previewAlphaDefault = { mode: 'opaque', cutoff: 0 };
     mesh.name =
       'Part ' +
       ((g.part ?? 0) + 1) +
@@ -459,6 +532,8 @@ function renderTextures() {
 function initLayers(t) {
   if (t.layers) return;
   t.layers = t.isUV ? [] : [makeLayer(copyCanvas(t.canvas), t.name, t.w, t.h)];
+  if (!t.isUV && t.out?.length === t.w * t.h * 4)
+    t.layers[0].originalPixels = { w: t.w, h: t.h, data: new Uint8ClampedArray(t.out) };
   t.selected = t.layers.length - 1;
   t.history = [];
   t.future = [];
@@ -513,7 +588,7 @@ function commit() {
   current.canvas.width = current.w;
   current.canvas.height = current.h;
   current.canvas.getContext('2d').drawImage(canvas, 0, 0);
-  current.out = ctx.getImageData(0, 0, current.w, current.h).data;
+  current.out = current.previewPixels?.slice() || ctx.getImageData(0, 0, current.w, current.h).data;
   dirty = true;
   $('editState').textContent = 'Tekstur diubah · belum diekspor';
   if (mapped) mapped.needsUpdate = true;
@@ -526,9 +601,10 @@ function snapshotState() {
     layers: current.layers.map((l) => ({ ...l })),
   };
 }
-function remember() {
+function remember(preservePixels = false) {
   if (!current) return;
   current.history.push(snapshotState());
+  if (!preservePixels && current.layers[0]) current.layers[0].originalPixels = null;
   current.future = [];
   if (current.history.length > 8) current.history.shift();
 }
@@ -811,7 +887,19 @@ function renderComposite(mark = false) {
     canvas.width = current.w;
     canvas.height = current.h;
   }
-  drawLayers(ctx, current.layers, current.w, current.h);
+  current.previewPixels = composeProjectionLayers(current.layers, current.w, current.h);
+  if (current.previewPixels)
+    ctx.putImageData(new ImageData(current.previewPixels, current.w, current.h), 0, 0);
+  else drawLayers(ctx, current.layers, current.w, current.h);
+  if (mapped?.isDataTexture) {
+    mapped.image = {
+      data: new Uint8Array(
+        current.previewPixels || ctx.getImageData(0, 0, current.w, current.h).data,
+      ),
+      width: current.w,
+      height: current.h,
+    };
+  }
   if (mapped) mapped.needsUpdate = true;
   drawSelection();
   syncTransform();

@@ -33,3 +33,9 @@ The internal browser now has folder tabs (up to 10 within the current source), b
 **Buka di Files** sends the current indexed folder to an installed Files Community application in its own Windows window. Stable, preview, and development protocol handlers are detected in that order. If unavailable, use **Dapatkan Files**, install it from the official page, then click **Buka di Files** again. DITASHA does not install Files or make it the system default automatically.
 
 Upstream references reviewed: [Files](https://github.com/files-community/Files), [WinUI project](https://github.com/files-community/Files/blob/main/src/Files.App/Files.App.csproj), [protocol registration](https://github.com/files-community/Files/blob/main/src/Files.App/Package.appxmanifest), [protocol command parsing](https://github.com/files-community/Files/blob/main/src/Files.App/Program.cs), [directory arguments](https://github.com/files-community/Files/blob/main/src/Files.App/Utils/CommandLine/CommandLineParser.cs). This integration calls the published protocol; no upstream application source, logo or executable is copied into DITASHA.
+
+## Explorer layout (v1.27)
+
+Browsing starts with only the current directory, including child folders. The left pane is folder navigation; category filters and the recursive option are in **Filter**. The right **Panel preview** displays images, selectable YTD/DDS textures, and interactive Legacy model geometry with its recognized companion YTD. Drag on a 3D preview to orbit, right-drag to pan, and scroll to zoom. Select a different file to release the previous preview. Files that cannot be decoded retain their details and can still be sorted.
+
+**Buka di Files** and its official download link are in the **•••** menu. Sorting output is also accessible there. Sorting continues to respect the current folder and optional filters.

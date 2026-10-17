@@ -1,3 +1,4 @@
+import { createFilePreview } from './file-preview.js';
 import { ICON_CODES } from './ui-icons.js';
 import { setProject } from './project-context.js';
 const categories = {
@@ -39,7 +40,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
     .map(([key, label]) => `<option value="${key}">${label}</option>`)
     .join(
       '',
-    )}</select></label><label class="check"><input id="fmRecursive" type="checkbox" checked>Semua subfolder</label></details>
+    )}</select></label><label class="check"><input id="fmRecursive" type="checkbox">Semua subfolder</label></details>
   <div class="fm-tree-head"><span class="eyebrow">FOLDERS</span><button id="fmNewTab" title="Tab folder baru" aria-label="Tab folder baru">${icon('plus')}</button></div><nav id="fmTree" class="fm-tree" aria-label="Navigasi folder"><p class="muted">Buka folder untuk mulai.</p></nav>
   <details class="fm-note"><summary>Tentang sorting & Files</summary><p>Sorting menyalin ke folder baru dengan nama asli. Pasangan pakaian dan kendaraan tetap dikelompokkan. Hasil belum menjadi resource siap ensure.</p><p>Browser ini dibuat untuk DITASHA dengan pola navigasi Files. Tombol Buka di Files menjalankan aplikasi Files Community asli dalam jendela Windows sendiri.</p><p id="fmNativeState" role="status">Memeriksa aplikasi Files…</p><p id="fmRoot">Pilih folder aset di komputer.</p></details>
 </aside>
@@ -56,9 +57,42 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
 <section id="fmPlanPanel" class="fm-plan" hidden><div class="fm-heading"><div><span class="eyebrow">RENCANA SORTING</span><h2 id="fmPlanTitle"></h2></div><button id="fmPlanClose" aria-label="Tutup pratinjau">${icon('cross')}</button></div><p class="muted">Periksa tujuan salinan. Nama dan struktur sumber dipertahankan di dalam kategori. Maksimal 100 contoh file ditampilkan.</p><div id="fmPlanCounts" class="fm-counts"></div><div id="fmPlanEntries" class="fm-plan-entries"></div><div class="fm-plan-footer"><span class="muted">Pilih output di luar sumber. Setiap proses membuat folder hasil baru.</span><button id="fmCopy" class="primary">${icon('copy')} Pilih output & salin</button></div></section>
 <footer class="fm-status"><span id="fmStatus" role="status">Buka folder aset untuk memulai.</span><button id="fmCancel" hidden>Batalkan proses</button></footer>
 `;
+  root.classList.add('fm-explorer');
+  const side = root.querySelector('.fm-sidebar'),
+    bar = root.querySelector('.fm-commandbar');
+  const chooseButton = root.querySelector('#fmChoose');
+  chooseButton.classList.remove('primary');
+  bar.prepend(chooseButton);
+  const filters = root.querySelector('.fm-filters');
+  filters.querySelector('summary').textContent = 'Filter';
+  filters.prepend(root.querySelector('#fmQuick'));
+  filters.append(root.querySelector('#fmCategory').closest('label'));
+  bar.append(filters);
+  const more = document.createElement('details');
+  more.className = 'fm-more-menu';
+  more.innerHTML = '<summary aria-label="Opsi lain">•••</summary><div></div>';
+  more
+    .querySelector('div')
+    .append(
+      root.querySelector('#fmNative'),
+      root.querySelector('#fmGetFiles'),
+      root.querySelector('.fm-note'),
+    );
+  bar.append(more);
+  side.prepend(root.querySelector('.fm-tree-head'));
+  side.querySelector('.fm-tree-head .eyebrow').textContent = 'Navigasi';
+  side.querySelector(':scope > .eyebrow')?.remove();
+  root.querySelector('#fmPlan').classList.remove('primary');
+  root.querySelector('#fmPlan').title = 'Kelompokkan dan salin aset ke folder output';
+  root.querySelector('#fmToggleDetails').innerHTML = icon('eye') + ' Panel preview';
+  root.querySelector('.fm-inspector-head .eyebrow').textContent = 'Preview';
+  more.querySelector('div').append(root.querySelector('#fmShowOutput'));
+  root.querySelector('.fm-sort-actions').hidden = true;
+  root.querySelector('#fmScope').setAttribute('aria-live', 'polite');
   nav.after(root);
   const $ = (id) => root.querySelector('#' + id),
     api = () => window.ditashaFiles;
+  const assetPreview = createFilePreview($('fmImage'));
   let location = '',
     offset = 0,
     total = 0,
@@ -116,7 +150,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
           offset = tab.offset || 0;
           $('fmSearch').value = tab.search || '';
           $('fmCategory').value = tab.category || '';
-          $('fmRecursive').checked = tab.recursive ?? true;
+          $('fmRecursive').checked = tab.recursive ?? false;
           orderBy = tab.orderBy || 'name';
           descending = tab.descending || false;
           $('fmOrder').value = orderBy;
@@ -139,7 +173,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
               offset = 0;
               $('fmSearch').value = activeTab.search || '';
               $('fmCategory').value = activeTab.category || '';
-              $('fmRecursive').checked = activeTab.recursive ?? true;
+              $('fmRecursive').checked = activeTab.recursive ?? false;
               orderBy = activeTab.orderBy || 'name';
               descending = activeTab.descending || false;
               $('fmOrder').value = orderBy;
@@ -278,6 +312,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
     $('fmPlanPanel').hidden = true;
   }
   function clearPreview() {
+    assetPreview.clear();
     serial++;
     picked = null;
     if (imageURL) URL.revokeObjectURL(imageURL);
@@ -294,8 +329,8 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
       container.append(tag);
     }
   }
-  async function select(file, row) {
-    if (busy) return;
+  async function select(file, row, restore = false) {
+    if (busy && !restore) return;
     clearPreview();
     picked = file;
     root.querySelectorAll('.fm-row.selected').forEach((e) => e.classList.remove('selected'));
@@ -329,9 +364,11 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
       } catch (e) {
         if (current === serial) $('fmImage').textContent = e.message;
       }
-    } else $('fmImage').innerHTML = icon(/\.(ydd|ydr|yft)$/i.test(file.name) ? 'cube' : 'document');
+    } else if (/\.(ydd|ydr|yft|ytd|dds)$/i.test(file.name)) await assetPreview.show(file, api());
+    else $('fmImage').innerHTML = icon('document');
   }
   async function list() {
+    const previous = picked?.id;
     const data = await api().list(query());
     clearThumbnails();
     total = data.totalItems;
@@ -408,6 +445,15 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
     $('fmList').classList.toggle('fm-grid', view === 'grid');
     root.classList.toggle('fm-grid-mode', view === 'grid');
     controls();
+    const previousFile = data.files.find((file) => file.id === previous);
+    if (previousFile)
+      await select(
+        previousFile,
+        [...$('fmList').querySelectorAll('[data-file-id]')].find(
+          (row) => row.dataset.fileId === previous,
+        ),
+        true,
+      );
     if (view === 'grid') loadThumbnails(data.files, thumbnailGeneration);
   }
   async function loadThumbnails(files, version) {

@@ -133,7 +133,8 @@ export function mountDebadge({ download, toast, confirmDiscard, back }) {
       geometry.setAttribute('position', new THREE.BufferAttribute(g.positions, 3));
       if (g.uvs) geometry.setAttribute('uv', new THREE.BufferAttribute(g.uvs, 2));
       geometry.setIndex(new THREE.BufferAttribute(g.indices, 1));
-      geometry.computeVertexNormals();
+      if (g.normals) geometry.setAttribute('normal', new THREE.BufferAttribute(g.normals, 3));
+      else geometry.computeVertexNormals();
       const t = resolveModelTexture(
         g.diffuseTexture,
         external,

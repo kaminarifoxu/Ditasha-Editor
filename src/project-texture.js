@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { surfacePoint, surfaceFacing } from './surface-projection.js';
 
 // Alpha-weighted bilinear filtering avoids dark/white fringes from hidden RGB
 // in transparent PNG pixels. UV-edge padding is separate from artwork edges.
@@ -63,6 +64,7 @@ export function projectTexture(
   height,
   opacity = 1,
   side = 1,
+  wrap = null,
 ) {
   const output = new Uint8ClampedArray(width * height * 4);
   const coverage = new Uint8Array(width * height);
@@ -88,8 +90,14 @@ export function projectTexture(
         .subVectors(b, a)
         .cross(new THREE.Vector3().subVectors(c, a));
       // Do not project through the model onto its back side.
-      if (normal.z * side <= 0) continue;
+      const center = new THREE.Vector3()
+        .copy(a)
+        .add(b)
+        .add(c)
+        .multiplyScalar(1 / 3);
+      if (!surfaceFacing(normal, center, side, wrap)) continue;
       if (
+        !wrap &&
         ['x', 'y', 'z'].some(
           (axis, k) =>
             points.every((v) => v[axis] < -size.getComponent(k) / 2) ||
@@ -125,15 +133,16 @@ export function projectTexture(
             [wa, wb, wc] = padded;
           }
           p.copy(a).multiplyScalar(wa).addScaledVector(b, wb).addScaledVector(c, wc);
+          const mapped = surfacePoint(p, size, wrap);
           if (
-            Math.abs(p.x) > size.x / 2 ||
-            Math.abs(p.y) > size.y / 2 ||
-            Math.abs(p.z) > size.z / 2
+            Math.abs(mapped.x) > size.x / 2 ||
+            Math.abs(mapped.y) > size.y / 2 ||
+            Math.abs(mapped.depth) > size.z / 2
           )
             continue;
           coverage[pixel] = interior ? 2 : 1;
-          const sx = (p.x / size.x + 0.5) * image.width - 0.5;
-          const sy = (0.5 - p.y / size.y) * image.height - 0.5;
+          const sx = (mapped.x / size.x + 0.5) * image.width - 0.5;
+          const sy = (0.5 - mapped.y / size.y) * image.height - 0.5;
           if (sample(image, sx, sy, output, pixel * 4, opacity)) painted++;
         }
     }

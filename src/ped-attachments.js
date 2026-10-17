@@ -106,7 +106,8 @@ export function mountPedAttachments({ scene, container, prefix, toast, hasBase, 
       geometry.setAttribute('position', new THREE.BufferAttribute(g.positions, 3));
       if (g.uvs) geometry.setAttribute('uv', new THREE.BufferAttribute(g.uvs, 2));
       geometry.setIndex(new THREE.BufferAttribute(g.indices, 1));
-      geometry.computeVertexNormals();
+      if (g.normals) geometry.setAttribute('normal', new THREE.BufferAttribute(g.normals, 3));
+      else geometry.computeVertexNormals();
       const t = attachmentTexture(a, g);
       if (!t) missing.add(g.diffuseTexture || 'material tanpa nama diffuse');
       if (t && !g.uvs) missing.add('UV rambut tidak tersedia');

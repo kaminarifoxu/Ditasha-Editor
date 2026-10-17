@@ -1,3 +1,13 @@
+# v1.27.0 preview — Explorer layout and source-preserving tattoo projection
+
+Replaces the stretched Workshop toolbar cards with compact control rows. Camera actions no longer stretch every group to their height. File Manager uses a familiar Explorer arrangement: folder tree, tabs, address/search row, compact commands, direct-folder browsing by default, and a right-hand preview pane. Asset category and recursive filters move into an optional Filter menu; the native Files launcher stays in the overflow menu. Selection survives switching between list and grid. PNG/JPG/WebP previews remain, and YTD/DDS texture selection plus interactive Legacy YDD/YDR/YFT model previews are now available directly in the pane.
+
+Tattoo has a cylindrical projection mode for necks/arms, based on fitted local curvature and arc length rather than a tangent-plane face cutoff. The temporary preview uses the same rasterizer as the committed texture. The original texture resolution is retained by default; 2K/4K upscaling is optional. A raw-RGBA compositing path preserves untouched source bytes, including RGB beneath zero/low alpha, during projection-only edits. Skin mode blends tattoo ink into RGB while retaining the source alpha channel. Manual paint/transform edits invalidate that fast path after an undo snapshot.
+
+Native authored Float3/Half4/RGBA8 SNORM normals are retained, including rigid bone transforms, instead of always recomputing shading at split UV vertices. The texture editor resolves named diffuse materials independently, so editing the skin atlas does not replace unrelated eye/teeth/hair maps when matching bindings exist. Preview uses raw RGBA GPU textures.
+
+Tests cover source pixel preservation and YTD export/reopen, curved neck projection beyond 90 degrees, original native normals, compact toolbar height, ordinary folder browsing, image/YTD/3D preview, sorting, and existing editor/native engine workflows. The supplied screenshots were reviewed; the exact custom head/tattoo assets have not been supplied, so exact placement and in-game results on that model remain unverified.
+
 # v1.26.0 preview — Files navigation and continuous tattoo projection
 
 The internal File Manager is rebuilt around Files-style navigation: folder tabs (within the scanned root), back/forward history, clickable breadcrumbs, a bounded folder tree, category quick access, list/grid layouts with local image thumbnails, details toggle, and name/type/size/modified ordering applied before pagination. Existing native classification, reviewed sorting plans, streamed copies, source protection, cancellation and editor opening remain available.

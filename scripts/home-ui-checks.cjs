@@ -53,6 +53,11 @@ module.exports = async function checkHome({ ytd, size, interactions }) {
       );
     }
   }
+  if (size >= 1500)
+    assert(
+      shelf.getBoundingClientRect().height < 140,
+      'Toolbar cards consume too much canvas height',
+    );
   console.log('DITASHA_SNAPSHOT:workshop-toolbar-' + size);
   await sleep(200);
   for (const page of ['modelviewer', 'archives', 'converter', 'pack']) {

@@ -18,8 +18,19 @@ module.exports = async function checkFileManager() {
   );
   $('fmChoose').click();
   await wait(
+    () => !$('fmChoose').disabled && $('fmList').querySelectorAll('.fm-directory').length === 3,
+    'Direct-folder browsing failed',
+  );
+  assert(!$('fmRecursive').checked, 'Explorer unexpectedly shows files from every subfolder');
+  assert(
+    $('fmList').querySelectorAll('[data-file-id]').length === 0,
+    'Root mixes descendants with folders',
+  );
+  $('fmRecursive').checked = true;
+  $('fmRecursive').dispatchEvent(new Event('change'));
+  await wait(
     () => !$('fmChoose').disabled && $('fmList').querySelectorAll('[data-file-id]').length === 6,
-    'Real folder scan failed',
+    'Recursive asset scan failed',
   );
   assert($('fmRoot').textContent.includes('source'), 'Source path missing');
   assert($('fmPage').textContent.includes('6'), 'File count missing');
@@ -160,6 +171,42 @@ module.exports = async function checkFileManager() {
     () => !$('fmChoose').disabled && $('fmStatus').textContent.includes('dibuka di aplikasi Files'),
     'Native Files connection failed',
   );
+  const vehicle = [...$('fmList').querySelectorAll('[data-file-id]')].find((row) =>
+    row.textContent.includes('buffalo.yft'),
+  );
+  vehicle.click();
+  await wait(
+    () => $('fmImage').querySelector('.fm-model-preview canvas'),
+    'Inline 3D model preview failed',
+  );
+  const texture = [...$('fmList').querySelectorAll('[data-file-id]')].find((row) =>
+    row.textContent.includes('buffalo.ytd'),
+  );
+  texture.click();
+  await wait(
+    () => $('fmImage').querySelector('#fmTextureChoice'),
+    'Inline YTD texture preview failed',
+  );
+  // Return to ordinary current-folder browsing and leave a selected PNG in the
+  // preview pane for responsive screenshots and view-mode selection checks.
+  $('fmRecursive').checked = false;
+  $('fmRecursive').dispatchEvent(new Event('change'));
+  await wait(
+    () => !$('fmChoose').disabled && $('fmList').querySelectorAll('.fm-directory').length === 3,
+    'Explorer restore failed',
+  );
+  [...$('fmList').querySelectorAll('.fm-directory')]
+    .find((row) => row.textContent === 'images')
+    .click();
+  await wait(
+    () => !$('fmChoose').disabled && $('fmList').querySelectorAll('[data-file-id]').length === 1,
+    'Image folder open failed',
+  );
+  $('fmList').querySelector('[data-file-id]').click();
+  await wait(
+    () => $('fmImage').querySelector('img')?.naturalWidth === 1,
+    'PNG preview restore failed',
+  );
   const box = document.querySelector('.file-manager').getBoundingClientRect();
   const nav = document.querySelector('.workspace-nav').getBoundingClientRect();
   assert(
@@ -188,5 +235,8 @@ module.exports = async function checkFileManager() {
     tabs: true,
     gridThumbnails: true,
     ordering: true,
+    modelPreview: true,
+    texturePreview: true,
+    directFolderBrowse: true,
   };
 };

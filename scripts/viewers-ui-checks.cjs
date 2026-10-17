@@ -32,6 +32,7 @@ module.exports = async function checkViewers(fixtures) {
   async function checkSticker3d() {
     // Small-atlas editing remains available; a separate check below exercises 2K.
     $('stickerResolution').value = '0';
+    $('stickerProjection').value = 'plane';
     $('canvasW').value = $('canvasH').value = '128';
     $('confirmSize').click();
     const original2d = $('textureCanvas').toDataURL();

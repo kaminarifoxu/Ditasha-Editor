@@ -613,3 +613,86 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Compact, stable command rows: no stretched cards above the actual canvas. */
+.workspace-shell main > .editor-commandbar {
+  align-items: center;
+  align-content: flex-start;
+  gap: 8px 12px;
+  min-height: 0;
+  max-height: none;
+  padding: 9px 12px;
+  overflow: visible;
+}
+.workspace-shell .editor-commandbar .workshop-tool-cluster {
+  flex-wrap: nowrap;
+  align-items: center;
+  align-content: center;
+  align-self: center;
+  height: 36px;
+  min-height: 0;
+  padding: 0 12px 0 0;
+  gap: 6px;
+  border: 0;
+  border-right: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+}
+.workspace-shell .editor-commandbar .workshop-tool-cluster::before {
+  display: none;
+}
+.workspace-shell .editor-commandbar .modeltools {
+  display: flex;
+  flex-wrap: nowrap;
+}
+.workspace-shell .editor-commandbar .modeltools button {
+  width: auto;
+  flex: 0 0 auto;
+}
+.workspace-shell .editor-commandbar .modeltools #photoshoot {
+  font-size: 0;
+  gap: 0;
+  padding: 8px;
+}
+.workspace-shell .editor-commandbar .modeltools #photoshoot .control-label {
+  display: none;
+}
+.workspace-shell .editor-commandbar .modeltools #photoshoot .di-icon {
+  font-size: 18px;
+}
+.workspace-shell .editor-commandbar .modeltools #liveryStudio {
+  width: auto;
+}
+.workspace-shell .editor-commandbar .canvasoptions {
+  display: flex;
+  flex-wrap: nowrap;
+}
+.workspace-shell .editor-commandbar .canvasoptions label {
+  margin: 0;
+  white-space: nowrap;
+}
+.workspace-shell .editor-commandbar .workshop-tool-cluster > button {
+  flex: 0 0 auto;
+}
+.workspace-shell .archive-sidebar {
+  padding: 18px 14px;
+}
+.workspace-shell .archive-sidebar > p {
+  line-height: 1.65;
+  font-size: 11px;
+}
+.workspace-shell .archive-sidebar > button {
+  width: 100%;
+  margin-bottom: 8px;
+}
+@media (max-width: 1050px) {
+  .workspace-shell .editor-commandbar .workshop-tool-cluster {
+    max-width: 100%;
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 36px;
+  }
+  .workspace-shell .editor-commandbar .modeltools {
+    flex-wrap: wrap;
+  }
+}

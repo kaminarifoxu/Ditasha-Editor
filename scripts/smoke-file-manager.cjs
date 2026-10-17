@@ -20,13 +20,14 @@ app.whenReady().then(async () => {
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4sOHYfwAIYANmZqFx7wAAAABJRU5ErkJggg==',
       'base64',
     );
+    const { fragmentYft, alphaYtd } = await import('../tests/vehicle-preview.test.mjs');
     const entries = {
       'images/logo.png': png,
       'images/second/logo.png': png,
       'clothes/mp_f_freemode_01^jbib_001_u.ydd': 'model',
       'clothes/mp_f_freemode_01^jbib_diff_001_a_uni.ytd': 'texture',
-      'vehicles/buffalo.yft': 'model',
-      'vehicles/buffalo.ytd': 'texture',
+      'vehicles/buffalo.yft': new Uint8Array(fragmentYft()),
+      'vehicles/buffalo.ytd': new Uint8Array(alphaYtd()),
     };
     await fs.mkdir(output);
     for (const [relative, data] of Object.entries(entries)) {

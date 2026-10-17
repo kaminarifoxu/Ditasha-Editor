@@ -87,7 +87,8 @@ export async function convertFile(file, mode) {
           geo.setAttribute('position', new THREE.BufferAttribute(g.positions, 3));
           if (g.uvs) geo.setAttribute('uv', new THREE.BufferAttribute(g.uvs, 2));
           geo.setIndex(new THREE.BufferAttribute(g.indices, 1));
-          geo.computeVertexNormals();
+          if (g.normals) geo.setAttribute('normal', new THREE.BufferAttribute(g.normals, 3));
+          else geo.computeVertexNormals();
           group.add(
             new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ side: THREE.DoubleSide })),
           );

@@ -1,10 +1,7 @@
 import * as THREE from 'three';
 import { projectTexture } from './project-texture.js';
-import {
-  projectionResolution,
-  projectionTargets,
-  projectionGeometry,
-} from './sticker-projection.js';
+import { fitSurfaceRadius, surfacePoint } from './surface-projection.js';
+import { projectionResolution, projectionTargets } from './sticker-projection.js';
 
 export function mountStickers3D({
   scene,
@@ -38,8 +35,10 @@ export function mountStickers3D({
       <label class="tattoo-control"><span>Opacity</span><div><input aria-label="Opacity tattoo" id="stickerOpacity" type="range" min="1" max="100" value="100"><input aria-label="Opacity tattoo persen" id="stickerOpacityNumber" type="number" min="1" max="100" value="100"><span>%</span></div></label>
     </div>
     <label class="tattoo-control"><span>Kedalaman permukaan</span><div><input aria-label="Kedalaman tattoo" id="stickerDepth" type="range" min="10" max="300" value="150"><input aria-label="Kedalaman tattoo persen" id="stickerDepthNumber" type="number" min="10" max="300" value="150"><span>%</span></div></label>
+    <label>Proyeksi<select id="stickerProjection"><option value="cylinder">Melingkar · leher / lengan</option><option value="plane">Datar · logo / bidang rata</option></select></label>
+    <label class="check"><input id="stickerSkin" type="checkbox">Kulit · pertahankan alpha sumber</label>
     <label>Area proyeksi<select id="stickerScope"><option value="texture">Semua mesh dengan tekstur sama</option><option value="mesh">Hanya mesh yang diklik</option><option value="all">Semua mesh · satu atlas UV</option></select></label>
-    <label>Resolusi baking<select id="stickerResolution"><option value="0">Resolusi tekstur asli</option><option value="2048" selected>Minimal 2K · disarankan</option><option value="4096">Minimal 4K · detail tinggi</option></select></label>
+    <label>Resolusi baking<select id="stickerResolution"><option value="0" selected>Asli · tanpa resize kulit</option><option value="2048">Minimal 2K · disarankan</option><option value="4096">Minimal 4K · detail tinggi</option></select></label>
     <p id="stickerQuality" class="muted">PNG asli dipertahankan. Baking tidak memperkecil tekstur. Peningkatan resolusi tidak memulihkan detail kulit yang sudah hilang.</p>
     <button id="stickerBake" disabled>Sinkronkan 2D</button>
     <p id="stickerStatus" role="status" class="muted">Tambah PNG untuk mulai.</p>
@@ -83,6 +82,8 @@ export function mountStickers3D({
         $('stickerOpacity').value = item.opacity;
         $('stickerDepth').value = item.depth;
         $('stickerScope').value = item.scope;
+        $('stickerProjection').value = item.projection;
+        $('stickerSkin').checked = item.skin;
         refresh();
       };
       $('stickerList').append(b);
@@ -117,7 +118,7 @@ export function mountStickers3D({
     const projector = new THREE.Object3D();
     projector.position.copy(item.point);
     projector.lookAt(item.point.clone().add(item.normal));
-    projector.rotateZ(THREE.MathUtils.degToRad(item.rotation));
+    if (item.projection !== 'cylinder') projector.rotateZ(THREE.MathUtils.degToRad(item.rotation));
     const size = new THREE.Vector3(
       width,
       (width * item.asset.bitmap.height) / item.asset.bitmap.width,
@@ -126,29 +127,47 @@ export function mountStickers3D({
     projector.updateMatrixWorld();
     item.projector = projector.matrixWorld.clone();
     item.projectorSize = size;
-    for (const mesh of targets) {
-      const geometry = projectionGeometry(mesh, item.point, projector.rotation, size, item.side);
-      if (!geometry.index.count) {
-        geometry.dispose();
-        continue;
+    item.wrap =
+      item.projection === 'cylinder'
+        ? {
+            radius: fitSurfaceRadius(targets, item.projector, size),
+            rotation: THREE.MathUtils.degToRad(item.rotation),
+          }
+        : null;
+    const dimensions = getTextureSize();
+    item.projected = false;
+    if (dimensions)
+      try {
+        const pixels = bakePixels(item, dimensions.w, dimensions.h);
+        previewTextureLayer(item.binding || null, { pixels, skin: item.skin });
+        item.projected = true;
+      } catch (error) {
+        $('stickerStatus').textContent = error.message;
       }
-      const material = new THREE.MeshStandardMaterial({
-        map: item.asset.map,
-        transparent: true,
-        opacity: item.opacity / 100,
-        depthWrite: false,
-        polygonOffset: true,
-        polygonOffsetFactor: -4,
-        roughness: 0.8,
-        alphaTest: 0.005,
-        side: THREE.DoubleSide,
-      });
-      const decal = new THREE.Mesh(geometry, material);
-      decal.name = 'PNG 3D · ' + item.name;
-      group.add(decal);
-      item.meshes.push(decal);
-    }
     render();
+  }
+  function bakePixels(item, width, height) {
+    if (!item.asset.imageData) {
+      const source = document.createElement('canvas');
+      source.width = item.asset.bitmap.width;
+      source.height = item.asset.bitmap.height;
+      const context = source.getContext('2d');
+      context.translate(0, source.height);
+      context.scale(1, -1);
+      context.drawImage(item.asset.bitmap, 0, 0);
+      item.asset.imageData = context.getImageData(0, 0, source.width, source.height);
+    }
+    return projectTexture(
+      projectionTargets(getMeshes(), item.target, item.scope),
+      item.projector,
+      item.projectorSize,
+      item.asset.imageData,
+      width,
+      height,
+      item.opacity / 100,
+      item.side,
+      item.wrap,
+    );
   }
   open.onclick = () => {
     if (!getMeshes().length) return toast('Buka model 3D terlebih dahulu.');
@@ -178,6 +197,7 @@ export function mountStickers3D({
       asset = { map, bitmap, pixels, name: file.name };
       assets.push(asset);
       bitmap = null;
+      $('stickerSkin').checked = getTextureSize()?.skin || false;
       refresh();
       moving = false;
       arm(true);
@@ -230,26 +250,12 @@ export function mountStickers3D({
         dimensions.h,
         Number($('stickerResolution').value),
       );
-      const source = document.createElement('canvas');
-      source.width = item.asset.bitmap.width;
-      source.height = item.asset.bitmap.height;
-      const context = source.getContext('2d');
-      context.translate(0, source.height);
-      context.scale(1, -1);
-      context.drawImage(item.asset.bitmap, 0, 0);
-      const pixels = projectTexture(
-        projectionTargets(getMeshes(), item.target, item.scope),
-        item.projector,
-        item.projectorSize,
-        context.getImageData(0, 0, source.width, source.height),
-        resolution.w,
-        resolution.h,
-        item.opacity / 100,
-        item.side,
-      );
+      const pixels = bakePixels(item, resolution.w, resolution.h);
       const layer = document.createElement('canvas');
       layer.width = resolution.w;
       layer.height = resolution.h;
+      layer.projectionPixels = pixels;
+      layer.preserveSourceAlpha = item.skin;
       layer.getContext('2d').putImageData(new ImageData(pixels, layer.width, layer.height), 0, 0);
       previewTextureLayer(null);
       item.binding = addTextureLayer(layer, item.name, item.binding);
@@ -274,12 +280,13 @@ export function mountStickers3D({
       const hit = hitAt(event);
       if (!hit) return;
       if (!armed) {
-        const local = hit.point.clone().applyMatrix4(selected.projector.clone().invert());
+        const localPoint = hit.point.clone().applyMatrix4(selected.projector.clone().invert());
+        const local = surfacePoint(localPoint, selected.projectorSize, selected.wrap);
         const size = selected.projectorSize;
         if (
           Math.abs(local.x) > size.x / 2 ||
           Math.abs(local.y) > size.y / 2 ||
-          Math.abs(local.z) > size.z / 2
+          Math.abs(local.depth) > size.z / 2
         )
           return;
         event.preventDefault();
@@ -316,11 +323,13 @@ export function mountStickers3D({
         opacity: Number($('stickerOpacity').value),
         depth: Number($('stickerDepth').value),
         scope: $('stickerScope').value,
+        projection: $('stickerProjection').value,
+        skin: $('stickerSkin').checked,
         meshes: [],
       };
       locate(item, hit);
-      if (!item.meshes.length) {
-        toast('Stiker tidak mengenai permukaan.');
+      if (!item.projected) {
+        toast('Pilih tekstur kulit/YTD terlebih dahulu, lalu pasang pada permukaan yang sesuai.');
         return;
       }
       items.push(item);
@@ -408,6 +417,16 @@ export function mountStickers3D({
     rebuild(selected);
     sync(selected);
   };
+  for (const [id, key] of [
+    ['stickerProjection', 'projection'],
+    ['stickerSkin', 'skin'],
+  ])
+    $(id).onchange = () => {
+      if (!selected) return;
+      selected[key] = id === 'stickerSkin' ? $(id).checked : $(id).value;
+      rebuild(selected);
+      sync(selected);
+    };
   $('stickerResolution').onchange = () => {
     if (selected) sync(selected);
   };

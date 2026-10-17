@@ -507,7 +507,8 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
         if (g.uvs) geometry.setAttribute('uv', new THREE.BufferAttribute(g.uvs.slice(), 2));
         if (g.uvs2) geometry.setAttribute('uv1', new THREE.BufferAttribute(g.uvs2.slice(), 2));
         geometry.setIndex(new THREE.BufferAttribute(g.indices, 1));
-        geometry.computeVertexNormals();
+        if (g.normals) geometry.setAttribute('normal', new THREE.BufferAttribute(g.normals, 3));
+        else geometry.computeVertexNormals();
         const available = [...modelTextures, ...embedded];
         const t = override?.name
           ? available.find((t) => t.name === override.name && t.dictionary === override.dictionary)

@@ -1,5 +1,5 @@
 import { decodeBC7 } from 'tex-decoder/build/esm/bc7.js';
-import { Matrix4, Quaternion, Vector3 } from 'three';
+import { Matrix3, Matrix4, Quaternion, Vector3 } from 'three';
 import { deflateRaw, Inflate } from 'pako';
 export const pageSize = (f) =>
   512 *
@@ -394,7 +394,19 @@ function rigidGeometry(data, matrix) {
     point.set(positions[i], -positions[i + 2], positions[i + 1]).applyMatrix4(matrix);
     positions.set([point.x, point.z, -point.y], i);
   }
-  return { ...data, positions };
+  let normals = data.normals;
+  if (normals) {
+    normals = normals.slice();
+    const normalMatrix = new Matrix3().getNormalMatrix(matrix);
+    for (let i = 0; i < normals.length; i += 3) {
+      point
+        .set(normals[i], -normals[i + 2], normals[i + 1])
+        .applyMatrix3(normalMatrix)
+        .normalize();
+      normals.set([point.x, point.z, -point.y], i);
+    }
+  }
+  return { ...data, positions, normals };
 }
 
 function readDrawables(r, drawables, metadata = new Map()) {
@@ -447,11 +459,29 @@ function readDrawables(r, drawables, metadata = new Map()) {
     };
     const positions = new Float32Array(count * 3),
       uvs = offsets[6] ? new Float32Array(count * 2) : null,
-      uvs2 = offsets[7] ? new Float32Array(count * 2) : null;
+      uvs2 = offsets[7] ? new Float32Array(count * 2) : null,
+      normals =
+        offsets[3] && [3, 6, 7, 10].includes(offsets[3].type) ? new Float32Array(count * 3) : null;
+    let normalsValid = !!normals;
     for (let i = 0; i < count; i++) {
       positions.set([get(i, 0, 0), get(i, 0, 2), -get(i, 0, 1)], i * 3);
       if (uvs) uvs.set([get(i, 6, 0), get(i, 6, 1)], i * 2);
       if (uvs2) uvs2.set([get(i, 7, 0), get(i, 7, 1)], i * 2);
+      if (normals)
+        try {
+          const component = (k) =>
+            offsets[3].type === 10
+              ? Math.max(-1, r.v.getInt8(data + i * stride + offsets[3].offset + k) / 127)
+              : get(i, 3, k);
+          const x = component(0),
+            y = component(1),
+            z = component(2),
+            length = Math.hypot(x, y, z);
+          if (!Number.isFinite(length) || length < 1e-8) normalsValid = false;
+          else normals.set([x / length, z / length, -y / length], i * 3);
+        } catch {
+          normalsValid = false;
+        }
     }
     const ic = r.u32(ib + 8),
       ip = r.ptr(ib + 16);
@@ -470,7 +500,15 @@ function readDrawables(r, drawables, metadata = new Map()) {
       indices[i] = r.u16(ip + i * 2);
       if (indices[i] >= count) throw Error('Index model tidak valid.');
     }
-    const result = { positions, uvs, uvs2, indices, sourceGeometry: g, indexOffset: ip };
+    const result = {
+      positions,
+      normals: normalsValid ? normals : null,
+      uvs,
+      uvs2,
+      indices,
+      sourceGeometry: g,
+      indexOffset: ip,
+    };
     cache.set(g, result);
     return result;
   }
