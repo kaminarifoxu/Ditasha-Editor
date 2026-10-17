@@ -203,9 +203,7 @@ module.exports = async function checkExplorerPreview(fixtures) {
   ]);
   select('car.ydd');
   await wait(
-    () =>
-      !$('archiveOpen').disabled &&
-      $('mvStatus').textContent.includes('Model loaded without external textures:'),
+    () => !$('archiveOpen').disabled && $('mvStatus').textContent.includes('Texture warnings:'),
     'Texture failure blocked geometry or left Loading status',
   );
   assert(
