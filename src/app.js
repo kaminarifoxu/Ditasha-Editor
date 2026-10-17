@@ -310,7 +310,11 @@ function applyTexture() {
     const texture =
       $('apply').checked &&
       resolveModelTexture(o.userData.diffuseTexture, available, [], displayedModel?.name);
-    const useCurrent = mapped && (!matching || texture === current);
+    const useCurrent =
+      mapped &&
+      (!matching ||
+        resolveModelTexture(o.userData.diffuseTexture, [current], [], displayedModel?.name) ===
+          current);
     let map = useCurrent ? mapped : null;
     if (!map && texture) {
       map = cache.get(texture);
@@ -692,7 +696,10 @@ async function loadFiles(list) {
       toast('Membuka ' + file.name + '…');
       if (ext === 'ytd') {
         f.resource = await decodeResource('ytd', await file.arrayBuffer());
-        f.resource.textures.forEach(makeCanvas);
+        f.resource.textures.forEach((t) => {
+          t.dictionary = f.name;
+          makeCanvas(t);
+        });
       } else if (['ydd', 'ydr', 'yft'].includes(ext)) {
         f.drawables = await decodeResource(ext, await file.arrayBuffer());
       } else if (['png', 'jpg', 'jpeg', 'webp'].includes(ext)) {
