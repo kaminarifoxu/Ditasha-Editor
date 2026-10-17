@@ -402,6 +402,15 @@ module.exports = async function checkOfflineStudio(fixtures) {
   );
   assert(!savedPed, 'Rig result was saved before user approval');
   assert(
+    !document.querySelector('.rig-settings').open,
+    'Completed rig settings should collapse to make room for the preview',
+  );
+  const rigViewport = $('nbViewport').getBoundingClientRect();
+  assert(
+    rigViewport.top < innerHeight - 120 && rigViewport.bottom > 200,
+    'Completed rig preview is below the visible workspace',
+  );
+  assert(
     document.querySelector('.rig-quality') && $('nbPedPose').options.length === 3,
     'Rig quality report or test poses missing',
   );

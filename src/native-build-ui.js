@@ -313,6 +313,7 @@ export function mountNativeBuild({
     ) {
       const id = state.previewId;
       loadedPreviewId = id;
+      if ($('nbMode').value === 'ped') rigSettings.open = false;
       const poses = (report.preview?.poses || [{ id: 'rest', label: 'Pose awal' }]).filter((p) =>
         ['rest', 'arms', 'legs'].includes(p.id),
       );
