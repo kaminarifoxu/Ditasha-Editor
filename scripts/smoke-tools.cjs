@@ -259,6 +259,25 @@ app.whenReady().then(async () => {
         JSON.stringify({
           model: [...new Uint8Array(liveryYftFixture(viewerModel))],
           keyedDictionary: [...new Uint8Array(keyedVehicleDictionary())],
+          paint4Model: [
+            ...new Uint8Array(
+              liveryYftFixture(viewerModel, {
+                embedded: false,
+                shader: 'vehicle_paint4',
+                primary: 'vehicle_generic_detail2',
+              }),
+            ),
+          ],
+          sharedDictionary: [
+            ...createYtd([
+              {
+                name: 'vehicle_generic_detail2',
+                w: 1,
+                h: 1,
+                out: new Uint8Array([0, 255, 0, 255]),
+              },
+            ]),
+          ],
           searchModel: [...new Uint8Array(liveryYftFixture(viewerModel, { embedded: false }))],
           base: [
             ...createYtd([

@@ -5,6 +5,14 @@ const normalize = (name = '') =>
     .at(-1)
     .replace(/\.(yft|ydd|ydr|ytd|dds|png|jpe?g|webp)$/i, '')
     .toLowerCase();
+// Preserve copy suffixes: car_hi(1).yft belongs to car(1).ytd, not car(2).ytd.
+export const textureDictionaryFamily = (name = '') =>
+  normalize(name.split(' · ')[0]).replace(/_hi(?=(?:\s*\(\d+\))?$)/i, '');
+export function textureDependency(name = '') {
+  if (/^script_rt_/i.test(normalize(name))) return 'runtime';
+  return /^(vehicle_generic_|vehiclelights|plate\d)/i.test(normalize(name)) ? 'shared' : 'asset';
+}
+export const isSharedDictionary = (name) => textureDictionaryFamily(name) === 'vehshare';
 export function textureNameMatches(name, candidate) {
   const texture = typeof candidate === 'string' ? { name: candidate } : candidate;
   const key = normalize(name),
@@ -20,12 +28,16 @@ export function textureNameMatches(name, candidate) {
 export function resolveModelTexture(name, external, embedded, sourceName) {
   if (!name) return null;
   const matches = external.filter((texture) => textureNameMatches(name, texture));
-  const source = normalize((sourceName || '').split(' · ')[0]).replace(/_hi$/, '');
-  const owned = matches.filter((t) => normalize(t.dictionary).replace(/_hi$/, '') === source);
+  const source = textureDictionaryFamily(sourceName);
+  const owned = matches.filter((t) => textureDictionaryFamily(t.dictionary) === source);
   if (owned.length) return owned.at(-1);
   const local = embedded.find((texture) => textureNameMatches(name, texture));
   if (matches.length === 1) return matches[0];
-  return local || null;
+  const shared =
+    textureDependency(name) === 'shared'
+      ? matches.filter((t) => isSharedDictionary(t.dictionary))
+      : [];
+  return local || (shared.length === 1 ? shared[0] : null);
 }
 // Opaque vehicle presets (bucket 0), checked against szio/gta5/Shaders.xml.
 // Their diffuse alpha is shader data, not surface transparency.

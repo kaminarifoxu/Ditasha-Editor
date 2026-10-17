@@ -1,4 +1,9 @@
-import { textureNameMatches } from './model-material.js';
+import {
+  textureNameMatches,
+  textureDictionaryFamily,
+  textureDependency,
+  isSharedDictionary,
+} from './model-material.js';
 import {
   MAX_DECODED_TEXTURE_BYTES,
   MAX_YTD_INPUT_BYTES,
@@ -7,13 +12,11 @@ import {
 
 const supported = /\.(ytd|dds|png|jpe?g|webp)$/i;
 export const textureFilePath = (file) => file.webkitRelativePath || file.name;
-const stem = (name) =>
-  name
-    .split(/[\\/]/)
-    .at(-1)
-    .replace(/\.[^.]+$/, '')
-    .replace(/_hi$/i, '')
-    .toLowerCase();
+export function mergeTextureSearchFiles(existing, incoming) {
+  return [
+    ...new Map([...existing, ...incoming].map((file) => [textureFilePath(file), file])).values(),
+  ];
+}
 function check(signal) {
   if (signal?.aborted) throw new DOMException('Pencarian dihentikan.', 'AbortError');
 }
@@ -54,9 +57,13 @@ export function planTextureSearch(requests, entries) {
   for (const request of unique.values()) {
     const matches = entries.filter((t) => textureNameMatches(request.name, t));
     const owned = matches.filter(
-      (t) => stem(t.dictionary) === stem(request.source.split(' · ')[0]),
+      (t) => textureDictionaryFamily(t.dictionary) === textureDictionaryFamily(request.source),
     );
-    const choices = owned.length ? owned : matches;
+    const shared =
+      textureDependency(request.name) === 'shared'
+        ? matches.filter((t) => isSharedDictionary(t.dictionary))
+        : [];
+    const choices = owned.length ? owned : shared.length ? shared : matches;
     if (choices.length === 1) selected.add(choices[0]);
     else if (choices.length)
       ambiguous.push({ ...request, paths: choices.map((t) => textureFilePath(t.file)) });

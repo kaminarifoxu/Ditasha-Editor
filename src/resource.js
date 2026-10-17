@@ -418,6 +418,9 @@ function shaderInfo(r, d) {
     const diffuse =
       refs.find((t) => t.hash === nameHash('DiffuseSampler')) ||
       refs.find((t) => t.hash === nameHash('TextureSampler')) ||
+      ((r.u32(shader + 8) === nameHash('vehicle_licenseplate') ||
+        r.u32(shader + 24) === nameHash('vehicle_licenseplate.sps')) &&
+        refs.find((t) => t.hash === nameHash('PlateBgSampler'))) ||
       refs.find((t) => t.hash === nameHash('DiffuseSampler2'));
     bindings.push({
       diffuseTexture: diffuse?.name || null,

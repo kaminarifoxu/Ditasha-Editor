@@ -11,7 +11,39 @@ import {
   resolveVehicleLivery,
   setVehicleLivery,
   copyVehicleLivery,
+  hasVisibleLiveryPixels,
 } from '../src/vehicle-livery.js';
+test('Verified paint4/5/6/7 families resolve their second diffuse layer without guessing other shader layouts', () => {
+  for (const shader of [
+    'vehicle_paint4',
+    'vehicle_paint4_enveff',
+    'vehicle_paint4_emissive',
+    'vehicle_paint5_enveff',
+    'vehicle_paint6',
+    'vehicle_paint6_enveff',
+    'vehicle_paint7',
+    'vehicle_paint7_enveff',
+  ]) {
+    const g = readYft(liveryYftFixture(viewerModel, { shader, embedded: false }))[0].geometries[0];
+    assert.equal(liveryReference(g), 'vehicle_sign_1', shader);
+    assert(g.uvs2);
+    const texture = { name: 'vehicle_sign_1', dictionary: 'polaleutian.ytd' };
+    assert.equal(resolveVehicleLivery(g, [texture], [], 'polaleutian.yft'), texture);
+  }
+  for (const shader of ['vehicle_mesh', 'vehicle_paint8', 'vehicle_paint9'])
+    assert.equal(
+      liveryReference({
+        shaderHash: hashName(shader),
+        textureSamplers: [{ hash: hashName('DiffuseSampler2'), name: 'not_guessed' }],
+      }),
+      null,
+    );
+  assert.equal(
+    hasVisibleLiveryPixels({ out: new Uint8Array([255, 255, 255, 0, 50, 50, 50, 0]) }),
+    false,
+  );
+  assert.equal(hasVisibleLiveryPixels({ out: new Uint8Array([0, 0, 0, 1]) }), true);
+});
 test('Vehicle paint3 retains its primary map while resolving secondary livery from its own dictionary', () => {
   const data = liveryYftFixture(viewerModel),
     snapshot = new Uint8Array(data).slice();
@@ -42,6 +74,18 @@ test('Vehicle paint3 retains its primary map while resolving secondary livery fr
     'third',
   );
   assert.deepEqual(new Uint8Array(data), snapshot);
+});
+test('License-plate background uses its actual PlateBgSampler instead of a font or unrelated secondary map', () => {
+  const r = new Resource(
+    liveryYftFixture(viewerModel, { shader: 'vehicle_licenseplate', embedded: false }),
+    162,
+  );
+  r.v.setUint32(2272, hashName('PlateBgSampler'), true);
+  const compressed = deflateRaw(r.bytes),
+    out = new Uint8Array(16 + compressed.length);
+  out.set(r.header);
+  out.set(compressed, 16);
+  assert.equal(readYft(out.buffer)[0].geometries[0].diffuseTexture, 'cloth_diffuse');
 });
 test('Layered livery uses UV2 and alpha mixing, survives Photoshoot cloning and releases its hook on removal', () => {
   const material = new THREE.MeshStandardMaterial(),

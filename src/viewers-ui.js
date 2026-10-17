@@ -1,8 +1,18 @@
 import { setProject } from './project-context.js';
 import { mountSceneStudio } from './scene-studio.js';
-import { resolveModelTexture, modelAlphaMode } from './model-material.js';
-import { liveryReference, resolveVehicleLivery, setVehicleLivery } from './vehicle-livery.js';
-import { indexTextureFiles, planTextureSearch, loadSearchTextures } from './texture-search.js';
+import { resolveModelTexture, modelAlphaMode, textureDependency } from './model-material.js';
+import {
+  liveryReference,
+  resolveVehicleLivery,
+  setVehicleLivery,
+  hasVisibleLiveryPixels,
+} from './vehicle-livery.js';
+import {
+  indexTextureFiles,
+  planTextureSearch,
+  loadSearchTextures,
+  mergeTextureSearchFiles,
+} from './texture-search.js';
 import { decodeResource } from './resource-client.js';
 import { loadVehicleTextures, modelTextureReferences } from './vehicle-textures.js';
 import {
@@ -47,7 +57,7 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
   const modelRoot = document.createElement('section');
   modelRoot.className = 'asset-viewer model-viewer';
   modelRoot.hidden = true;
-  modelRoot.innerHTML = `<aside class="tool-sidebar"><span class="eyebrow">GTA V LEGACY</span><h2>Model viewer</h2><div class="viewer-button-row"><button id="mvOpen" class="primary">Open model</button><button id="mvAddTextures">+ Textures</button></div><input id="mvInput" type="file" accept=".yft,.ydd,.ydr,.ytd" multiple hidden><button id="mvAddModels">Tambah extra / livery YFT</button><input id="mvExtraInput" type="file" accept=".yft,.ydd,.ydr" multiple hidden><div id="mvModels"></div><input id="mvTextureInput" type="file" accept=".ytd,.dds,.png,.jpg,.jpeg,.webp" multiple hidden><div class="viewer-options"><label>Drawable<select id="mvDrawable" disabled></select></label><label>Level of detail<select id="mvLod" disabled></select></label><label class="check"><input id="mvGrid" type="checkbox" checked>Grid</label><label class="check"><input id="mvWire" type="checkbox">Wireframe</label><label class="check"><input id="mvBounds" type="checkbox">Geometry bounds</label><label class="check"><input id="mvPoints" type="checkbox">Vertex points</label></div><h3>Visible parts</h3><div class="viewer-button-row"><button id="mvShowAll">Show all</button><button id="mvHideAll">Hide all</button></div><div id="mvParts"></div><details class="material-binding"><summary>Material &amp; livery</summary><label>Mesh<select id="mvMaterialMesh"></select></label><label>Tekstur<select id="mvMaterialTexture"><option value="">Otomatis</option></select></label><label>UV<select id="mvMaterialUv"><option value="0">UV 1</option><option value="1">UV 2</option></select></label><label>Alpha<select id="mvMaterialAlpha"><option value="auto">Otomatis sesuai shader</option><option value="opaque">Opaque · body / paint</option><option value="blend">Transparan · kaca / decal</option></select></label><label class="check"><input id="mvMaterialFlipU" type="checkbox">Balik U</label><label class="check"><input id="mvMaterialFlipV" type="checkbox">Balik V</label><p id="mvMaterialInfo" class="muted"></p><p class="muted">Pilih tekstur untuk mesh yang dipilih. Livery YFT terpisah ditambahkan lewat Extra; ini preview material statis.</p></details><details class="material-binding" open><summary>Auto texture repair</summary><div class="viewer-button-row"><button id="mvTextureFolder">Pilih folder tekstur</button><button id="mvTextureSearch">Cari yang hilang</button><button id="mvTextureCancel" disabled>Hentikan</button></div><input id="mvTextureFolderInput" type="file" webkitdirectory multiple hidden><label class="check"><input id="mvTextureAuto" type="checkbox" checked>Cari otomatis saat model dibuka</label><p id="mvTextureSearchStatus" class="muted" role="status">Pilih folder berisi YTD / DDS / gambar. Subfolder ikut dicari.</p><details><summary>Hasil pencarian</summary><pre id="mvTextureSearchReport" class="muted" style="white-space:pre-wrap;overflow-wrap:anywhere"></pre></details></details><p id="mvTextureMemory" class="muted">0 / 1024 MB decoded · YTD max 256 MB</p><h3>Loaded textures</h3><div id="mvTextures"></div><p class="muted">Preview geometri dan material statis. Animasi skeleton dan simulasi damage belum tersedia.</p></aside><section class="viewer-content"><div class="viewer-toolbar"><div><span class="eyebrow">MODEL PREVIEW</span><h2 id="mvTitle">No model loaded</h2></div><div class="viewer-button-row"><button id="mvFit">Fit model</button><button id="mvFront">Front</button><button id="mvSide">Side</button><button id="mvTop">Top</button><button id="mvSnapshot" disabled>Save PNG</button></div></div><div id="mvViewport"><p id="mvEmpty" class="muted">Open a YFT, YDD or YDR model. Drag to orbit; right-drag to pan; scroll to zoom.</p></div><p id="mvStatus" class="muted" role="status">Ready.</p></section>`;
+  modelRoot.innerHTML = `<aside class="tool-sidebar"><span class="eyebrow">GTA V LEGACY</span><h2>Model viewer</h2><div class="viewer-button-row"><button id="mvOpen" class="primary">Open model</button><button id="mvAddTextures">+ Textures</button></div><input id="mvInput" type="file" accept=".yft,.ydd,.ydr,.ytd" multiple hidden><button id="mvAddModels">Tambah extra / livery YFT</button><input id="mvExtraInput" type="file" accept=".yft,.ydd,.ydr" multiple hidden><div id="mvModels"></div><input id="mvTextureInput" type="file" accept=".ytd,.dds,.png,.jpg,.jpeg,.webp" multiple hidden><div class="viewer-options"><label>Drawable<select id="mvDrawable" disabled></select></label><label>Level of detail<select id="mvLod" disabled></select></label><label class="check"><input id="mvGrid" type="checkbox" checked>Grid</label><label class="check"><input id="mvWire" type="checkbox">Wireframe</label><label class="check"><input id="mvBounds" type="checkbox">Geometry bounds</label><label class="check"><input id="mvPoints" type="checkbox">Vertex points</label></div><h3>Visible parts</h3><div class="viewer-button-row"><button id="mvShowAll">Show all</button><button id="mvHideAll">Hide all</button></div><div id="mvParts"></div><details class="material-binding"><summary>Material &amp; livery</summary><label>Mesh<select id="mvMaterialMesh"></select></label><label>Tekstur<select id="mvMaterialTexture"><option value="">Otomatis</option></select></label><label>UV<select id="mvMaterialUv"><option value="0">UV 1</option><option value="1">UV 2</option></select></label><label>Alpha<select id="mvMaterialAlpha"><option value="auto">Otomatis sesuai shader</option><option value="opaque">Opaque · body / paint</option><option value="blend">Transparan · kaca / decal</option></select></label><label class="check"><input id="mvMaterialFlipU" type="checkbox">Balik U</label><label class="check"><input id="mvMaterialFlipV" type="checkbox">Balik V</label><p id="mvMaterialInfo" class="muted"></p><p class="muted">Pilih tekstur untuk mesh yang dipilih. Livery YFT terpisah ditambahkan lewat Extra; ini preview material statis.</p></details><details class="material-binding" open><summary>Auto texture repair</summary><div class="viewer-button-row"><button id="mvTextureFolder">Pilih folder tekstur</button><button id="mvSharedTextures">Tambah shared YTD</button><button id="mvTextureSearch">Cari yang hilang</button><button id="mvTextureCancel" disabled>Hentikan</button></div><input id="mvTextureFolderInput" type="file" webkitdirectory multiple hidden><input id="mvSharedInput" type="file" accept=".ytd" multiple hidden><p id="mvTextureLibraryStatus" class="muted"></p><label class="check"><input id="mvTextureAuto" type="checkbox" checked>Cari otomatis saat model dibuka</label><p id="mvTextureSearchStatus" class="muted" role="status">Pilih folder berisi YTD / DDS / gambar. Subfolder ikut dicari.</p><details><summary>Hasil pencarian</summary><pre id="mvTextureSearchReport" class="muted" style="white-space:pre-wrap;overflow-wrap:anywhere"></pre></details></details><details id="mvTextureDependencies" class="material-binding"><summary id="mvTextureDependenciesTitle">Sumber tekstur yang dibutuhkan</summary><p class="muted">YTD kendaraan bisa memerlukan tekstur bersama dari game. Tambahkan vehshare / YTD parent lewat Tambah shared YTD; sumber ini dipakai lagi untuk kendaraan berikutnya selama sesi ini.</p><pre id="mvTextureDependenciesList" class="muted" style="white-space:pre-wrap;overflow-wrap:anywhere"></pre></details><p id="mvTextureMemory" class="muted">0 / 1024 MB decoded · YTD max 256 MB</p><h3>Loaded textures</h3><div id="mvTextures"></div><p class="muted">Preview geometri dan material statis. Animasi skeleton dan simulasi damage belum tersedia.</p></aside><section class="viewer-content"><div class="viewer-toolbar"><div><span class="eyebrow">MODEL PREVIEW</span><h2 id="mvTitle">No model loaded</h2></div><div class="viewer-button-row"><button id="mvFit">Fit model</button><button id="mvFront">Front</button><button id="mvSide">Side</button><button id="mvTop">Top</button><button id="mvSnapshot" disabled>Save PNG</button></div></div><div id="mvViewport"><p id="mvEmpty" class="muted">Open a YFT, YDD or YDR model. Drag to orbit; right-drag to pan; scroll to zoom.</p></div><p id="mvStatus" class="muted" role="status">Ready.</p></section>`;
   nav.after(textureRoot);
   textureRoot.after(modelRoot);
   let textures = [],
@@ -71,6 +81,7 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
   let renderedMeshes = [],
     missingRequests = [],
     textureLibrary = null,
+    textureLibraryFiles = [],
     textureSearchAbort = null,
     textureSearchAttempt = '',
     modelRevision = 0,
@@ -519,6 +530,7 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
       vertices = 0,
       liveryMeshes = 0;
     missingRequests = [];
+    const emptyLayers = new Set();
     const missing = new Set(),
       parts = new Map();
     for (const source of sources)
@@ -575,6 +587,7 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
           alphaTest: t && alpha !== 'opaque' ? 0.02 : 0,
         });
         const mesh = new THREE.Mesh(geometry, material);
+        if (livery && !hasVisibleLiveryPixels(livery)) emptyLayers.add(livery.name);
         if (livery && g.uvs2) {
           setVehicleLivery(material, materialMap(livery, 1));
           liveryMeshes++;
@@ -721,6 +734,34 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
         $('mvTextures').append(row);
       } else $('mvTextures').append(p);
     }
+    const dependencies = [...new Set(missingRequests.map((r) => r.name))];
+    $('mvTextureDependenciesTitle').textContent = dependencies.length + ' tekstur belum tersedia';
+    $('mvTextureDependenciesList').textContent =
+      dependencies
+        .map((name) => {
+          const kind = textureDependency(name);
+          return (
+            name +
+            ' — ' +
+            (kind === 'shared'
+              ? 'YTD bersama GTA / parent dictionary'
+              : kind === 'runtime'
+                ? 'layar runtime GTA; gambar statis dapat dimuat manual'
+                : 'YTD aset / parent dictionary')
+          );
+        })
+        .join('\n') || 'Semua referensi diffuse dan layer yang didukung sudah ditemukan.';
+    if (emptyLayers.size)
+      $('mvTextureDependenciesList').textContent +=
+        '\n' +
+        [...emptyLayers]
+          .map(
+            (name) =>
+              'Layer transparan: ' +
+              name +
+              ' — semua alpha 0; tidak ada piksel livery yang terlihat.',
+          )
+          .join('\n');
     $('mvTextureMemory').textContent =
       Math.round(modelTextures.reduce((n, t) => n + t.out.length, 0) / 1048576) +
       ' / ' +
@@ -743,6 +784,7 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
       ' external textures · ' +
       liveryMeshes +
       ' livery meshes' +
+      (emptyLayers.size ? ' · Empty alpha layer: ' + [...emptyLayers].join(', ') : '') +
       (missing.size
         ? ' · Missing textures: ' +
           [...missing].join(', ') +
@@ -1097,16 +1139,15 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
     if (!textureLibrary) return $('mvTextureFolderInput').click();
     operation('model', () => repairTextures());
   };
-  $('mvTextureFolderInput').onchange = (e) => {
-    const files = [...e.target.files];
-    e.target.value = '';
+  async function selectTextureLibrary(files, append = false) {
     if (!files.length) return;
     operation('model', async () => {
       const controller = new AbortController();
       textureSearchAbort = controller;
       $('mvTextureCancel').disabled = false;
       try {
-        const next = await indexTextureFiles(files, {
+        const candidates = append ? mergeTextureSearchFiles(textureLibraryFiles, files) : files;
+        const next = await indexTextureFiles(candidates, {
           decode: decodeResource,
           signal: controller.signal,
           progress: (i, total, path) => {
@@ -1115,7 +1156,13 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
         });
         if (!next.files) throw Error('Tidak ada YTD / DDS / gambar. Ekstrak YTD dari RPF dahulu.');
         textureLibrary = next;
+        textureLibraryFiles = candidates.filter((f) => textureExtensions.test(f.name));
         libraryRevision++;
+        $('mvTextureLibraryStatus').textContent =
+          next.files +
+          ' sumber · ' +
+          next.entries.length +
+          ' tekstur terindeks · tersedia untuk model berikutnya.';
         await repairTextures();
       } catch (error) {
         $('mvTextureSearchStatus').textContent = error.message;
@@ -1125,6 +1172,17 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
         $('mvTextureCancel').disabled = true;
       }
     });
+  }
+  $('mvTextureFolderInput').onchange = (e) => {
+    const files = [...e.target.files];
+    e.target.value = '';
+    selectTextureLibrary(files);
+  };
+  $('mvSharedTextures').onclick = () => $('mvSharedInput').click();
+  $('mvSharedInput').onchange = (e) => {
+    const files = [...e.target.files];
+    e.target.value = '';
+    selectTextureLibrary(files, true);
   };
   $('mvAddModels').onclick = () => {
     if (!drawables.length) return toast('Buka model utama dahulu.');

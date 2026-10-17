@@ -96,6 +96,8 @@ export function mountAssetWorkshopUi() {
         preview,
       ].filter(Boolean),
     );
+    const dependencies = $('mvTextureDependencies');
+    if (repair && dependencies) repair.after(dependencies);
     const workshop = $('vehicleWorkshop');
     if (workshop && preview) preview.after(workshop);
   }

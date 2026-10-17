@@ -1,18 +1,25 @@
 import { deflateRaw } from 'pako';
 import { Resource } from '../../src/resource.js';
 import { hashName } from '../../src/asset-tools.js';
-export function liveryYftFixture(model, { embedded = true } = {}) {
+export function liveryYftFixture(
+  model,
+  { embedded = true, shader = 'vehicle_paint3', primary = 'cloth_diffuse' } = {},
+) {
   const r = new Resource(model, 165),
     v = r.v;
   const ptr = (at, to) => v.setBigUint64(at, BigInt(0x50000000 + to), true);
   if (!embedded) v.setBigUint64(2048 + 8, 0n, true);
+  if (primary !== 'cloth_diffuse') {
+    ptr(2344, 2880);
+    r.bytes.set(new TextEncoder().encode(primary + '\0'), 2880);
+  }
   ptr(48, 128);
   v.setUint32(72, 0, true);
   // One visible surface: manual replacement targets one selected mesh.
   // The source fixture has two coincident meshes, which would hide each other.
   v.setUint16(512 + 8, 1, true);
-  v.setUint32(2176 + 8, hashName('vehicle_paint3'), true);
-  v.setUint32(2176 + 24, hashName('vehicle_paint3.sps'), true);
+  v.setUint32(2176 + 8, hashName(shader), true);
+  v.setUint32(2176 + 24, hashName(shader + '.sps'), true);
   r.bytes[2176 + 16] = 2;
   r.bytes.fill(0, 2256, 2272);
   ptr(2264, 2400);

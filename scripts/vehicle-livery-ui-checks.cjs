@@ -93,6 +93,53 @@ module.exports = async function checkVehicleLivery(fixtures) {
     colors($('mvViewport').querySelector('canvas')).blue > 20,
     'Automatic livery did not recover',
   );
+  // Reproduce paint4 with a missing shared base and a present UV2 livery.
+  document.querySelector('[data-page="vehicles"]').click();
+  upload('mvInput', [
+    ['paint4.yft', fixtures.paint4Model],
+    ['paint4.ytd', fixtures.livery],
+  ]);
+  await wait(
+    () =>
+      !$('mvOpen').disabled &&
+      $('mvTitle').textContent === 'paint4.yft' &&
+      $('mvStatus').textContent.includes('1 livery meshes'),
+    'Paint4 livery did not activate without its shared base',
+  );
+  await sleep(200);
+  assert(
+    colors($('mvViewport').querySelector('canvas')).blue > 20,
+    'Paint4 layer failed GPU rendering',
+  );
+  assert(
+    $('mvTextureDependenciesList').textContent.includes('vehicle_generic_detail2 — YTD bersama'),
+    'Shared dependency was not identified',
+  );
+  upload('mvSharedInput', [['vehshare.ytd', fixtures.sharedDictionary]]);
+  await wait(
+    () => !$('mvOpen').disabled && $('mvStatus').textContent.includes('2 external textures'),
+    'Shared YTD selection did not repair the base',
+  );
+  await sleep(200);
+  const paint4 = colors($('mvViewport').querySelector('canvas'));
+  assert(paint4.green > 20 && paint4.blue > 20, 'Shared base repair displaced paint4 livery');
+  assert(
+    $('mvTextureLibraryStatus').textContent.includes('1 sumber'),
+    'Shared source was not retained for future vehicles',
+  );
+  console.log('DITASHA_SNAPSHOT:vehicle-paint4-shared');
+  await sleep(200);
+  upload('mvInput', [
+    ['paint4-next.yft', fixtures.paint4Model],
+    ['paint4-next.ytd', fixtures.livery],
+  ]);
+  await wait(
+    () =>
+      !$('mvOpen').disabled &&
+      $('mvTitle').textContent === 'paint4-next.yft' &&
+      $('mvStatus').textContent.includes('2 external textures'),
+    'Next vehicle did not reuse the shared dictionary',
+  );
   // A dictionary's native key may differ from the texture label. One broken entry
   // must not prevent the green body and blue UV2 livery from reaching the GPU.
   $('mvTextureAuto').checked = false;
@@ -221,6 +268,8 @@ module.exports = async function checkVehicleLivery(fixtures) {
     viewer,
     photo,
     editor,
+    paint4Pixels: paint4,
+    sharedYtdReused: true,
     keyedDictionaryPixels: keyed,
     corruptEntryRetainedValidMaps: true,
     vehicleControlsGrouped: true,

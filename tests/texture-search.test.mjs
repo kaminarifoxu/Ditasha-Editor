@@ -3,7 +3,13 @@ import assert from 'node:assert/strict';
 import { createYtd, hashName } from '../src/asset-tools.js';
 import { MAX_DECODED_TEXTURE_BYTES } from '../src/texture-memory.js';
 import { performResourceJob } from '../src/resource-jobs.js';
-import { indexTextureFiles, planTextureSearch, loadSearchTextures } from '../src/texture-search.js';
+import {
+  indexTextureFiles,
+  planTextureSearch,
+  loadSearchTextures,
+  mergeTextureSearchFiles,
+} from '../src/texture-search.js';
+import { resolveModelTexture, textureDependency } from '../src/model-material.js';
 
 const texture = (name) => ({ name, w: 1, h: 1, out: new Uint8Array([25, 50, 100, 255]) });
 const file = (path, names) => {
@@ -16,6 +22,35 @@ const file = (path, names) => {
   };
 };
 const decode = async (...args) => performResourceJob(...args);
+test('Shared dictionaries augment the session index and copied high filenames retain dictionary ownership', async () => {
+  const local = file('car(1).ytd', ['vehicle_generic_detail2']),
+    other = file('car(2).ytd', ['vehicle_generic_detail2']);
+  const shared = file('vehshare.ytd', ['vehicle_generic_detail2']);
+  const library = await indexTextureFiles(
+    mergeTextureSearchFiles([local, other], [shared, shared]),
+    { decode },
+  );
+  assert.equal(library.files, 3);
+  const request = (source) => [{ name: 'vehicle_generic_detail2', source }];
+  assert.equal(
+    planTextureSearch(request('car_hi(1).yft'), library.entries).selected[0].dictionary,
+    'car(1).ytd',
+  );
+  assert.equal(
+    planTextureSearch(request('new.yft'), library.entries).selected[0].dictionary,
+    'vehshare.ytd',
+  );
+  assert.equal(
+    resolveModelTexture('vehicle_generic_detail2', library.entries, [], 'car_hi(2).yft').dictionary,
+    'car(2).ytd',
+  );
+  assert.equal(
+    resolveModelTexture('vehicle_generic_detail2', library.entries, [], 'new.yft').dictionary,
+    'vehshare.ytd',
+  );
+  assert.equal(textureDependency('script_rt_dials_sportbk'), 'runtime');
+  assert.equal(textureDependency('decal_aventador'), 'asset');
+});
 
 test('Folder indexing reads names without RGBA and decodes only requested maps under the remaining budget', async () => {
   const f = file('library/shared.ytd', ['tire_diffuse', 'unrelated']);
