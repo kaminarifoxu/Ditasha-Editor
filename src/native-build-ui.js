@@ -135,6 +135,8 @@ export function mountNativeBuild({
     $('nbOutput').hidden = value === 'ped';
     preview.loadButton.hidden = value === 'ped';
     preview.setMode(value);
+    if (value === 'ped' && state.previewId && matchesPreview()) $('nbPed').before(previewRoot);
+    else $('nbVehicle').after(previewRoot);
     syncTransform();
   }
   function draw() {
@@ -313,7 +315,10 @@ export function mountNativeBuild({
     ) {
       const id = state.previewId;
       loadedPreviewId = id;
-      if ($('nbMode').value === 'ped') rigSettings.open = false;
+      if ($('nbMode').value === 'ped') {
+        rigSettings.open = false;
+        $('nbPed').before(previewRoot);
+      }
       const poses = (report.preview?.poses || [{ id: 'rest', label: 'Pose awal' }]).filter((p) =>
         ['rest', 'arms', 'legs'].includes(p.id),
       );

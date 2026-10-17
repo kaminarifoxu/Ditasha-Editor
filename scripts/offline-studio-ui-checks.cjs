@@ -407,8 +407,11 @@ module.exports = async function checkOfflineStudio(fixtures) {
   );
   const rigViewport = $('nbViewport').getBoundingClientRect();
   assert(
-    rigViewport.top < innerHeight - 120 && rigViewport.bottom > 200,
-    'Completed rig preview is below the visible workspace',
+    $('nbViewport').closest('.native-preview').nextElementSibling === $('nbPed') &&
+      rigViewport.top > 150 &&
+      rigViewport.top < innerHeight / 2 &&
+      rigViewport.bottom > 200,
+    'Completed rig preview must lead the visible workspace',
   );
   assert(
     document.querySelector('.rig-quality') && $('nbPedPose').options.length === 3,
