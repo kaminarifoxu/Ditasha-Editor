@@ -696,3 +696,13 @@
     flex-wrap: wrap;
   }
 }
+.workspace-shell .editor-commandbar .workshop-tool-cluster {
+  flex: 0 0 auto;
+  width: max-content;
+}
+.workspace-shell .editor-commandbar .modeltools #photoshoot {
+  flex: 0 0 auto;
+  width: 34px;
+  min-width: 34px;
+  padding: 8px;
+}
