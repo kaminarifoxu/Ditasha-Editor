@@ -1,3 +1,11 @@
+# v1.35.1 preview — Ped texture binding and embedded YDD maps
+
+- Texture & Model now resolves embedded YDD diffuse, normal and specular maps.
+- Missing diffuse sampler names appear below the material controls.
+- Select a mesh in Scene Studio, choose a loaded texture, then click **Pasang ke objek** to assign an explicit preview texture. **Reset tekstur objek** restores the original sampler lookup. Assignments distinguish dictionaries with identical texture names.
+- Manual bindings affect preview only; YDD sampler names and exported YTD texture names remain unchanged. A model requesting `headnew` still requires that texture name for an in-game fix.
+- Uploaded head/decl and hair assets were parsed successfully. The supplied head asks for `headnew` on one mesh while its YTD only contains `odeliaped_diffuse`. The supplied hair also contains embedded maps. These are component assets, not a complete ped assembly.
+
 # v1.35.0 preview — Native surface maps, material parameters and selected parent metadata
 
 Material previews now bind BumpSampler (or PlateBgBumpSampler) and SpecSampler separately from diffuse/livery. Native bumpiness, specMapIntMask, specularIntensityMult and specularFalloffMult values survive resource parsing and worker transfer. Models with surface-map references use an original Three.js Blinn-Phong approximation: RG normal Z reconstruction with DirectX green inversion; specular RGB dot mask; specular alpha modulates shininess. Linear data maps never receive diffuse sRGB conversion. Selecting a normal/specular texture in Texture & Model no longer routes it through the unmatched-diffuse fallback, and live edits refresh its separate linear GPU map. Preview values are bounded; source image pixels and native resource buffers are unchanged.

@@ -502,6 +502,7 @@ export function mountSceneStudio({
   return {
     root,
     refresh,
+    selectedObject: () => current()?.object || null,
     captureSession: () => ({
       signature,
       dirty,

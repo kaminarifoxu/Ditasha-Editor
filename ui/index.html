@@ -32,7 +32,7 @@
       </div>
       <span class="local"><span></span> Workspace lokal</span
       ><button class="updatebutton" id="openUpdates">
-        <span id="appVersion">v1.35.0</span> · Cek update
+        <span id="appVersion">v1.35.1</span> · Cek update
         <span hidden="" id="updateBadge"></span></button
       ><a
         class="donation-button"
@@ -204,6 +204,21 @@
           ><label class="check"
             ><input checked="" id="apply" type="checkbox" /> Terapkan tekstur ke model</label
           >
+          <div class="modeltools">
+            <button
+              id="bindPreviewTexture"
+              title="Pasang tekstur aktif ke objek yang dipilih di Scene Studio; hanya preview"
+            >
+              Pasang ke objek
+            </button>
+            <button
+              id="resetPreviewTexture"
+              title="Kembalikan sampler asli untuk objek yang dipilih"
+            >
+              Reset tekstur objek
+            </button>
+          </div>
+          <p class="muted" id="materialBindingStatus" role="status"></p>
           <p class="muted" id="modelStats">
             Putar: tarik mouse · Zoom: scroll<br />Geser: klik kanan + tarik
           </p>

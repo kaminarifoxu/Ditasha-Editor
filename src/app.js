@@ -1,4 +1,5 @@
 import { resolveModelTexture, modelAlphaMode, modelPreviewAlpha } from './model-material.js';
+import { resolveEditorDiffuse, editorTextureMatches } from './editor-material.js';
 import { liveryReference, setVehicleLivery } from './vehicle-livery.js';
 import {
   createModelMaterial,
@@ -307,18 +308,22 @@ function applyTexture() {
     }
   }
   const available = workspaceTextures().filter((t) => !t.isUV && t.out?.length === t.w * t.h * 4);
+  const embedded = modelFile?.drawables?.[drawableIndex]?.embeddedTextures || [];
   const meshes = [];
   model.traverse((o) => {
     if (o.isMesh) meshes.push(o);
   });
   const matching =
     current &&
-    meshes.some((o) =>
-      [
-        o.userData.diffuseTexture,
-        o.userData.liveryTexture,
-        ...Object.values(surfaceReferences(o.userData.surfaceBinding || {})),
-      ].some((name) => resolveModelTexture(name, [current], [], displayedModel?.name) === current),
+    meshes.some(
+      (o) =>
+        editorTextureMatches(o.userData, current, displayedModel?.name) ||
+        [
+          o.userData.liveryTexture,
+          ...Object.values(surfaceReferences(o.userData.surfaceBinding || {})),
+        ].some(
+          (name) => resolveModelTexture(name, [current], [], displayedModel?.name) === current,
+        ),
     );
   const cache = new Map();
   const textureMap = (texture, role = 'color') => {
@@ -346,17 +351,16 @@ function applyTexture() {
   for (const o of meshes) {
     const texture =
       $('apply').checked &&
-      resolveModelTexture(o.userData.diffuseTexture, available, [], displayedModel?.name);
+      resolveEditorDiffuse(o.userData, available, embedded, displayedModel?.name);
     const useCurrent =
       mapped &&
-      (!matching ||
-        resolveModelTexture(o.userData.diffuseTexture, [current], [], displayedModel?.name) ===
-          current);
+      (editorTextureMatches(o.userData, current, displayedModel?.name) ||
+        (!matching && !o.userData.previewDiffuseOverride && !texture));
     let map = useCurrent ? mapped : null;
     if (!map && texture) map = textureMap(texture);
     const livery =
       $('apply').checked &&
-      resolveModelTexture(o.userData.liveryTexture, available, [], displayedModel?.name);
+      resolveModelTexture(o.userData.liveryTexture, available, embedded, displayedModel?.name);
     const liveryMap = o.geometry.getAttribute('ditashaLiveryUv') ? textureMap(livery) : null;
     for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
       m.map = map || m.userData.originalMap || null;
@@ -364,7 +368,12 @@ function applyTexture() {
       setSurfaceMaps(
         m,
         o.geometry.getAttribute('uv')
-          ? resolveSurfaceMaps(o.userData.surfaceBinding || {}, available, [], displayedModel?.name)
+          ? resolveSurfaceMaps(
+              o.userData.surfaceBinding || {},
+              available,
+              embedded,
+              displayedModel?.name,
+            )
           : {},
         textureMap,
       );
@@ -374,6 +383,22 @@ function applyTexture() {
     }
   }
   pedMaterials.apply();
+  const missing = [
+    ...new Set(
+      meshes
+        .filter(
+          (o) =>
+            o.userData.diffuseTexture &&
+            !resolveEditorDiffuse(o.userData, available, embedded, displayedModel?.name),
+        )
+        .map((o) => o.userData.diffuseTexture),
+    ),
+  ];
+  $('materialBindingStatus').textContent = missing.length
+    ? 'Tekstur belum ditemukan: ' +
+      missing.join(', ') +
+      '. Pilih objek di Scene Studio, lalu pasang tekstur preview.'
+    : 'Tekstur memakai nama sampler model. Pemasangan manual hanya mengubah preview.';
   renderer?.render(scene, camera);
 }
 function showDrawable(index) {
@@ -861,6 +886,23 @@ $('drawable').onchange = (e) => {
   showDrawable(i);
 };
 $('apply').onchange = applyTexture;
+$('bindPreviewTexture').onclick = () => {
+  const object = sceneStudio?.selectedObject();
+  if (!object?.isMesh || !model.children.includes(object))
+    return toast('Pilih mesh model di Scene Studio terlebih dahulu.');
+  if (!current || current.isUV) return toast('Pilih tekstur YTD atau gambar terlebih dahulu.');
+  object.userData.previewDiffuseOverride = { name: current.name, dictionary: current.dictionary };
+  $('apply').checked = true;
+  applyTexture();
+  toast('Tekstur dipasang ke objek untuk preview. Nama sampler YDD tidak diubah.');
+};
+$('resetPreviewTexture').onclick = () => {
+  const object = sceneStudio?.selectedObject();
+  if (!object?.isMesh || !model.children.includes(object))
+    return toast('Pilih mesh model di Scene Studio terlebih dahulu.');
+  delete object.userData.previewDiffuseOverride;
+  applyTexture();
+};
 $('reset').onclick = frame;
 $('wire').onclick = () => {
   wire = !wire;
