@@ -135,12 +135,14 @@ module.exports = async function checkVehicleSurface(fixtures) {
   );
   console.log('DITASHA_SNAPSHOT:vehicle-surface-editor');
   await sleep(150);
+  const specOption = [...$('material').options].find((o) => o.textContent.includes('surface_spec'));
+  $('material').value = specOption.value;
+  $('material').dispatchEvent(new Event('change'));
   $('bindPreviewTexture').click();
   await sleep(200);
   const explicit = energy('viewport');
   assert(explicit.green > editorAfter.green + 20, 'Explicit per-object texture did not bind');
-  const specOption = [...$('material').options].find((o) => o.textContent.includes('surface_spec'));
-  $('material').value = specOption.value;
+  $('material').value = option.value;
   $('material').dispatchEvent(new Event('change'));
   await sleep(200);
   assert(energy('viewport').green > 20, 'Changing editor texture discarded explicit binding');
