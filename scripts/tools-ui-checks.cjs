@@ -117,6 +117,10 @@ module.exports = async function checkTools(fixtures) {
     $('packOptimize').checked && $('packMaxSize').value === '1024',
     'Automatic optimization defaults missing',
   );
+  assert(
+    $('packOptimize').getBoundingClientRect().width <= 20,
+    'Optimization checkbox overflowed the clothing sidebar',
+  );
   $('packSlotFilter').value = 'Shoes';
   $('packSlotFilter').dispatchEvent(new Event('change'));
   assert(!$('toolQueue').querySelector('button'), 'Clothing-type filter did not filter tops');
@@ -130,7 +134,7 @@ module.exports = async function checkTools(fixtures) {
   );
   $('toolQueue').querySelector('button').click();
   $('packPreview').click();
-  await wait(() => !$('toolAdd').disabled, 'Preview did not finish');
+  await wait(() => !$('toolAdd').disabled && $('fileLoading').hidden, 'Preview did not finish');
   assert($('modelTitle').textContent === 'mp_m_freemode_01^jbib_000_u.ydd', 'Pack preview missing');
   console.log('DITASHA_SNAPSHOT:clothing');
   const before = $('viewport').getBoundingClientRect().width;
