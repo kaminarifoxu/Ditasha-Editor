@@ -1,3 +1,13 @@
+# v1.36.0 preview — Automatic clothing texture optimization
+
+- Clothing pack defaults to automatic YTD optimization at build time. Choose 512, 1K (default), 2K or 4K maximum resolution; aspect ratio is preserved and smaller textures are never enlarged.
+- Local worker encodes opaque textures to DXT1, textures with alpha to DXT5, and generates full mip chains. Suitable compressed textures remain byte-for-byte unchanged. Compression is lossy; source files stay untouched and optimization can be disabled.
+- Native YTD names, hashes and system metadata are preserved. Unsupported/malformed dictionaries are kept in full, with a warning; partial texture dictionaries are never exported.
+- ZIP report includes before/after texture payload memory, dimensions, formats and original/output disk sizes. Memory statistics measure native mip payloads, not exact driver VRAM allocation.
+- Clothing packs accept up to 5,000 files, 256 MB each, and 512 MB per pack including ZIP/report overhead (was 64 MB per file and 128 MB per pack). Desktop ZIP saving supports the new cap. Model preview retains its existing 64 MB parser input cap.
+- Filter by clothing type and gender; pairing separates collections with identical slot indices. Findings show model counts per collection/type, with guidance for 128 component drawables and a–z texture variants.
+- Game limits are not patched. Existing add-on YMT/shop metadata is still required; this build does not generate or split YMT collections. YDD geometry, rigs and embedded textures are preserved unchanged; optimization covers external YTD files only.
+
 # v1.35.1 preview — Ped texture binding and embedded YDD maps
 
 - Texture & Model now resolves embedded YDD diffuse, normal and specular maps.

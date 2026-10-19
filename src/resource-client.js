@@ -20,8 +20,13 @@ function execute(kind, buffer, options) {
       reject(Error(message));
     };
     const timer = setTimeout(
-      () => fail('Pemrosesan resource melebihi 45 detik. Pilih file lebih kecil.'),
-      45000,
+      () =>
+        fail(
+          'Pemrosesan resource melebihi ' +
+            (kind === 'optimize-ytd' ? '180' : '45') +
+            ' detik. Pilih file lebih kecil.',
+        ),
+      kind === 'optimize-ytd' ? 180000 : 45000,
     );
     worker.onmessage = ({ data }) => {
       if (data.id !== id) return;

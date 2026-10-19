@@ -8,7 +8,16 @@ import { mountHome } from './home-ui.js';
 import { mountFileManager } from './file-manager-ui.js';
 import { conversionModes, accepts, convertFile, picturesToYtd } from './converter.js';
 import { zipFiles, MAX_EXPORT, safePath } from './asset-tools.js';
-import { clothingInfo, importPath, analyzePack, buildPack } from './clothing-pack.js';
+import {
+  clothingInfo,
+  importPath,
+  analyzePack,
+  buildPack,
+  MAX_PACK_BYTES,
+  MAX_PACK_FILE_BYTES,
+  MAX_PACK_FILES,
+} from './clothing-pack.js';
+import { decodeResource } from './resource-client.js';
 export function mountTools({
   download,
   toast,
@@ -40,6 +49,41 @@ export function mountTools({
  <section class="tool-center"><div id="toolEmpty" class="empty"><div class="empty-symbol"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 15v5h16v-5"/></svg></div><span class="emptykicker">DITASHA WORKSHOP</span><h3 id="toolEmptyTitle">Drop files here</h3><p id="toolEmptyHelp"></p><button id="toolChoose" class="primary">Pilih file</button></div><div id="packViewer"></div><div id="convertResults" hidden><h2>Hasil konversi</h2><p class="muted">Pilih simpan untuk setiap hasil, atau simpan semuanya sebagai ZIP.</p><div id="outputFiles"></div></div></section>
  <aside class="tool-details"><span class="eyebrow">DETAILS</span><h2 id="toolDetailsHeading">Siap memulai</h2><p id="toolDetailsText" class="muted"></p><label id="packPathLabel" hidden>Path ekspor<input id="packPath"></label><button id="packPreview" hidden>Lihat model 3D</button><div id="packStats" class="pack-stats" hidden></div><h3>Findings</h3><ul id="toolFindings"></ul><p id="toolStatus" role="status"></p><progress id="toolProgress" hidden></progress><div class="tool-bottom"><button id="toolRun" class="primary" disabled>Convert</button><button id="saveAll" hidden>Simpan semua (ZIP)</button><p class="muted" id="toolSaved"></p></div></aside>`;
   nav.after(root);
+  const optimize = document.createElement('details');
+  optimize.open = true;
+  optimize.innerHTML = `<summary>Optimasi tekstur otomatis</summary><label class="check"><input id="packOptimize" type="checkbox" checked>Optimalkan YTD saat build</label><label>Resolusi maksimum<select id="packMaxSize"><option value="512">512 px · hemat</option><option value="1024" selected>1K · seimbang</option><option value="2048">2K · detail</option><option value="4096">4K · tinggi</option></select></label><p class="muted">Auto DXT1 / DXT5 sesuai alpha, mipmap, tanpa memperbesar gambar. YTD yang sudah sesuai dipertahankan. File asli tetap utuh.</p><p class="muted">5.000 file · 512 MB per pack · 256 MB per file. Slot game tetap mengikuti collection/YMT; tidak membuat YMT baru.</p>`;
+  $('packSettings').append(optimize);
+  const slotFilter = document.createElement('select');
+  slotFilter.id = 'packSlotFilter';
+  slotFilter.hidden = true;
+  slotFilter.setAttribute('aria-label', 'Filter jenis pakaian');
+  for (const label of [
+    'All',
+    'Head',
+    'Mask',
+    'Hair',
+    'Torso',
+    'Legs',
+    'Bag',
+    'Shoes',
+    'Accessories',
+    'Undershirt',
+    'Armor',
+    'Decal',
+    'Top',
+    'Hat',
+    'Glasses',
+    'Ears',
+    'Left wrist',
+    'Right wrist',
+    'Other',
+  ]) {
+    const option = document.createElement('option');
+    option.value = label;
+    option.textContent = label === 'All' ? 'Semua jenis pakaian' : label;
+    slotFilter.append(option);
+  }
+  $('packFilter').after(slotFilter);
   for (const [id, title] of conversionModes) {
     const o = document.createElement('option');
     o.value = id;
@@ -71,6 +115,7 @@ export function mountTools({
     revision = 0,
     savedRevision = 0,
     buildVersion = 1;
+  let packOptimizationReport = [];
   const viewers = mountViewers({
     nav,
     download,
@@ -112,6 +157,7 @@ export function mountTools({
   const dirty = () => pack.length && revision !== savedRevision;
   const touch = () => {
     revision++;
+    packOptimizationReport = [];
     $('toolSaved').textContent = 'Perubahan pack belum diekspor.';
   };
   const mode = () => $('conversionMode').value;
@@ -195,6 +241,7 @@ export function mountTools({
     $('convertSettings').hidden = isPack;
     $('packSettings').hidden = !isPack;
     $('packFilter').hidden = !isPack;
+    slotFilter.hidden = !isPack;
     $('toolFolder').hidden = !isPack;
     $('toolEyebrow').textContent = isPack ? 'FIVEM RESOURCE' : 'BATCH CONVERTER';
     $('toolHeading').textContent = isPack ? 'Clothing pack' : 'Converter';
@@ -240,7 +287,8 @@ export function mountTools({
         (e.path || e.file.name).toLowerCase().includes(q) &&
         (!isPack ||
           $('packFilter').value === 'All' ||
-          clothingInfo(e.path).gender === $('packFilter').value),
+          clothingInfo(e.path).gender === $('packFilter').value) &&
+        (!isPack || slotFilter.value === 'All' || clothingInfo(e.path).slot === slotFilter.value),
     );
     const groups = new Map();
     for (const e of filtered) {
@@ -320,7 +368,20 @@ export function mountTools({
         tile.append(small, strong);
         $('packStats').append(tile);
       }
-      findings([...check.errors, ...check.warnings]);
+      findings([
+        ...check.errors,
+        ...check.warnings,
+        ...packOptimizationReport.filter((r) => r.warning).map((r) => r.path + ': ' + r.warning),
+        ...check.slots.map(
+          (s) =>
+            s.key +
+            ': ' +
+            s.models +
+            (s.component
+              ? ' model (panduan 128 per tipe/collection; varian a–z)'
+              : ' model prop (batas mengikuti versi game/client)'),
+        ),
+      ]);
       $('toolRun').disabled = busy || check.errors.length > 0 || !pack.length;
       $('packHint').textContent =
         $('packMode').value === 'addon'
@@ -355,8 +416,12 @@ export function mountTools({
             skipped++;
             continue;
           }
-          if (file.size > 64 * 1024 * 1024 || total + file.size > MAX_EXPORT - 65536)
-            throw Error('Pack maksimum 128 MB, setiap file maksimum 64 MB.');
+          if (
+            pack.length >= MAX_PACK_FILES ||
+            file.size > MAX_PACK_FILE_BYTES ||
+            total + file.size > MAX_PACK_BYTES - 1024 * 1024
+          )
+            throw Error('Pack maksimum 5.000 file / 512 MB, setiap file maksimum 256 MB.');
           const path = importPath(file.webkitRelativePath || file.name);
           if (pack.some((e) => e.path.toLowerCase() === path.toLowerCase()))
             throw Error('File duplikat: ' + path);
@@ -407,7 +472,7 @@ export function mountTools({
       await add([...e.target.files]);
       e.target.value = '';
     };
-  $('toolSearch').oninput = $('packFilter').onchange = render;
+  $('toolSearch').oninput = $('packFilter').onchange = slotFilter.onchange = render;
   $('conversionMode').onchange = () => {
     outputs = [];
     updateHint();
@@ -443,7 +508,7 @@ export function mountTools({
     }
     render();
   };
-  for (const id of ['packName', 'packMode', 'packNote'])
+  for (const id of ['packName', 'packMode', 'packNote', 'packOptimize', 'packMaxSize'])
     $(id).oninput = () => {
       if (pack.length) touch();
       render();
@@ -518,21 +583,68 @@ export function mountTools({
     try {
       await new Promise((r) => setTimeout(r, 25));
       if (page === 'pack') {
-        const bytes = buildPack(pack, {
+        const entries = [];
+        packOptimizationReport = [];
+        const maxSize = Number($('packMaxSize').value),
+          enabled = $('packOptimize').checked;
+        for (const [index, entry] of pack.entries()) {
+          $('toolStatus').textContent =
+            'Menyiapkan ' + (index + 1) + '/' + pack.length + ' · ' + entry.path;
+          if (enabled && /\.ytd$/i.test(entry.path)) {
+            try {
+              const result = await decodeResource('optimize-ytd', entry.data.slice().buffer, {
+                maxSize,
+              });
+              entries.push({ ...entry, data: result.bytes });
+              packOptimizationReport.push({
+                path: entry.path,
+                changed: result.changed,
+                textureMemoryBefore: result.before,
+                textureMemoryAfter: result.after,
+                inputBytes: entry.data.length,
+                outputBytes: result.bytes.length,
+                textures: result.details,
+              });
+            } catch (error) {
+              entries.push(entry);
+              packOptimizationReport.push({
+                path: entry.path,
+                warning: 'File asli dipertahankan: ' + error.message,
+              });
+            }
+          } else entries.push(entry);
+        }
+        const bytes = buildPack(entries, {
           name: $('packName').value,
           mode: $('packMode').value,
           note: $('packNote').value,
           version: buildVersion,
+          optimization: packOptimizationReport,
         });
         const saved = await download(
           bytes,
           $('packName').value + '-v' + buildVersion + '.zip',
           'application/zip',
         );
+        $('toolStatus').textContent = saved ? 'Build pack selesai.' : 'Penyimpanan dibatalkan.';
         if (saved) {
           savedRevision = revision;
           buildVersion++;
           $('toolSaved').textContent = 'Pack tersimpan.';
+          const before = packOptimizationReport.reduce(
+              (s, r) => s + (r.textureMemoryBefore || 0),
+              0,
+            ),
+            after = packOptimizationReport.reduce((s, r) => s + (r.textureMemoryAfter || 0), 0);
+          $('toolSaved').textContent += enabled
+            ? ' Memori tekstur: ' +
+              (before / 1048576).toFixed(1) +
+              ' → ' +
+              (after / 1048576).toFixed(1) +
+              ' MB. ' +
+              packOptimizationReport.filter((r) => r.warning).length +
+              ' file memakai asli.'
+            : ' Optimasi dimatikan.';
         } else $('toolSaved').textContent = 'Simpan dibatalkan; pack belum diekspor.';
       } else {
         outputs = [];

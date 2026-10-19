@@ -11,6 +11,17 @@ app.whenReady().then(async () => {
   const captures = [];
   try {
     const { testYdd, testYtd } = await import('../tests/format.test.mjs');
+    const { createYtd } = await import('../src/asset-tools.js');
+    const packYtd = createYtd([
+      {
+        name: 'cloth_diffuse',
+        w: 1024,
+        h: 512,
+        out: Uint8Array.from({ length: 1024 * 512 * 4 }, (_, i) =>
+          i % 4 === 3 ? (Math.floor(i / 4) % 16 < 8 ? 255 : 0) : [120, 70, 50][i % 4],
+        ),
+      },
+    ]);
     await fs.mkdir(path.resolve('release/qa'), { recursive: true });
     win = new BrowserWindow({
       width: 1500,
@@ -72,9 +83,42 @@ app.whenReady().then(async () => {
       '(' +
         check.toString() +
         ')(' +
-        JSON.stringify({ ydd: [...new Uint8Array(testYdd)], ytd: [...new Uint8Array(testYtd)] }) +
+        JSON.stringify({
+          ydd: [...new Uint8Array(testYdd)],
+          ytd: [...new Uint8Array(testYtd)],
+          packYtd: [...packYtd],
+        }) +
         ')',
     );
+    const { openArchive: readPackZip } = await import('../src/archives.js');
+    const { readYtd: readPackYtd } = await import('../src/resource.js');
+    const packZip = await readPackZip(
+      new Blob([new Uint8Array(report.clothingZip)]),
+      'clothing.zip',
+    );
+    const packMap = packZip.entries.find((e) => /\.ytd$/i.test(e.name));
+    const packedTextures = readPackYtd(
+      Uint8Array.from(await packZip.extract(packMap)).buffer,
+    ).textures;
+    if (
+      packedTextures.length !== 1 ||
+      packedTextures[0].w !== 512 ||
+      packedTextures[0].h !== 256 ||
+      packedTextures[0].format !== 'DXT5' ||
+      packedTextures[0].mipLevels !== 10
+    )
+      throw Error('Clothing ZIP did not contain resized, compressed native YTD with mipmaps');
+    const packLog = packZip.entries.find((e) => e.name.endsWith('ditasha-pack.json'));
+    const optimization = JSON.parse(
+      new TextDecoder().decode(await packZip.extract(packLog)),
+    ).optimization;
+    if (
+      optimization[0]?.changed !== 1 ||
+      optimization[0].textureMemoryAfter >= optimization[0].textureMemoryBefore
+    )
+      throw Error('Clothing optimization report missing native memory saving');
+    delete report.clothingZip;
+    report.automaticClothingOptimization = true;
     const { writeRpf } = await import('../src/archives.js');
     const { zipFiles } = await import('../src/asset-tools.js');
     const ytd = new Uint8Array(testYtd);
@@ -107,7 +151,6 @@ app.whenReady().then(async () => {
     }
     archiveReport.saves = archiveReport.saves.map((s) => ({ name: s.name, size: s.data.length }));
     const { viewerModel } = await import('../tests/viewer-format.test.mjs');
-    const { createYtd } = await import('../src/asset-tools.js');
     const hairYtd = createYtd([
       { name: 'hair_diff_040_a_uni', w: 1, h: 1, out: new Uint8Array([0, 255, 0, 255]) },
     ]);

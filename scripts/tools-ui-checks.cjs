@@ -15,6 +15,7 @@ module.exports = async function checkTools(fixtures) {
   };
   let canceled = false,
     saves = [],
+    clothingZip,
     donationOpened = false;
   window.ditashaDesktop = {
     openDonation: async () => {
@@ -22,6 +23,7 @@ module.exports = async function checkTools(fixtures) {
     },
     saveExport: async (payload) => {
       if (canceled) return { saved: false };
+      if (payload.name.startsWith('ditasha_clothing-')) clothingZip = [...payload.data];
       saves.push({
         name: payload.name,
         size: payload.data.length,
@@ -105,9 +107,23 @@ module.exports = async function checkTools(fixtures) {
   document.querySelector('[data-page="pack"]').click();
   await add([
     new File([new Uint8Array(fixtures.ydd)], 'mp_m_freemode_01^jbib_000_u.ydd'),
-    new File([new Uint8Array(fixtures.ytd)], 'mp_m_freemode_01^jbib_diff_000_a_uni.ytd'),
+    new File(
+      [new Uint8Array(fixtures.packYtd || fixtures.ytd)],
+      'mp_m_freemode_01^jbib_diff_000_a_uni.ytd',
+    ),
   ]);
   assert(!$('toolRun').disabled, 'Valid replacement pack blocked');
+  assert(
+    $('packOptimize').checked && $('packMaxSize').value === '1024',
+    'Automatic optimization defaults missing',
+  );
+  $('packSlotFilter').value = 'Shoes';
+  $('packSlotFilter').dispatchEvent(new Event('change'));
+  assert(!$('toolQueue').querySelector('button'), 'Clothing-type filter did not filter tops');
+  $('packSlotFilter').value = 'All';
+  $('packSlotFilter').dispatchEvent(new Event('change'));
+  $('packMaxSize').value = '512';
+  $('packMaxSize').dispatchEvent(new Event('input'));
   assert(
     window.ditashaWorkspace.unsavedItems().some((e) => e.name.startsWith('Clothing pack')),
     'Pack missing from unsaved state',
@@ -151,6 +167,7 @@ module.exports = async function checkTools(fixtures) {
     saves.at(-1).name === 'ditasha_clothing-v1.zip',
     'Wrong build version after canceled save',
   );
+  assert($('toolSaved').textContent.includes('Memori tekstur:'), 'Texture memory result missing');
   $('packNote').value = 'Changed';
   $('packNote').dispatchEvent(new Event('input'));
   $('toolClear').click();
@@ -165,6 +182,7 @@ module.exports = async function checkTools(fixtures) {
   );
   return {
     saves,
+    clothingZip,
     checks:
       'donation URL, adjacent placement and desktop browser action, image/YTD/DDS/GLB exports, ZIP export, clothing validation/preview/build, canceled save, unsaved clear guard, expanded 3D/Escape and editor restoration',
   };

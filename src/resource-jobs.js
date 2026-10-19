@@ -2,13 +2,17 @@ import { MAX_YTD_INPUT_BYTES } from './texture-memory.js';
 import { analyzeDebadge, removeVehicleParts } from './vehicle-debadge.js';
 import { Resource, indexYtd, readYtd, readYdd, readYdr, readYft } from './resource.js';
 import { maskResourceGeometry } from './vehicle-resource.js';
+import { optimizeYtd } from './texture-optimize.js';
 export function performResourceJob(kind, buffer, options = {}) {
-  const maxInput = ['texture-index', 'texture-set', 'textures', 'ytd'].includes(kind)
+  const maxInput = ['texture-index', 'texture-set', 'textures', 'ytd', 'optimize-ytd'].includes(
+    kind,
+  )
     ? MAX_YTD_INPUT_BYTES
     : 64 * 1024 * 1024;
   if (!(buffer instanceof ArrayBuffer) || buffer.byteLength > maxInput)
     throw Error('Resource input maksimum ' + Math.round(maxInput / 1048576) + ' MB.');
   if (kind === 'debadge-read') return analyzeDebadge(buffer);
+  if (kind === 'optimize-ytd') return optimizeYtd(buffer, options);
   if (kind === 'debadge-write') return removeVehicleParts(buffer, options.selected);
   if (kind === 'texture-index') return indexYtd(buffer);
   if (kind === 'ytd') return readYtd(buffer, options);

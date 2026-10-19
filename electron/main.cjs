@@ -238,7 +238,7 @@ else {
         name === '.' ||
         name === '..' ||
         !(data instanceof Uint8Array) ||
-        data.byteLength > 128 * 1024 * 1024
+        data.byteLength > (/\.zip$/i.test(name) ? 512 : 128) * 1024 * 1024
       )
         throw Error('Data ekspor tidak valid.');
       const result = await dialog.showSaveDialog(win, {

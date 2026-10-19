@@ -223,7 +223,9 @@ export function crc32(data) {
   }
   return (c ^ 0xffffffff) >>> 0;
 }
-export function zipFiles(entries) {
+export function zipFiles(entries, { maxBytes = MAX_EXPORT } = {}) {
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || maxBytes > 512 * 1024 * 1024)
+    throw Error('Batas ZIP tidak valid.');
   if (!entries.length || entries.length > 65535) throw Error('Jumlah file ZIP tidak valid.');
   const seen = new Set(),
     local = [],
@@ -240,7 +242,8 @@ export function zipFiles(entries) {
     if (!(data instanceof Uint8Array) && !(data instanceof Uint8ClampedArray))
       throw Error('Data ZIP tidak valid.');
     total += data.length + name.length * 2 + 76;
-    if (total > MAX_EXPORT) throw Error('Hasil ZIP melebihi 128 MB.');
+    if (total > maxBytes)
+      throw Error('Hasil ZIP melebihi ' + Math.round(maxBytes / 1048576) + ' MB.');
     const crc = crc32(data),
       l = new Uint8Array(30 + name.length),
       v = new DataView(l.buffer);
