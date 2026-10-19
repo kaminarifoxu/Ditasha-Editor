@@ -43,14 +43,14 @@ export function mountTools({
   root.innerHTML = `
  <aside class="tool-sidebar"><span class="eyebrow" id="toolEyebrow"></span><h2 id="toolHeading"></h2>
  <div id="convertSettings"><label>Format tujuan<select id="conversionMode" hidden aria-hidden="true" tabindex="-1"></select></label><div id="conversionButtons" class="conversion-buttons" role="group" aria-label="Format konversi"></div><p id="conversionHint" class="muted"></p><label>Nama YTD<input id="dictionaryName" value="ditasha_textures"></label><p class="muted">YTD / DDS: tanpa kompresi, satu mipmap. GLB: mesh & UV saja; tanpa rig, animasi atau material GTA.</p></div>
- <div id="packSettings" hidden><label>Nama resource<input id="packName" value="ditasha_clothing" maxlength="64"></label><label>Mode pack<select id="packMode"><option value="replace">Replacement clothing</option><option value="addon">Existing add-on collection</option></select></label><p class="muted" id="packHint">Nama file menentukan ped dan slot replacement.</p><label>Catatan build<textarea id="packNote" rows="3" placeholder="Apa yang berubah?"></textarea></label></div>
+ <details id="packSettings" hidden><summary>Pengaturan pack</summary><label>Nama resource<input id="packName" value="ditasha_clothing" maxlength="64"></label><label>Mode pack<select id="packMode"><option value="replace">Replacement clothing</option><option value="addon">Existing add-on collection</option></select></label><p class="muted" id="packHint">Nama file menentukan ped dan slot replacement.</p><label>Catatan build<textarea id="packNote" rows="3" placeholder="Apa yang berubah?"></textarea></label></details>
  <div class="tool-buttons"><button id="toolAdd">+ File</button><button id="toolFolder">Folder</button><button id="toolClear">Kosongkan</button></div><input id="toolFileInput" type="file" multiple hidden><input id="toolFolderInput" type="file" webkitdirectory multiple hidden>
  <input id="toolSearch" class="search" placeholder="Cari file…" aria-label="Cari file tools"><select id="packFilter" aria-label="Filter ped" hidden><option value="All">All</option><option>Male</option><option>Female</option><option>Unknown</option></select><div id="toolQueue"></div><p id="toolCount" class="muted"></p></aside>
  <section class="tool-center"><div id="toolEmpty" class="empty"><div class="empty-symbol"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 15v5h16v-5"/></svg></div><span class="emptykicker">DITASHA WORKSHOP</span><h3 id="toolEmptyTitle">Drop files here</h3><p id="toolEmptyHelp"></p><button id="toolChoose" class="primary">Pilih file</button></div><div id="packViewer"></div><div id="convertResults" hidden><h2>Hasil konversi</h2><p class="muted">Pilih simpan untuk setiap hasil, atau simpan semuanya sebagai ZIP.</p><div id="outputFiles"></div></div></section>
- <aside class="tool-details"><span class="eyebrow">DETAILS</span><h2 id="toolDetailsHeading">Siap memulai</h2><p id="toolDetailsText" class="muted"></p><label id="packPathLabel" hidden>Path ekspor<input id="packPath"></label><button id="packPreview" hidden>Lihat model 3D</button><div id="packStats" class="pack-stats" hidden></div><h3>Findings</h3><ul id="toolFindings"></ul><p id="toolStatus" role="status"></p><progress id="toolProgress" hidden></progress><div class="tool-bottom"><button id="toolRun" class="primary" disabled>Convert</button><button id="saveAll" hidden>Simpan semua (ZIP)</button><p class="muted" id="toolSaved"></p></div></aside>`;
+ <aside class="tool-details"><span class="eyebrow">DETAILS</span><h2 id="toolDetailsHeading">Siap memulai</h2><p id="toolDetailsText" class="muted"></p><label id="packPathLabel" hidden>Path ekspor<input id="packPath"></label><button id="packPreview" hidden>Lihat model 3D</button><div id="packStats" class="pack-stats" hidden></div><details id="packFindings" open><summary>Hasil pemeriksaan</summary><ul id="toolFindings"></ul></details><p id="toolStatus" role="status"></p><progress id="toolProgress" hidden></progress><div class="tool-bottom"><button id="toolRun" class="primary" disabled>Convert</button><button id="saveAll" hidden>Simpan semua (ZIP)</button><p class="muted" id="toolSaved"></p></div></aside>`;
   nav.after(root);
   const optimize = document.createElement('details');
-  optimize.open = true;
+  optimize.open = false;
   optimize.innerHTML = `<summary>Optimasi tekstur otomatis</summary><label class="check"><input id="packOptimize" type="checkbox" checked>Optimalkan YTD saat build</label><label>Resolusi maksimum<select id="packMaxSize"><option value="512">512 px · hemat</option><option value="1024" selected>1K · seimbang</option><option value="2048">2K · detail</option><option value="4096">4K · tinggi</option></select></label><p class="muted">Auto DXT1 / DXT5 sesuai alpha, mipmap, tanpa memperbesar gambar. YTD yang sudah sesuai dipertahankan. File asli tetap utuh.</p><p class="muted">5.000 file · 512 MB per pack · 256 MB per file. Slot game tetap mengikuti collection/YMT; tidak membuat YMT baru.</p>`;
   $('packSettings').append(optimize);
   const slotFilter = document.createElement('select');
@@ -116,6 +116,8 @@ export function mountTools({
     savedRevision = 0,
     buildVersion = 1;
   let packOptimizationReport = [];
+  const previewFiles = new WeakMap();
+  const previewPanelState = new Map();
   const viewers = mountViewers({
     nav,
     download,
@@ -176,6 +178,18 @@ export function mountTools({
       return;
     }
     if (page !== next) selection = null;
+    if (page === 'pack' && next !== 'pack') {
+      for (const [panel, open] of previewPanelState) panel.open = open;
+      previewPanelState.clear();
+    }
+    if (page !== 'pack' && next === 'pack') {
+      viewer.querySelectorAll('.inspector details').forEach((panel) => {
+        previewPanelState.set(panel, panel.open);
+        panel.open = false;
+      });
+      $('packFindings').open = false;
+    }
+    if (next === 'converter') $('packFindings').open = true;
     page = next;
     $('workspaceLabel').textContent =
       next === 'files'
@@ -307,17 +321,31 @@ export function mountTools({
         const row = document.createElement('div');
         row.className = 'tool-file';
         const b = document.createElement('button');
-        b.textContent = e.path || e.file.name;
-        b.title = b.textContent;
+        const path = e.path || e.file.name;
+        b.textContent = path;
+        b.title = path;
+        b.setAttribute('aria-pressed', String(e === selection));
+        if (isPack) {
+          const name = document.createElement('span');
+          name.className = 'pack-file-name';
+          name.textContent = path.split('/').at(-1).split('^').at(-1);
+          const type = document.createElement('small');
+          type.className = 'pack-file-type';
+          type.textContent = path.split('.').at(-1).toUpperCase();
+          b.replaceChildren(type, name);
+          b.setAttribute('aria-label', path);
+        }
         b.classList.toggle('selected', e === selection);
         b.onclick = () => {
           if (busy) return;
           selection = e;
           render();
+          if (isPack && /\.ydd$/i.test(e.path)) previewSelection();
         };
         const del = document.createElement('button');
         del.textContent = '×';
-        del.setAttribute('aria-label', 'Hapus ' + b.textContent);
+        del.setAttribute('aria-label', 'Hapus ' + path);
+        del.title = 'Hapus file';
         del.onclick = () => {
           if (busy) return;
           list.splice(list.indexOf(e), 1);
@@ -339,8 +367,7 @@ export function mountTools({
     $('saveAll').hidden = isPack || !outputs.length;
     $('packStats').hidden = !isPack;
     $('packPathLabel').hidden = !isPack || !selection;
-    $('packPreview').hidden =
-      !isPack || !selection || !selection.path.toLowerCase().endsWith('.ydd');
+    $('packPreview').hidden = true;
     $('toolDetailsHeading').textContent = selection
       ? (selection.path || selection.file.name).split('/').at(-1)
       : 'Siap memulai';
@@ -530,7 +557,7 @@ export function mountTools({
       render();
     }
   };
-  $('packPreview').onclick = async () => {
+  async function previewSelection() {
     if (!selection || busy) return;
     const e = selection;
     setBusy(true);
@@ -539,13 +566,24 @@ export function mountTools({
         (t) => /\.ytd$/i.test(t.path) && clothingInfo(t.path).key === clothingInfo(e.path).key,
       );
       await preview(
-        [e, ...(paired ? [paired] : [])].map((t) => new File([t.data], t.path.split('/').at(-1))),
+        [e, ...(paired ? [paired] : [])].map((t) => {
+          const name = t.path.split('/').at(-1);
+          let file = previewFiles.get(t);
+          if (!file || file.name !== name) {
+            file = new File([t.data], name);
+            previewFiles.set(t, file);
+          }
+          return file;
+        }),
+        { reuse: true },
       );
-      toast('Model dimuat. Gunakan Perbesar 3D untuk melihat lebih luas.');
+    } catch (error) {
+      toast('Preview gagal: ' + error.message);
     } finally {
       setBusy(false);
     }
-  };
+  }
+  $('packPreview').onclick = previewSelection;
   function renderOutputs() {
     $('outputFiles').replaceChildren();
     for (const out of outputs) {

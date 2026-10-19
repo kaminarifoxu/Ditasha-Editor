@@ -838,3 +838,151 @@
 .workspace-shell .vehicle-control-sidebar #mvTextures .viewer-button-row button .control-label {
   display: none !important;
 }
+
+/* Clothing pack keeps the file list and model in focus. */
+.workspace-shell .tool-workspace.is-pack {
+  grid-template-columns: 256px minmax(280px, 1fr) 248px;
+}
+.workspace-shell .is-pack > :is(.tool-sidebar, .tool-details) {
+  padding: 18px 14px;
+}
+.workspace-shell .is-pack #packSettings {
+  display: block;
+  padding: 12px;
+  margin-bottom: 14px;
+}
+.workspace-shell .is-pack :is(#packSettings, #packFindings) > summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+}
+.workspace-shell .is-pack #packSettings label {
+  margin: 12px 0;
+}
+.workspace-shell .is-pack .tool-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr 36px;
+  gap: 6px;
+  margin: 12px 0;
+}
+.workspace-shell .is-pack .tool-buttons button {
+  min-width: 0;
+  min-height: 34px;
+  padding: 6px 8px;
+  font-size: 11px;
+  gap: 5px;
+}
+.workspace-shell .is-pack #toolClear .control-label,
+.workspace-shell .is-pack .tool-file > button:last-child .control-label {
+  display: none;
+}
+.workspace-shell .is-pack :is(#packFilter, #packSlotFilter) {
+  margin-top: 8px;
+  min-height: 34px;
+}
+.workspace-shell .is-pack #toolQueue {
+  margin-top: 14px;
+}
+.workspace-shell .is-pack .queue-group {
+  margin: 18px 0 6px;
+}
+.workspace-shell .is-pack .tool-file {
+  align-items: center;
+  gap: 4px;
+}
+.workspace-shell .is-pack .tool-file > button:first-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 6px 8px;
+  border-radius: 7px;
+}
+.workspace-shell .is-pack .pack-file-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.workspace-shell .is-pack .pack-file-type {
+  flex: 0 0 30px;
+  font-size: 9px;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+.workspace-shell .is-pack .tool-file > button:last-child {
+  flex: 0 0 28px;
+  width: 28px;
+  min-width: 28px;
+  height: 30px;
+  padding: 4px;
+}
+.workspace-shell .is-pack #toolDetailsHeading {
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+.workspace-shell .is-pack #toolDetailsText {
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.workspace-shell .is-pack #packFindings {
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+  margin: 8px 0 14px;
+}
+.workspace-shell .is-pack #toolFindings {
+  max-height: 220px;
+  overflow: auto;
+  margin-top: 10px;
+}
+.workspace-shell .is-pack #packViewer .inspector {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 8px 12px;
+  max-height: 38vh;
+  overflow: auto;
+  padding: 12px;
+}
+.workspace-shell
+  .is-pack
+  #packViewer
+  .inspector
+  > :is(details, .sectiontitle, .check, .modeltools, p) {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.workspace-shell .is-pack #packViewer .inspector > details {
+  padding: 10px 12px;
+}
+.workspace-shell .is-pack #packViewer .inspector label {
+  margin: 0;
+  min-width: 0;
+}
+.workspace-shell .is-pack #packViewer .inspector .modeltools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.workspace-shell .is-pack #packViewer .inspector .modeltools button {
+  flex: 0 1 auto;
+  height: 34px;
+  min-height: 34px;
+  padding: 6px 10px;
+  font-size: 11px;
+}
+.workspace-shell .is-pack #packViewer #viewport {
+  min-height: 240px;
+}
+@media (max-width: 1100px) {
+  .workspace-shell .tool-workspace.is-pack {
+    grid-template-columns: 220px minmax(240px, 1fr);
+  }
+  .workspace-shell .is-pack > .tool-details {
+    grid-column: 1 / -1;
+    max-height: 220px;
+  }
+}

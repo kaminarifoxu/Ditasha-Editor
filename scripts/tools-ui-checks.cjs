@@ -117,10 +117,15 @@ module.exports = async function checkTools(fixtures) {
     $('packOptimize').checked && $('packMaxSize').value === '1024',
     'Automatic optimization defaults missing',
   );
+  $('packSettings').open = true;
+  $('packOptimize').closest('details').open = true;
   assert(
-    $('packOptimize').getBoundingClientRect().width <= 20,
+    $('packOptimize').getBoundingClientRect().width > 0 &&
+      $('packOptimize').getBoundingClientRect().width <= 20,
     'Optimization checkbox overflowed the clothing sidebar',
   );
+  $('packOptimize').closest('details').open = false;
+  $('packSettings').open = false;
   $('packSlotFilter').value = 'Shoes';
   $('packSlotFilter').dispatchEvent(new Event('change'));
   assert(!$('toolQueue').querySelector('button'), 'Clothing-type filter did not filter tops');
@@ -133,9 +138,21 @@ module.exports = async function checkTools(fixtures) {
     'Pack missing from unsaved state',
   );
   $('toolQueue').querySelector('button').click();
-  $('packPreview').click();
   await wait(() => !$('toolAdd').disabled && $('fileLoading').hidden, 'Preview did not finish');
   assert($('modelTitle').textContent === 'mp_m_freemode_01^jbib_000_u.ydd', 'Pack preview missing');
+  assert(!$('packSettings').open, 'Pack settings should start collapsed');
+  assert($('packPreview').hidden, 'Redundant manual preview button is visible');
+  assert(
+    $('bindPreviewTexture').getBoundingClientRect().height <= 44,
+    'Material action buttons stretched vertically',
+  );
+  const sessionCount = $('fileList').children.length;
+  $('toolQueue').querySelector('button').click();
+  await wait(
+    () => !$('toolAdd').disabled && $('fileLoading').hidden,
+    'Repeat preview did not finish',
+  );
+  assert($('fileList').children.length === sessionCount, 'Repeat preview duplicated session files');
   console.log('DITASHA_SNAPSHOT:clothing');
   const before = $('viewport').getBoundingClientRect().width;
   $('expand3d').click();

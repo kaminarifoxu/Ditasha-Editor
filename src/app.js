@@ -765,8 +765,14 @@ async function imageTexture(file) {
     format: 'IMAGE',
   };
 }
-async function loadFiles(list) {
+const reusablePreviews = new WeakMap();
+async function loadFiles(list, { reuse = false } = {}) {
   for (const file of list) {
+    const cached = reuse && reusablePreviews.get(file);
+    if (cached && files.includes(cached)) {
+      selectFile(cached);
+      continue;
+    }
     $('fileLoading').hidden = false;
     $('fileLoadingName').textContent = 'Membuka ' + file.name + '…';
     await new Promise((resolve) => setTimeout(resolve, 20));
@@ -795,6 +801,7 @@ async function loadFiles(list) {
         f.textures = [makeCanvas(readDds(await file.arrayBuffer(), file.name))];
       } else throw Error('Pilih YFT, YDD, YDR, YTD, GLB, PNG, JPG atau WebP.');
       files.push(f);
+      if (reuse) reusablePreviews.set(file, f);
       if (f.textures && current) {
         addTextureLayer(f.textures[0]);
         refreshFiles();

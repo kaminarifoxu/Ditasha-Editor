@@ -1,3 +1,11 @@
+# v1.37.0 preview — Clothing pack workspace
+
+- Selecting a YDD immediately opens its 3D preview with the matching collection/slot YTD. Repeated selection reuses already loaded preview files instead of duplicating session entries.
+- Compact file rows show a type badge and short filename; full paths remain available on hover and in export details. Import controls share one row, with a compact remove action.
+- Pack settings, optimization explanations and findings can be expanded when needed. Advanced 3D panels start collapsed in Clothing pack; their editor state is restored on leaving the workspace.
+- Preview material actions keep a fixed height, and the inspector scrolls independently to leave more space for the model.
+- Existing pack validation, texture optimization and export behavior remain available.
+
 # v1.36.0 preview — Automatic clothing texture optimization
 
 - Clothing pack defaults to automatic YTD optimization at build time. Choose 512, 1K (default), 2K or 4K maximum resolution; aspect ratio is preserved and smaller textures are never enlarged.
