@@ -37,7 +37,7 @@ jobs:
       - name: Prepare verified offline creative engines
         run: npm run prepare:craft
         timeout-minutes: 15
-      - name: Check all nine embedded creative workspaces
+      - name: Check all ten embedded creative workspaces
         shell: pwsh
         run: |
           npx electron scripts/smoke-craft.cjs

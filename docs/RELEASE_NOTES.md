@@ -1,3 +1,10 @@
+# v1.38.0 preview — Embedded OpenCut Classic
+
+- Adds OpenCut alongside Video Studio under Video & motion, using the pinned MIT-licensed Classic editor; the current upstream rewrite is not bundled.
+- Local project launcher, media import, timeline editing, text, effects and video export run inside DITASHA. Projects and media use the editor's persistent local storage. Switching workspaces keeps the live project open.
+- This local edition excludes service-backed sound/sticker catalogs, AI transcription, remote fonts, feedback and online changelogs. Import your own audio and images; installed system fonts are used. Codec and GPU-effect availability depends on the runtime and hardware.
+- Build downloads the exact upstream source archive, validates its size/checksum, and compiles a standalone client with a locked dependency set. Original upstream and dependency license notices are bundled.
+
 # v1.37.0 preview — Clothing pack workspace
 
 - Selecting a YDD immediately opens its 3D preview with the matching collection/slot YTD. Repeated selection reuses already loaded preview files instead of duplicating session entries.

@@ -61,5 +61,14 @@
     "url": "https://github.com/storytold/deckcraft/releases/download/v0.7.0/deckcraft-web-0.7.0.zip",
     "sha256": "4ab91994048c096fa356b7246c31098474d978ecd572e5b252dd825a287d1c40",
     "bytes": 9385879
+  },
+  {
+    "id": "opencut",
+    "version": "v0.1.0",
+    "build": "ditasha-local-1",
+    "commit": "cf5e79e919144200294fb9fed22a222592a0aeea",
+    "url": "https://codeload.github.com/opencut-app/opencut-classic/zip/cf5e79e919144200294fb9fed22a222592a0aeea",
+    "sha256": "c0231fcaa96865787a39d10cdd500cf30a860d441c6d2831acc86f33c04c3a26",
+    "bytes": 4609813
   }
 ]

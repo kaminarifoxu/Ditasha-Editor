@@ -21,6 +21,7 @@ export const craftWorkspaces = [
     'Timeline editing, audio, grading and video export',
     'MOTION',
   ],
+  ['opencut', 'OpenCut', 'Oc', 'Local video projects, timeline, text, audio and export', 'MOTION'],
   ['effectcraft', 'Motion Studio', 'Fx', 'Compositions, keyframes and visual effects', 'MOTION'],
   ['pdfcraft', 'PDF Studio', 'Pd', 'Read, organize, merge and split PDF documents', 'OFFICE'],
   ['wordcraft', 'Documents', 'Do', 'Write and format documents with DOCX interchange', 'OFFICE'],
@@ -44,6 +45,7 @@ export function mountCraft({ nav, activate, toast, preview }) {
   const api = window.ditashaCraft,
     host = root.querySelector('.craft-host');
   const $ = (name) => root.querySelector(`[data-craft="${name}"]`);
+  const defaultGuide = root.querySelector('.craft-guide').innerHTML;
   let id = 'photocraft',
     records = [],
     busy = false,
@@ -75,6 +77,11 @@ export function mountCraft({ nav, activate, toast, preview }) {
     const item = craftWorkspaces.find((s) => s[0] === id),
       record = records.find((r) => r.id === id);
     $('title').textContent = item[1];
+    $('import').hidden = id === 'opencut';
+    root.querySelector('.craft-guide').innerHTML =
+      id === 'opencut'
+        ? '<strong>Local video editing</strong><p>Open workspace → New project. Import local video, audio or images in Media, then add clips to the timeline. Use Text, Effects and Settings to edit; use Export to save a finished video.</p><p>Projects and imported media are stored locally in DITASHA. Switching workspaces keeps the editor open. Export finished work before clearing application data.</p><p>OpenCut Classic local edition. Online catalogs, AI transcription and remote fonts are excluded. Video codecs and GPU effects depend on this computer.</p>'
+        : defaultGuide;
     root.querySelector('h1').textContent = item[1];
     root.querySelector('.craft-monogram').textContent = item[2];
     $('description').textContent = item[3];

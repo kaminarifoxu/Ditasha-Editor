@@ -10,12 +10,13 @@ async function prepare(spec) {
   const target = path.join(root, spec.id);
   try {
     const receipt = JSON.parse(await fs.readFile(path.join(target, 'DITASHA-ENGINE.json')));
-    if (receipt.sha256 === spec.sha256) {
+    if (receipt.sha256 === spec.sha256 && receipt.build === spec.build) {
       await fs.access(path.join(target, 'index.html'));
       console.log('Ready: ' + spec.id + ' ' + spec.version);
       return;
     }
   } catch {}
+  if (spec.id === 'opencut') return require('./prepare-opencut.cjs').prepareOpenCut(spec, root);
   const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'ditasha-craft-'));
   try {
     console.log('Preparing ' + spec.id + ' ' + spec.version);

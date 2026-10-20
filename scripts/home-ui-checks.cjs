@@ -68,12 +68,12 @@ module.exports = async function checkHome({ ytd, size, interactions }) {
   }
   document.getElementById('openHome').click();
   if (!interactions) return { size, fits: true, workshopToolbar: true };
-  assert(home.querySelectorAll('.home-suite-card').length === 9, 'Creative workspaces missing');
+  assert(home.querySelectorAll('.home-suite-card').length === 10, 'Creative workspaces missing');
   for (const [group, count] of [
     ['DESIGN', 3],
-    ['MOTION', 2],
+    ['MOTION', 3],
     ['OFFICE', 4],
-    ['ALL', 9],
+    ['ALL', 10],
   ]) {
     const filter = home.querySelector(`[data-studio-filter="${group}"]`);
     filter.click();

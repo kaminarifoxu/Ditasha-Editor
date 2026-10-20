@@ -84,7 +84,7 @@ function registerCraftEngines({
         try {
           const r = JSON.parse(await fs.readFile(path.join(root, s.id, 'DITASHA-ENGINE.json')));
           await fs.access(path.join(root, s.id, 'index.html'));
-          installed = r.sha256 === s.sha256;
+          installed = r.sha256 === s.sha256 && r.build === s.build;
         } catch {}
         return {
           id: s.id,

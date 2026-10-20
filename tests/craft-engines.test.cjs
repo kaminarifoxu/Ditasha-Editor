@@ -5,11 +5,17 @@ const path = require('node:path');
 const specs = require('../config/craft-engines.json');
 const { enginePath } = require('../electron/craft-paths.cjs');
 test('Pinned creative engines have unique IDs, exact releases and checksums', () => {
-  assert.equal(specs.length, 9);
-  assert.equal(new Set(specs.map((s) => s.id)).size, 9);
+  assert.equal(specs.length, 10);
+  assert.equal(new Set(specs.map((s) => s.id)).size, 10);
   for (const s of specs) {
     assert.match(s.sha256, /^[a-f0-9]{64}$/);
     assert.match(s.version, /^v\d+\.\d+\.\d+$/);
+    if (s.id === 'opencut') {
+      assert.equal(new URL(s.url).hostname, 'codeload.github.com');
+      assert.match(s.commit, /^[a-f0-9]{40}$/);
+      assert.ok(s.url.endsWith('/' + s.commit));
+      continue;
+    }
     assert.equal(new URL(s.url).hostname, 'github.com');
     assert.ok(
       s.url.startsWith(`https://github.com/storytold/${s.id}/releases/download/${s.version}/`),

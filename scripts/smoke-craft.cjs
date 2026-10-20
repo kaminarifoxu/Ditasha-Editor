@@ -99,13 +99,13 @@ app.whenReady().then(async () => {
       win.setSize(w, h);
       await sleep(150);
       await win.webContents.executeJavaScript(
-        `(()=>{document.getElementById('openHome').click();const h=document.querySelector('.home-workspace');if(h.scrollWidth>h.clientWidth+1)throw Error('Home overflow');if(document.querySelectorAll('.home-suite-card').length!==9)throw Error('Missing creative studios');return true;})()`,
+        `(()=>{document.getElementById('openHome').click();const h=document.querySelector('.home-workspace');if(h.scrollWidth>h.clientWidth+1)throw Error('Home overflow');if(document.querySelectorAll('.home-suite-card').length!==10)throw Error('Missing creative studios');return true;})()`,
       );
       await capture('creative-home-' + w);
     }
     win.setSize(1500, 950);
     const records = await engines.state();
-    assert.equal(records.length, 9);
+    assert.equal(records.length, 10);
     assert.ok(records.every((r) => r.installed));
     for (const item of records) {
       await win.webContents.executeJavaScript(
@@ -125,6 +125,8 @@ app.whenReady().then(async () => {
             .join(' '),
         ),
       );
+      if (item.id === 'opencut')
+        await require('./craft-opencut-check.cjs')({ contents, initialize: true });
       let boot;
       while (Date.now() < end) {
         try {
@@ -164,7 +166,9 @@ app.whenReady().then(async () => {
         colors.size > 15,
         item.id + ' rendered a blank canvas (' + colors.size + ' colors)',
       );
-      let imageRoundTrip;
+      let imageRoundTrip, videoRoundTrip;
+      if (item.id === 'opencut')
+        videoRoundTrip = await require('./craft-opencut-check.cjs')({ contents });
       if (item.id === 'photocraft')
         imageRoundTrip = await require('./craft-photo-check.cjs')({
           contents,
@@ -198,6 +202,7 @@ app.whenReady().then(async () => {
         offline: true,
         retained: true,
         ...(imageRoundTrip ? { imageRoundTrip } : {}),
+        ...(videoRoundTrip ? { videoRoundTrip } : {}),
       });
       console.log('PASS engine: ' + JSON.stringify(report.at(-1)));
       // Release memory between engine checks, like an explicit user Close engine action.
@@ -211,7 +216,7 @@ app.whenReady().then(async () => {
       path.resolve('release/qa/creative-engines-result.json'),
       JSON.stringify(report, null, 2),
     );
-    console.log('PASS: all nine local creative engines');
+    console.log('PASS: all ten local creative engines');
     clearTimeout(timeout);
     win.destroy();
     await fs.rm(temp, { recursive: true, force: true }).catch(() => {});

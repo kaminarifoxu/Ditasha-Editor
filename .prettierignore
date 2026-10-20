@@ -6,3 +6,5 @@ ui/app.js
 package-lock.json
 ui/assets/
 assets/
+
+integrations/opencut/source/

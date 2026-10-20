@@ -16,3 +16,6 @@ font-source.css
 
 __pycache__/
 *.pyc
+
+/integrations/opencut/source/
+/integrations/opencut/dist/
