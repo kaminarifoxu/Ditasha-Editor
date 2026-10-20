@@ -14,12 +14,16 @@ export default defineConfig({
     wasm(),
     {
       name: 'ditasha-local-panels',
+      enforce: 'pre',
       transform(code, id) {
-        if (id.endsWith('/assets-panel-store.tsx'))
-          return code.replace(
-            /export const TAB_KEYS = \[[\s\S]*?\] as const;/,
-            'export const TAB_KEYS = ["media", "text", "effects", "settings"] as const;',
+        if (id.replaceAll('\\', '/').endsWith('/assets-panel-store.tsx')) {
+          const next = code.replace(
+            /export const TAB_KEYS = \[[\s\S]*?\]/,
+            'export const TAB_KEYS = ["media", "text", "effects", "settings"]',
           );
+          if (next === code) throw Error('Pinned OpenCut tab list changed');
+          return next;
+        }
       },
     },
   ],
