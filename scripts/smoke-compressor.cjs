@@ -94,6 +94,18 @@ app.whenReady().then(async () => {
       "[...document.querySelectorAll('#acQueue button')].find(b=>b.title.endsWith('/keep.ytd')).click();document.getElementById('acPreserve').checked=true;document.getElementById('acPreserve').dispatchEvent(new Event('change'));",
     );
     await win.webContents.executeJavaScript(
+      "(()=>{const input=document.getElementById('acFiles'),file=new File(['x'],'too-large.ytd');Object.defineProperty(file,'size',{value:26*1024**3});Object.defineProperty(input,'files',{value:[file],configurable:true});input.dispatchEvent(new Event('change'));delete input.files;})()",
+    );
+    assert.equal(
+      await win.webContents.executeJavaScript("document.querySelectorAll('#acQueue > div').length"),
+      6,
+    );
+    assert.ok(
+      await win.webContents.executeJavaScript(
+        "document.getElementById('acImportNotice').textContent.includes('dibatalkan seluruhnya')",
+      ),
+    );
+    await win.webContents.executeJavaScript(
       "const s=document.getElementById('acProfile-clothing');s.value='512';s.dispatchEvent(new Event('change'));[...document.querySelectorAll('#acQueue button')].find(b=>b.title.endsWith('.ydd')).click()",
     );
     await wait(
@@ -145,7 +157,7 @@ app.whenReady().then(async () => {
     win.setSize(1600, 1000);
     await new Promise((r) => setTimeout(r, 200));
     await win.webContents.executeJavaScript(
-      "document.getElementById('toast').style.display='none'",
+      "document.getElementById('toast').style.display='none';document.getElementById('acImportNotice').textContent=''",
     );
     await fs.writeFile('release/qa/compressor.png', (await win.webContents.capturePage()).toPNG());
     for (const [width, height] of [

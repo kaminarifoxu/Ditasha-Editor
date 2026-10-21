@@ -25,7 +25,7 @@ export function mountCompressor({ nav, activate, viewers, toast }) {
   root.hidden = true;
   root.innerHTML = `<header class="ac-header"><div><span class="eyebrow">BATCH TEXTURE OPTIMIZATION</span><h1>Asset Compressor</h1><p>MLO, kendaraan, pakaian & ped · hingga 25 GB / 50.000 file</p></div><div class="ac-actions"><button id="acAdd">${icon('plus')} File</button><button id="acFolder">${icon('folder')} Folder</button><button id="acClear" title="Kosongkan antrean">${icon('trash')}</button></div></header>
   <input id="acFiles" type="file" multiple hidden><input id="acFolders" type="file" webkitdirectory multiple hidden>
-  <div class="ac-layout"><aside class="ac-files"><label>Jenis default untuk file baru<select id="acImportKind"><option value="vehicle">Kendaraan</option><option value="mlo">MLO</option><option value="clothing">Pakaian</option><option value="ped">Ped</option></select></label><p class="muted">Nama/folder yang dikenali dipilah otomatis. Jenis dan resolusi tiap YTD dapat diubah.</p><input id="acSearch" placeholder="Cari file atau folder…" aria-label="Cari file kompresi"><select id="acFilter" aria-label="Filter jenis"><option value="all">Semua jenis</option><option value="mlo">MLO</option><option value="vehicle">Kendaraan</option><option value="clothing">Pakaian</option><option value="ped">Ped</option><option value="ytd">Hanya YTD</option></select><div id="acQueue"></div><div class="ac-pagination"><button id="acPrevious" aria-label="Halaman sebelumnya">←</button><span id="acPage"></span><button id="acNext" aria-label="Halaman berikutnya">→</button></div><p id="acCount" class="muted">Belum ada file</p></aside>
+  <div class="ac-layout"><aside class="ac-files"><label>Jenis default untuk file baru<select id="acImportKind"><option value="vehicle">Kendaraan</option><option value="mlo">MLO</option><option value="clothing">Pakaian</option><option value="ped">Ped</option></select></label><p class="muted">Nama/folder yang dikenali dipilah otomatis. Jenis dan resolusi tiap YTD dapat diubah.</p><p id="acImportNotice" role="status"></p><input id="acSearch" placeholder="Cari file atau folder…" aria-label="Cari file kompresi"><select id="acFilter" aria-label="Filter jenis"><option value="all">Semua jenis</option><option value="mlo">MLO</option><option value="vehicle">Kendaraan</option><option value="clothing">Pakaian</option><option value="ped">Ped</option><option value="ytd">Hanya YTD</option></select><div id="acQueue"></div><div class="ac-pagination"><button id="acPrevious" aria-label="Halaman sebelumnya">←</button><span id="acPage"></span><button id="acNext" aria-label="Halaman berikutnya">→</button></div><p id="acCount" class="muted">Belum ada file</p></aside>
   <section class="ac-center"><div class="ac-preview-bar"><div><span class="eyebrow">SOURCE PREVIEW · 3D</span><strong id="acSelected">Pilih model YFT, YDD atau YDR</strong></div><button id="acPreviewTools">${icon('cube')} Kontrol model</button></div><div class="ac-variant"><label>Varian YTD<select id="acVariant" disabled><option>Otomatis</option></select></label></div><div class="ac-preview-host"></div><p class="ac-preview-note">Preview memakai file asli. Untuk MLO pilih YDR objek; penyusunan peta YMAP belum tersedia. Model preview maks. 64 MB, YTD maks. 256 MB.</p></section>
   <aside class="ac-settings"><span class="eyebrow">RESOLUSI MAKSIMUM</span><h2>Ukuran sesuai aset</h2><div id="acProfiles"></div><p class="muted">Rasio gambar dijaga, tanpa upscale. Tekstur yang sudah sesuai dipertahankan; alpha dipertahankan lewat DXT5.</p><details id="acFileSettings"><summary>Pengaturan file terpilih</summary><p id="acPath" class="muted"></p><label>Jenis<select id="acKind"></select></label><label>Resolusi khusus YTD<select id="acOverride"><option value="0">Ikuti profil jenis</option></select></label><label class="ac-check"><input id="acPreserve" type="checkbox"> Salin YTD asli tanpa optimasi</label><button id="acRemove">Hapus dari antrean</button></details><details><summary>Cakupan & batas</summary><p>Kompresi eksternal YTD Legacy, satu file per proses. YDD/YFT/YDR, tekstur tertanam, rig, YMAP, YTYP, YBN, metadata, skrip dan struktur folder disalin utuh. Bukan pengurangan polygon atau pengubah limit game.</p><p>YTD di atas 256 MB, format tak didukung, dan hasil yang tidak lebih kecil disalin asli dengan laporan. Kompresi DXT bersifat lossy. File sumber tidak ditimpa.</p></details><div class="ac-progress"><strong id="acSummary">Siap menerima file</strong><p id="acStatus" role="status">Tambahkan file/folder resource, lalu pilih folder hasil.</p><progress id="acProgress" aria-label="Progress kompresi" max="1" value="0"></progress><button id="acRun" class="primary" disabled>${icon('compress')} Compress ke folder baru</button><button id="acCancel" disabled>Hentikan setelah file aktif</button><button id="acReveal" disabled>${icon('folder-open')} Buka hasil & laporan</button></div></aside></div>`;
   nav.after(root);
@@ -151,45 +151,70 @@ export function mountCompressor({ nav, activate, viewers, toast }) {
     if (busy) return;
     let total = entries.reduce((n, e) => n + e.file.size, 0),
       skipped = 0;
-    const seen = new Set(entries.map((e) => e.path.toLowerCase()));
-    for (const file of files) {
-      const path = file.webkitRelativePath || file.name,
-        key = path.toLowerCase();
-      if (
-        seen.has(key) ||
-        path
-          .split('/')
-          .some(
+    const known = new Map(entries.map((e) => [e.path.toLowerCase(), e.file])),
+      pending = [];
+    try {
+      for (const file of files) {
+        const path = file.webkitRelativePath || file.name,
+          key = path.toLowerCase(),
+          parts = path.split('/');
+        if (
+          parts.some(
+            (p) => p.toLowerCase() === '.ditasha-compressor' || p.startsWith('DITASHA-compressed-'),
+          )
+        ) {
+          skipped++;
+          continue;
+        }
+        if (
+          parts.some(
             (p) =>
               !p ||
               p === '..' ||
               p === '.' ||
-              p === '.ditasha-compressor' ||
-              p.startsWith('DITASHA-compressed-'),
-          ) ||
-        entries.length >= COMPRESSOR_MAX_FILES ||
-        total + file.size > COMPRESSOR_MAX_BYTES
-      ) {
-        skipped++;
-        continue;
+              /[\x00-\x1f<>:"\\|?*]/.test(p) ||
+              /[. ]$/.test(p) ||
+              /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(p),
+          )
+        )
+          throw Error('Path tidak aman: ' + path);
+        const old = known.get(key);
+        if (old) {
+          if (old.size !== file.size || old.lastModified !== file.lastModified)
+            throw Error('Path bertabrakan: ' + path);
+          skipped++;
+          continue;
+        }
+        if (
+          entries.length + pending.length >= COMPRESSOR_MAX_FILES ||
+          total + file.size > COMPRESSOR_MAX_BYTES
+        )
+          throw Error('Batch melebihi 25 GB / 50.000 file');
+        known.set(key, file);
+        total += file.size;
+        pending.push({
+          path,
+          file,
+          kind: assetKind(path, $('acImportKind').value),
+          maxSize: 0,
+          result: '',
+        });
       }
-      seen.add(key);
-      total += file.size;
-      entries.push({
-        path,
-        file,
-        kind: assetKind(path, $('acImportKind').value),
-        maxSize: 0,
-        result: '',
-      });
+      entries.push(...pending);
+      render();
+      $('acImportNotice').textContent = skipped
+        ? skipped + ' duplikat/output lama tidak dimasukkan.'
+        : '';
+      status('File siap. Pilih model untuk preview 3D, atau mulai kompresi.');
+    } catch (error) {
+      $('acImportNotice').textContent =
+        'Impor dibatalkan seluruhnya: ' +
+        error.message +
+        '. Tidak ada file dari pilihan ini yang ditambahkan.';
+      status($('acImportNotice').textContent);
     }
-    render();
-    status(
-      skipped
-        ? `Antrean diperbarui; ${skipped} file dilewati (duplikat, output lama, path atau batas batch).`
-        : 'File siap. Pilih model untuk preview 3D, atau mulai kompresi.',
-    );
   }
+
   async function selectPreview(e) {
     if (busy || previewBusy) return;
     let model = /\.(ydd|ydr|yft)$/i.test(e.path) ? e : null;
