@@ -1,3 +1,11 @@
+# v1.39.0 preview — Asset Compressor
+
+- Adds a batch workspace for MLO, vehicles, clothing and peds, with up to 25 GB / 50,000 source files referenced lazily. Files are processed sequentially and exported directly to a new folder without building a giant ZIP in RAM.
+- Per-category maximum texture profiles (MLO/vehicles 2K; clothing/peds 1K) and individual YTD overrides from 256 px through 4K. Preserve aspect ratio and avoid upscaling. External Legacy YTD textures use DXT1/DXT5 and mipmaps; lossy compression is optional by choosing to retain source files outside this workspace.
+- YTDs over 256 MB, unsupported dictionaries and results that are not smaller are copied unchanged with a report. Models, embedded textures, rigs, metadata and scripts are copied byte-for-byte. This is texture optimization, not polygon reduction or game-limit patching.
+- Select YFT/YDD/YDR for embedded source 3D preview and choose nearby YTD variants. Model preview retains its 64 MB cap. MLO preview shows selected YDR geometry, not a complete assembled YMAP scene.
+- Native folder output preserves relative paths, prevents conflicting output overwrites, detects changed sources and rejects traversal/symlink destinations. Original files remain untouched. Cancel after the active file; pending/failed files are explicit in .ditasha-compressor/report.json. A processing marker identifies interrupted output folders.
+
 # v1.38.0 preview — Embedded OpenCut Classic
 
 - Adds OpenCut alongside Video Studio under Video & motion, using the pinned MIT-licensed Classic editor; the current upstream rewrite is not bundled.

@@ -1,3 +1,4 @@
+import { mountCompressor } from './compressor-ui.js';
 import { mountCraft, craftWorkspaces } from './craft-ui.js';
 import { ICON_CODES } from './ui-icons.js';
 import { mountVehicleWorkspace } from './vehicle-ui.js';
@@ -156,6 +157,7 @@ export function mountTools({
   const craft = mountCraft({ nav, activate, toast, preview });
   const homepage = mountHome({ nav, activate, preview, getSessionFiles, selectSessionFile });
   const modelHome = viewers.modelRoot.parentElement;
+  const compressor = mountCompressor({ nav, activate, viewers, toast });
   const dirty = () => pack.length && revision !== savedRevision;
   const touch = () => {
     revision++;
@@ -191,28 +193,31 @@ export function mountTools({
     }
     if (next === 'converter') $('packFindings').open = true;
     page = next;
+    compressor.root.hidden = next !== 'compressor';
     $('workspaceLabel').textContent =
-      next === 'files'
-        ? 'File Manager'
-        : next === 'rig'
-          ? 'Auto rig ped'
-          : next === 'home'
-            ? 'Home'
-            : next === 'editor'
-              ? 'Texture & Model'
-              : next === 'pack'
-                ? 'Clothing pack'
-                : next === 'archives'
-                  ? 'GTA V Explorer'
-                  : next === 'vehicles'
-                    ? 'Vehicle workshop'
-                    : next === 'textureviewer'
-                      ? 'Texture viewer'
-                      : next === 'modelviewer'
-                        ? 'Model viewer'
-                        : next === 'code'
-                          ? 'Integrated IDE'
-                          : 'Converter';
+      next === 'compressor'
+        ? 'Asset Compressor'
+        : next === 'files'
+          ? 'File Manager'
+          : next === 'rig'
+            ? 'Auto rig ped'
+            : next === 'home'
+              ? 'Home'
+              : next === 'editor'
+                ? 'Texture & Model'
+                : next === 'pack'
+                  ? 'Clothing pack'
+                  : next === 'archives'
+                    ? 'GTA V Explorer'
+                    : next === 'vehicles'
+                      ? 'Vehicle workshop'
+                      : next === 'textureviewer'
+                        ? 'Texture viewer'
+                        : next === 'modelviewer'
+                          ? 'Model viewer'
+                          : next === 'code'
+                            ? 'Integrated IDE'
+                            : 'Converter';
     craft.root.hidden = !next.startsWith('craft-');
     if (next.startsWith('craft-')) {
       $('workspaceLabel').textContent =
@@ -232,11 +237,18 @@ export function mountTools({
     vehicles.root.hidden = next !== 'vehicles';
     const vehicleMode = next === 'vehicles';
     const explorerMode = next === 'archives' && archives.previewVisible();
-    (vehicleMode ? vehicles.host : explorerMode ? archives.previewHost : modelHome).append(
-      viewers.modelRoot,
-    );
+    (next === 'compressor'
+      ? compressor.host
+      : vehicleMode
+        ? vehicles.host
+        : explorerMode
+          ? archives.previewHost
+          : modelHome
+    ).append(viewers.modelRoot);
     viewers.modelRoot.classList.toggle('explorer-embedded', explorerMode);
-    viewers.modelRoot.hidden = !explorerMode && !['modelviewer', 'vehicles'].includes(next);
+    viewers.modelRoot.classList.toggle('compressor-embedded', next === 'compressor');
+    viewers.modelRoot.hidden =
+      !explorerMode && !['modelviewer', 'vehicles', 'compressor'].includes(next);
     viewers.vehicleControls.hidden = !vehicleMode;
     viewers.modelRoot.querySelector('.tool-sidebar > h2').textContent = vehicleMode
       ? 'Kendaraan'
@@ -755,6 +767,7 @@ export function mountTools({
     },
     unsavedItems: () => [
       ...(dirty() ? [{ name: 'Clothing pack · ' + $('packName').value }] : []),
+      ...compressor.unsavedItems(),
       ...archives.unsavedItems(),
       ...viewers.unsavedItems(),
     ],

@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 contextBridge.exposeInMainWorld('ditashaCraft', {
   state: () => ipcRenderer.invoke('ditasha:craft-state'),
   start: (id) => ipcRenderer.invoke('ditasha:craft-start', id),
@@ -68,4 +68,15 @@ contextBridge.exposeInMainWorld('ditashaDiscord', {
   workspace: (value) => ipcRenderer.invoke('ditasha:discord-workspace', value),
   project: (value) => ipcRenderer.invoke('ditasha:discord-project', value),
   docs: () => ipcRenderer.invoke('ditasha:discord-docs'),
+});
+
+contextBridge.exposeInMainWorld('ditashaCompressor', {
+  begin: (entries) =>
+    ipcRenderer.invoke(
+      'ditasha:compressor-begin',
+      entries.map((e) => ({ path: e.path, source: webUtils.getPathForFile(e.file) })),
+    ),
+  write: (value) => ipcRenderer.invoke('ditasha:compressor-write', value),
+  finish: (value) => ipcRenderer.invoke('ditasha:compressor-finish', value),
+  reveal: (id) => ipcRenderer.invoke('ditasha:compressor-reveal', id),
 });

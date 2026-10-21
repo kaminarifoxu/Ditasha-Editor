@@ -111,6 +111,7 @@ const actions = {
   inspectorClose: 'cross',
 };
 const pages = {
+  compressor: 'compress',
   files: 'folder-open',
   editor: 'layers',
   converter: 'exchange',

@@ -5,6 +5,13 @@ const icon = (name) =>
   `<i class="di-icon" aria-hidden="true" data-icon="${name}" data-glyph="${String.fromCodePoint(parseInt(ICON_CODES[name], 16))}"></i>`;
 const workspaces = [
   [
+    'compressor',
+    'compress',
+    'Asset Compressor',
+    'Kompresi YTD batch, profil ukuran per aset, dan preview 3D.',
+    '25 GB · MLO / VEHICLE / PED',
+  ],
+  [
     'files',
     'folder-open',
     'File Manager',

@@ -1064,11 +1064,13 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
     )
       return;
     activate(
-      options.page === 'archives'
-        ? 'archives'
-        : getActivePage?.() === 'vehicles'
-          ? 'vehicles'
-          : 'modelviewer',
+      options.page === 'compressor'
+        ? 'compressor'
+        : options.page === 'archives'
+          ? 'archives'
+          : getActivePage?.() === 'vehicles'
+            ? 'vehicles'
+            : 'modelviewer',
     );
     await operation('model', async () => {
       const candidates = files.filter((f) => modelExtensions.test(f.name));
@@ -1091,7 +1093,7 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
         loaded = result.textures;
         modelTextureWarnings = result.warnings;
       } catch (error) {
-        if (options.page !== 'archives') throw error;
+        if (!['archives', 'compressor'].includes(options.page)) throw error;
         textureWarning =
           'Model loaded without external textures: ' +
           error.message +

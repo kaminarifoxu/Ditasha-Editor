@@ -34,6 +34,13 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'File Manager checks failed.' }
           if (!(Test-Path 'release/qa/file-manager-result.json')) { throw 'File Manager checks exited before completion.' }
         timeout-minutes: 3
+      - name: Check asset compressor native folder output and 3D preview
+        shell: pwsh
+        run: |
+          npx electron scripts/smoke-compressor.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Compressor checks failed.' }
+          if (!(Test-Path 'release/qa/compressor-result.json')) { throw 'Compressor checks exited before completion.' }
+        timeout-minutes: 4
       - name: Prepare verified offline creative engines
         run: npm run prepare:craft
         timeout-minutes: 15

@@ -95,6 +95,7 @@ export function mountWorkspaceShell({ toast }) {
     'vehicles',
     'modelviewer',
     'pack',
+    'compressor',
     'converter',
     'code',
   ]) {

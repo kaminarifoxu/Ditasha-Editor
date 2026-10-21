@@ -238,6 +238,7 @@ body.workspace-shell {
 }
 .workspace-shell > main,
 .workspace-shell > .tool-workspace,
+.workspace-shell > .compressor-workspace,
 .workspace-shell > .asset-viewer,
 .workspace-shell > .archive-workspace,
 .workspace-shell > .home-workspace,

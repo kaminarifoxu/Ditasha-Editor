@@ -180,6 +180,13 @@ else {
       shell,
       app,
     });
+    require('./asset-compressor.cjs').registerAssetCompressor({
+      ipcMain,
+      trusted,
+      dialog,
+      win,
+      shell,
+    });
     craftEngines = require('./craft-engines.cjs').registerCraftEngines({
       app,
       ipcMain,
