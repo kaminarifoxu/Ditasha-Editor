@@ -27,7 +27,7 @@ export function mountCompressor({ nav, activate, viewers, toast }) {
   <input id="acFiles" type="file" multiple hidden><input id="acFolders" type="file" webkitdirectory multiple hidden>
   <div class="ac-layout"><aside class="ac-files"><label>Jenis default untuk file baru<select id="acImportKind"><option value="vehicle">Kendaraan</option><option value="mlo">MLO</option><option value="clothing">Pakaian</option><option value="ped">Ped</option></select></label><p class="muted">Nama/folder yang dikenali dipilah otomatis. Jenis dan resolusi tiap YTD dapat diubah.</p><input id="acSearch" placeholder="Cari file atau folder…" aria-label="Cari file kompresi"><select id="acFilter" aria-label="Filter jenis"><option value="all">Semua jenis</option><option value="mlo">MLO</option><option value="vehicle">Kendaraan</option><option value="clothing">Pakaian</option><option value="ped">Ped</option><option value="ytd">Hanya YTD</option></select><div id="acQueue"></div><div class="ac-pagination"><button id="acPrevious" aria-label="Halaman sebelumnya">←</button><span id="acPage"></span><button id="acNext" aria-label="Halaman berikutnya">→</button></div><p id="acCount" class="muted">Belum ada file</p></aside>
   <section class="ac-center"><div class="ac-preview-bar"><div><span class="eyebrow">SOURCE PREVIEW · 3D</span><strong id="acSelected">Pilih model YFT, YDD atau YDR</strong></div><button id="acPreviewTools">${icon('cube')} Kontrol model</button></div><div class="ac-variant"><label>Varian YTD<select id="acVariant" disabled><option>Otomatis</option></select></label></div><div class="ac-preview-host"></div><p class="ac-preview-note">Preview memakai file asli. Untuk MLO pilih YDR objek; penyusunan peta YMAP belum tersedia. Model preview maks. 64 MB, YTD maks. 256 MB.</p></section>
-  <aside class="ac-settings"><span class="eyebrow">RESOLUSI MAKSIMUM</span><h2>Ukuran sesuai aset</h2><div id="acProfiles"></div><p class="muted">Rasio gambar dijaga, tanpa upscale. Tekstur yang sudah sesuai dipertahankan; alpha dipertahankan lewat DXT5.</p><details id="acFileSettings"><summary>Pengaturan file terpilih</summary><p id="acPath" class="muted"></p><label>Jenis<select id="acKind"></select></label><label>Resolusi khusus YTD<select id="acOverride"><option value="0">Ikuti profil jenis</option></select></label></details><details><summary>Cakupan & batas</summary><p>Kompresi eksternal YTD Legacy, satu file per proses. YDD/YFT/YDR, tekstur tertanam, rig, YMAP, YTYP, YBN, metadata, skrip dan struktur folder disalin utuh. Bukan pengurangan polygon atau pengubah limit game.</p><p>YTD di atas 256 MB, format tak didukung, dan hasil yang tidak lebih kecil disalin asli dengan laporan. Kompresi DXT bersifat lossy. File sumber tidak ditimpa.</p></details><div class="ac-progress"><strong id="acSummary">Siap menerima file</strong><p id="acStatus" role="status">Tambahkan file/folder resource, lalu pilih folder hasil.</p><progress id="acProgress" max="1" value="0"></progress><button id="acRun" class="primary" disabled>${icon('compress')} Compress ke folder baru</button><button id="acCancel" disabled>Hentikan setelah file aktif</button><button id="acReveal" disabled>${icon('folder-open')} Buka hasil & laporan</button></div></aside></div>`;
+  <aside class="ac-settings"><span class="eyebrow">RESOLUSI MAKSIMUM</span><h2>Ukuran sesuai aset</h2><div id="acProfiles"></div><p class="muted">Rasio gambar dijaga, tanpa upscale. Tekstur yang sudah sesuai dipertahankan; alpha dipertahankan lewat DXT5.</p><details id="acFileSettings"><summary>Pengaturan file terpilih</summary><p id="acPath" class="muted"></p><label>Jenis<select id="acKind"></select></label><label>Resolusi khusus YTD<select id="acOverride"><option value="0">Ikuti profil jenis</option></select></label><label class="ac-check"><input id="acPreserve" type="checkbox"> Salin YTD asli tanpa optimasi</label><button id="acRemove">Hapus dari antrean</button></details><details><summary>Cakupan & batas</summary><p>Kompresi eksternal YTD Legacy, satu file per proses. YDD/YFT/YDR, tekstur tertanam, rig, YMAP, YTYP, YBN, metadata, skrip dan struktur folder disalin utuh. Bukan pengurangan polygon atau pengubah limit game.</p><p>YTD di atas 256 MB, format tak didukung, dan hasil yang tidak lebih kecil disalin asli dengan laporan. Kompresi DXT bersifat lossy. File sumber tidak ditimpa.</p></details><div class="ac-progress"><strong id="acSummary">Siap menerima file</strong><p id="acStatus" role="status">Tambahkan file/folder resource, lalu pilih folder hasil.</p><progress id="acProgress" aria-label="Progress kompresi" max="1" value="0"></progress><button id="acRun" class="primary" disabled>${icon('compress')} Compress ke folder baru</button><button id="acCancel" disabled>Hentikan setelah file aktif</button><button id="acReveal" disabled>${icon('folder-open')} Buka hasil & laporan</button></div></aside></div>`;
   nav.after(root);
   const $ = (id) => root.querySelector('#' + id),
     api = window.ditashaCompressor,
@@ -131,6 +131,8 @@ export function mountCompressor({ nav, activate, viewers, toast }) {
       'acImportKind',
       'acKind',
       'acOverride',
+      'acPreserve',
+      'acRemove',
       ...Object.keys(kinds).map((k) => 'acProfile-' + k),
     ])
       $(id).disabled = busy;
@@ -139,7 +141,9 @@ export function mountCompressor({ nav, activate, viewers, toast }) {
       $('acPath').textContent = selected.path;
       $('acKind').value = selected.kind;
       $('acOverride').value = selected.maxSize || 0;
-      $('acOverride').disabled = busy || !/\.ytd$/i.test(selected.path);
+      $('acOverride').disabled = busy || !/\.ytd$/i.test(selected.path) || !!selected.keepOriginal;
+      $('acPreserve').checked = !!selected.keepOriginal;
+      $('acPreserve').disabled = busy || !/\.ytd$/i.test(selected.path);
     }
     if (!api) status('Kompresi folder tersedia pada aplikasi desktop DITASHA.');
   }
@@ -297,6 +301,20 @@ export function mountCompressor({ nav, activate, viewers, toast }) {
       render();
     }
   };
+  $('acPreserve').onchange = () => {
+    if (selected && !busy) {
+      selected.keepOriginal = $('acPreserve').checked;
+      render();
+    }
+  };
+  $('acRemove').onclick = () => {
+    if (selected && !busy && !previewBusy) {
+      entries.splice(entries.indexOf(selected), 1);
+      selected = null;
+      render();
+      status('File dikeluarkan dari antrean; sumber tetap utuh.');
+    }
+  };
   root.addEventListener('dragover', (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -342,7 +360,9 @@ export function mountCompressor({ nav, activate, viewers, toast }) {
           metrics = null,
           reason = 'File pendamping disalin utuh';
         if (/\.ytd$/i.test(e.path)) {
-          if (e.file.size > COMPRESSOR_YTD_BYTES) reason = 'YTD di atas 256 MB: asli dipertahankan';
+          if (e.keepOriginal) reason = 'Asli dipertahankan sesuai pengaturan file';
+          else if (e.file.size > COMPRESSOR_YTD_BYTES)
+            reason = 'YTD di atas 256 MB: asli dipertahankan';
           else
             try {
               const result = await decodeResource('optimize-ytd', await e.file.arrayBuffer(), {

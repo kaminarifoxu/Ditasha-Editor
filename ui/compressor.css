@@ -247,3 +247,14 @@
   .asset-viewer.model-viewer.compressor-embedded.compressor-tools-open {
   grid-template-columns: 220px minmax(240px, 1fr);
 }
+.compressor-workspace label.ac-check {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+.compressor-workspace .ac-check input[type='checkbox'] {
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  min-height: 14px;
+}

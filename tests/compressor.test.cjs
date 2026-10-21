@@ -93,3 +93,14 @@ test('Output directory symlinks cannot escape the chosen output', async (t) => {
   assert.deepEqual(await fs.readdir(outside), []);
   await service.finish({ id: job.id });
 });
+test('A report-write failure releases the job so the user can retry in a new folder', async (t) => {
+  const { source, service } = await fixture(t);
+  const job = await service.begin([{ path: 'asset.ytd', source }]);
+  const report = path.join(job.folder, '.ditasha-compressor/report.json');
+  await fs.rm(report);
+  await fs.mkdir(report);
+  await assert.rejects(service.finish({ id: job.id }));
+  const next = await service.begin([{ path: 'asset.ytd', source }]);
+  assert.notEqual(next.folder, job.folder);
+  await service.finish({ id: next.id, cancelled: true });
+});

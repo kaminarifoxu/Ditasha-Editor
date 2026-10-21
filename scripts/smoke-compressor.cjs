@@ -26,6 +26,7 @@ app.whenReady().then(async () => {
       'clothes/stream/mp_m_freemode_01^jbib_000_u.ydd': new Uint8Array(testYdd),
       'clothes/stream/mp_m_freemode_01^jbib_diff_000_a_uni.ytd': ytd,
       'clothes/fxmanifest.lua': Buffer.from("fx_version 'cerulean'\ngame 'gta5'\n"),
+      'ped/stream/keep.ytd': ytd,
       'mlo/stream/broken.ytd': Buffer.from('unsupported asset, keep original'),
       'mlo/stream/room.ymap': Buffer.from('MLO metadata copied byte-for-byte'),
     };
@@ -88,7 +89,10 @@ app.whenReady().then(async () => {
       files: [source],
     });
     win.webContents.debugger.detach();
-    await wait("document.querySelectorAll('#acQueue > div').length===5", 'Folder import missing');
+    await wait("document.querySelectorAll('#acQueue > div').length===6", 'Folder import missing');
+    await win.webContents.executeJavaScript(
+      "[...document.querySelectorAll('#acQueue button')].find(b=>b.title.endsWith('/keep.ytd')).click();document.getElementById('acPreserve').checked=true;document.getElementById('acPreserve').dispatchEvent(new Event('change'));",
+    );
     await win.webContents.executeJavaScript(
       "const s=document.getElementById('acProfile-clothing');s.value='512';s.dispatchEvent(new Event('change'));[...document.querySelectorAll('#acQueue button')].find(b=>b.title.endsWith('.ydd')).click()",
     );
@@ -114,7 +118,7 @@ app.whenReady().then(async () => {
       await fs.readFile(path.join(result, '.ditasha-compressor/report.json')),
     );
     assert.equal(report.status, 'completed');
-    assert.equal(report.files.length, 5);
+    assert.equal(report.files.length, 6);
     assert.ok(report.outputBytes < report.inputBytes);
     const { readYtd } = await import('../src/resource.js');
     const packed = await fs.readFile(
@@ -134,6 +138,9 @@ app.whenReady().then(async () => {
         );
     }
     assert.equal(report.files.find((e) => e.path.endsWith('broken.ytd')).status, 'preserved');
+    assert.ok(
+      report.files.find((e) => e.path.endsWith('/keep.ytd')).reason.includes('pengaturan file'),
+    );
     await fs.mkdir('release/qa', { recursive: true });
     await fs.writeFile('release/qa/compressor.png', (await win.webContents.capturePage()).toPNG());
     for (const [width, height] of [

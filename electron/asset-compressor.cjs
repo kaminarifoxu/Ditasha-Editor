@@ -169,35 +169,42 @@ function createCompressor({ chooseFolder, revealFolder = async () => {} }) {
     async finish({ id, cancelled = false }) {
       const job = jobFor(id);
       if (!job.active || job.busy) throw Error('Job belum dapat ditutup');
-      const results = job.records.map(({ source, mtime, ...r }) => r),
-        failed = results.filter((r) => r.status === 'failed').length;
-      const report = {
-        version: 1,
-        createdAt: job.createdAt,
-        finishedAt: new Date().toISOString(),
-        status:
-          cancelled || results.some((r) => r.status === 'pending')
-            ? 'cancelled'
-            : failed
-              ? 'completed-with-errors'
-              : 'completed',
-        scope:
-          'External Legacy YTD textures; model geometry, embedded textures, rigs and metadata are preserved.',
-        files: results,
-        inputBytes: results.reduce((n, r) => n + r.inputBytes, 0),
-        outputBytes: results.reduce((n, r) => n + (r.outputBytes || 0), 0),
-        failed,
-      };
-      if ((await fs.lstat(job.root)).isSymbolicLink() || (await fs.realpath(job.root)) !== job.root)
-        throw Error('Folder output berubah');
-      const dir = path.join(job.root, '.ditasha-compressor');
-      await fs.mkdir(dir, { recursive: true });
-      if ((await fs.lstat(dir)).isSymbolicLink()) throw Error('Folder laporan tidak aman');
-      const temp = path.join(dir, randomUUID() + '.tmp');
-      await fs.writeFile(temp, JSON.stringify(report, null, 2), { flag: 'wx' });
-      await fs.rename(temp, path.join(dir, 'report.json'));
-      job.active = false;
-      return { ...report, files: undefined, folder: job.root };
+      try {
+        const results = job.records.map(({ source, mtime, ...r }) => r),
+          failed = results.filter((r) => r.status === 'failed').length;
+        const report = {
+          version: 1,
+          createdAt: job.createdAt,
+          finishedAt: new Date().toISOString(),
+          status:
+            cancelled || results.some((r) => r.status === 'pending')
+              ? 'cancelled'
+              : failed
+                ? 'completed-with-errors'
+                : 'completed',
+          scope:
+            'External Legacy YTD textures; model geometry, embedded textures, rigs and metadata are preserved.',
+          files: results,
+          inputBytes: results.reduce((n, r) => n + r.inputBytes, 0),
+          outputBytes: results.reduce((n, r) => n + (r.outputBytes || 0), 0),
+          failed,
+        };
+        if (
+          (await fs.lstat(job.root)).isSymbolicLink() ||
+          (await fs.realpath(job.root)) !== job.root
+        )
+          throw Error('Folder output berubah');
+        const dir = path.join(job.root, '.ditasha-compressor');
+        await fs.mkdir(dir, { recursive: true });
+        if ((await fs.lstat(dir)).isSymbolicLink()) throw Error('Folder laporan tidak aman');
+        const temp = path.join(dir, randomUUID() + '.tmp');
+        await fs.writeFile(temp, JSON.stringify(report, null, 2), { flag: 'wx' });
+        await fs.rename(temp, path.join(dir, 'report.json'));
+        job.active = false;
+        return { ...report, files: undefined, folder: job.root };
+      } finally {
+        job.active = false;
+      }
     },
     async reveal(id) {
       return revealFolder(jobFor(id).root);
