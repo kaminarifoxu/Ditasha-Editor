@@ -142,6 +142,11 @@ app.whenReady().then(async () => {
       report.files.find((e) => e.path.endsWith('/keep.ytd')).reason.includes('pengaturan file'),
     );
     await fs.mkdir('release/qa', { recursive: true });
+    win.setSize(1600, 1000);
+    await new Promise((r) => setTimeout(r, 200));
+    await win.webContents.executeJavaScript(
+      "document.getElementById('toast').style.display='none'",
+    );
     await fs.writeFile('release/qa/compressor.png', (await win.webContents.capturePage()).toPNG());
     for (const [width, height] of [
       [1024, 768],
@@ -153,6 +158,12 @@ app.whenReady().then(async () => {
         await win.webContents.executeJavaScript(
           "(()=>{const r=document.querySelector('.compressor-workspace');return r.getBoundingClientRect().right<=innerWidth+1})()",
         ),
+      );
+      assert.ok(
+        await win.webContents.executeJavaScript(
+          "(()=>{const a=document.querySelector('.ac-center').getBoundingClientRect(),b=document.querySelector('.ac-settings').getBoundingClientRect();return Math.min(a.right,b.right)-Math.max(a.left,b.left)<1 || Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)<1})()",
+        ),
+        'Compressor settings overlap the preview',
       );
     }
     cancelFolder = true;

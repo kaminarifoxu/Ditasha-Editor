@@ -229,7 +229,7 @@
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
   .compressor-workspace .ac-layout {
-    grid-template-rows: minmax(280px, 1fr) auto;
+    grid-template-rows: minmax(520px, 1fr) auto;
     overflow: auto;
   }
   .compressor-workspace .ac-header {
