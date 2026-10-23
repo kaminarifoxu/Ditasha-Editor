@@ -250,11 +250,12 @@ export function mountTools({
     viewers.modelRoot.hidden =
       !explorerMode && !['modelviewer', 'vehicles', 'compressor'].includes(next);
     viewers.vehicleControls.hidden = !vehicleMode;
+    viewers.setAttachmentMode(vehicleMode);
     viewers.modelRoot.querySelector('.tool-sidebar > h2').textContent = vehicleMode
       ? 'Kendaraan'
       : 'Model viewer';
     viewers.modelRoot
-      .querySelectorAll('.ped-attachments, .material-preview')
+      .querySelectorAll('.material-preview, .ped-files')
       .forEach((e) => (e.hidden = vehicleMode));
     nav
       .querySelectorAll('button')

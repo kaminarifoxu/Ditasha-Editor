@@ -1,3 +1,4 @@
+import { mountPedFiles } from './ped-files-ui.js';
 import { setProject } from './project-context.js';
 import { isTextureParentFile } from './texture-parents.js';
 import {
@@ -116,6 +117,7 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
     mapCache = new Map();
   scene.add(group);
   const pedAttachments = mountPedAttachments({
+    download,
     scene,
     container: modelRoot.querySelector('.tool-sidebar'),
     prefix: 'mvPed',
@@ -146,6 +148,7 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
       renderBindings();
     },
     getRoot: () => group,
+    getAttachments: () => pedAttachments.group,
     getSource: () => modelSource && { name: modelName, file: modelSource },
     getHiddenGeometry: () => {
       const instances = drawables.flatMap((d, di) =>
@@ -163,7 +166,11 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
         );
       return [...selected];
     },
-    setHidden: (key, hidden) => (hidden ? hiddenMeshes.add(key) : hiddenMeshes.delete(key)),
+    setHidden: (key, hidden) => {
+      hidden ? hiddenMeshes.add(key) : hiddenMeshes.delete(key);
+      for (const toggle of $('mvParts').querySelectorAll('input[data-binding-key]'))
+        if (toggle.dataset.bindingKey === key) toggle.checked = !hidden;
+    },
     render: () => renderer?.render(scene, camera),
     download,
     toast,
@@ -235,9 +242,11 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
     await new Promise((resolve) => setTimeout(resolve, 20));
     try {
       await task();
+      return true;
     } catch (e) {
       $(kind === 'texture' ? 'tvStatus' : 'mvStatus').textContent = e.message;
       toast(e.message);
+      return false;
     } finally {
       kind === 'texture' ? (textureBusy = false) : (modelBusy = false);
       setBusy(root, false);
@@ -739,6 +748,7 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
         const toggle = document.createElement('input');
         toggle.type = 'checkbox';
         toggle.checked = m.visible;
+        toggle.dataset.bindingKey = m.userData.bindingKey;
         toggle.onchange = () => {
           m.visible = toggle.checked;
           if (toggle.checked) hiddenMeshes.delete(m.userData.bindingKey);
@@ -1072,7 +1082,7 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
             ? 'vehicles'
             : 'modelviewer',
     );
-    await operation('model', async () => {
+    return await operation('model', async () => {
       const candidates = files.filter((f) => modelExtensions.test(f.name));
       candidates.sort(
         (a, b) =>
@@ -1104,7 +1114,7 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
           id: ++extraSerial,
           name: f.name + ' · ' + d.name,
           data: d,
-          visible: false,
+          visible: !!options.ped,
         })),
       );
       extraBudget(extras, parsed[0].data);
@@ -1281,6 +1291,12 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
       renderModel();
     });
   };
+  mountPedFiles({
+    container: modelRoot.querySelector('.tool-sidebar'),
+    openModels,
+    download,
+    toast,
+  });
   $('mvOpen').onclick = () => $('mvInput').click();
   $('mvAddTextures').onclick = () => $('mvTextureInput').click();
   $('mvInput').onchange = (e) => {
@@ -1426,6 +1442,7 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
         ? { file: modelSource, textures: modelTextures }
         : null,
     openTextures,
+    setAttachmentMode: (vehicle) => pedAttachments.setMode(vehicle),
     openModels,
     unsavedItems: () => [...workshop.unsavedItems(), ...sceneStudio.unsavedItems()],
   };

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { decodeResource } from './resource-client.js';
 import { MAX_EXPORT } from './asset-tools.js';
 
@@ -62,10 +63,18 @@ export function validateAttachments(attachments) {
     );
 }
 
-export function mountPedAttachments({ scene, container, prefix, toast, hasBase, onChange }) {
+export function mountPedAttachments({
+  scene,
+  container,
+  prefix,
+  toast,
+  hasBase,
+  onChange,
+  download,
+}) {
   const root = document.createElement('details');
   root.className = 'ped-attachments';
-  root.innerHTML = `<summary>Rambut ped · YDD + YTD</summary><p class="muted">Buka model muka dahulu. Rambut memakai tekstur sendiri; tekstur muka tetap terpisah.</p><button id="${prefix}AddHair">+ Tambah rambut YDD / YTD</button><input id="${prefix}HairInput" type="file" accept=".ydd,.ytd" multiple hidden><div id="${prefix}HairTargetRow" hidden><label>Tujuan YTD rambut<select id="${prefix}HairTarget"></select></label><button id="${prefix}AddHairTextures">+ YTD ke rambut terpilih</button><button id="${prefix}RemoveHair">Hapus rambut terpilih</button><button id="${prefix}ClearHair">Hapus semua rambut</button></div><input id="${prefix}HairTextureInput" type="file" accept=".ytd" multiple hidden><div id="${prefix}HairList"></div><p id="${prefix}HairStatus" class="muted" role="status">Belum ada rambut tambahan.</p><p class="muted">Preview statis, tanpa pengikatan tulang kepala. Sesuaikan posisi bila perlu. Konfigurasi hanya berlaku selama preview; tidak mengubah file atau ekspor YTD.</p>`;
+  root.innerHTML = `<summary data-attachment-heading>Clothing &amp; accessories · YDD / YDR</summary><p class="muted">Buka model dasar dahulu. Setiap attachment memakai teksturnya sendiri. Impor pakaian, rambut, aksesori atau part kendaraan lokal.</p><button id="${prefix}AddHair">+ Import YDD / YDR + YTD</button><input id="${prefix}HairInput" type="file" accept=".ydd,.ydr,.ytd" multiple hidden><div id="${prefix}HairTargetRow" hidden><label>Tujuan YTD attachment<select id="${prefix}HairTarget"></select></label><button id="${prefix}AddHairTextures">+ YTD ke attachment</button><button id="${prefix}RemoveHair">Hapus attachment</button><button id="${prefix}ClearHair">Hapus semua attachment</button></div><input id="${prefix}HairTextureInput" type="file" accept=".ytd" multiple hidden><label>Kategori import<select id="${prefix}AttachmentKind"><option value="clothing">Pakaian</option><option value="accessory">Aksesori / prop</option><option value="hair">Rambut</option><option value="vehicle">Part kendaraan</option></select></label><button id="${prefix}AttachmentGlb">Ekspor attachment GLB</button><div id="${prefix}HairList"></div><p id="${prefix}HairStatus" class="muted" role="status">Belum ada attachment.</p><p class="muted">Preview statis; attachment belum mengikuti skeleton/animasi. Sesuaikan posisi bila perlu. Ekspor scene GLB menyimpan penempatan visual. Gunakan Auto Rig untuk humanoid lengkap atau Strobo donor untuk siren native; GLB bukan resource GTA.</p>`;
   const layerInspector = container.querySelector('.layerinspector');
   if (layerInspector) container.insertBefore(root, layerInspector);
   else container.append(root);
@@ -136,7 +145,7 @@ export function mountPedAttachments({ scene, container, prefix, toast, hasBase, 
             roughness: 0.75,
             transparent: !!t && a.alphaMode === 'blend',
             depthWrite: a.alphaMode !== 'blend',
-            alphaTest: t ? a.alphaCutoff : 0,
+            alphaTest: t && a.alphaMode !== 'opaque' ? a.alphaCutoff : 0,
             wireframe,
           }),
         ),
@@ -161,7 +170,7 @@ export function mountPedAttachments({ scene, container, prefix, toast, hasBase, 
         (g) => !a.textures.some((t) => normalizeName(t.name) === normalizeName(g.diffuseTexture)),
       )
     )
-      a.warning += ' Pilih Tekstur rambut bila diffuse yang diinginkan belum tampil.';
+      a.warning += ' Pilih Tekstur attachment bila diffuse yang diinginkan belum tampil.';
     if (d.warnings?.length) a.warning += ' ' + d.warnings.join('; ');
     transform(a);
   }
@@ -190,7 +199,7 @@ export function mountPedAttachments({ scene, container, prefix, toast, hasBase, 
         throw Error('Pilih YTD hingga 64 MB per file.');
       for (const t of await decodeResource('textures', await f.arrayBuffer())) {
         size += t.out.length;
-        if (size > MAX_EXPORT) throw Error('Tekstur rambut melebihi 128 MB.');
+        if (size > MAX_EXPORT) throw Error('Tekstur attachment melebihi 128 MB.');
         textures.push({ ...t, dictionary: f.name });
       }
     }
@@ -226,7 +235,7 @@ export function mountPedAttachments({ scene, container, prefix, toast, hasBase, 
       const card = document.createElement('section');
       card.className = 'hair-card';
       const title = document.createElement('strong');
-      title.textContent = a.name;
+      title.textContent = (a.kind || 'hair') + ' · ' + a.name;
       card.append(title);
       function field(label, element) {
         const row = document.createElement('label');
@@ -249,7 +258,7 @@ export function mountPedAttachments({ scene, container, prefix, toast, hasBase, 
         field(label, el);
       }
       select(
-        'Drawable rambut',
+        'Drawable attachment',
         a.drawables.map((d, index) => [index, d.name]),
         a.drawable,
         (value) => {
@@ -261,7 +270,7 @@ export function mountPedAttachments({ scene, container, prefix, toast, hasBase, 
       );
       const available = [...a.textures, ...(a.drawables[a.drawable].embeddedTextures || [])];
       select(
-        'Tekstur rambut',
+        'Tekstur attachment',
         [
           ['', 'Otomatis · diffuse YTD / material'],
           ...available.map((t, index) => [index, t.name + ' · ' + (t.dictionary || 'embedded')]),
@@ -274,9 +283,10 @@ export function mountPedAttachments({ scene, container, prefix, toast, hasBase, 
         },
       );
       select(
-        'Transparansi rambut',
+        'Transparansi attachment',
         [
-          ['cutout', 'Cutout · helai rambut'],
+          ['opaque', 'Opaque · pakaian / part solid'],
+          ['cutout', 'Cutout · rambut / detail alpha'],
           ['blend', 'Blend · alpha lembut'],
         ],
         a.alphaMode,
@@ -324,7 +334,7 @@ export function mountPedAttachments({ scene, container, prefix, toast, hasBase, 
           transform(a);
         }
       };
-      field('Tampilkan rambut', visible);
+      field('Tampilkan attachment', visible);
       field('Hilangkan latar hitam · juga menghapus helai hitam', black);
       const transforms = document.createElement('div');
       transforms.className = 'hair-transform';
@@ -396,7 +406,7 @@ export function mountPedAttachments({ scene, container, prefix, toast, hasBase, 
             refresh();
           },
         ],
-        ['Hapus rambut', () => removeHair(a)],
+        ['Hapus attachment', () => removeHair(a)],
       ]) {
         const b = document.createElement('button');
         b.textContent = label;
@@ -412,8 +422,8 @@ export function mountPedAttachments({ scene, container, prefix, toast, hasBase, 
       $('HairList').append(card);
     });
     $('HairStatus').textContent = attachments.length
-      ? attachments.length + ' rambut tambahan · preview saja.'
-      : 'Belum ada rambut tambahan.';
+      ? attachments.length + ' attachment · preview statis.'
+      : 'Belum ada attachment.';
   }
   function removeHair(a) {
     if (busy || !a) return;
@@ -436,7 +446,7 @@ export function mountPedAttachments({ scene, container, prefix, toast, hasBase, 
     onChange(false);
   };
   $('AddHair').onclick = () => {
-    if (!hasBase()) toast('Buka model muka/ped terlebih dahulu.');
+    if (!hasBase()) toast('Buka model dasar terlebih dahulu.');
     else $('HairInput').click();
   };
   $('HairTarget').onchange = () => {
@@ -454,27 +464,31 @@ export function mountPedAttachments({ scene, container, prefix, toast, hasBase, 
     if (!files.length) return;
     const token = generation;
     operation(async () => {
-      if (!hasBase()) throw Error('Buka model muka/ped terlebih dahulu.');
-      const models = files.filter((f) => /\.ydd$/i.test(f.name));
+      if (!hasBase()) throw Error('Buka model dasar terlebih dahulu.');
+      const models = files.filter((f) => /\.(ydd|ydr)$/i.test(f.name));
       if (!models.length && files.every((f) => /\.ytd$/i.test(f.name))) {
         await replaceTextures(attachments[selectedHair], files);
         return;
       }
-      if (models.length !== 1 || files.some((f) => !/\.(ydd|ytd)$/i.test(f.name)))
-        throw Error('Pilih satu YDD rambut, beserta YTD opsional.');
+      if (models.length !== 1 || files.some((f) => !/\.(ydd|ydr|ytd)$/i.test(f.name)))
+        throw Error('Pilih satu YDD / YDR attachment, beserta YTD opsional.');
       const f = models[0];
-      if (f.size > MAX_FILE) throw Error('YDD rambut maksimum 64 MB.');
-      const drawables = await decodeResource('ydd', await f.arrayBuffer()),
+      if (f.size > MAX_FILE) throw Error('Model attachment maksimum 64 MB.');
+      const drawables = await decodeResource(
+          f.name.split('.').at(-1).toLowerCase(),
+          await f.arrayBuffer(),
+        ),
         textures = await readTextures(files.filter((f) => /\.ytd$/i.test(f.name)));
       if (token !== generation || !hasBase()) return;
       const a = {
         name: f.name,
+        kind: $('AttachmentKind').value,
         sourceSize: f.size,
         drawables,
         textures,
         drawable: 0,
         texture: '',
-        alphaMode: 'cutout',
+        alphaMode: $('AttachmentKind').value === 'vehicle' ? 'opaque' : 'cutout',
         alphaCutoff: 0.25,
         removeBlack: false,
         visible: true,
@@ -495,8 +509,28 @@ export function mountPedAttachments({ scene, container, prefix, toast, hasBase, 
       onChange(true);
     });
   };
+  $('AttachmentGlb').onclick = () =>
+    operation(async () => {
+      if (!attachments.length) throw Error('Import attachment terlebih dahulu.');
+      if (!download) throw Error('Ekspor attachment tidak tersedia.');
+      const out = await new GLTFExporter().parseAsync(group, {
+        binary: true,
+        onlyVisible: true,
+        maxTextureSize: 4096,
+      });
+      if (out.byteLength > MAX_EXPORT) throw Error('GLB melebihi 128 MB.');
+      if (await download(new Uint8Array(out), 'ditasha-attachments.glb', 'model/gltf-binary'))
+        $('HairStatus').textContent =
+          'Attachment GLB tersimpan; belum di-skin atau diekspor ke GTA.';
+    });
   return {
     group,
+    setMode(vehicle) {
+      root.querySelector('[data-attachment-heading]').textContent = vehicle
+        ? 'Vehicle mods · import lokal'
+        : 'Clothing & accessories · YDD / YDR';
+      $('AttachmentKind').value = vehicle ? 'vehicle' : 'clothing';
+    },
     clear() {
       generation++;
       attachments.forEach(dispose);

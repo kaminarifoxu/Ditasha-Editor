@@ -212,6 +212,43 @@ module.exports = async function checkViewers(fixtures) {
       '2K placement undo failed to restore original pixels and size',
     );
     $('stickerClear').click();
+    $('stickerResolution').value = '0';
+    $('stampType').value = 'text';
+    $('stampType').dispatchEvent(new Event('change'));
+    $('stampText').value = 'DITASHA';
+    $('stampColor').value = '#00ff00';
+    $('addPng3d').click();
+    await wait(
+      () => $('stickerPlace').getAttribute('aria-pressed') === 'true',
+      'Text stamp failed to rasterize',
+    );
+    const placeText = () =>
+      $('viewport').dispatchEvent(
+        new PointerEvent('pointerdown', {
+          bubbles: true,
+          button: 0,
+          clientX: rect.left + (xsum / count / sample.width) * rect.width,
+          clientY: rect.top + (ysum / count / sample.height) * rect.height,
+        }),
+      );
+    placeText();
+    assert(
+      $('stickerList').children.length === 1 && $('stickerList').textContent.includes('DITASHA'),
+      'Text stamp did not become a UV layer',
+    );
+    const firstText = $('textureCanvas').toDataURL();
+    $('stampText').value = 'WORKSHOP';
+    $('stampUpdateText').click();
+    await wait(() => $('stickerList').textContent.includes('WORKSHOP'), 'Editing text failed');
+    assert(
+      $('stickerList').children.length === 1 && $('textureCanvas').toDataURL() !== firstText,
+      'Text edit duplicated layer or did not rebake',
+    );
+    console.log('DITASHA_SNAPSHOT:text-stamp');
+    $('stickerRemove').click();
+    assert($('textureCanvas').toDataURL() === original2d, 'Removing text stamp left pixels behind');
+    $('stampType').value = 'image';
+    $('stampType').dispatchEvent(new Event('change'));
     $('editTexture3d').click();
     await sleep(100);
     assert(
@@ -475,7 +512,9 @@ module.exports = async function checkViewers(fixtures) {
       'Dynamic hair actions lost icons or tooltips',
     );
     assert(
-      list.querySelector('[data-control="Tekstur rambut"]').textContent.includes('hair-top.ytd'),
+      list
+        .querySelector('[data-control="Tekstur attachment"]')
+        .textContent.includes('hair-top.ytd'),
       'YTD-only or top texture input failed',
     );
     assert(
@@ -609,6 +648,15 @@ module.exports = async function checkViewers(fixtures) {
       [new File([new Uint8Array(fixtures.hairYtd)], 'hair-restored.ytd')],
       () => !$(prefix + 'AddHair').disabled,
     );
+    const beforeAttachmentExport = saves.length;
+    $(prefix + 'AttachmentGlb').click();
+    await wait(() => saves.length > beforeAttachmentExport, 'Attachment GLB export failed');
+    const attachmentSave = saves.at(-1);
+    assert(
+      attachmentSave.name === 'ditasha-attachments.glb' &&
+        attachmentSave.magic.join(',') === '103,108,84,70',
+      'Attachment export was not a real GLB',
+    );
     if (prefix === 'ped') await checkSticker3d();
     await checkPhotoshoot(prefix);
     console.log('DITASHA_SNAPSHOT:' + prefix + '-hair-preview');
@@ -637,7 +685,7 @@ module.exports = async function checkViewers(fixtures) {
     await wait(() => !$(prefix + 'AddHair').disabled, 'Hair texture operation did not finish');
     pixels = await colors();
     if (pixels) assert(pixels.green > 10, 'Bad YTD erased hair material');
-    const manual = list.querySelector('[data-control="Tekstur rambut"]');
+    const manual = list.querySelector('[data-control="Tekstur attachment"]');
     manual.value = '0';
     manual.dispatchEvent(new Event('change'));
     const reset = [...list.querySelectorAll('button')].find(

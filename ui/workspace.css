@@ -1011,3 +1011,24 @@ body.workspace-shell {
 .embedded-ide-welcome details {
   margin-top: 24px;
 }
+
+/* Stamp text editor follows the existing inspector spacing. */
+.stickers-3d textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+}
+#stampTextFields {
+  display: grid;
+  gap: 10px;
+}
+#stampTextFields[hidden] {
+  display: none;
+}
+.ped-files ul {
+  padding-left: 18px;
+  max-height: 180px;
+  overflow: auto;
+  overflow-wrap: anywhere;
+}

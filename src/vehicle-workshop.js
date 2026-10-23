@@ -9,6 +9,7 @@ export function mountVehicleWorkshop({
   camera,
   getMeshes,
   getRoot,
+  getAttachments = () => null,
   getSource,
   onSelect,
   getHiddenGeometry,
@@ -22,7 +23,7 @@ export function mountVehicleWorkshop({
   root.id = 'vehicleWorkshop';
   root.hidden = true;
   root.className = 'vehicle-workshop';
-  root.innerHTML = `<summary>Vehicle workshop · offline</summary><p class="muted">Pilih mesh atau klik model. Sembunyikan badge pada daftar Visible parts. Transform part dan lightbar masuk ke ekspor GLB/proyek; belum ditulis sebagai part/siren YFT.</p><label>Mesh terpilih<select id="vwMesh"></select></label><button id="vwPick">Pilih mesh di 3D</button><button id="vwBadges">Cari kandidat badge</button><p id="vwBadgeStatus" class="muted"></p><details class="workshop-section"><summary>Transform mesh</summary><div id="vwTransform" class="studio-fields"></div><button id="vwResetMesh">Reset transform mesh</button></details><details id="vwLightSection" class="workshop-section"><summary>Lightbar preview</summary><button id="vwAddLight">Tambah lightbar preview</button><button id="vwRemoveLight">Hapus lightbar</button><div id="vwLightTransform" class="studio-fields"></div><label>Warna kiri<input type="color" id="vwLeftColor" value="#dd1535"></label><label>Warna kanan<input type="color" id="vwRightColor" value="#206cff"></label></details><details class="workshop-section"><summary>Ekspor &amp; proyek</summary><button id="vwNative">Ekspor resource · mesh tersembunyi</button><p class="muted">Ekspor native hanya menonaktifkan triangle mesh utama yang disembunyikan. Bone, collision dan rig tidak dihapus. Berlaku untuk LOD yang dipilih, bukan pencocokan otomatis semua LOD. Simpan sebagai file baru dan uji di game.</p><button id="vwGlb">Ekspor scene GLB</button><button id="vwSave">Simpan proyek kendaraan</button><button id="vwOpen">Buka proyek kendaraan</button><input id="vwProjectInput" type="file" accept=".json" hidden><p id="vwStatus" role="status" class="muted"></p></details>`;
+  root.innerHTML = `<summary>Vehicle workshop · offline</summary><p class="muted">Pilih mesh atau klik model. Sembunyikan badge pada daftar Visible parts. Transform part dan lightbar masuk ke ekspor GLB/proyek; belum ditulis sebagai part/siren YFT.</p><label>Mesh terpilih<select id="vwMesh"></select></label><div class="viewer-button-row"><button id="vwPick">Pilih mesh di 3D</button><button id="vwHideSelected">Hapus / sembunyikan part</button><button id="vwRestoreSelected">Pulihkan part</button></div><button id="vwBadges">Cari kandidat badge</button><p id="vwBadgeStatus" class="muted"></p><details class="workshop-section"><summary>Transform mesh</summary><div id="vwTransform" class="studio-fields"></div><button id="vwResetMesh">Reset transform mesh</button></details><details id="vwLightSection" class="workshop-section"><summary>Lightbar preview</summary><button id="vwAddLight">Tambah lightbar preview</button><button id="vwRemoveLight">Hapus lightbar</button><div id="vwLightTransform" class="studio-fields"></div><label>Warna kiri<input type="color" id="vwLeftColor" value="#dd1535"></label><label>Warna kanan<input type="color" id="vwRightColor" value="#206cff"></label></details><details class="workshop-section"><summary>Ekspor &amp; proyek</summary><button id="vwNative">Ekspor resource · mesh tersembunyi</button><p class="muted">Ekspor native hanya menonaktifkan triangle mesh utama yang disembunyikan. Bone, collision dan rig tidak dihapus. Berlaku untuk LOD yang dipilih, bukan pencocokan otomatis semua LOD. Simpan sebagai file baru dan uji di game.</p><button id="vwGlb">Ekspor scene GLB</button><button id="vwSave">Simpan proyek kendaraan</button><button id="vwOpen">Buka proyek kendaraan</button><input id="vwProjectInput" type="file" accept=".json" hidden><p id="vwStatus" role="status" class="muted"></p></details>`;
   container.querySelector('#mvParts').after(root);
   const $ = (id) => root.querySelector('#' + id),
     transforms = new Map(),
@@ -164,6 +165,22 @@ export function mountVehicleWorkshop({
       $('vwPick').classList.remove('active');
     }
   });
+  for (const [id, hidden] of [
+    ['vwHideSelected', true],
+    ['vwRestoreSelected', false],
+  ]) {
+    $(id).onclick = () => {
+      const entry = getMeshes().find((e) => e.key === selected);
+      if (!entry) return toast('Pilih mesh terlebih dahulu.');
+      setHidden(selected, hidden);
+      entry.mesh.visible = !hidden;
+      dirty = true;
+      $('vwStatus').textContent = hidden
+        ? 'Part disembunyikan. Ekspor resource untuk menyimpan triangle yang dinonaktifkan.'
+        : 'Part dipulihkan.';
+      render();
+    };
+  }
   $('vwBadges').onclick = () => {
     const matches = getMeshes().filter((e) => /badge|emblem|decal|logo|script/i.test(e.mesh.name));
     $('vwBadgeStatus').textContent = matches.length
@@ -275,6 +292,8 @@ export function mountVehicleWorkshop({
     if (!getMeshes().length) throw Error('Buka kendaraan terlebih dahulu.');
     const copy = new THREE.Group();
     copy.add(getRoot().clone(true));
+    const attachments = getAttachments();
+    if (attachments?.children.length) copy.add(attachments.clone(true));
     if (light.children.length) copy.add(light.clone(true));
     const unwanted = [];
     copy.traverse((o) => {

@@ -92,6 +92,7 @@ document
   .insertBefore(sidebarInspector, document.querySelector('.sidebarbottom'));
 sidebarInspector.append(document.querySelector('.layerinspector'));
 const pedAttachments = mountPedAttachments({
+  download,
   scene,
   container: sidebarInspector,
   prefix: 'ped',
