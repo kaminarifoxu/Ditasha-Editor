@@ -62,7 +62,12 @@ with tempfile.TemporaryDirectory() as directory:
     source_bytes = source.read_bytes()
     output = temp/'output'; output.mkdir()
     result = skin.run(bpy,{'reference':str(reference),'source':str(source),'maxDistance':.1},output,review,bridge.preview_scene)
-    assert result['transferQuality']['vertices'] == 4
+    imported_clothing = [obj for obj in bpy.data.objects if obj.type == 'MESH' and obj.name.startswith('NewClothing')]
+    assert len(imported_clothing) == 1
+    assert result['transferQuality']['vertices'] == len(imported_clothing[0].data.vertices)
+    assert 4 <= result['transferQuality']['vertices'] <= 6, result['transferQuality']
+    for vertex in imported_clothing[0].data.vertices:
+        assert 1 <= len(vertex.groups) <= 4 and abs(sum(g.weight for g in vertex.groups) - 1) < 1e-6
     assert 'motion' in result['preview'], result
     glb = (output/'ditasha-clothing-skinned.glb').read_bytes()
     import struct
