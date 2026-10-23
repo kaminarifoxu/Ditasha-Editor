@@ -149,7 +149,7 @@ export function mountNativeBuild({
   const api = () => window.ditashaNative;
   const matchesPreview = () => {
     const value = $('nbMode').value;
-    if (value === 'garment') return state.report?.mode === 'garment';
+    if (value === 'garment') return ['garment', 'ped_preview'].includes(state.report?.mode);
     if (value === 'ped') return ['ped', 'ped_preview'].includes(state.report?.mode);
     return (
       state.report?.mode ===

@@ -24,9 +24,6 @@ jobs:
       - name: Check homepage, themes and existing editor tools
         run: npx electron scripts/smoke-tools.cjs
         timeout-minutes: 5
-      - name: Check automatic Blender and add-on setup
-        run: npx electron scripts/smoke-native-setup.cjs
-        timeout-minutes: 30
       - name: Check File Manager and native asset sorting
         shell: pwsh
         run: |
@@ -86,3 +83,17 @@ jobs:
           path: |
             release/qa/*.png
             release/qa/*-result.json
+
+  native:
+    name: Real Blender native and garment round trips
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Install verified engine and test actual native exports, weights and motion
+        run: npx electron scripts/smoke-native-setup.cjs

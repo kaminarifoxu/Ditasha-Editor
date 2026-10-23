@@ -41,7 +41,11 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
   const render = () => budget?.invalidate();
   function init() {
     if (renderer) return;
-    renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      powerPreference: 'high-performance',
+      preserveDrawingBuffer: true,
+    });
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     viewport.replaceChildren(renderer.domElement);
     controls = new OrbitControls(camera, renderer.domElement);
