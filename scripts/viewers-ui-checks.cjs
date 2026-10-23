@@ -587,7 +587,7 @@ module.exports = async function checkViewers(fixtures) {
       [new File([new Uint8Array(fixtures.hairYtd)], 'hair-restored.ytd')],
       () => !$(prefix + 'AddHair').disabled,
     );
-    const mode = list.querySelector('[data-control="Transparansi rambut"]');
+    const mode = list.querySelector('[data-control="Transparansi attachment"]');
     assert(mode.value === 'cutout', 'Hair did not default to alpha cutout');
     const black = list.querySelector('[data-control="remove-black"]');
     assert(!black.checked, 'Black hair removed by default');
