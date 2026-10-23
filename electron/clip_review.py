@@ -76,7 +76,7 @@ def add_clip_preview(bpy, arm, objects, filename, clip_index, output, preview_sc
             values = array('f', (v for mesh in sample['meshes'] for v in mesh['positions']))
             if sys.byteorder != 'little': values.byteswap()
             frames.append(base64.b64encode(values.tobytes()).decode('ascii'))
-        data['motion'] = {'version':1,'label':clip.name,'fps':samples/duration,'frames':frames,'floatCount':count}
+        data['motion'] = {'version':1,'kind':'gta-ycd-xml','label':clip.name,'fps':samples/duration,'frames':frames,'floatCount':count}
         text = json.dumps(data,separators=(',',':'))
         if len(text.encode('utf-8')) > 48*1024*1024: raise ValueError('Preview animasi melebihi 48 MB.')
         rest_file.write_text(text,encoding='utf-8')

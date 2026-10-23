@@ -315,6 +315,8 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
     motionBuffer = motion ? new Float32Array(motion.frames[0].length) : null;
     motionRest = base.children.map((mesh) => mesh.geometry.attributes.position.array.slice());
     $('nbMotionPlay').disabled = !motion;
+    $('nbMotionPlay').textContent =
+      motion?.kind === 'gta-ycd-xml' ? 'Play GTA clip' : 'Play walk test';
     $('nbMotionSpeedLabel').hidden = !motion;
     setTransform([0, 0, 0], 1);
     showMode();
@@ -330,7 +332,8 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
   function stopMotion() {
     if (motionFrame !== null) cancelAnimationFrame(motionFrame);
     motionFrame = null;
-    $('nbMotionPlay').textContent = 'Play walk test';
+    $('nbMotionPlay').textContent =
+      motion?.kind === 'gta-ycd-xml' ? 'Play GTA clip' : 'Play walk test';
     base.children.forEach((mesh, i) => {
       if (!motionRest[i]) return;
       mesh.geometry.attributes.position.array.set(motionRest[i]);
@@ -368,10 +371,13 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
     if (!motion) return;
     motionStart = performance.now();
     motionLast = 0;
-    $('nbMotionPlay').textContent = 'Stop walk test';
+    $('nbMotionPlay').textContent =
+      motion.kind === 'gta-ycd-xml' ? 'Stop GTA clip' : 'Stop walk test';
     motionFrame = requestAnimationFrame(animateMotion);
     $('nbPreviewStatus').textContent =
-      'Procedural walk test · periksa deformasi weights; tidak mengubah animasi/file native.';
+      motion.kind === 'gta-ycd-xml'
+        ? 'GTA clip: ' + motion.label + ' · preview sampel; tidak mengubah file game.'
+        : 'Procedural walk test · periksa deformasi weights; tidak mengubah animasi/file native.';
   };
   $('nbPreviewFit').onclick = fit;
   $('nbPreviewPlace').onclick = () => {

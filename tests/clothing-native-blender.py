@@ -58,7 +58,11 @@ with tempfile.TemporaryDirectory() as directory:
     assert any(obj.find_armature() for obj in imported),'Native reimport lost skeleton binding'
     for obj in imported:
         assert obj.data.uv_layers
-        assert list(bridge.mesh_levels(obj))
+        coordinates={tuple(round(v,4) for v in value.uv) for value in obj.data.uv_layers[0].data}
+        assert len(coordinates)>=3,coordinates
+        assert len(list(bridge.mesh_levels(obj))) >= 3
+        diffuse=obj.data.materials[0].node_tree.nodes.get('DiffuseSampler')
+        assert diffuse and diffuse.image and diffuse.image.has_data,'Native embedded diffuse did not round-trip'
         for vertex in obj.data.vertices:
             assert vertex.groups and abs(sum(g.weight for g in vertex.groups)-1)<.02
     assert reference.read_bytes()==original and clip.read_bytes()==clip_original

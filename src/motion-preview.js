@@ -35,7 +35,12 @@ export function decodeMotion(motion, floatCount) {
     }
     return frame;
   });
-  return { frames, fps: motion.fps, label: motion.label || 'Walk test' };
+  return {
+    frames,
+    fps: motion.fps,
+    label: motion.label || 'Walk test',
+    kind: motion.kind === 'gta-ycd-xml' ? 'gta-ycd-xml' : 'procedural-weight-test',
+  };
 }
 export function sampleMotion(motion, seconds, output) {
   const position =

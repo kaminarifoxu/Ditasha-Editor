@@ -98,6 +98,10 @@ def export_native(bpy, arm, garments, output, slot, image_node):
             clone.matrix_world = source.matrix_world.copy()
             clone.sollum_type = 'sollumz_drawable_model'
             clone.constraints.clear()
+            # Sollumz binds shader UV indices by canonical names, not Blender's
+            # active UV layer. GLB/FBX/OBJ names such as UVMap otherwise export no UVs.
+            for index, layer in enumerate(clone.data.uv_layers): layer.name = f'DITASHA_UV_{index}'
+            for index, layer in enumerate(clone.data.uv_layers): layer.name = f'UVMap {index}'
             for mod in clone.modifiers:
                 if mod.type == 'ARMATURE': mod.object = drawable
             converted = []
