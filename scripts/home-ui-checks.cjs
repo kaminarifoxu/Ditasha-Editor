@@ -20,7 +20,8 @@ module.exports = async function checkHome({ ytd, size, interactions }) {
     'Homepage does not replace the editor',
   );
   assert(
-    document.querySelectorAll('.home-workspace-card').length === 8,
+    document.querySelectorAll('.home-workspace-card').length === 9 &&
+      home.querySelector('[data-home-page=fivemtools]'),
     'Homepage tool cards missing',
   );
   assert(

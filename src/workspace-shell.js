@@ -96,6 +96,7 @@ export function mountWorkspaceShell({ toast }) {
     'modelviewer',
     'pack',
     'compressor',
+    'fivemtools',
     'converter',
     'code',
   ]) {

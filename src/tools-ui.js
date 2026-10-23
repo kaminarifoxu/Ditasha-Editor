@@ -1,3 +1,4 @@
+import { mountFivemTools } from './fivem-tools-ui.js';
 import { mountCompressor } from './compressor-ui.js';
 import { mountCraft, craftWorkspaces } from './craft-ui.js';
 import { ICON_CODES } from './ui-icons.js';
@@ -156,6 +157,14 @@ export function mountTools({
   });
   const craft = mountCraft({ nav, activate, toast, preview });
   const homepage = mountHome({ nav, activate, preview, getSessionFiles, selectSessionFile });
+  const fivemTools = mountFivemTools({
+    nav,
+    activate,
+    download,
+    toast,
+    confirmDiscard,
+    getPack: () => pack,
+  });
   const modelHome = viewers.modelRoot.parentElement;
   const compressor = mountCompressor({ nav, activate, viewers, toast });
   const dirty = () => pack.length && revision !== savedRevision;
@@ -193,6 +202,7 @@ export function mountTools({
     }
     if (next === 'converter') $('packFindings').open = true;
     page = next;
+    fivemTools.root.hidden = next !== 'fivemtools';
     compressor.root.hidden = next !== 'compressor';
     $('workspaceLabel').textContent =
       next === 'compressor'
@@ -218,6 +228,7 @@ export function mountTools({
                           : next === 'code'
                             ? 'Integrated IDE'
                             : 'Converter';
+    if (next === 'fivemtools') $('workspaceLabel').textContent = 'YMT & FiveM Tools';
     craft.root.hidden = !next.startsWith('craft-');
     if (next.startsWith('craft-')) {
       $('workspaceLabel').textContent =
@@ -770,6 +781,7 @@ export function mountTools({
     },
     unsavedItems: () => [
       ...(dirty() ? [{ name: 'Clothing pack · ' + $('packName').value }] : []),
+      ...fivemTools.unsavedItems(),
       ...compressor.unsavedItems(),
       ...archives.unsavedItems(),
       ...viewers.unsavedItems(),

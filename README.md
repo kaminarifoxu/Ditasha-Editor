@@ -273,3 +273,5 @@ Discord Activity uses the installed Discord desktop client. Create an applicatio
 ## Creative Suite preview
 
 The v1.23 preview embeds nine verified offline Craft web editors for images, vectors, photos, video, motion, PDF, documents, spreadsheets and slides. The DITASHA interface uses the new graphite / sage design. [Workspace guide, texture interchange and integration boundaries](docs/CREATIVE_SUITE.md).
+
+YMT Creator dan utilitas FiveM offline: baca [panduan](docs/YMT_CREATOR.md). Output YMT berupa XML yang perlu dikonversi ke binary sebelum dipasang.

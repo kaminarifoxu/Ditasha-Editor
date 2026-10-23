@@ -1,3 +1,10 @@
+# v1.43.0 preview — Offline YMT Creator and FiveM utilities
+
+- Add YMT & FiveM Tools inside Asset workshop and Home. Import freemode YDD/YTD/YLD files, a folder, the current Clothing pack, or names only. Review component/prop slots and output filenames with validation for missing models/textures, suffix mismatches, duplicate slots and index gaps; undo file-list changes.
+- Generate male/female CPedVariationInfo YMT XML, shop apparel metadata, fxmanifest and a mapping report. Export individual documents, metadata ZIP or an original-byte resource ZIP up to 128 MB. XML requires external CodeWalker/YMTEditor conversion to binary YMT before game use; no binary output, internal model rewrites, creature metadata or new engine limits are claimed.
+- Add local joaat signed/unsigned/hex values and a script-resource fxmanifest generator with script/dependency/NUI settings. Preserve existing Clothing pack exports and preview tools.
+- Verify grouping, races, alternatives/YLD, props, invalid input, ZIP byte preservation, save cancellation, workspace retention, manifest validation and responsive dark/light layouts. Native binary conversion and FiveM rendering remain external checks. See docs/YMT_CREATOR.md.
+
 # v1.42.0 preview — Animation timeline review
 
 - Add a timeline to hold and inspect sampled ped/clothing animation poses before export. Play resumes from the chosen position; Stop restores the static pose and resets the timeline.

@@ -417,6 +417,10 @@ app.whenReady().then(async () => {
         }) +
         ')',
     );
+    await win.loadFile(path.resolve('ui/index.html'));
+    const fivemToolsReport = await win.webContents.executeJavaScript(
+      '(' + require('./fivem-tools-ui-checks.cjs').toString() + ')()',
+    );
     await Promise.all(captures);
     console.log(
       'PASS: ' +
@@ -434,6 +438,7 @@ app.whenReady().then(async () => {
           wheelReport,
           liveryReport,
           surfaceReport,
+          fivemToolsReport,
         }),
     );
     win.destroy();

@@ -5,6 +5,13 @@ const icon = (name) =>
   `<i class="di-icon" aria-hidden="true" data-icon="${name}" data-glyph="${String.fromCodePoint(parseInt(ICON_CODES[name], 16))}"></i>`;
 const workspaces = [
   [
+    'fivemtools',
+    'tshirt',
+    'YMT & FiveM Tools',
+    'Buat metadata clothing, hash dan manifest secara offline.',
+    'YMT XML · LUA',
+  ],
+  [
     'compressor',
     'compress',
     'Asset Compressor',
