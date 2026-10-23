@@ -52,11 +52,15 @@ app.whenReady().then(async () => {
     const { promisify } = require('node:util');
     const { execFile } = require('node:child_process');
     const failures = [];
+    await import(
+      require('node:url').pathToFileURL(path.resolve('scripts/prepare-texture-roundtrip.mjs')).href
+    );
     for (const script of [
       'scripts/smoke-native-preview.py',
       'tests/ped-review-blender.py',
       'tests/garment-skin-blender.py',
       'tests/clothing-native-blender.py',
+      'tests/texture-allocation-blender.py',
     ]) {
       try {
         const check = await promisify(execFile)(

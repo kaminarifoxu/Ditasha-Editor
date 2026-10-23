@@ -90,7 +90,7 @@ test('a small pixel reduction cannot increase GPU pages through allocation round
     header = r.header.slice();
   new DataView(header.buffer).setUint32(12, 0x0c000007, true);
   const pages = r.ptr(8);
-  if (pages !== null) body[pages + 9] = 3;
+  if (pages !== null) body[pages + 9] = 2;
   const payload = deflateRaw(body),
     input = new Uint8Array(16 + payload.length);
   input.set(header);
