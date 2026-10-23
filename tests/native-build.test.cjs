@@ -67,6 +67,33 @@ test('Blender receives separate argv with automatic script execution disabled', 
   assert.equal(a.at(-1), 'C:\\Data\\job.json');
   assert.equal(a[a.indexOf('--python') + 1], "C:\\Someone's models\\native_bridge.py");
 });
+test('Clothing generator, native slot and GTA clip settings stay bounded', () => {
+  const job = validateJob({
+    mode: 'garment',
+    clothing: {
+      source: 'generate',
+      body: 'Body',
+      native: true,
+      slot: 'mp_f_freemode_01^jbib_001_u',
+    },
+    useClip: true,
+    clipIndex: 2,
+  });
+  assert.equal(job.clothing.source, 'generate');
+  assert.equal(job.useClip, true);
+  for (const payload of [
+    { clothing: { source: 'generate' } },
+    { clothing: { lower: 0.8, upper: 0.3 } },
+    { clothing: { gap: Infinity } },
+    { clothing: { color: [NaN, 0, 0] } },
+    { clothing: { native: true, slot: '../bad' } },
+    { clothing: { native: 'yes' } },
+    { useClip: 'yes' },
+    { clipIndex: -1 },
+    { clipIndex: 1.5 },
+  ])
+    assert.throws(() => validateJob({ mode: 'garment', ...payload }));
+});
 test('Native metadata selects one model, links siren ID and rejects XML entities', () => {
   const result = execFileSync(
     process.platform === 'win32' ? 'python' : 'python3',

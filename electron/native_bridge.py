@@ -591,6 +591,12 @@ def run(job):
                 report['preview']['motion'] = review.add_walk_preview(bpy, rigged, output, preview_scene)
             except Exception as exc:
                 report['preview']['warnings'].append('Walk preview: ' + str(exc))
+            if job.get('clip'):
+                from clip_review import add_clip_preview
+                arms = {a.name:a for obj in rigged if (a := review.armature_for(obj)) is not None}
+                if len(arms) != 1:
+                    raise ValueError('Clip GTA memerlukan satu armature hasil rig.')
+                report['preview']['motion'] = add_clip_preview(bpy, next(iter(arms.values())), rigged, job['clip'], job['clipIndex'], output, preview_scene)
             report['warnings'] = report.get('warnings', []) + result.get('warnings', []) + report['quality']['warnings'] + report['preview']['warnings']
         else:
             fragment = import_vehicle(bpy, job['source'])

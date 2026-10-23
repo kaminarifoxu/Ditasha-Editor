@@ -10,6 +10,7 @@ const {
   LIMIT_BYTES,
   LIMIT_FILES,
 } = require('../electron/asset-compressor.cjs');
+const { deflateRawSync } = require('node:zlib');
 async function fixture(t) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'ditasha-compressor-test-'));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
@@ -53,6 +54,41 @@ test('Native copying is lossless and never replaces a pre-existing destination',
   assert.equal(await fs.readFile(occupied, 'utf8'), 'keep');
   const report = await service.finish({ id: job.id });
   assert.equal(report.status, 'completed-with-errors');
+});
+test('Native compressor accepts lower GPU allocation even when disk size grows, and verifies resource bytes', async (t) => {
+  const { source, service } = await fixture(t);
+  const resource = (gfxExponent, payload) => {
+    const header = Buffer.alloc(16);
+    header.write('RSC7');
+    header.writeUInt32LE(13, 4);
+    header.writeUInt32LE(0x08000000, 8);
+    header.writeUInt32LE(0x08000000 | gfxExponent, 12);
+    return Buffer.concat([header, deflateRawSync(payload)]);
+  };
+  const old = resource(7, Buffer.alloc(512 + 65536));
+  await fs.writeFile(source, old);
+  const body = Buffer.alloc(1024);
+  require('node:crypto').randomFillSync(body, 512, 512);
+  const candidate = resource(0, body);
+  assert.ok(candidate.length > old.length);
+  const job = await service.begin([{ path: 'stream/cloth.ytd', source }]);
+  await service.write({ id: job.id, index: 0, bytes: candidate });
+  await service.finish({ id: job.id });
+  const report = JSON.parse(
+    await fs.readFile(path.join(job.folder, '.ditasha-compressor/report.json')),
+  );
+  assert.deepEqual(report.files[0].graphicsAllocationBytes, { before: 65536, after: 512 });
+  assert.deepEqual(await fs.readFile(source), old);
+  const next = await service.begin([{ path: 'cloth.ytd', source }]);
+  await assert.rejects(
+    service.write({
+      id: next.id,
+      index: 0,
+      bytes: Buffer.concat([candidate, Buffer.alloc(100)]).fill(0, 16),
+      metrics: { allocation: { before: 65536, after: 512 } },
+    }),
+  );
+  await service.finish({ id: next.id });
 });
 test('Traversal, Windows aliases, case collisions, concurrent jobs and changed sources are rejected', async (t) => {
   for (const p of [

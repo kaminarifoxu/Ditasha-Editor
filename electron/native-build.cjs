@@ -10,6 +10,7 @@ const PICK_TYPES = {
   engine: { name: 'Blender', extensions: process.platform === 'win32' ? ['exe'] : ['*'] },
   ped: { name: 'Humanoid model', extensions: ['glb', 'fbx', 'obj'] },
   reference: { name: 'Rigged body template', extensions: ['blend'] },
+  clip: { name: 'CodeWalker YCD XML', extensions: ['xml'] },
   vehicle: { name: 'Vehicle YFT', extensions: ['yft', 'xml'] },
   donor: { name: 'Siren donor YFT', extensions: ['yft', 'xml'] },
   carcols: { name: 'Donor carcols.meta', extensions: ['meta'] },
@@ -88,6 +89,56 @@ function validateJob(payload) {
   const maxDistance = payload.maxDistance ?? 0.25;
   if (!Number.isFinite(maxDistance) || maxDistance < 0.005 || maxDistance > 1)
     throw Error('Batas jarak transfer 0,005–1 meter.');
+  const clothing = {
+    source: 'import',
+    body: '',
+    lower: 0.45,
+    upper: 0.85,
+    gap: 0.005,
+    color: [0.12, 0.24, 0.45],
+    native: false,
+    slot: 'mp_m_freemode_01^jbib_000_u',
+    ...payload.clothing,
+  };
+  if (
+    payload.mode === 'garment' &&
+    ((payload.clothing !== undefined &&
+      (!payload.clothing ||
+        typeof payload.clothing !== 'object' ||
+        Array.isArray(payload.clothing))) ||
+      !['import', 'generate'].includes(clothing.source) ||
+      typeof clothing.body !== 'string' ||
+      clothing.body.length > 128 ||
+      !Number.isFinite(clothing.lower) ||
+      !Number.isFinite(clothing.upper) ||
+      clothing.lower < 0 ||
+      clothing.upper > 1 ||
+      clothing.lower >= clothing.upper ||
+      !Number.isFinite(clothing.gap) ||
+      clothing.gap < 0.001 ||
+      clothing.gap > 0.05 ||
+      !Array.isArray(clothing.color) ||
+      clothing.color.length !== 3 ||
+      clothing.color.some((v) => !Number.isFinite(v) || v < 0 || v > 1) ||
+      typeof clothing.native !== 'boolean' ||
+      typeof clothing.slot !== 'string' ||
+      clothing.slot.length > 100 ||
+      (clothing.native &&
+        !/^(?:[a-z0-9_]+\^)?(?:jbib|uppr|lowr|feet|hand|accs|task|decl|hair|berd|teef)_\d{3}_[ur]$/.test(
+          clothing.slot,
+        )) ||
+      (clothing.source === 'generate' && !clothing.body.trim()))
+  )
+    throw Error('Pengaturan generator/slot clothing tidak valid.');
+  const useClip = payload.useClip ?? false,
+    clipIndex = payload.clipIndex ?? 0;
+  if (
+    typeof useClip !== 'boolean' ||
+    !Number.isInteger(clipIndex) ||
+    clipIndex < 0 ||
+    clipIndex > 255
+  )
+    throw Error('Pilihan animasi tidak valid.');
   const rotation = payload.rotation ?? [0, 0, 0];
   if (
     !Array.isArray(rotation) ||
@@ -101,6 +152,9 @@ function validateJob(payload) {
   if (payload.mode === 'parts' && (!selected.length || new Set(selected).size !== selected.length))
     throw Error('Pilih part donor sebelum build.');
   return {
+    clothing,
+    useClip,
+    clipIndex,
     maxDistance,
     rotation,
     targetBone,
@@ -181,7 +235,7 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
   ipcMain.handle('ditasha:native-pick', async (event, kind) => {
     trusted(event);
     if (running) throw Error('Tunggu setup/build selesai.');
-    if (['ped', 'reference'].includes(kind) && stagedPed)
+    if (['ped', 'reference', 'clip'].includes(kind) && stagedPed)
       throw Error('Simpan atau buang hasil rig sebelumnya dahulu.');
     if (kind === 'output') {
       const r = await dialog.showOpenDialog(win, {
@@ -203,6 +257,10 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
     if (r.canceled) return null;
     const file = r.filePaths[0],
       stat = await fs.stat(file);
+    if (kind === 'clip' && (!file.toLowerCase().endsWith('.ycd.xml') || stat.size > 8 * 1024 ** 2))
+      throw Error(
+        'Pilih CodeWalker .ycd.xml maksimal 8 MB; binary YCD perlu diekspor ke XML dahulu.',
+      );
     if (
       !stat.isFile() ||
       stat.size > (kind === 'ped' ? 256 : kind === 'engine' ? 1024 : 128) * 1024 * 1024
@@ -398,7 +456,7 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
       delete state.stagedId;
       state.message =
         pending.kind === 'garment'
-          ? 'Clothing GLB dan Blender disimpan; ekspor native lanjutan masih diperlukan.'
+          ? 'Hasil clothing dan report disimpan. Periksa format ekspor dan slot pada report.'
           : 'Resource ped disimpan. Uji spawn dan animasi pada server FiveM.';
       stagedPed = null;
       await fs.rm(pending.root, { recursive: true, force: true }).catch(() => {});
@@ -457,9 +515,11 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
           throw Error('Input berubah. Pilih ulang file ' + kind + '.');
         return v.path;
       };
-    if (['ped', 'ped_preview', 'garment'].includes(job.mode)) job.source = await get('ped');
+    if (job.mode === 'garment' && job.clothing.source === 'generate') job.source = null;
+    else if (['ped', 'ped_preview', 'garment'].includes(job.mode)) job.source = await get('ped');
     else if (job.mode !== 'probe') job.source = await get('vehicle');
     if (job.mode === 'garment') job.reference = await get('reference');
+    if (job.useClip && ['ped', 'garment'].includes(job.mode)) job.clip = await get('clip');
     if (['strobo_preview', 'parts_preview', 'parts'].includes(job.mode))
       job.donor = await get('donor');
     if (job.mode === 'strobo')
@@ -492,6 +552,8 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
       await fs.readFile(path.join(__dirname, 'ped_review.py')),
     );
     await fs.copyFile(path.join(__dirname, 'garment_skin.py'), path.join(root, 'garment_skin.py'));
+    for (const name of ['clothing_workflow.py', 'clip_review.py'])
+      await fs.copyFile(path.join(__dirname, name), path.join(root, name));
     await fs.writeFile(spec, JSON.stringify(job));
     preview = null;
     reviewFile = null;

@@ -108,9 +108,14 @@ def run(bpy, job, output, review, preview_scene):
     reference = [obj for obj in bpy.data.objects if obj.type == 'MESH' and review.armature_for(obj)]
     if not reference:
         raise ValueError('Template tidak memiliki body yang sudah di-skin.')
-    before = set(bpy.data.objects)
-    imported = review.import_source(bpy, job['source'])
-    garments = [obj for obj in imported if obj not in before]
+    import clothing_workflow
+    options = job.get('clothing', {})
+    if options.get('source') == 'generate':
+        garments = clothing_workflow.generate_shell(bpy, reference, options)
+    else:
+        before = set(bpy.data.objects)
+        imported = review.import_source(bpy, job['source'])
+        garments = [obj for obj in imported if obj not in before]
     arm, quality = skin_garments(bpy, reference, garments, job['maxDistance'])
     arm.data.pose_position = 'REST'
     bpy.context.view_layer.update()
@@ -122,8 +127,15 @@ def run(bpy, job, output, review, preview_scene):
                                        export_animations=False, export_skins=True, export_all_influences=False)
     if 'FINISHED' not in result or not destination.is_file() or destination.stat().st_size > 128 * 1024 * 1024 or destination.open('rb').read(4) != b'glTF':
         raise ValueError('Ekspor GLB clothing gagal atau melebihi 128 MB.')
+    warnings = []
+    native = None
+    if options.get('native'):
+        from native_bridge import source_image_node
+        native = clothing_workflow.export_native(bpy, arm, garments, output, options['slot'], source_image_node)
+        warnings += ['YDD pengganti slot lama; collection/YMT asli harus tetap terpasang. Tidak mendaftarkan slot baru.',
+                     'Shader impor dikonversi ke diffuse sederhana; normal/specular kompleks perlu koreksi Blender. LOD mempertahankan geometri, belum pengurangan polygon.']
     try: bpy.ops.file.pack_all()
-    except Exception: pass
+    except Exception as exc: warnings.append('Sebagian asset Blender belum ter-pack: ' + str(exc))
     bpy.ops.wm.save_as_mainfile(filepath=str(Path(output) / 'ditasha-result.blend'), copy=True)
     # Preview the actual skinned clothing, using the reference body for context.
     objects = [*reference, *garments]
@@ -132,6 +144,10 @@ def run(bpy, job, output, review, preview_scene):
     preview = review.create_pose_previews(bpy, objects, output, garment_preview)
     try: preview['motion'] = review.add_walk_preview(bpy, objects, output, garment_preview)
     except Exception as exc: preview['warnings'].append('Walk preview: ' + str(exc))
-    return {'transferQuality': quality, 'preview': preview, 'files': [destination.name, 'ditasha-result.blend'],
-            'warnings': preview['warnings'] + ['Weights ditransfer dari permukaan body terdekat; periksa daerah lengan/paha yang berdekatan.',
-                         'Hasil GLB + proyek Blender, belum YDD/YMT native. Shader, LOD dan slot clothing perlu ekspor Sollumz lanjutan.']}
+    if job.get('clip'):
+        from clip_review import add_clip_preview
+        preview['motion'] = add_clip_preview(bpy, arm, objects, job['clip'], job['clipIndex'], output, garment_preview)
+    return {'transferQuality': quality, 'nativeClothing': native, 'generated': options.get('source') == 'generate',
+            'preview': preview, 'files': [destination.name, 'ditasha-result.blend'] + ([native['file'], 'fxmanifest.lua'] if native else []),
+            'warnings': warnings + preview['warnings'] + ['Weights berasal dari body terdekat; periksa lipatan dan area lengan/paha.',
+                         'Generator menghasilkan shell permukaan body dengan tepi terbuka; pola, ketebalan dan fitting lanjutan dapat diedit di Blender.']}

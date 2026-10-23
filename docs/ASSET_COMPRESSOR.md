@@ -10,8 +10,16 @@ Buka **Asset workshop → Asset Compressor** atau kartu di Home.
 
 ## Cakupan
 
-Optimasi berlaku pada **eksternal YTD GTA V Legacy**: resize, DXT1 untuk gambar opaque, DXT5 untuk alpha dan mipmap. DXT bersifat lossy; periksa hasil visual sebelum dipakai. YTD di atas batas 256 MB, format yang tidak didukung, dan hasil yang tidak lebih kecil akan disalin asli dengan alasan di laporan.
+Optimasi berlaku pada **eksternal YTD GTA V Legacy**: resize, DXT1 untuk gambar opaque, DXT5 untuk alpha dan mipmap. ATI1/BC4 grayscale dapat dibaca, di-resize dan dikonversi ke DXT1 opaque dengan filtering data linear. DXT bersifat lossy; periksa hasil visual sebelum dipakai. YTD di atas batas 256 MB, format yang tidak didukung, dan hasil yang tidak mengurangi ukuran disk maupun alokasi GPU akan disalin asli dengan alasan di laporan.
 
 YDD/YFT/YDR beserta tekstur tertanam, rig, skeleton, YMAP, YTYP, YBN, metadata dan skrip **disalin byte-for-byte**. Fitur ini tidak mengurangi polygon, mengubah limit game, memperbaiki aset rusak, atau menjamin seluruh resource mempunyai dependensi lengkap. Impor folder resource lengkap dan simpan sumber aslinya.
 
 Batas 25 GB adalah batas total antrean, bukan jaminan semua RAM/drive mampu memproses setiap YTD kompleks. Pembacaan native/resource tetap mempunyai batas sendiri; lihat alasan preserved/failed dalam laporan.
+
+## v1.42: alokasi memori resource
+
+Optimizer dapat memadatkan ulang graphics pages meskipun pixel DXT sudah sesuai dan tidak perlu dikompres ulang. Pointer setiap texture dipindahkan ke payload hasil dan header/page count ditulis sesuai alokasi nyata. Laporan menambahkan `graphicsAllocationBytes` (before/after) selain ukuran payload tekstur dan ukuran disk. Hasil boleh sedikit lebih besar di disk jika alokasi GPU turun; proses native memverifikasi header dan panjang dekompresi hasil tersebut. Ini berbeda dari hanya menurunkan angka peringatan pada header.
+
+Atlas besar yang mempunyai mipmap dapat dioptimalkan dari mip yang aman untuk didekode; tidak mengalokasikan seluruh atlas raksasa ke RGBA. Atlas besar tanpa mip yang aman, format tidak didukung, payload terpotong, resource terenkripsi dan dekompresi gagal tetap dipertahankan dengan alasan jelas. Data yang sudah hilang karena resize/lossy compression tidak dapat dikembalikan tanpa sumber asli.
+
+Optimasi tetap hanya eksternal YTD. Alokasi YDD/YFT/YDR dan tekstur embedded tidak diubah. Jika peringatan masih muncul, cocokkan nama file dalam log FiveM dengan `path`, `status`, `reason` dan alokasi dalam report; pastikan server memuat folder hasil dan tidak mempunyai resource duplikat yang membawa versi lama. `optimized` tidak berarti semua file berhasil diperkecil: periksa entri `preserved` juga.

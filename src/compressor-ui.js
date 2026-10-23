@@ -393,10 +393,24 @@ export function mountCompressor({ nav, activate, viewers, toast }) {
               const result = await decodeResource('optimize-ytd', await e.file.arrayBuffer(), {
                 maxSize: textureCap(e, profiles),
               });
-              if (result.changed && result.bytes.length < e.file.size) {
+              if (
+                (result.changed || result.repacked) &&
+                (result.bytes.length < e.file.size ||
+                  result.allocation?.after < result.allocation?.before)
+              ) {
                 bytes = result.bytes;
-                metrics = { before: result.before, after: result.after };
-                reason = 'Resize/compress maksimal ' + textureCap(e, profiles) + ' px';
+                metrics = {
+                  before: result.before,
+                  after: result.after,
+                  allocation: result.allocation,
+                };
+                reason =
+                  'Resize/repack maksimal ' +
+                  textureCap(e, profiles) +
+                  ' px; alokasi GPU ' +
+                  size(result.allocation.before) +
+                  ' → ' +
+                  size(result.allocation.after);
               } else reason = 'Sudah sesuai / hasil tidak lebih kecil: asli dipertahankan';
             } catch (error) {
               reason = 'Asli dipertahankan: ' + error.message;

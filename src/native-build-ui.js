@@ -28,8 +28,16 @@ export function mountNativeBuild({
   const garmentSettings = document.createElement('section');
   garmentSettings.id = 'nbGarment';
   garmentSettings.hidden = true;
-  garmentSettings.innerHTML = `<h3>Skin clothing dari body template</h3><button data-pick="reference">Pilih template body .blend</button><p data-file="reference" class="muted">Satu armature GTA dan body mesh dengan weights; clothing harus sudah pas dalam rest pose.</p><label>Jarak maksimum · meter<input id="nbMaxDistance" type="number" min="0.005" max="1" step="0.005" value="0.25"></label><p class="muted">Pilih clothing GLB/FBX/OBJ di atas. Transfer maksimum empat weights per vertex dari body terdekat, lalu periksa pose dan walk test. Output GLB skinned + .blend; ekspor YDD/LOD/shader native masih melalui Sollumz.</p>`;
+  garmentSettings.innerHTML = `<h3>Skin clothing dari body template</h3><button data-pick="reference">Pilih template body .blend</button><p data-file="reference" class="muted">Satu armature GTA dan body mesh dengan weights; clothing harus sudah pas dalam rest pose.</p><label>Jarak maksimum · meter<input id="nbMaxDistance" type="number" min="0.005" max="1" step="0.005" value="0.25"></label><p class="muted">Pilih clothing GLB/FBX/OBJ di atas. Transfer maksimum empat weights per vertex dari body terdekat, lalu periksa pose dan walk test. Output GLB skinned + .blend; pilihan YDD pengganti slot tersedia di Generator & ekspor native.</p>`;
   rigSettings.before(garmentSettings);
+  const construction = document.createElement('details');
+  construction.className = 'rig-settings';
+  construction.innerHTML = `<summary>Generator &amp; ekspor native</summary><div class="studio-fields"><label>Sumber clothing<select id="nbClothingSource"><option value="import">Impor model GLB / FBX / OBJ</option><option value="generate">Buat shell dari body · tanpa AI</option></select></label><label>Nama mesh body template<input id="nbBodyMesh" maxlength="128" placeholder="Nama persis di Blender"></label><label>Batas bawah · 0–1<input id="nbClothLower" type="number" min="0" max="1" step=".01" value=".45"></label><label>Batas atas · 0–1<input id="nbClothUpper" type="number" min="0" max="1" step=".01" value=".85"></label><label>Jarak kain · meter<input id="nbClothGap" type="number" min=".001" max=".05" step=".001" value=".005"></label><label>Warna kain<input id="nbClothColor" type="color" value="#1f3d73"></label></div><p class="muted">Batas adalah proporsi tinggi mesh body pada sumbu Z. Shell mengikuti permukaan dan UV body; tepi tetap terbuka, belum jahitan/ketebalan atau simulasi kain.</p><label class="check"><input id="nbNativeClothing" type="checkbox">Sertakan YDD native · pengganti slot lama</label><label>Nama file slot tanpa .ydd<input id="nbClothingSlot" maxlength="100" value="mp_m_freemode_01^jbib_000_u"></label><p class="muted">Collection/YMT asli tetap diperlukan. Diffuse di-embed ke YDD; shader impor disederhanakan. LOD mempertahankan geometri dan weights, belum menurunkan polygon. GLB + Blender selalu tersedia.</p>`;
+  garmentSettings.append(construction);
+  const clipSettings = document.createElement('details');
+  clipSettings.className = 'rig-settings';
+  clipSettings.innerHTML = `<summary>Uji clip animasi GTA</summary><label class="check"><input id="nbUseClip" type="checkbox">Gunakan clip GTA menggantikan procedural walk test</label><button data-pick="clip">Pilih CodeWalker .ycd.xml</button><p data-file="clip" class="muted">Ekspor binary YCD ke XML melalui CodeWalker terlebih dahulu.</p><label>Nomor clip · urutan nama, mulai 0<input id="nbClipIndex" type="number" min="0" max="255" value="0"></label><p class="muted">Clip skeletal tunggal 0,1–16 detik; maksimal 16 sampel dalam preview. Action game tidak dimasukkan ke hasil ekspor.</p>`;
+  dialog.querySelector('#nbPed').append(clipSettings);
   const workflowTabs = document.createElement('div');
   workflowTabs.className = 'viewer-button-row';
   workflowTabs.innerHTML =
@@ -176,6 +184,10 @@ export function mountNativeBuild({
     rigSettings.hidden = value === 'garment';
     garmentSettings.hidden = value !== 'garment';
     $('nbPedName').closest('label').hidden = value === 'garment';
+    const generated = value === 'garment' && $('nbClothingSource').value === 'generate';
+    dialog.querySelector('[data-pick="ped"]').hidden = generated;
+    dialog.querySelector('[data-file="ped"]').hidden = generated;
+    sourceButton.hidden = generated;
     $('nbPed').hidden = !pedMode;
     $('nbVehicle').hidden = pedMode;
     $('nbDebadge').hidden = value !== 'debadge';
@@ -196,7 +208,7 @@ export function mountNativeBuild({
               : 'Strobo dari donor';
     $('nbRun').textContent =
       value === 'garment'
-        ? 'Transfer weights & preview'
+        ? 'Buat clothing & preview'
         : value === 'ped'
           ? 'Buat preview rig'
           : 'Build native';
@@ -227,6 +239,9 @@ export function mountNativeBuild({
       .querySelectorAll('input,select')
       .forEach((e) => (e.disabled = state.running || requesting || !!state.stagedId));
     garmentSettings
+      .querySelectorAll('input,button,select')
+      .forEach((e) => (e.disabled = state.running || requesting || !!state.stagedId));
+    clipSettings
       .querySelectorAll('input,button')
       .forEach((e) => (e.disabled = state.running || requesting || !!state.stagedId));
     $('nbPartCandidates')
@@ -258,7 +273,7 @@ export function mountNativeBuild({
     if (report.transferQuality) {
       const q = report.transferQuality;
       const p = document.createElement('p');
-      p.textContent = `${q.meshes} clothing mesh · ${q.vertices} vertex · maksimum ${q.influences} weights · jarak terjauh ${q.maxDistanceMeters} m. Hasil GLB + Blender, belum native YDD.`;
+      p.textContent = `${q.meshes} clothing mesh · ${q.vertices} vertex · maksimum ${q.influences} weights · jarak terjauh ${q.maxDistanceMeters} m. ${report.nativeClothing ? 'GLB + Blender + YDD pengganti slot: ' + report.nativeClothing.slot : 'Hasil GLB + Blender; YDD native tidak dipilih.'}`;
       $('nbReport').append(p);
     }
     if (report.pedOptions) {
@@ -549,6 +564,21 @@ export function mountNativeBuild({
         rotation: ['X', 'Y', 'Z'].map((axis) => Number($('nbRot' + axis).value)),
         targetBone: $('nbPartBone').value,
         maxDistance: Number($('nbMaxDistance').value),
+        clothing: {
+          source: $('nbClothingSource').value,
+          body: $('nbBodyMesh').value.trim(),
+          lower: Number($('nbClothLower').value),
+          upper: Number($('nbClothUpper').value),
+          gap: Number($('nbClothGap').value),
+          color: $('nbClothColor')
+            .value.slice(1)
+            .match(/../g)
+            .map((v) => parseInt(v, 16) / 255),
+          native: $('nbNativeClothing').checked,
+          slot: $('nbClothingSlot').value.trim(),
+        },
+        useClip: $('nbUseClip').checked,
+        clipIndex: Number($('nbClipIndex').value),
         sirenId: Number($('nbSirenId').value),
         donorSirenId: Number($('nbDonorId').value),
       });
@@ -645,6 +675,7 @@ export function mountNativeBuild({
   };
   $('nbPartsAnalyze').onclick = () => start('parts_preview');
   $('nbMode').onchange = mode;
+  $('nbClothingSource').onchange = mode;
   $('nbProbe').onclick = () => start('probe');
   $('nbAnalyze').onclick = () => start('debadge_analyze');
   $('nbRun').onclick = () => start($('nbMode').value);

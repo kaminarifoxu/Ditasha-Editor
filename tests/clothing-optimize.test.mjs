@@ -53,10 +53,61 @@ test('resize preserves aspect ratio, lowers memory and never upscales a small at
   assert.equal(out.textures.find((t) => t.name === 'small').w, 16);
   assert.ok(result.after < result.before / 4);
 });
+test('already-compressed pixels repack oversized graphics allocation without another lossy encode', () => {
+  const first = optimizeYtd(createYtd([texture('cloth', 32, 16)]).buffer);
+  const resource = new Resource(first.bytes.buffer, 13);
+  const oversized = new Uint8Array(resource.sys + 65536);
+  oversized.set(resource.bytes);
+  const header = resource.header.slice();
+  new DataView(header.buffer).setUint32(12, 0x08000007, true);
+  const payload = deflateRaw(oversized),
+    input = new Uint8Array(16 + payload.length);
+  input.set(header);
+  input.set(payload, 16);
+  const original = hash(input),
+    result = optimizeYtd(input.buffer);
+  assert.equal(result.changed, 0);
+  assert.equal(result.repacked, true);
+  assert.equal(result.allocation.before, 65536);
+  assert.ok(result.allocation.after < 65536);
+  assert.equal(hash(input), original);
+  assert.deepEqual(
+    readYtd(result.bytes.buffer).textures[0].out,
+    readYtd(first.bytes.buffer).textures[0].out,
+  );
+  assert.equal(optimizeYtd(result.bytes.buffer).repacked, false);
+});
 test('transparent borders use alpha-weighted filtering without bleeding hidden black pixels', () => {
   const t = { w: 2, h: 1, out: new Uint8Array([255, 0, 0, 255, 0, 0, 0, 0]) },
     out = resizeTexture(t, 1, 1);
   assert.deepEqual([...out.out], [255, 0, 0, 128]);
+});
+test('oversized atlas uses a bounded existing mip, preserving names and source bytes', () => {
+  const base = new Resource(createYtd([texture('large_clothing', 4, 4)]).buffer, 13);
+  const body = new Uint8Array(base.sys + 131072);
+  body.set(base.bytes.subarray(0, base.sys));
+  const view = new DataView(body.buffer),
+    p = base.list(48, base.u16(56))[0];
+  view.setUint16(p + 80, 16384, true);
+  view.setUint16(p + 82, 4, true);
+  view.setUint16(p + 86, 8192, true);
+  view.setUint32(p + 88, 0x31545844, true);
+  body[p + 93] = 15;
+  view.setBigUint64(p + 112, 0x60000000n, true);
+  const header = base.header.slice();
+  new DataView(header.buffer).setUint32(12, 0x08000008, true);
+  const payload = deflateRaw(body),
+    input = new Uint8Array(16 + payload.length);
+  input.set(header);
+  input.set(payload, 16);
+  const original = hash(input),
+    result = optimizeYtd(input.buffer, { maxSize: 256 });
+  const output = readYtd(result.bytes.buffer).textures[0];
+  assert.equal(output.name, 'large_clothing');
+  assert.equal(output.w, 256);
+  assert.equal(output.h, 1);
+  assert.equal(hash(input), original);
+  assert.ok(result.allocation.after < result.allocation.before);
 });
 test('unsupported texture descriptors fail without rewriting or dropping a texture', () => {
   const input = createYtd([texture('unknown', 16, 16)]),
@@ -73,6 +124,33 @@ test('unsupported texture descriptors fail without rewriting or dropping a textu
   const original = hash(bad);
   assert.throws(() => optimizeYtd(bad.buffer), /Format/);
   assert.equal(hash(bad), original);
+});
+test('ATI1/BC4 grayscale maps decode endpoint modes and resize without treating data as alpha', () => {
+  const r = new Resource(createYtd([texture('cloth_mask', 512, 8)]).buffer, 13);
+  const p = r.list(48, r.u16(56))[0],
+    data = r.ptr(p + 112);
+  r.v.setUint32(p + 88, 0x31495441, true);
+  r.v.setUint16(p + 86, 256, true);
+  r.bytes[p + 93] = 1;
+  r.bytes.fill(0, r.sys);
+  for (let offset = 0; offset < 2048; offset += 8) r.bytes[data + offset] = 255;
+  r.bytes[data] = 0;
+  r.bytes[data + 1] = 255;
+  const bits = ((1n << 48n) - 1n) & ~1n;
+  for (let i = 0; i < 6; i++) r.bytes[data + 2 + i] = Number((bits >> BigInt(i * 8)) & 255n);
+  const payload = deflateRaw(r.bytes),
+    input = new Uint8Array(16 + payload.length);
+  input.set(r.header);
+  input.set(payload, 16);
+  const decoded = readYtd(input.buffer).textures[0];
+  assert.equal(decoded.format, 'BC4');
+  assert.deepEqual([...decoded.out.slice(0, 8)], [0, 0, 0, 255, 255, 255, 255, 255]);
+  const result = optimizeYtd(input.buffer, { maxSize: 256 }),
+    output = readYtd(result.bytes.buffer).textures[0];
+  assert.equal(output.w, 256);
+  assert.equal(output.h, 4);
+  assert.equal(output.format, 'DXT1');
+  assert.ok(output.out.every((value, index) => index % 4 !== 3 || value === 255));
 });
 test('clothing limits grow independently from other exports and collection pairing stays isolated', () => {
   const a = {

@@ -671,7 +671,7 @@ module.exports = async function checkOfflineStudio(fixtures) {
   await wait(() => !$('nbSave').disabled, 'Clothing preview did not enable staged save');
   assert(
     $('nbSave').textContent.includes('clothing') &&
-      $('nbReport').textContent.includes('belum native YDD'),
+      $('nbReport').textContent.includes('YDD native tidak dipilih'),
     'Clothing export format was misrepresented',
   );
   $('nbSave').click();

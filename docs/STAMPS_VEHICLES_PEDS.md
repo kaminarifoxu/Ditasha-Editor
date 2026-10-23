@@ -24,7 +24,7 @@ In Model Viewer, open **Ped files** and import YDD/YFT/YTD/YMT together (up to 2
 
 **Export rig source GLB** combines the currently visible base model and positioned attachments. Select that saved GLB in Rig ped to auto-skin the complete humanoid again. This creates a new full ped; it does not preserve the old skeleton, clothing slots or original weights. A suitable complete body in A/T-pose and engine setup are required.
 
-For a complete humanoid GLB/FBX/OBJ, the existing **Rig ped** workflow provides Blender/Muto automatic skinning, source checks, evaluated arm/leg diagnostic poses, and staged native export. It is not an arbitrary clothing-to-existing-ped skinning tool. Full game-animation clip playback and procedural clothing generation are not implemented. v1.41 adds the separate native rigid donor-part and per-garment weight workflows below. They require further rig/material/native-export work and in-game validation.
+For a complete humanoid GLB/FBX/OBJ, the existing **Rig ped** workflow provides Blender/Muto automatic skinning, source checks, evaluated arm/leg diagnostic poses, and staged native export. It is not an arbitrary clothing-to-existing-ped skinning tool. See v1.42 below for template shell generation, existing-slot YDD export and CodeWalker YCD XML clip review. Binary YCD playback and new collection YMT registration remain unavailable. v1.41 adds the separate native rigid donor-part and per-garment weight workflows below. They require further rig/material/native-export work and in-game validation.
 
 ## v1.41: native rigid parts, garment weights and moving review
 
@@ -38,12 +38,30 @@ The transfer preserves donor LOD meshes and native material references and binds
 
 Open **Auto rig ped → Skin clothing**. Choose a `.blend` template containing a single GTA-named armature (`SKEL_*`) and its already-skinned reference body. Reset its pose/action first. Choose an already fitted clothing GLB/FBX/OBJ and set the maximum distance from that body surface (default 0.25 m). Clothing must be aligned in the same rest pose and units; this operation transfers weights, it does not fit geometry automatically.
 
-**Transfer weights & preview** computes nearest-triangle barycentric weights from the reference body, keeps the strongest four influences, normalizes them and binds the new clothing to the same skeleton. An out-of-range vertex rejects the transfer. Input template and garment files are never overwritten. Limits: one million reference vertices, two million reference triangles and 500,000 clothing vertices, with a 128 MB exported GLB cap.
+**Buat clothing & preview** computes nearest-triangle barycentric weights from the reference body, keeps the strongest four influences, normalizes them and binds the new clothing to the same skeleton. An out-of-range vertex rejects the transfer. Input template and garment files are never overwritten. Limits: one million reference vertices, two million reference triangles and 500,000 clothing vertices, with a 128 MB exported GLB cap.
 
-Inspect the result in static arm/leg poses and the moving walk test before **Simpan clothing skinned**. Output is an actual skinned GLB plus a packed correction `.blend` and report. It is not a ready-to-stream YDD/YMT clothing resource: native ped shaders, embedded normal/specular maps, LODs, naming and clothing slots still need Sollumz export work. Nearest-surface transfer may need manual corrections around adjacent body parts, layered clothing or unusual proportions.
+Inspect the result in static arm/leg poses and the moving walk test before **Simpan clothing skinned**. Output is an actual skinned GLB plus a packed correction `.blend` and report. With native export disabled this is GLB/Blender only. v1.42 optionally adds an existing-slot replacement YDD as described below; it does not register new collection YMT slots. Nearest-surface transfer may need manual corrections around adjacent body parts, layered clothing or unusual proportions.
 
 ### Moving walk test
 
 The rest preview for new full-ped rigs and garment transfers includes a procedural 1.4-second walk weight test where the rig exposes supported GTA limb bones. Play/Stop and 0.5×/1×/1.5× controls are in the preview toolbar. The actual Blender armature is evaluated at bounded keyframes; the viewer interpolates those frames. Stopping, loading another pose or leaving the workspace restores the static preview. Pose matrices and exported native assets are unchanged by the test.
 
 Animation data is limited to 16 MB and 4–16 frames, with a 48 MB total preview cap. Very dense models may keep only static poses and a warning. This is a procedural diagnostic movement, not imported GTA YCD clip playback or an exported walk animation. Clothing generation and automatic native garment packaging remain future work.
+
+## v1.42: offline clothing construction and native replacement
+
+In **Skin clothing → Generator & ekspor native**, choose **Buat shell dari body**. Select the rigged body `.blend`, enter the exact name of its body mesh, choose the lower/upper proportions of that mesh's Z height, fabric gap in metres and color. No separate source model is required. Only complete faces within the height band are kept. UVs stay intact and weights are transferred to the reference skeleton. This makes a close-fitting surface shell with open edges, not a sewn garment, cloth simulation, automatic pattern generator or anatomical fitting tool. Edit thickness, seams, silhouette and intersections in the correction Blender file.
+
+Enable **Sertakan YDD native** to export a GTA V Legacy replacement for an **existing** clothing slot. Use its exact filename without `.ydd`, e.g. `mp_m_freemode_01^jbib_000_u`, or an existing collection prefix. The output contains `stream/<slot>.ydd` and a minimal `fxmanifest.lua`, plus GLB/Blender and the report. Existing collection/YMT registration and matching ped skeleton must remain installed. This does not allocate additional clothing slots or raise engine limits.
+
+The replacement embeds its diffuse images in the YDD. Imported non-native materials become a simple `ped_default.sps` shader; complex normal/specular graphs need manual conversion. The embedded look is fixed: existing external YTD texture-variant names are not automatically remapped. All four LODs preserve the geometry and weights rather than silently decimating an unreviewed mesh. Review polygon counts and optimize LODs in Blender before production use. Native export failures reject the build instead of presenting a GLB as a native resource.
+
+## v1.42: real GTA clip preview from CodeWalker XML
+
+Under **Uji clip animasi GTA**, enable the clip option, choose a `.ycd.xml` exported by CodeWalker and enter the zero-based clip index in name order. Build the ped or clothing preview. A real single-animation skeletal clip drives the result instead of the procedural walk test. Use Play/Stop and speed controls; clip metadata is included in the report. Preview sampling is limited to 4–16 frames and a 16 MB animation buffer, with duration 0.1–16 seconds. This is a review preview, not full-rate game playback. Selected animation files and exported game resources are not modified.
+
+Binary `.ycd`, animation-list blending, UV/camera animations and exporting game animation clips are not supported. Convert YCD to XML with CodeWalker first. An invalid/incompatible clip rejects the requested build; it does not silently substitute the procedural animation.
+
+## Remaining game validation
+
+Blender export/reimport checks establish readable geometry, UVs, weights and embedded data. They cannot establish FiveM rendering, server collection conflicts, clothing variation mapping, vehicle damage/collision or animation quality in game. Test the generated patch on a development server with the original resource enabled, check all LOD distances and confirm the exact drawable/texture indices before deploying. Keep the output report with those results.

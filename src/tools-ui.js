@@ -650,6 +650,8 @@ export function mountTools({
               packOptimizationReport.push({
                 path: entry.path,
                 changed: result.changed,
+                repacked: result.repacked,
+                graphicsAllocationBytes: result.allocation,
                 textureMemoryBefore: result.before,
                 textureMemoryAfter: result.after,
                 inputBytes: entry.data.length,

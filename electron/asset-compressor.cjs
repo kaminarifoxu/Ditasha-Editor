@@ -3,6 +3,44 @@ const fs = require('node:fs/promises');
 const { constants } = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
+const { inflateRawSync } = require('node:zlib');
+const pageSize = (f) =>
+  512 *
+  2 ** (f & 15) *
+  (((f >>> 27) & 1) +
+    ((f >>> 26) & 1) * 2 +
+    ((f >>> 25) & 1) * 4 +
+    ((f >>> 24) & 1) * 8 +
+    ((f >>> 17) & 127) * 16 +
+    ((f >>> 11) & 63) * 32 +
+    ((f >>> 7) & 15) * 64 +
+    ((f >>> 5) & 3) * 128 +
+    ((f >>> 4) & 1) * 256);
+async function allocationReduction(source, bytes) {
+  const handle = await fs.open(source, 'r');
+  const old = Buffer.alloc(16);
+  try {
+    await handle.read(old, 0, 16, 0);
+  } finally {
+    await handle.close();
+  }
+  const next = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  if (
+    next.length < 16 ||
+    old.toString('ascii', 0, 4) !== 'RSC7' ||
+    next.readUInt32LE(4) !== 13 ||
+    old.readUInt32LE(4) !== 13
+  )
+    return null;
+  const before = pageSize(old.readUInt32LE(12)),
+    after = pageSize(next.readUInt32LE(12));
+  const sys = pageSize(next.readUInt32LE(8));
+  if (after >= before || sys !== pageSize(old.readUInt32LE(8)) || sys + after > 768 * 1024 ** 2)
+    return null;
+  const body = inflateRawSync(next.subarray(16), { maxOutputLength: sys + after });
+  if (body.length !== sys + after) return null;
+  return { before, after };
+}
 const LIMIT_BYTES = 25 * 1024 ** 3,
   LIMIT_FILES = 50000,
   LIMIT_YTD = 256 * 1024 ** 2;
@@ -138,10 +176,13 @@ function createCompressor({ chooseFolder, revealFolder = async () => {} }) {
             !/\.ytd$/i.test(entry.path) ||
             !(bytes instanceof Uint8Array) ||
             bytes.length > LIMIT_YTD ||
-            bytes.length >= entry.inputBytes ||
             Buffer.from(bytes.subarray(0, 4)).toString() !== 'RSC7'
           )
             throw Error('Hasil optimasi YTD tidak valid');
+          const allocation = await allocationReduction(entry.source, bytes);
+          if (bytes.length >= entry.inputBytes && !allocation)
+            throw Error('Hasil tidak mengurangi ukuran file atau alokasi GPU');
+          if (allocation) entry.graphicsAllocationBytes = allocation;
         }
         const reservation = await fs.open(target, 'wx');
         created = true;
