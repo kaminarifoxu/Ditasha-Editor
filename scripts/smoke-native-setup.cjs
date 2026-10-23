@@ -68,6 +68,26 @@ app.whenReady().then(async () => {
       },
     );
     console.log(result.stdout);
+    for (const script of ['tests/ped-review-blender.py', 'tests/garment-skin-blender.py']) {
+      const check = await promisify(execFile)(
+        settings.engine,
+        [
+          '--background',
+          '--disable-autoexec',
+          '--python-exit-code',
+          '2',
+          '--python',
+          path.resolve(script),
+        ],
+        {
+          env: require('../electron/native-setup.cjs').managedEnv(settings.managedRoot),
+          timeout: 120000,
+          maxBuffer: 4 * 1024 * 1024,
+        },
+      );
+      console.log(check.stdout);
+    }
+
     console.log(
       'PASS: automatic download, checksum, isolated Blender profile, native dependencies, enabled Muto and persistent setup.',
     );

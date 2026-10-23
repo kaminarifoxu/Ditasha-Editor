@@ -1,3 +1,4 @@
+import { decodeMotion, sampleMotion } from './motion-preview.js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
@@ -8,7 +9,7 @@ export function nativeOffsetFromThree(position) {
   );
 }
 export function mountNativePreview({ container, toast, onPick, onTransform }) {
-  container.innerHTML = `<div class="viewer-button-row"><button id="nbPreviewLoad">Muat preview 3D</button><button id="nbPreviewFit">Fit</button><button id="nbPreviewPlace">Letakkan strobo</button><label class="check"><input id="nbPreviewRemoved" type="checkbox">Lihat tanpa badge</label></div><div id="nbViewport"><p class="muted">Pilih YFT dan engine, lalu muat preview. Klik badge untuk memilih; geser sumbu untuk memindahkan strobo.</p></div><p id="nbPreviewStatus" class="muted" role="status"></p>`;
+  container.innerHTML = `<div class="viewer-button-row"><button id="nbPreviewLoad">Muat preview 3D</button><button id="nbPreviewFit">Fit</button><button id="nbMotionPlay" disabled>Play walk test</button><label id="nbMotionSpeedLabel" hidden>Speed<select id="nbMotionSpeed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="1.5">1.5×</option></select></label><button id="nbPreviewPlace">Letakkan strobo</button><label class="check"><input id="nbPreviewRemoved" type="checkbox">Lihat tanpa badge</label></div><div id="nbViewport"><p class="muted">Pilih YFT dan engine, lalu muat preview. Klik badge untuk memilih; geser sumbu untuk memindahkan strobo.</p></div><p id="nbPreviewStatus" class="muted" role="status"></p>`;
   const $ = (id) => container.querySelector('#' + id),
     viewport = $('nbViewport');
   let renderer,
@@ -19,7 +20,12 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
     selected = new Set(),
     placing = false,
     serial = 0,
-    sourcePreview = false;
+    sourcePreview = false,
+    motion = null,
+    motionFrame = null,
+    motionStart = 0,
+    motionBuffer = null,
+    motionRest = [];
   const scene = new THREE.Scene(),
     camera = new THREE.PerspectiveCamera(40, 1, 0.01, 1000);
   const base = new THREE.Group(),
@@ -47,9 +53,13 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
     gizmo.addEventListener('dragging-changed', (e) => (controls.enabled = !e.value));
     gizmo.addEventListener('objectChange', () => {
       const offset = nativeOffsetFromThree(
-        donor.position.clone().sub(donorAnchor.clone().multiplyScalar(donor.scale.x)),
+        donor.position
+          .clone()
+          .sub(donorAnchor.clone().applyQuaternion(donor.quaternion).multiplyScalar(donor.scale.x)),
       );
-      setTransform(offset, donor.scale.x);
+      donor.position
+        .copy(donorAnchor.clone().applyQuaternion(donor.quaternion).multiplyScalar(donor.scale.x))
+        .add(new THREE.Vector3(offset[0], offset[2], -offset[1]));
       onTransform(offset);
       render();
     });
@@ -77,10 +87,15 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
       );
       const hit = ray.intersectObjects(base.children).find((h) => h.object.visible);
       if (!hit) return;
-      if (mode === 'strobo' && placing && donor.children.length) {
-        const anchor = donorAnchor.clone().multiplyScalar(donor.scale.x);
+      if (['strobo', 'parts'].includes(mode) && placing && donor.children.length) {
+        const anchor = donorAnchor
+          .clone()
+          .applyQuaternion(donor.quaternion)
+          .multiplyScalar(donor.scale.x);
         const offset = nativeOffsetFromThree(hit.point.clone().sub(anchor));
-        setTransform(offset, donor.scale.x);
+        donor.position
+          .copy(donorAnchor.clone().applyQuaternion(donor.quaternion).multiplyScalar(donor.scale.x))
+          .add(new THREE.Vector3(offset[0], offset[2], -offset[1]));
         onTransform(offset);
         placing = false;
         showMode();
@@ -98,6 +113,12 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
     });
   }
   function clear() {
+    stopMotion();
+    motion = null;
+    motionBuffer = null;
+    motionRest = [];
+    $('nbMotionPlay').disabled = true;
+    $('nbMotionSpeedLabel').hidden = true;
     serial++;
     for (const root of [base, donor]) {
       for (const m of [...root.children]) {
@@ -132,13 +153,13 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
     render();
   }
   function showMode() {
-    donor.visible = mode === 'strobo';
-    $('nbPreviewPlace').hidden = mode !== 'strobo';
+    donor.visible = ['strobo', 'parts'].includes(mode);
+    $('nbPreviewPlace').hidden = !['strobo', 'parts'].includes(mode);
     $('nbPreviewPlace').classList.toggle('active', placing);
     $('nbPreviewRemoved').closest('label').hidden = mode !== 'debadge';
     if (gizmo) {
       gizmo.detach();
-      if (mode === 'strobo' && donor.children.length) gizmo.attach(donor);
+      if (['strobo', 'parts'].includes(mode) && donor.children.length) gizmo.attach(donor);
     }
     updateSelection(selected);
     render();
@@ -151,16 +172,48 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
       mesh.material.emissive.set(active ? 0xc73249 : 0);
       mesh.material.emissiveIntensity = active ? 0.6 : 0;
     }
+    for (const mesh of donor.children) {
+      mesh.visible = mode !== 'parts' || selected.has(mesh.name);
+      mesh.material.emissive.set(mode === 'parts' && selected.has(mesh.name) ? 0x334477 : 0);
+    }
+    if (mode === 'parts') {
+      const box = new THREE.Box3();
+      for (const mesh of donor.children.filter((mesh) => mesh.visible)) {
+        mesh.geometry.computeBoundingBox();
+        box.union(mesh.geometry.boundingBox);
+      }
+      if (!box.isEmpty()) {
+        const shift = box.getCenter(new THREE.Vector3());
+        for (const mesh of donor.children) mesh.geometry.translate(-shift.x, -shift.y, -shift.z);
+        donorAnchor.add(shift);
+        donor.position.addScaledVector(shift.applyQuaternion(donor.quaternion), donor.scale.x);
+      }
+    }
     render();
   }
-  function setTransform(offset, scale) {
-    donor.position.set(offset[0], offset[2], -offset[1]).addScaledVector(donorAnchor, scale);
+  function setTransform(offset, scale, rotation = [0, 0, 0]) {
+    if (
+      !offset.every((v) => Number.isFinite(v) && Math.abs(v) <= 20) ||
+      !rotation.every((v) => Number.isFinite(v) && Math.abs(v) <= 360) ||
+      !Number.isFinite(scale) ||
+      scale < 0.1 ||
+      scale > 5
+    )
+      return;
+    const basis = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
+    const native = new THREE.Quaternion().setFromEuler(
+      new THREE.Euler(...rotation.map(THREE.MathUtils.degToRad), 'XYZ'),
+    );
+    donor.quaternion.copy(basis).multiply(native).multiply(basis.clone().invert());
+    donor.position
+      .set(offset[0], offset[2], -offset[1])
+      .addScaledVector(donorAnchor.clone().applyQuaternion(donor.quaternion), scale);
     donor.scale.setScalar(scale);
     render();
   }
   async function load(data, { preserveCamera = false } = {}) {
     clear();
-    sourcePreview = data?.source === true;
+    sourcePreview = data?.source === true && !data?.pose;
     const revision = serial;
     if (
       data?.version !== 1 ||
@@ -250,6 +303,14 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
         mesh.geometry.translate(-donorAnchor.x, -donorAnchor.y, -donorAnchor.z),
       );
     }
+    motion = decodeMotion(
+      data.motion,
+      base.children.reduce((n, mesh) => n + mesh.geometry.attributes.position.array.length, 0),
+    );
+    motionBuffer = motion ? new Float32Array(motion.frames[0].length) : null;
+    motionRest = base.children.map((mesh) => mesh.geometry.attributes.position.array.slice());
+    $('nbMotionPlay').disabled = !motion;
+    $('nbMotionSpeedLabel').hidden = !motion;
     setTransform([0, 0, 0], 1);
     showMode();
     if (!preserveCamera) fit();
@@ -261,6 +322,46 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
           ? ' triangles · pose uji weights hasil Blender.'
           : ' triangles · merah = badge dipilih · sumbu = posisi donor.');
   }
+  function stopMotion() {
+    if (motionFrame !== null) cancelAnimationFrame(motionFrame);
+    motionFrame = null;
+    $('nbMotionPlay').textContent = 'Play walk test';
+    base.children.forEach((mesh, i) => {
+      if (!motionRest[i]) return;
+      mesh.geometry.attributes.position.array.set(motionRest[i]);
+      mesh.geometry.attributes.position.needsUpdate = true;
+      mesh.geometry.computeVertexNormals();
+    });
+    render();
+  }
+  function animateMotion(now) {
+    if (!motion || !viewport.getClientRects().length || document.hidden) return stopMotion();
+    sampleMotion(
+      motion,
+      ((now - motionStart) / 1000) * Number($('nbMotionSpeed').value),
+      motionBuffer,
+    );
+    let offset = 0;
+    for (const mesh of base.children) {
+      const attribute = mesh.geometry.attributes.position;
+      attribute.array.set(motionBuffer.subarray(offset, offset + attribute.array.length));
+      offset += attribute.array.length;
+      attribute.needsUpdate = true;
+      mesh.geometry.computeVertexNormals();
+      mesh.geometry.computeBoundingSphere();
+    }
+    render();
+    motionFrame = requestAnimationFrame(animateMotion);
+  }
+  $('nbMotionPlay').onclick = () => {
+    if (motionFrame !== null) return stopMotion();
+    if (!motion) return;
+    motionStart = performance.now();
+    $('nbMotionPlay').textContent = 'Stop walk test';
+    motionFrame = requestAnimationFrame(animateMotion);
+    $('nbPreviewStatus').textContent =
+      'Procedural walk test · periksa deformasi weights; tidak mengubah animasi/file native.';
+  };
   $('nbPreviewFit').onclick = fit;
   $('nbPreviewPlace').onclick = () => {
     if (!donor.children.length) return toast('Muat preview YFT target dan donor dahulu.');

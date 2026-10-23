@@ -9,6 +9,7 @@ const PED_POSES = { rest: 'preview.json', arms: 'preview-arms.json', legs: 'prev
 const PICK_TYPES = {
   engine: { name: 'Blender', extensions: process.platform === 'win32' ? ['exe'] : ['*'] },
   ped: { name: 'Humanoid model', extensions: ['glb', 'fbx', 'obj'] },
+  reference: { name: 'Rigged body template', extensions: ['blend'] },
   vehicle: { name: 'Vehicle YFT', extensions: ['yft', 'xml'] },
   donor: { name: 'Siren donor YFT', extensions: ['yft', 'xml'] },
   carcols: { name: 'Donor carcols.meta', extensions: ['meta'] },
@@ -26,6 +27,9 @@ function validateJob(payload) {
       'debadge',
       'strobo',
       'strobo_preview',
+      'parts',
+      'parts_preview',
+      'garment',
     ].includes(payload.mode)
   )
     throw Error('Mode build tidak valid.');
@@ -81,7 +85,25 @@ function validateJob(payload) {
   const donorSirenId = payload.donorSirenId ?? 0;
   if (!Number.isInteger(donorSirenId) || donorSirenId < 0 || donorSirenId > 65534)
     throw Error('ID donor 0 (otomatis tunggal) atau 1–65534.');
+  const maxDistance = payload.maxDistance ?? 0.25;
+  if (!Number.isFinite(maxDistance) || maxDistance < 0.005 || maxDistance > 1)
+    throw Error('Batas jarak transfer 0,005–1 meter.');
+  const rotation = payload.rotation ?? [0, 0, 0];
+  if (
+    !Array.isArray(rotation) ||
+    rotation.length !== 3 ||
+    rotation.some((n) => !Number.isFinite(n) || Math.abs(n) > 360)
+  )
+    throw Error('Rotasi part di luar batas ±360 derajat.');
+  const targetBone = payload.targetBone ?? 'chassis';
+  if (typeof targetBone !== 'string' || !/^[a-zA-Z0-9_. -]{1,64}$/.test(targetBone))
+    throw Error('Nama bone target tidak valid.');
+  if (payload.mode === 'parts' && (!selected.length || new Set(selected).size !== selected.length))
+    throw Error('Pilih part donor sebelum build.');
   return {
+    maxDistance,
+    rotation,
+    targetBone,
     mode: payload.mode,
     name: payload.name,
     selected,
@@ -159,7 +181,8 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
   ipcMain.handle('ditasha:native-pick', async (event, kind) => {
     trusted(event);
     if (running) throw Error('Tunggu setup/build selesai.');
-    if (kind === 'ped' && stagedPed) throw Error('Simpan atau buang hasil rig sebelumnya dahulu.');
+    if (['ped', 'reference'].includes(kind) && stagedPed)
+      throw Error('Simpan atau buang hasil rig sebelumnya dahulu.');
     if (kind === 'output') {
       const r = await dialog.showOpenDialog(win, {
         title: 'Folder hasil build baru',
@@ -349,7 +372,7 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
     if (running || !stagedPed || stagedPed.id !== id || !preview)
       throw Error('Buat preview rig dahulu.');
     const choice = await dialog.showOpenDialog(win, {
-      title: 'Simpan hasil ped',
+      title: 'Simpan hasil rig / clothing',
       properties: ['openDirectory', 'createDirectory'],
     });
     if (choice.canceled || !choice.filePaths[0]) return false;
@@ -357,7 +380,12 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
     running = true;
     let destination;
     try {
-      destination = await fs.mkdtemp(path.join(choice.filePaths[0], 'ditasha-ped-'));
+      destination = await fs.mkdtemp(
+        path.join(
+          choice.filePaths[0],
+          pending.kind === 'garment' ? 'ditasha-clothing-' : 'ditasha-ped-',
+        ),
+      );
       for (const entry of await fs.readdir(pending.output))
         await fs.cp(path.join(pending.output, entry), path.join(destination, entry), {
           recursive: true,
@@ -368,7 +396,10 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
       if (reviewFile) reviewFile.path = path.join(destination, 'ditasha-result.blend');
       state.output = destination;
       delete state.stagedId;
-      state.message = 'Resource ped disimpan. Uji spawn dan animasi pada server FiveM.';
+      state.message =
+        pending.kind === 'garment'
+          ? 'Clothing GLB dan Blender disimpan; ekspor native lanjutan masih diperlukan.'
+          : 'Resource ped disimpan. Uji spawn dan animasi pada server FiveM.';
       stagedPed = null;
       await fs.rm(pending.root, { recursive: true, force: true }).catch(() => {});
       return true;
@@ -426,9 +457,11 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
           throw Error('Input berubah. Pilih ulang file ' + kind + '.');
         return v.path;
       };
-    if (['ped', 'ped_preview'].includes(job.mode)) job.source = await get('ped');
+    if (['ped', 'ped_preview', 'garment'].includes(job.mode)) job.source = await get('ped');
     else if (job.mode !== 'probe') job.source = await get('vehicle');
-    if (job.mode === 'strobo_preview') job.donor = await get('donor');
+    if (job.mode === 'garment') job.reference = await get('reference');
+    if (['strobo_preview', 'parts_preview', 'parts'].includes(job.mode))
+      job.donor = await get('donor');
     if (job.mode === 'strobo')
       for (const kind of ['donor', 'carcols', 'variations', 'vehicles'])
         job[kind] = await get(kind);
@@ -436,9 +469,15 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
       await fs.rm(sourcePreviewRoot, { recursive: true, force: true }).catch(() => {});
       sourcePreviewRoot = null;
     }
-    const base = ['probe', 'ped', 'ped_preview', 'debadge_analyze', 'strobo_preview'].includes(
-      job.mode,
-    )
+    const base = [
+      'probe',
+      'ped',
+      'ped_preview',
+      'debadge_analyze',
+      'strobo_preview',
+      'parts_preview',
+      'garment',
+    ].includes(job.mode)
       ? os.tmpdir()
       : await get('output');
     const root = await fs.mkdtemp(path.join(base, 'ditasha-build-'));
@@ -452,6 +491,7 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
       path.join(root, 'ped_review.py'),
       await fs.readFile(path.join(__dirname, 'ped_review.py')),
     );
+    await fs.copyFile(path.join(__dirname, 'garment_skin.py'), path.join(root, 'garment_skin.py'));
     await fs.writeFile(spec, JSON.stringify(job));
     preview = null;
     reviewFile = null;
@@ -460,7 +500,7 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
       message: 'Menjalankan Blender…',
       log: '',
       report: null,
-      output: ['probe', 'ped', 'ped_preview'].includes(job.mode) ? null : root,
+      output: ['probe', 'ped', 'ped_preview', 'garment'].includes(job.mode) ? null : root,
       cancelled: false,
     };
     running = true;
@@ -505,7 +545,7 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
         const rep = JSON.parse(await fs.readFile(reportFile, 'utf8'));
         state.report = rep;
         reviewFile = null;
-        if (job.mode === 'ped') {
+        if (['ped', 'garment'].includes(job.mode)) {
           const project = path.join(job.output, 'ditasha-result.blend');
           const projectStat = await fs.stat(project).catch(() => null);
           if (projectStat?.isFile() && projectStat.size <= 1024 * 1024 * 1024) {
@@ -520,18 +560,17 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
           preview = {
             id: randomUUID(),
             path: previewPath,
-            poses:
-              job.mode === 'ped'
-                ? (rep.preview.poses || [])
-                    .map((p) => p.id)
-                    .filter((p) => Object.hasOwn(PED_POSES, p))
-                : [],
+            poses: ['ped', 'garment'].includes(job.mode)
+              ? (rep.preview.poses || [])
+                  .map((p) => p.id)
+                  .filter((p) => Object.hasOwn(PED_POSES, p))
+              : [],
           };
           state.previewId = preview.id;
         }
-        if (job.mode === 'ped' && rep.ok && !error && !state.cancelled) {
+        if (['ped', 'garment'].includes(job.mode) && rep.ok && !error && !state.cancelled) {
           if (!state.previewId) throw Error('Engine tidak menghasilkan preview ped.');
-          stagedPed = { id: randomUUID(), root, output: job.output };
+          stagedPed = { id: randomUUID(), root, output: job.output, kind: job.mode };
           state.stagedId = stagedPed.id;
         }
         state.status = rep.ok && !error && !state.cancelled ? 'success' : 'error';
@@ -541,7 +580,7 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
             error ||
             (job.mode === 'ped_preview'
               ? 'Model sumber siap diperiksa. Belum ada proses rig atau ekspor game.'
-              : job.mode === 'ped'
+              : ['ped', 'garment'].includes(job.mode)
                 ? 'Preview rig siap. Periksa model 3D, lalu Simpan hasil ped.'
                 : 'Proses selesai. Periksa report dan hasil sebelum dipakai di game.');
       } catch {

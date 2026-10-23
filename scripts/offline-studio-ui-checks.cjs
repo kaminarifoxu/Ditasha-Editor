@@ -389,6 +389,23 @@ module.exports = async function checkOfflineStudio(fixtures) {
   window.ditashaNative.preview = async (id, pose = 'rest') => {
     assert(id === 'ped-result-preview', 'Pose did not use the current preview token');
     const data = await basePreview();
+    if (pose === 'rest') {
+      const values = data.meshes.flatMap((mesh) => mesh.positions);
+      const encode = (offset) => {
+        const bytes = new Uint8Array(values.length * 4),
+          view = new DataView(bytes.buffer);
+        values.forEach((value, i) =>
+          view.setFloat32(i * 4, value + (i % 3 === 0 ? offset : 0), true),
+        );
+        return btoa(String.fromCharCode(...bytes));
+      };
+      data.motion = {
+        version: 1,
+        floatCount: values.length,
+        fps: 4,
+        frames: [encode(0), encode(0.4), encode(0), encode(-0.4)],
+      };
+    }
     if (pose === 'arms') {
       armRequested = true;
       await new Promise((resolve) => {
@@ -487,6 +504,16 @@ module.exports = async function checkOfflineStudio(fixtures) {
     document.querySelector('.rig-quality') && $('nbPedPose').options.length === 3,
     'Rig quality report or test poses missing',
   );
+  assert(!$('nbMotionPlay').disabled, 'Walk test controls are missing');
+  await sleep(100);
+  const motionCanvas = $('nbViewport').querySelector('canvas');
+  const beforeMotion = motionCanvas.toDataURL();
+  $('nbMotionPlay').click();
+  await sleep(250);
+  assert(motionCanvas.toDataURL() !== beforeMotion, 'Walk test did not animate rendered geometry');
+  $('nbMotionPlay').click();
+  await sleep(100);
+  assert($('nbMotionPlay').textContent.includes('Play'), 'Walk test did not stop');
   $('nbPedPose').value = 'arms';
   $('nbPedPose').dispatchEvent(new Event('change'));
   await wait(
@@ -525,6 +552,134 @@ module.exports = async function checkOfflineStudio(fixtures) {
     !window.ditashaWorkspace.unsavedItems().some((v) => v.name.includes('Hasil rig')),
     'Saved rig remains dirty',
   );
+  $('nbClose').click();
+  const newCalls = [];
+  window.ditashaNative.preview = async () => ({
+    version: 1,
+    basis: 'gta-z-up',
+    textures: [],
+    meshes: [
+      {
+        name: 'body',
+        kind: 'base',
+        positions: [-1, 0, 0, 1, 0, 0, 0, 0, 2],
+        uvs: [0, 0, 1, 0, 0.5, 1],
+      },
+      ...(nativeState.report.mode === 'parts_preview'
+        ? [
+            {
+              name: 'spoiler',
+              kind: 'donor',
+              positions: [-0.5, 0, 2, 0.5, 0, 2, 0, 1, 2],
+              uvs: [0, 0, 1, 0, 0.5, 1],
+            },
+          ]
+        : []),
+    ],
+  });
+  window.ditashaNative.start = async (payload) => {
+    newCalls.push(payload);
+    nativeState = {
+      running: false,
+      status: 'success',
+      output: 'new-output',
+      previewId: payload.mode === 'parts_preview' ? 'parts-preview' : null,
+      report: {
+        ok: true,
+        mode: payload.mode,
+        candidates: [
+          { name: 'spoiler', faces: 1, eligible: true },
+          { name: 'door', faces: 1, eligible: false, reason: 'moving bone' },
+        ],
+        targetBones: ['chassis'],
+      },
+    };
+    return nativeState;
+  };
+  document.querySelector('[data-page="vehicles"]').click();
+  $('vehicleParts').click();
+  assert(
+    $('nbMode').value === 'parts' && !$('nbParts').hidden,
+    'Native parts workspace did not open inline',
+  );
+  $('nbPartsDonor').click();
+  await sleep(50);
+  $('nbPartsAnalyze').click();
+  await wait(
+    () => $('nbPartCandidates').querySelectorAll('input').length === 2 && !$('nbRun').disabled,
+    'Donor part analysis did not populate',
+  );
+  const candidates = $('nbPartCandidates').querySelectorAll('input');
+  assert(candidates[1].disabled, 'Unsafe donor part should be disabled');
+  candidates[0].checked = true;
+  candidates[0].dispatchEvent(new Event('change', { bubbles: true }));
+  $('nbRotZ').value = 35;
+  $('nbRotZ').dispatchEvent(new Event('input'));
+  $('nbZ').value = 0.5;
+  $('nbZ').dispatchEvent(new Event('input'));
+  $('nbRun').click();
+  await wait(
+    () => newCalls.some((c) => c.mode === 'parts') && !$('nbRun').disabled,
+    'Native part build did not start',
+  );
+  const partJob = newCalls.find((c) => c.mode === 'parts');
+  assert(
+    partJob.selected.join(',') === 'spoiler' &&
+      partJob.rotation[2] === 35 &&
+      partJob.offset[2] === 0.5 &&
+      partJob.targetBone === 'chassis',
+    'Part selection/transform was lost before native build',
+  );
+  console.log('DITASHA_SNAPSHOT:native-rigid-parts');
+  $('nbClose').click();
+  $('openNativeBuild').click();
+  $('nbWorkflowGarment').click();
+  assert(
+    $('nbMode').value === 'garment' && !$('nbGarment').hidden && $('nbVehicle').hidden,
+    'Clothing skin workflow did not open',
+  );
+  $('nativeBuildDialog').querySelector('[data-pick="reference"]').click();
+  await sleep(50);
+  $('nativeBuildDialog').querySelector('[data-pick="ped"]').click();
+  await sleep(50);
+  $('nbMaxDistance').value = 0.1;
+  window.ditashaNative.start = async (payload) => {
+    assert(
+      payload.mode === 'garment' && payload.maxDistance === 0.1 && payload.inputs.reference,
+      'Clothing job lost template or distance',
+    );
+    nativeState = {
+      running: false,
+      status: 'success',
+      stagedId: 'garment-staged',
+      previewId: 'garment-preview',
+      report: {
+        ok: true,
+        mode: 'garment',
+        transferQuality: { meshes: 1, vertices: 3, influences: 4, maxDistanceMeters: 0.02 },
+        preview: { poses: [{ id: 'rest', label: 'Rest' }] },
+      },
+    };
+    return nativeState;
+  };
+  window.ditashaNative.save = async (id) => {
+    assert(id === 'garment-staged', 'Wrong clothing stage');
+    nativeState = { ...nativeState, stagedId: null, output: 'clothing-output' };
+    return true;
+  };
+  $('nbRun').click();
+  await wait(() => !$('nbSave').disabled, 'Clothing preview did not enable staged save');
+  assert(
+    $('nbSave').textContent.includes('clothing') &&
+      $('nbReport').textContent.includes('belum native YDD'),
+    'Clothing export format was misrepresented',
+  );
+  $('nbSave').click();
+  await wait(
+    () => !$('nbReveal').disabled && $('nbSave').disabled,
+    'Clothing save did not complete',
+  );
+  console.log('DITASHA_SNAPSHOT:garment-weight-transfer');
   $('nbClose').click();
   return {
     saves: saves.map((s) => ({ name: s.name, size: s.data.length })),

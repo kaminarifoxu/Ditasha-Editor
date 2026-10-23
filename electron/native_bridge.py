@@ -250,6 +250,107 @@ def transfer_sirens(bpy, target, donor, job):
     return {'parts': len(candidates), 'bones': sorted(names)}
 
 
+def rigid_part_candidates(donor):
+    """Only native rigid drawable meshes are eligible; never silently re-rig moving parts."""
+    result = []
+    for obj in donor.children_recursive:
+        if obj.type != 'MESH' or getattr(obj, 'sollum_type', '') != 'sollumz_drawable_model' or 'damaged' in obj.name.lower():
+            continue
+        reason = None
+        if obj.vertex_groups or any(mod.show_viewport or mod.show_render for mod in obj.modifiers):
+            reason = 'Skinned mesh/modifier; gunakan part rigid yang sudah di-apply.'
+        links = [c for c in obj.constraints if getattr(c, 'target', None) == donor and getattr(c, 'subtarget', '')]
+        if any(re.match(r'(siren|wheel|door|bonnet|boot|suspension|steer)', c.subtarget, re.I) for c in links):
+            reason = 'Part memakai bone bergerak/siren; gunakan workflow khusus.'
+        faces = 0
+        for mesh in mesh_levels(obj):
+            faces += len(mesh.polygons)
+            if not mesh.uv_layers:
+                reason = 'UV tidak tersedia.'
+            if not mesh.materials:
+                reason = 'Material native tidak tersedia.'
+            for material in mesh.materials:
+                if not material or getattr(material, 'sollum_type', '') != 'sollumz_shader':
+                    reason = 'Material bukan shader native Sollumz.'
+                    continue
+                for node in material.node_tree.nodes if material.node_tree else []:
+                    if node.type == 'TEX_IMAGE' and node.image and (not node.image.has_data or not node.texture_properties.embedded):
+                        reason = 'Embed seluruh gambar material donor terlebih dahulu.'
+        if faces:
+            result.append({'name': obj.name, 'faces': faces, 'eligible': reason is None, 'reason': reason})
+    return result
+
+
+def part_images(root):
+    result = {}
+    for obj in root.children_recursive:
+        if obj.type != 'MESH':
+            continue
+        for mesh in mesh_levels(obj):
+            for material in mesh.materials:
+                for node in material.node_tree.nodes if material and material.node_tree else []:
+                    if node.type == 'TEX_IMAGE' and node.image:
+                        name = re.sub(r'\.\d{3}$', '', node.image.name).lower()
+                        name = re.sub(r'\.(dds|png|jpe?g|webp)$', '', name)
+                        result.setdefault(name, set()).add(node.image.as_pointer())
+    return result
+
+
+def transfer_rigid_parts(bpy, target, donor, job):
+    from mathutils import Matrix, Vector
+    valid = {entry['name']: entry for entry in rigid_part_candidates(donor)}
+    selected = job.get('selected', [])
+    if not selected or len(set(selected)) != len(selected) or any(name not in valid or not valid[name]['eligible'] for name in selected):
+        raise ValueError('Pilih part rigid yang eligible dari analisis donor terbaru.')
+    bone = job.get('targetBone', 'chassis')
+    if bone not in target.data.bones:
+        raise ValueError('Bone target tidak ditemukan: ' + bone)
+    if (target.data.bones[bone].parent is not None and bone.lower() != 'chassis') or re.match(r'(siren|wheel|door|bonnet|boot|suspension|steer)', bone, re.I):
+        raise ValueError('Transfer ini hanya mendukung attachment statis pada chassis/root.')
+    draw = next((o for o in target.children if getattr(o, 'sollum_type', '') == 'sollumz_drawable' and 'damaged' not in o.name.lower()), None)
+    if draw is None:
+        raise ValueError('Drawable target tidak tersedia.')
+    objects = {obj.name: obj for obj in donor.children_recursive}
+    target_images = part_images(target)
+    source_images = part_images(type('Root', (), {'children_recursive': [objects[name] for name in selected]})())
+    if any(name in target_images and pointers != target_images[name] for name, pointers in source_images.items()):
+        raise ValueError('Nama tekstur donor berbenturan dengan target. Rename gambar donor dan embed ulang di Blender.')
+    angles = [math.radians(v) for v in job.get('rotation', [0, 0, 0])]
+    rotation = Matrix.Rotation(angles[0], 4, 'X') @ Matrix.Rotation(angles[1], 4, 'Y') @ Matrix.Rotation(angles[2], 4, 'Z')
+    transform = Matrix.Translation(Vector(job['offset'])) @ rotation @ Matrix.Scale(job['scale'], 4)
+    helper = importlib.import_module(engine_info(bpy)['sollumz'] + '.tools.blenderhelper')
+    bpy.context.view_layer.update()
+    clones = []
+    try:
+        for name in selected:
+            source = objects[name]
+            world = transform @ source.matrix_world
+            clone = source.copy()
+            clone.name = 'ditasha_mod_' + source.name
+            bpy.context.collection.objects.link(clone)
+            clones.append(clone)
+            clone.parent = draw
+            clone.parent_type = 'OBJECT'
+            clone.matrix_parent_inverse = Matrix.Identity(4)
+            clone.matrix_basis = Matrix.Identity(4)
+            clone.constraints.clear()
+            helper.add_child_of_bone_constraint(clone, target, bone)
+            detach_mesh_levels(clone)
+            bpy.context.view_layer.update()
+            local = clone.matrix_world.inverted() @ world
+            for mesh in mesh_levels(clone):
+                mesh.transform(local)
+                mesh.update()
+                mesh.use_fake_user = True
+        bpy.context.view_layer.update()
+    except Exception:
+        for clone in clones:
+            bpy.data.objects.remove(clone, do_unlink=True)
+        raise
+    return {'parts': len(clones), 'names': [clone.name for clone in clones], 'bone': bone,
+            'warnings': ['Attachment statis; collision/damage, modkit dan animasi part tidak ditambahkan.']}
+
+
 def source_image_node(material):
     if not material or not material.node_tree:
         return None
@@ -279,7 +380,7 @@ def source_color(material):
     return [max(0, min(1, v)) if math.isfinite(v) else .7 for v in values]
 
 
-def preview_scene(bpy, fragment, output, donor=None, filename='preview.json', evaluated=False, texture_cache=None, source=False):
+def preview_scene(bpy, fragment, output, donor=None, filename='preview.json', evaluated=False, texture_cache=None, source=False, donor_parts=None):
     """Bounded world-space geometry from the exact imported native objects/LOD materials."""
     import base64
     from array import array
@@ -290,7 +391,7 @@ def preview_scene(bpy, fragment, output, donor=None, filename='preview.json', ev
     def texture(material):
         if not material or not material.node_tree:
             return None
-        node = source_image_node(material) if source else next((material.node_tree.nodes.get(n) for n in ('DiffuseSampler', 'TextureSampler', 'DiffuseSampler2') if material.node_tree.nodes.get(n)), None)
+        node = (source_image_node(material) if source else None) or next((material.node_tree.nodes.get(n) for n in ('DiffuseSampler', 'TextureSampler', 'DiffuseSampler2') if material.node_tree.nodes.get(n)), None)
         image = getattr(node, 'image', None)
         if not image or not image.has_data:
             return None
@@ -349,7 +450,7 @@ def preview_scene(bpy, fragment, output, donor=None, filename='preview.json', ev
             item = groups[key]
             uv_layer = mesh.uv_layers.active
             if material and material.node_tree:
-                image_node = source_image_node(material) if source else next((material.node_tree.nodes.get(n) for n in ('DiffuseSampler', 'TextureSampler', 'DiffuseSampler2') if material.node_tree.nodes.get(n)), None)
+                image_node = (source_image_node(material) if source else None) or next((material.node_tree.nodes.get(n) for n in ('DiffuseSampler', 'TextureSampler', 'DiffuseSampler2') if material.node_tree.nodes.get(n)), None)
                 vector = image_node.inputs.get('Vector') if image_node else None
                 if vector and vector.links:
                     uv_node = vector.links[0].from_node
@@ -394,7 +495,7 @@ def preview_scene(bpy, fragment, output, donor=None, filename='preview.json', ev
         if obj.type == 'MESH' and (source or (getattr(obj, 'sollum_type', '') == 'sollumz_drawable_model' and 'damaged' not in obj.name.lower())):
             append(obj, 'base')
     if donor:
-        parts, _ = siren_parts(donor)
+        parts = donor_parts if donor_parts is not None else siren_parts(donor)[0]
         for obj in parts:
             append(obj, 'donor')
     if not result['meshes']:
@@ -442,6 +543,13 @@ def run(job):
             report['preview'] = preview_scene(bpy, SimpleNamespace(children_recursive=objects), output, evaluated=True, source=True)
             report['ok'] = True
             return report
+        if job['mode'] == 'garment':
+            import ped_review as review
+            import garment_skin
+            result = garment_skin.run(bpy, job, output, review, preview_scene)
+            report.update(result)
+            report['ok'] = True
+            return report
         if not report['engine']['sollumz'] or not report['engine']['native']:
             raise RuntimeError('Aktifkan Sollumz 2.9 dengan szio/PyMateria native di Blender terlebih dahulu (Windows).')
         for obj in list(bpy.data.objects):
@@ -479,18 +587,34 @@ def run(job):
             rigged = [obj for obj in bpy.data.objects if obj.type == 'MESH' and getattr(obj, 'sollum_type', '') == 'sollumz_drawable_model']
             report['quality'] = review.audit_rig(rigged, mesh_levels)
             report['preview'] = review.create_pose_previews(bpy, rigged, output, preview_scene)
+            try:
+                report['preview']['motion'] = review.add_walk_preview(bpy, rigged, output, preview_scene)
+            except Exception as exc:
+                report['preview']['warnings'].append('Walk preview: ' + str(exc))
             report['warnings'] = report.get('warnings', []) + result.get('warnings', []) + report['quality']['warnings'] + report['preview']['warnings']
         else:
             fragment = import_vehicle(bpy, job['source'])
             report['candidates'] = badge_candidates(fragment)
-            if job['mode'] in ('debadge_analyze', 'strobo_preview'):
-                donor = import_vehicle(bpy, job['donor']) if job['mode'] == 'strobo_preview' else None
-                report['preview'] = preview_scene(bpy, fragment, output, donor)
+            if job['mode'] in ('debadge_analyze', 'strobo_preview', 'parts_preview'):
+                donor = import_vehicle(bpy, job['donor']) if job['mode'] in ('strobo_preview', 'parts_preview') else None
+                parts = None
+                if job['mode'] == 'parts_preview':
+                    report['candidates'] = rigid_part_candidates(donor)
+                    eligible = {e['name'] for e in report['candidates'] if e['eligible']}
+                    parts = [o for o in donor.children_recursive if o.name in eligible]
+                    report['targetBones'] = [b.name for b in fragment.data.bones if b.parent is None or b.name.lower() == 'chassis']
+                report['preview'] = preview_scene(bpy, fragment, output, donor, donor_parts=parts)
                 report['ok'] = True
                 return report
             if job['mode'] == 'debadge':
                 report['removed_faces'] = debadge(fragment, job['selected'])
                 report['files'] = export_vehicle(bpy, fragment, output)
+            elif job['mode'] == 'parts':
+                donor = import_vehicle(bpy, job['donor'])
+                report['transfer'] = transfer_rigid_parts(bpy, fragment, donor, job)
+                report['files'] = export_vehicle(bpy, fragment, output)
+                (output / 'fxmanifest.lua').write_text("fx_version 'cerulean'\ngame 'gta5'\nauthor 'Ditasha-Workshop'\n", encoding='utf-8')
+                report['warnings'] = report['transfer']['warnings'] + ['Patch YFT: resource kendaraan asli/YTD harus tetap dimuat lebih dahulu. Uji semua LOD di FiveM.']
             else:
                 donor = import_vehicle(bpy, job['donor'])
                 report['transfer'] = transfer_sirens(bpy, fragment, donor, job)

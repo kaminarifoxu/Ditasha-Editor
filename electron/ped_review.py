@@ -248,3 +248,74 @@ def create_pose_previews(bpy, objects, output, preview_scene):
             raise ValueError('Preview pose melebihi 48 MB.')
         file.write_text(text, encoding='utf-8')
     return {**summary, 'poses': available, 'warnings': warnings}
+
+
+def add_walk_preview(bpy, objects, output, preview_scene):
+    """Evaluate a procedural skeleton walk test; keep exported rig and actions untouched."""
+    import base64
+    import sys
+    from array import array
+    from mathutils import Euler
+    from types import SimpleNamespace
+    rest_file = Path(output) / 'preview.json'
+    data = json.loads(rest_file.read_text(encoding='utf-8'))
+    count = sum(len(mesh['positions']) for mesh in data['meshes'])
+    frames_count = min(16, (16 * 1024 * 1024) // max(count * 4, 1))
+    if frames_count < 4:
+        raise ValueError('Walk preview memerlukan model lebih ringan (buffer animasi maksimal 16 MB).')
+    arms = {a.name: a for obj in objects if (a := armature_for(obj)) is not None}
+    if not arms:
+        raise ValueError('Armature tidak tersedia untuk walk test.')
+    if any(a.animation_data and (a.animation_data.action or len(a.animation_data.nla_tracks)) for a in arms.values()):
+        raise ValueError('Rig memiliki animasi aktif; walk test tidak menimpa action sumber.')
+    saved = [(bone, bone.matrix_basis.copy()) for arm in arms.values() for bone in arm.pose.bones]
+    pose_positions = [(a.data, a.data.pose_position) for a in arms.values()]
+    frames = []
+    temp = Path(output) / 'preview-motion-tmp.json'
+    cache = {'ids': {}, 'textures': []}
+    try:
+        for frame in range(frames_count):
+            for bone, matrix in saved:
+                bone.matrix_basis = matrix
+            changed = 0
+            phase = frame / frames_count * math.tau
+            rotations = {}
+            for side, shift in [('L', 0), ('R', math.pi)]:
+                swing = math.sin(phase + shift)
+                rotations['SKEL_' + side + '_Thigh'] = (.42 * swing, 0, 0)
+                rotations['SKEL_' + side + '_Calf'] = (.65 * max(0, -swing), 0, 0)
+                rotations['SKEL_' + side + '_UpperArm'] = (-.3 * swing, 0, 0)
+                rotations['SKEL_' + side + '_Forearm'] = (.2, 0, 0)
+            for arm in arms.values():
+                arm.data.pose_position = 'POSE'
+                for name, rotation in rotations.items():
+                    bone = arm.pose.bones.get(name)
+                    if bone:
+                        bone.matrix_basis = bone.matrix_basis @ Euler(rotation, 'XYZ').to_matrix().to_4x4()
+                        changed += 1
+            if not changed:
+                raise ValueError('Tulang GTA humanoid tidak ditemukan untuk walk test.')
+            bpy.context.view_layer.update()
+            preview_scene(bpy, SimpleNamespace(children_recursive=objects), output,
+                          filename=temp.name, evaluated=True, texture_cache=cache)
+            sample = json.loads(temp.read_text(encoding='utf-8'))
+            if len(sample['meshes']) != len(data['meshes']) or any(a['name'] != b['name'] or len(a['positions']) != len(b['positions']) for a, b in zip(sample['meshes'], data['meshes'])):
+                raise ValueError('Topologi preview berubah selama animasi.')
+            values = array('f', (v for mesh in sample['meshes'] for v in mesh['positions']))
+            if sys.byteorder != 'little':
+                values.byteswap()
+            frames.append(base64.b64encode(values.tobytes()).decode('ascii'))
+        data['motion'] = {'version': 1, 'label': 'Walk · procedural weight test', 'fps': frames_count / 1.4,
+                          'frames': frames, 'floatCount': count}
+        text = json.dumps(data, separators=(',', ':'))
+        if len(text.encode('utf-8')) > 48 * 1024 * 1024:
+            raise ValueError('Preview dengan animasi melebihi 48 MB.')
+        rest_file.write_text(text, encoding='utf-8')
+        return {'frames': frames_count, 'duration': 1.4, 'kind': 'procedural-weight-test'}
+    finally:
+        temp.unlink(missing_ok=True)
+        for bone, matrix in saved:
+            bone.matrix_basis = matrix
+        for arm, position in pose_positions:
+            arm.pose_position = position
+        bpy.context.view_layer.update()

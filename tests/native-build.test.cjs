@@ -5,6 +5,17 @@ const { validateJob, blenderArgs } = require('../electron/native-build.cjs');
 const { execFileSync } = require('node:child_process');
 test('Native build accepts bounded job settings and refuses arbitrary task/transform data', () => {
   assert.equal(validateJob({ mode: 'strobo_preview' }).mode, 'strobo_preview');
+  assert.equal(validateJob({ mode: 'parts_preview' }).mode, 'parts_preview');
+  assert.equal(validateJob({ mode: 'garment', maxDistance: 0.1 }).maxDistance, 0.1);
+  assert.equal(
+    validateJob({
+      mode: 'parts',
+      selected: ['spoiler'],
+      rotation: [0, 0, 90],
+      targetBone: 'chassis',
+    }).rotation[2],
+    90,
+  );
   assert.equal(validateJob({ mode: 'ped', name: 'ditasha_ped' }).name, 'ditasha_ped');
   assert.equal(validateJob({ mode: 'ped_preview' }).mode, 'ped_preview');
   assert.deepEqual(
@@ -26,6 +37,13 @@ test('Native build accepts bounded job settings and refuses arbitrary task/trans
   assert.equal(validateJob({ mode: 'strobo', donorSirenId: 986, sirenId: 100 }).donorSirenId, 986);
   for (const value of [
     { mode: 'shell' },
+    { mode: 'parts' },
+    { mode: 'parts', selected: ['x', 'x'] },
+    { mode: 'parts_preview', rotation: [0, NaN, 0] },
+    { mode: 'parts_preview', rotation: [0, 0, 361] },
+    { mode: 'parts_preview', targetBone: '../../bad' },
+    { mode: 'garment', maxDistance: 0 },
+    { mode: 'garment', maxDistance: Infinity },
     { mode: 'ped', name: '../../escape' },
     { mode: 'ped', name: 'abc;calc' },
     { mode: 'ped', name: 'valid_ped', pedOptions: { reference: 'custom.blend' } },
