@@ -1,4 +1,4 @@
-import { decodeMotion, sampleMotion } from './motion-preview.js';
+import { createMotionClock, decodeMotion, sampleMotion } from './motion-preview.js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
@@ -9,7 +9,7 @@ export function nativeOffsetFromThree(position) {
   );
 }
 export function mountNativePreview({ container, toast, onPick, onTransform }) {
-  container.innerHTML = `<div class="viewer-button-row"><button id="nbPreviewLoad">Muat preview 3D</button><button id="nbPreviewFit">Fit</button><button id="nbMotionPlay" disabled>Play walk test</button><label id="nbMotionSpeedLabel" hidden>Speed<select id="nbMotionSpeed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="1.5">1.5×</option></select></label><button id="nbPreviewPlace">Letakkan strobo</button><label class="check"><input id="nbPreviewRemoved" type="checkbox">Lihat tanpa badge</label></div><div id="nbViewport"><p class="muted">Pilih YFT dan engine, lalu muat preview. Klik badge untuk memilih; geser sumbu untuk memindahkan strobo.</p></div><p id="nbPreviewStatus" class="muted" role="status"></p>`;
+  container.innerHTML = `<div class="viewer-button-row"><button id="nbPreviewLoad">Muat preview 3D</button><button id="nbPreviewFit">Fit</button><button id="nbMotionPlay" disabled>Play walk test</button><label id="nbMotionSpeedLabel" hidden>Speed<select id="nbMotionSpeed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="1.5">1.5×</option></select></label><label id="nbMotionSeekLabel" hidden>Timeline<input id="nbMotionSeek" type="range" min="0" max="1000" value="0" aria-label="Posisi animasi"><output id="nbMotionTime">0.00 s</output></label><button id="nbPreviewPlace">Letakkan strobo</button><label class="check"><input id="nbPreviewRemoved" type="checkbox">Lihat tanpa badge</label></div><div id="nbViewport"><p class="muted">Pilih YFT dan engine, lalu muat preview. Klik badge untuk memilih; geser sumbu untuk memindahkan strobo.</p></div><p id="nbPreviewStatus" class="muted" role="status"></p>`;
   const $ = (id) => container.querySelector('#' + id),
     viewport = $('nbViewport');
   let renderer,
@@ -23,10 +23,11 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
     sourcePreview = false,
     motion = null,
     motionFrame = null,
-    motionStart = 0,
     motionLast = 0,
+    motionPosition = 0,
     motionBuffer = null,
     motionRest = [];
+  const motionClock = createMotionClock();
   const scene = new THREE.Scene(),
     camera = new THREE.PerspectiveCamera(40, 1, 0.01, 1000);
   const base = new THREE.Group(),
@@ -124,6 +125,7 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
     motionRest = [];
     $('nbMotionPlay').disabled = true;
     $('nbMotionSpeedLabel').hidden = true;
+    $('nbMotionSeekLabel').hidden = true;
     serial++;
     for (const root of [base, donor]) {
       for (const m of [...root.children]) {
@@ -318,6 +320,7 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
     $('nbMotionPlay').textContent =
       motion?.kind === 'gta-ycd-xml' ? 'Play GTA clip' : 'Play walk test';
     $('nbMotionSpeedLabel').hidden = !motion;
+    $('nbMotionSeekLabel').hidden = !motion;
     setTransform([0, 0, 0], 1);
     showMode();
     if (!preserveCamera) fit();
@@ -332,6 +335,10 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
   function stopMotion() {
     if (motionFrame !== null) cancelAnimationFrame(motionFrame);
     motionFrame = null;
+    motionPosition = 0;
+    motionClock.seek(0, performance.now());
+    $('nbMotionSeek').value = '0';
+    $('nbMotionTime').textContent = '0.00 s';
     $('nbMotionPlay').textContent =
       motion?.kind === 'gta-ycd-xml' ? 'Play GTA clip' : 'Play walk test';
     base.children.forEach((mesh, i) => {
@@ -339,6 +346,7 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
       mesh.geometry.attributes.position.array.set(motionRest[i]);
       mesh.geometry.attributes.position.needsUpdate = true;
       mesh.geometry.computeVertexNormals();
+      mesh.geometry.computeBoundingSphere();
     });
     render();
   }
@@ -349,11 +357,18 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
       return;
     }
     motionLast = now;
-    sampleMotion(
-      motion,
-      ((now - motionStart) / 1000) * Number($('nbMotionSpeed').value),
-      motionBuffer,
+    drawMotion(motionClock.at(now));
+    motionFrame = requestAnimationFrame(animateMotion);
+  }
+  function drawMotion(seconds) {
+    sampleMotion(motion, seconds, motionBuffer);
+    const duration = motion.frames.length / motion.fps,
+      position = seconds % duration;
+    motionPosition = position;
+    $('nbMotionSeek').value = String(
+      Math.min(1000, Math.round((position / ((motion.frames.length - 1) / motion.fps)) * 1000)),
     );
+    $('nbMotionTime').textContent = position.toFixed(2) + ' / ' + duration.toFixed(2) + ' s';
     let offset = 0;
     for (const mesh of base.children) {
       const attribute = mesh.geometry.attributes.position;
@@ -364,12 +379,27 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
       mesh.geometry.computeBoundingSphere();
     }
     render();
-    motionFrame = requestAnimationFrame(animateMotion);
   }
+  $('nbMotionSpeed').onchange = () => {
+    motionClock.setSpeed(Number($('nbMotionSpeed').value), performance.now());
+  };
+  $('nbMotionSeek').oninput = () => {
+    if (!motion) return;
+    if (motionFrame !== null) cancelAnimationFrame(motionFrame);
+    motionFrame = null;
+    const position =
+      (Number($('nbMotionSeek').value) / 1000) * ((motion.frames.length - 1) / motion.fps);
+    motionClock.seek(position, performance.now());
+    drawMotion(position);
+    $('nbMotionPlay').textContent =
+      motion.kind === 'gta-ycd-xml' ? 'Play GTA clip' : 'Play walk test';
+  };
   $('nbMotionPlay').onclick = () => {
     if (motionFrame !== null) return stopMotion();
     if (!motion) return;
-    motionStart = performance.now();
+    const now = performance.now();
+    motionClock.seek(motionPosition, now);
+    motionClock.setSpeed(Number($('nbMotionSpeed').value), now);
     motionLast = 0;
     $('nbMotionPlay').textContent =
       motion.kind === 'gta-ycd-xml' ? 'Stop GTA clip' : 'Stop walk test';

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { decodeMotion, sampleMotion } from '../src/motion-preview.js';
+import { createMotionClock, decodeMotion, sampleMotion } from '../src/motion-preview.js';
 const encoded = (values) => {
   const bytes = new Uint8Array(values.length * 4);
   const view = new DataView(bytes.buffer);
@@ -38,4 +38,23 @@ test('Malformed, oversized, non-finite or mismatched motion buffers are rejected
     assert.throws(() => decodeMotion({ ...fixture(), ...overrides }, 3));
   assert.equal(decodeMotion(null, 3), null);
   assert.throws(() => sampleMotion(decodeMotion(fixture(), 3), 0, new Float32Array(6)));
+});
+
+test('Playback rate changes preserve the current pose and seeking resumes from the chosen time', () => {
+  const clock = createMotionClock();
+  clock.seek(0, 1000);
+  assert.equal(clock.at(2000), 1);
+  clock.setSpeed(0.5, 2000);
+  assert.equal(clock.at(2000), 1);
+  assert.equal(clock.at(4000), 2);
+  clock.setSpeed(1.5, 4000);
+  assert.equal(clock.at(4000), 2);
+  assert.equal(clock.at(5000), 3.5);
+  clock.seek(0.25, 6000);
+  assert.equal(clock.at(6000), 0.25);
+  assert.equal(clock.at(7000), 1.75);
+  clock.seek(0, 8000);
+  assert.equal(clock.at(8000), 0);
+  for (const value of [NaN, Infinity, -1]) assert.throws(() => clock.seek(value, 8000));
+  for (const value of [NaN, Infinity, 0, -1]) assert.throws(() => clock.setSpeed(value, 8000));
 });

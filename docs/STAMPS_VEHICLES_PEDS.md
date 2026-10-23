@@ -46,7 +46,7 @@ Inspect the result in static arm/leg poses and the moving walk test before **Sim
 
 The rest preview for new full-ped rigs and garment transfers includes a procedural 1.4-second walk weight test where the rig exposes supported GTA limb bones. Play/Stop and 0.5×/1×/1.5× controls are in the preview toolbar. The actual Blender armature is evaluated at bounded keyframes; the viewer interpolates those frames. Stopping, loading another pose or leaving the workspace restores the static preview. Pose matrices and exported native assets are unchanged by the test.
 
-Animation data is limited to 16 MB and 4–16 frames, with a 48 MB total preview cap. Very dense models may keep only static poses and a warning. This is a procedural diagnostic movement, not imported GTA YCD clip playback or an exported walk animation. Clothing generation and automatic native garment packaging remain future work.
+Animation data is limited to 16 MB and 4–16 frames, with a 48 MB total preview cap. Very dense models may keep only static poses and a warning. This is a procedural diagnostic movement, not imported GTA YCD clip playback or an exported walk animation. Template shell generation and native replacement export are described in v1.42 below; new collection registration remains unavailable.
 
 ## v1.42: offline clothing construction and native replacement
 
@@ -65,3 +65,7 @@ Binary `.ycd`, animation-list blending, UV/camera animations and exporting game 
 ## Remaining game validation
 
 Blender export/reimport checks establish readable geometry, UVs, weights and embedded data. They cannot establish FiveM rendering, server collection conflicts, clothing variation mapping, vehicle damage/collision or animation quality in game. Test the generated patch on a development server with the original resource enabled, check all LOD distances and confirm the exact drawable/texture indices before deploying. Keep the output report with those results.
+
+## Animation timeline review
+
+Drag **Timeline** in the native ped/clothing preview to hold an animation pose and inspect weights. **Play** resumes from that point; **Stop** restores the static pose and resets the timeline. Changing speed during playback preserves the current animation time. The timeline ends at the last stored sample. GTA XML clips and the procedural test both use the same controls; this does not edit or export animations.

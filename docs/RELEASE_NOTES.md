@@ -1,3 +1,9 @@
+# v1.42.0 preview — Animation timeline review
+
+- Add a timeline to hold and inspect sampled ped/clothing animation poses before export. Play resumes from the chosen position; Stop restores the static pose and resets the timeline.
+- Preserve animation time when changing playback speed, avoiding pose jumps. Recompute the restored pose bounds to prevent stale animation bounds from affecting visibility.
+- Applies to procedural weight tests and supported GTA XML clips. Source animation files and native exports remain unchanged.
+
 # Photoshoot framing follow-up (unreleased)
 
 - Photoshoot starts at 120% framing and permits zoom up to 600% (previously 100% / 300%) so small ped and clothing previews can be enlarged without changing the model or export dimensions.

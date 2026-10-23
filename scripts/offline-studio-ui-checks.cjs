@@ -514,6 +514,24 @@ module.exports = async function checkOfflineStudio(fixtures) {
   $('nbMotionPlay').click();
   await sleep(100);
   assert($('nbMotionPlay').textContent.includes('Play'), 'Walk test did not stop');
+  assert(!$('nbMotionSeekLabel').hidden, 'Animation timeline is missing');
+  $('nbMotionSeek').value = '500';
+  $('nbMotionSeek').dispatchEvent(new Event('input'));
+  await sleep(100);
+  assert(motionCanvas.toDataURL() !== beforeMotion, 'Timeline did not display the selected pose');
+  const selectedTime = $('nbMotionTime').textContent;
+  await sleep(100);
+  assert($('nbMotionTime').textContent === selectedTime, 'Timeline inspection must hold the pose');
+  $('nbMotionSpeed').value = '0.5';
+  $('nbMotionSpeed').dispatchEvent(new Event('change'));
+  $('nbMotionPlay').click();
+  await sleep(150);
+  assert($('nbMotionTime').textContent !== selectedTime, 'Playback did not resume after seeking');
+  $('nbMotionPlay').click();
+  await sleep(100);
+  assert($('nbMotionSeek').value === '0', 'Stop must reset the timeline');
+  assert(motionCanvas.toDataURL() === beforeMotion, 'Stop must restore the original rest pose');
+
   $('nbPedPose').value = 'arms';
   $('nbPedPose').dispatchEvent(new Event('change'));
   await wait(

@@ -52,3 +52,27 @@ export function sampleMotion(motion, seconds, output) {
   if (output.length !== a.length) throw Error('Buffer tujuan animasi tidak cocok.');
   for (let i = 0; i < output.length; i++) output[i] = a[i] + (b[i] - a[i]) * alpha;
 }
+
+// Anchor elapsed time at every rate change so changing speed never changes the pose.
+export function createMotionClock() {
+  let seconds = 0,
+    anchor = 0,
+    speed = 1;
+  const at = (now) => seconds + (Math.max(0, now - anchor) / 1000) * speed;
+  return {
+    at,
+    seek(value, now) {
+      if (!Number.isFinite(value) || value < 0 || !Number.isFinite(now))
+        throw Error('Waktu animasi tidak valid.');
+      seconds = value;
+      anchor = now;
+    },
+    setSpeed(value, now) {
+      if (!Number.isFinite(value) || value <= 0 || !Number.isFinite(now))
+        throw Error('Kecepatan animasi tidak valid.');
+      seconds = at(now);
+      anchor = now;
+      speed = value;
+    },
+  };
+}
