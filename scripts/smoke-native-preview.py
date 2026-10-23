@@ -99,7 +99,7 @@ part.sz_lods.very_high.mesh = part.data.copy()
 part.sz_lods.very_high.mesh.vertices[0].co.z = .3
 body.sz_lods.high.mesh = body.data
 bpy.context.view_layer.update()
-assert m.rigid_part_candidates(donor)[0]['eligible']
+assert m.rigid_part_candidates(donor)[0]['eligible'], m.rigid_part_candidates(donor)
 job = {'selected':[part.name], 'offset':[.25, .5, 1], 'scale':1.3, 'rotation':[20,30,35], 'targetBone':'chassis'}
 from mathutils import Euler
 transform = Matrix.Translation(Vector(job['offset'])) @ (Matrix.Rotation(math.radians(20),4,'X') @ Matrix.Rotation(math.radians(30),4,'Y') @ Matrix.Rotation(math.radians(35),4,'Z')) @ Matrix.Scale(1.3,4)

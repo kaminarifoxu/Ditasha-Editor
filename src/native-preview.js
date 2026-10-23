@@ -24,6 +24,7 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
     motion = null,
     motionFrame = null,
     motionStart = 0,
+    motionLast = 0,
     motionBuffer = null,
     motionRest = [];
   const scene = new THREE.Scene(),
@@ -340,6 +341,11 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
   }
   function animateMotion(now) {
     if (!motion || !viewport.getClientRects().length || document.hidden) return stopMotion();
+    if (now - motionLast < 1000 / 30) {
+      motionFrame = requestAnimationFrame(animateMotion);
+      return;
+    }
+    motionLast = now;
     sampleMotion(
       motion,
       ((now - motionStart) / 1000) * Number($('nbMotionSpeed').value),
@@ -361,6 +367,7 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
     if (motionFrame !== null) return stopMotion();
     if (!motion) return;
     motionStart = performance.now();
+    motionLast = 0;
     $('nbMotionPlay').textContent = 'Stop walk test';
     motionFrame = requestAnimationFrame(animateMotion);
     $('nbPreviewStatus').textContent =

@@ -269,3 +269,12 @@ test('Rig review audits weights, UV/material/LOD coverage and maps supported Mut
   );
   assert.match(result, /PASS_PED_REVIEW/);
 });
+
+test('Garment transfer keeps four normalized influences and refuses weightless references', () => {
+  const result = execFileSync(
+    process.platform === 'win32' ? 'python' : 'python3',
+    ['tests/garment-weights-checks.py'],
+    { encoding: 'utf8' },
+  );
+  assert.match(result, /PASS_GARMENT_WEIGHT_BUDGET/);
+});

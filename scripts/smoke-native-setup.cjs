@@ -51,42 +51,36 @@ app.whenReady().then(async () => {
     const settings = JSON.parse(await fs.readFile(path.join(root, 'native-engine.json'), 'utf8'));
     const { promisify } = require('node:util');
     const { execFile } = require('node:child_process');
-    const result = await promisify(execFile)(
-      settings.engine,
-      [
-        '--background',
-        '--disable-autoexec',
-        '--python-exit-code',
-        '2',
-        '--python',
-        path.resolve('scripts/smoke-native-preview.py'),
-      ],
-      {
-        env: require('../electron/native-setup.cjs').managedEnv(settings.managedRoot),
-        timeout: 120000,
-        maxBuffer: 2 * 1024 * 1024,
-      },
-    );
-    console.log(result.stdout);
-    for (const script of ['tests/ped-review-blender.py', 'tests/garment-skin-blender.py']) {
-      const check = await promisify(execFile)(
-        settings.engine,
-        [
-          '--background',
-          '--disable-autoexec',
-          '--python-exit-code',
-          '2',
-          '--python',
-          path.resolve(script),
-        ],
-        {
-          env: require('../electron/native-setup.cjs').managedEnv(settings.managedRoot),
-          timeout: 120000,
-          maxBuffer: 4 * 1024 * 1024,
-        },
-      );
-      console.log(check.stdout);
+    const failures = [];
+    for (const script of [
+      'scripts/smoke-native-preview.py',
+      'tests/ped-review-blender.py',
+      'tests/garment-skin-blender.py',
+    ]) {
+      try {
+        const check = await promisify(execFile)(
+          settings.engine,
+          [
+            '--background',
+            '--disable-autoexec',
+            '--python-exit-code',
+            '2',
+            '--python',
+            path.resolve(script),
+          ],
+          {
+            env: require('../electron/native-setup.cjs').managedEnv(settings.managedRoot),
+            timeout: 120000,
+            maxBuffer: 4 * 1024 * 1024,
+          },
+        );
+        console.log(check.stdout);
+      } catch (error) {
+        console.error(error.stdout || '', error.stderr || '');
+        failures.push(script + ': ' + error.message);
+      }
     }
+    if (failures.length) throw Error(failures.join('\n'));
 
     console.log(
       'PASS: automatic download, checksum, isolated Blender profile, native dependencies, enabled Muto and persistent setup.',

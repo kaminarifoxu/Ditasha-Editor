@@ -270,7 +270,7 @@ def rigid_part_candidates(donor):
             if not mesh.materials:
                 reason = 'Material native tidak tersedia.'
             for material in mesh.materials:
-                if not material or getattr(material, 'sollum_type', '') != 'sollumz_shader':
+                if not material or getattr(material, 'sollum_type', '') != 'sollumz_material_shader':
                     reason = 'Material bukan shader native Sollumz.'
                     continue
                 for node in material.node_tree.nodes if material.node_tree else []:

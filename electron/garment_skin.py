@@ -133,5 +133,5 @@ def run(bpy, job, output, review, preview_scene):
     try: preview['motion'] = review.add_walk_preview(bpy, objects, output, garment_preview)
     except Exception as exc: preview['warnings'].append('Walk preview: ' + str(exc))
     return {'transferQuality': quality, 'preview': preview, 'files': [destination.name, 'ditasha-result.blend'],
-            'warnings': ['Weights ditransfer dari permukaan body terdekat; periksa daerah lengan/paha yang berdekatan.',
+            'warnings': preview['warnings'] + ['Weights ditransfer dari permukaan body terdekat; periksa daerah lengan/paha yang berdekatan.',
                          'Hasil GLB + proyek Blender, belum YDD/YMT native. Shader, LOD dan slot clothing perlu ekspor Sollumz lanjutan.']}
