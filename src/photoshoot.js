@@ -55,7 +55,7 @@ function createStudio(download, toast) {
     <input id="psBackgroundInput" type="file" accept="image/png,image/jpeg,image/webp" hidden><input id="psLogoInput" type="file" accept="image/png,image/jpeg,image/webp" hidden>
     <label>Arah depan<select id="psFront"><option value="camera">Dari kamera preview</option><option value="z">+Z</option><option value="nz">−Z</option><option value="x">+X</option><option value="nx">−X</option></select></label>
     <label>Sudut tinggi<input id="psElevation" type="range" min="-40" max="40" value="0"></label>
-    <label>Ukuran model <output id="psZoomValue">100%</output><input id="psZoom" type="range" min="50" max="300" value="100"></label>
+    <label>Ukuran model <output id="psZoomValue">100%</output><input id="psZoom" type="range" min="50" max="600" value="120"></label>
     <div id="psAngles"></div><button id="psReset">Reset sudut</button>
     <p class="muted">Setiap sudut otomatis memenuhi panel. Zoom di atas 100% dapat memotong model. Satu sudut memakai seluruh lebar gambar.</p><p id="psWarnings" role="status" class="muted"></p>
     </aside><section class="ps-output"><div class="ps-canvas-wrap"><canvas id="psCanvas" aria-label="Preview katalog tiga sudut"></canvas></div><div class="ps-footer"><p id="psStatus" role="status">Siap.</p><button id="psExport" class="primary">Simpan PNG</button></div></section></div>`;
@@ -100,7 +100,7 @@ function createStudio(download, toast) {
       $('psAngle' + i).value = angle;
     });
     $('psElevation').value = 0;
-    $('psZoom').value = 100;
+    $('psZoom').value = 120;
   }
   function fitText(ctx, text, x, y, maxWidth, size, align = 'center') {
     ctx.textAlign = align;
