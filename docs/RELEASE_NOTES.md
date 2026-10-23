@@ -1,3 +1,8 @@
+# Photoshoot framing follow-up (unreleased)
+
+- Photoshoot starts at 120% framing and permits zoom up to 600% (previously 100% / 300%) so small ped and clothing previews can be enlarged without changing the model or export dimensions.
+- The higher zoom may crop geometry intentionally. End-to-end screenshots and an actual Windows build have not yet been verified for this follow-up.
+
 # v1.39.0 preview — Asset Compressor
 
 - Adds a batch workspace for MLO, vehicles, clothing and peds, with up to 25 GB / 50,000 source files referenced lazily. Files are processed sequentially and exported directly to a new folder without building a giant ZIP in RAM.
