@@ -411,7 +411,10 @@ export function mountCompressor({ nav, activate, viewers, toast }) {
                   size(result.allocation.before) +
                   ' → ' +
                   size(result.allocation.after);
-              } else reason = 'Sudah sesuai / hasil tidak lebih kecil: asli dipertahankan';
+              } else
+                reason =
+                  result.preservedReason ||
+                  'Sudah sesuai / hasil tidak lebih kecil: asli dipertahankan';
             } catch (error) {
               reason = 'Asli dipertahankan: ' + error.message;
             }

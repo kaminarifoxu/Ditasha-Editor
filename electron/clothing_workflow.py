@@ -13,9 +13,9 @@ def generate_shell(bpy, reference, options):
     units = bpy.context.scene.unit_settings.scale_length
     if not math.isfinite(units) or units <= 0: raise ValueError('Unit body tidak valid.')
     gap = options['gap'] / units
-    selected = [obj for obj in reference if obj.name == options['body']]
+    selected = reference if not options['body'] and len(reference)==1 else [obj for obj in reference if obj.name == options['body']]
     if len(selected) != 1:
-        raise ValueError('Nama body harus tepat satu mesh skinned pada template. Pilih body, bukan rambut/sepatu.')
+        raise ValueError('Pilih satu nama body skinned, bukan rambut/sepatu. Mesh tersedia: ' + ', '.join(obj.name for obj in reference[:32]))
     source = selected[0]
     if not source.data.uv_layers:
         raise ValueError('Body generator memerlukan UV asli pada template.')

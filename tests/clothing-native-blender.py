@@ -52,7 +52,7 @@ with tempfile.TemporaryDirectory() as directory:
     clip_original=clip.read_bytes()
     output=temp/'output';output.mkdir()
     job={'reference':str(reference),'maxDistance':.1,'clip':str(clip),'clipIndex':0,
-         'clothing':{'source':'generate','body':'Body','lower':0,'upper':1,'gap':.005,'color':[.1,.3,.8],
+         'clothing':{'source':'generate','body':'','lower':0,'upper':1,'gap':.005,'color':[.1,.3,.8],
                      'native':True,'slot':'mp_m_freemode_01^jbib_000_u'}}
     result=skin.run(bpy,job,output,review,bridge.preview_scene)
     assert result['generated'] and result['nativeClothing'],result

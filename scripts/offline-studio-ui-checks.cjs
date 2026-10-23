@@ -643,6 +643,16 @@ module.exports = async function checkOfflineStudio(fixtures) {
   $('nativeBuildDialog').querySelector('[data-pick="ped"]').click();
   await sleep(50);
   $('nbMaxDistance').value = 0.1;
+  change('nbClothingSource', 'generate');
+  assert(
+    $('nativeBuildDialog').querySelector('[data-pick="ped"]').hidden && $('nbSourcePreview').hidden,
+    'Generator still requires a separate source-model picker',
+  );
+  change('nbClothingSource', 'import');
+  assert(
+    !$('nativeBuildDialog').querySelector('[data-pick="ped"]').hidden,
+    'Imported clothing picker did not return after changing source',
+  );
   window.ditashaNative.start = async (payload) => {
     assert(
       payload.mode === 'garment' && payload.maxDistance === 0.1 && payload.inputs.reference,

@@ -82,6 +82,25 @@ test('transparent borders use alpha-weighted filtering without bleeding hidden b
     out = resizeTexture(t, 1, 1);
   assert.deepEqual([...out.out], [255, 0, 0, 128]);
 });
+test('a small pixel reduction cannot increase GPU pages through allocation rounding', () => {
+  const first = optimizeYtd(createYtd([texture('near_limit', 513, 256, true)]).buffer);
+  const r = new Resource(first.bytes.buffer, 13),
+    gfx = 196608;
+  const body = r.bytes.slice(0, r.sys + gfx),
+    header = r.header.slice();
+  new DataView(header.buffer).setUint32(12, 0x0c000007, true);
+  const pages = r.ptr(8);
+  if (pages !== null) body[pages + 9] = 3;
+  const payload = deflateRaw(body),
+    input = new Uint8Array(16 + payload.length);
+  input.set(header);
+  input.set(payload, 16);
+  const result = optimizeYtd(input.buffer, { maxSize: 512 });
+  assert.equal(result.changed, 0);
+  assert.match(result.preservedReason, /alokasi GPU/);
+  assert.equal(hash(input), hash(result.bytes));
+  assert.equal(result.allocation.after, gfx);
+});
 test('oversized atlas uses a bounded existing mip, preserving names and source bytes', () => {
   const base = new Resource(createYtd([texture('large_clothing', 4, 4)]).buffer, 13);
   const body = new Uint8Array(base.sys + 131072);

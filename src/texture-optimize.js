@@ -148,6 +148,17 @@ export function optimizeYtd(buffer, { maxSize = 1024 } = {}) {
     exp = Math.max(0, Math.ceil(Math.log2(offset / unit))),
     gfx = unit * 2 ** exp;
   const allocation = { before: r.bytes.length - r.sys, after: gfx };
+  if (gfx > allocation.before)
+    return {
+      bytes: new Uint8Array(buffer),
+      changed: 0,
+      repacked: false,
+      before,
+      after: before,
+      allocation: { before: allocation.before, after: allocation.before },
+      preservedReason: 'Repack akan menaikkan alokasi GPU; file asli dipertahankan.',
+      details: details.map((t) => ({ ...t, after: t.before })),
+    };
   const repacked = gfx < allocation.before;
   if (!changed && !repacked)
     return {

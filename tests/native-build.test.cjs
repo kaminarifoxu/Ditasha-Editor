@@ -82,7 +82,7 @@ test('Clothing generator, native slot and GTA clip settings stay bounded', () =>
   assert.equal(job.clothing.source, 'generate');
   assert.equal(job.useClip, true);
   for (const payload of [
-    { clothing: { source: 'generate' } },
+    { clothing: { source: 'generate', body: 'x'.repeat(129) } },
     { clothing: { lower: 0.8, upper: 0.3 } },
     { clothing: { gap: Infinity } },
     { clothing: { color: [NaN, 0, 0] } },

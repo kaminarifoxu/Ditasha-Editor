@@ -126,8 +126,7 @@ function validateJob(payload) {
       (clothing.native &&
         !/^(?:[a-z0-9_]+\^)?(?:jbib|uppr|lowr|feet|hand|accs|task|decl|hair|berd|teef)_\d{3}_[ur]$/.test(
           clothing.slot,
-        )) ||
-      (clothing.source === 'generate' && !clothing.body.trim()))
+        )))
   )
     throw Error('Pengaturan generator/slot clothing tidak valid.');
   const useClip = payload.useClip ?? false,

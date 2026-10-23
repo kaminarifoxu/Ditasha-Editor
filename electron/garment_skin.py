@@ -129,14 +129,15 @@ def run(bpy, job, output, review, preview_scene):
         raise ValueError('Ekspor GLB clothing gagal atau melebihi 128 MB.')
     warnings = []
     native = None
+    # Preserve the editable skinned result even if native export validation fails.
+    try: bpy.ops.file.pack_all()
+    except Exception as exc: warnings.append('Sebagian asset Blender belum ter-pack: ' + str(exc))
+    bpy.ops.wm.save_as_mainfile(filepath=str(Path(output) / 'ditasha-result.blend'), copy=True)
     if options.get('native'):
         from native_bridge import source_image_node
         native = clothing_workflow.export_native(bpy, arm, garments, output, options['slot'], source_image_node)
         warnings += ['YDD pengganti slot lama; collection/YMT asli harus tetap terpasang. Tidak mendaftarkan slot baru.',
                      'Shader impor dikonversi ke diffuse sederhana; normal/specular kompleks perlu koreksi Blender. LOD mempertahankan geometri, belum pengurangan polygon.']
-    try: bpy.ops.file.pack_all()
-    except Exception as exc: warnings.append('Sebagian asset Blender belum ter-pack: ' + str(exc))
-    bpy.ops.wm.save_as_mainfile(filepath=str(Path(output) / 'ditasha-result.blend'), copy=True)
     # Preview the actual skinned clothing, using the reference body for context.
     objects = [*reference, *garments]
     def garment_preview(*args, **kwargs):
@@ -149,5 +150,5 @@ def run(bpy, job, output, review, preview_scene):
         preview['motion'] = add_clip_preview(bpy, arm, objects, job['clip'], job['clipIndex'], output, garment_preview)
     return {'transferQuality': quality, 'nativeClothing': native, 'generated': options.get('source') == 'generate',
             'preview': preview, 'files': [destination.name, 'ditasha-result.blend'] + ([native['file'], 'fxmanifest.lua'] if native else []),
-            'warnings': warnings + preview['warnings'] + ['Weights berasal dari body terdekat; periksa lipatan dan area lengan/paha.',
-                         'Generator menghasilkan shell permukaan body dengan tepi terbuka; pola, ketebalan dan fitting lanjutan dapat diedit di Blender.']}
+            'warnings': warnings + preview['warnings'] + ['Weights berasal dari body terdekat; periksa lipatan dan area lengan/paha.'] +
+                        (['Generator menghasilkan shell permukaan body dengan tepi terbuka; pola, ketebalan dan fitting lanjutan dapat diedit di Blender.'] if options.get('source') == 'generate' else [])}
