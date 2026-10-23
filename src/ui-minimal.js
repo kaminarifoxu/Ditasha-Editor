@@ -268,7 +268,7 @@ export function mountMinimalUi() {
   }
   document
     .querySelectorAll('.ped-attachments')
-    .forEach((root) => hint(root, ':scope > p:not([id])', 'Tentang preview rambut'));
+    .forEach((root) => hint(root, ':scope > p:not([id])', 'Tentang attachment'));
   document
     .querySelectorAll('.material-preview')
     .forEach((root) => hint(root, ':scope > p', 'Tentang alpha'));

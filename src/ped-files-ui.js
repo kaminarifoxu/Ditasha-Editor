@@ -1,8 +1,11 @@
+import * as THREE from 'three';
+import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+import { MAX_EXPORT } from './asset-tools.js';
 import { planPedFiles, packagePedFiles } from './ped-files.js';
-export function mountPedFiles({ container, openModels, download, toast }) {
+export function mountPedFiles({ container, openModels, download, toast, getObjects }) {
   const root = document.createElement('details');
   root.className = 'ped-files';
-  root.innerHTML = `<summary>Ped files · YDD / YFT / YTD / YMT</summary><div class="viewer-button-row"><button data-import>Import ped files</button><button data-export disabled>Save source bundle</button></div><input data-input type="file" accept=".ydd,.yft,.ytd,.ymt" multiple hidden><ul data-files></ul><p class="muted" data-status role="status">Import komponen ped bersama tekstur dan metadata. YMT dan skeleton YFT pendamping dipertahankan utuh; preview komponen YDD bersifat statis. Bundle berisi file yang diimpor, bukan hasil auto-rig atau perubahan tekstur.</p>`;
+  root.innerHTML = `<summary>Ped files · YDD / YFT / YTD / YMT</summary><div class="viewer-button-row"><button data-import>Import ped files</button><button data-export disabled>Save source bundle</button></div><button data-rig-source>Export rig source GLB</button><p class="muted">Gabungkan model tubuh dan attachment yang sudah diposisikan. Buka GLB ini di Rig ped untuk auto skinning humanoid lengkap. A/T-pose diperlukan; skeleton dan slot clothing lama tidak dipertahankan.</p><input data-input type="file" accept=".ydd,.yft,.ytd,.ymt" multiple hidden><ul data-files></ul><p class="muted" data-status role="status">Import komponen ped bersama tekstur dan metadata. YMT dan skeleton YFT pendamping dipertahankan utuh; preview komponen YDD bersifat statis. Bundle berisi file yang diimpor, bukan hasil auto-rig atau perubahan tekstur.</p>`;
   container.prepend(root);
   const input = root.querySelector('[data-input]'),
     save = root.querySelector('[data-export]'),
@@ -53,6 +56,36 @@ export function mountPedFiles({ container, openModels, download, toast }) {
     } finally {
       busy = false;
       save.disabled = !plan;
+    }
+  };
+  root.querySelector('[data-rig-source]').onclick = async () => {
+    if (busy) return;
+    busy = true;
+    try {
+      const objects = getObjects?.() || [];
+      if (!objects[0]?.children.length)
+        throw Error('Buka model tubuh dan pasang clothing terlebih dahulu.');
+      const copy = new THREE.Group();
+      objects.forEach((object) => copy.add(object.clone(true)));
+      const discard = [];
+      copy.traverse((object) => {
+        if (object.isPoints || object.isLine) discard.push(object);
+      });
+      discard.forEach((object) => object.removeFromParent());
+      const out = await new GLTFExporter().parseAsync(copy, {
+        binary: true,
+        onlyVisible: true,
+        maxTextureSize: 4096,
+      });
+      if (out.byteLength > MAX_EXPORT) throw Error('Rig source GLB melebihi 128 MB.');
+      if (await download(new Uint8Array(out), 'ditasha-ped-rig-source.glb', 'model/gltf-binary'))
+        status.textContent =
+          'GLB sumber tersimpan. Pilih file ini di Rig ped → Periksa sumber → Buat preview rig. Periksa deformasi sebelum menyimpan hasil native.';
+    } catch (error) {
+      toast(error.message);
+      status.textContent = error.message;
+    } finally {
+      busy = false;
     }
   };
   return { root };

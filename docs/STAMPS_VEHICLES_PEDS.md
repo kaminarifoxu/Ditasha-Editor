@@ -22,4 +22,6 @@ In Model Viewer, open **Ped files** and import YDD/YFT/YTD/YMT together (up to 2
 
 **Clothing & accessories** accepts one local YDD/YDR and its YTDs per import, up to eight attachments. Each has an independent drawable, texture, alpha and transform. Existing YDD hair workflows remain available. These attachments are static; GLB export preserves visual placement, not skinning or native clothing slots.
 
+**Export rig source GLB** combines the currently visible base model and positioned attachments. Select that saved GLB in Rig ped to auto-skin the complete humanoid again. This creates a new full ped; it does not preserve the old skeleton, clothing slots or original weights. A suitable complete body in A/T-pose and engine setup are required.
+
 For a complete humanoid GLB/FBX/OBJ, the existing **Rig ped** workflow provides Blender/Muto automatic skinning, source checks, evaluated arm/leg diagnostic poses, and staged native export. It is not an arbitrary clothing-to-existing-ped skinning tool. Full game-animation clip playback, procedural clothing generation and native arbitrary vehicle-part injection are not implemented in this update. They require further rig/material/native-export work and in-game validation.

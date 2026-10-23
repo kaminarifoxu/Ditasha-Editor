@@ -377,6 +377,7 @@ body.workspace-shell {
   border-color: var(--line);
 }
 .workspace-shell .ped-attachments,
+.workspace-shell .ped-files,
 .workspace-shell .material-preview,
 .workspace-shell .material-binding,
 .workspace-shell .vehicle-workshop,
@@ -887,6 +888,7 @@ body.workspace-shell {
 .explorer-embedded .tool-sidebar > h2,
 .explorer-embedded .tool-sidebar > .muted,
 .explorer-embedded .ped-attachments,
+.explorer-embedded .ped-files,
 .explorer-embedded .material-preview {
   display: none;
 }

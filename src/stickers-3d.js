@@ -133,7 +133,8 @@ export function mountStickers3D({
       m.geometry.computeBoundingBox();
       box.union(m.geometry.boundingBox.clone().applyMatrix4(m.matrixWorld));
     });
-    const width = (Math.max(box.getSize(new THREE.Vector3()).length(), 0.001) * item.size) / 100;
+    item.referenceLength ??= Math.max(box.getSize(new THREE.Vector3()).length(), 0.001);
+    const width = (item.referenceLength * item.size) / 100;
     const projector = new THREE.Object3D();
     projector.position.copy(item.point);
     projector.lookAt(item.point.clone().add(item.normal));

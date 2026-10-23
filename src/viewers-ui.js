@@ -1296,6 +1296,7 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
     openModels,
     download,
     toast,
+    getObjects: () => [group, pedAttachments.group],
   });
   $('mvOpen').onclick = () => $('mvInput').click();
   $('mvAddTextures').onclick = () => $('mvTextureInput').click();

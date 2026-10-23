@@ -657,6 +657,16 @@ module.exports = async function checkViewers(fixtures) {
         attachmentSave.magic.join(',') === '103,108,84,70',
       'Attachment export was not a real GLB',
     );
+    if (prefix === 'mvPed') {
+      const beforeRigExport = saves.length;
+      document.querySelector('.ped-files [data-rig-source]').click();
+      await wait(() => saves.length > beforeRigExport, 'Combined ped rig source export failed');
+      assert(
+        saves.at(-1).name === 'ditasha-ped-rig-source.glb' &&
+          saves.at(-1).magic.join(',') === '103,108,84,70',
+        'Rig source was not a real GLB',
+      );
+    }
     if (prefix === 'ped') await checkSticker3d();
     await checkPhotoshoot(prefix);
     console.log('DITASHA_SNAPSHOT:' + prefix + '-hair-preview');
@@ -1062,6 +1072,36 @@ module.exports = async function checkViewers(fixtures) {
       }),
   );
   $('psClose').click();
+  document.querySelector('[data-page="modelviewer"]').click();
+  const pedFilesRoot = document.querySelector('.ped-files');
+  const pedInput = pedFilesRoot.querySelector('[data-input]');
+  const pedData = new DataTransfer();
+  for (const [name, bytes] of [
+    ['body.ydd', fixtures.model],
+    ['top.ydd', fixtures.model],
+    ['ped.ymt', [1, 2, 3]],
+    ['ped.yft', [4, 5, 6]],
+    ['body.ytd', fixtures.faceYtd],
+  ])
+    pedData.items.add(new File([new Uint8Array(bytes)], name));
+  pedInput.files = pedData.files;
+  pedInput.dispatchEvent(new Event('change'));
+  await wait(
+    () => pedFilesRoot.querySelectorAll('[data-files] li').length === 5,
+    'Ped source bundle import failed',
+  );
+  assert(
+    $('mvModels').querySelector('input[type="checkbox"]').checked,
+    'Ped component was not made visible automatically',
+  );
+  const beforePedSave = saves.length;
+  pedFilesRoot.querySelector('[data-export]').click();
+  await wait(() => saves.length > beforePedSave, 'Ped source bundle export failed');
+  assert(
+    saves.at(-1).name === 'ditasha-ped-sources.zip' && saves.at(-1).magic.join(',') === '80,75,3,4',
+    'Ped source bundle is not a ZIP',
+  );
+  console.log('DITASHA_SNAPSHOT:ped-files-bundle');
   return {
     saves,
     photoshoot: {
