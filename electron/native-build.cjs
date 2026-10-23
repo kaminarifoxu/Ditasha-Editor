@@ -552,7 +552,7 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
       await fs.readFile(path.join(__dirname, 'ped_review.py')),
     );
     await fs.copyFile(path.join(__dirname, 'garment_skin.py'), path.join(root, 'garment_skin.py'));
-    for (const name of ['clothing_workflow.py', 'clip_review.py'])
+    for (const name of ['clothing_workflow.py', 'clip_review.py', 'native_dds.py'])
       await fs.copyFile(path.join(__dirname, name), path.join(root, name));
     await fs.writeFile(spec, JSON.stringify(job));
     preview = null;

@@ -87,6 +87,7 @@ def export_native(bpy, arm, garments, output, slot, image_node):
     drawable.data.pose_position = 'REST'
     for bone in drawable.data.bones: helper.set_recommended_bone_properties(bone)
     clones = []
+    texture_pixels, texture_images = 0, set()
     try:
         for source in garments:
             if not source.data.uv_layers:
@@ -119,12 +120,19 @@ def export_native(bpy, arm, garments, output, slot, image_node):
                         image = bpy.data.images.new(f'ditasha_fabric_{len(clones)}_{index}', width=4, height=4)
                         bsdf = material.node_tree.nodes.get('Principled BSDF') if material and material.node_tree else None
                         color = tuple(bsdf.inputs['Base Color'].default_value) if bsdf else tuple(material.diffuse_color) if material else (.5,.5,.5,1)
-                        image.pixels[:] = list(color) * 16
+                        encoded=[12.92*v if v<=.0031308 else 1.055*v**(1/2.4)-.055 for v in color[:3]]+[color[3]]
+                        image.pixels[:] = encoded * 16
                     image.name = f'ditasha_cloth_{len(clones)}_{index}'
                     native.node_tree.nodes['DiffuseSampler'].image = image
                 for node in native.node_tree.nodes:
                     if node.type == 'TEX_IMAGE' and node.image:
                         if not node.image.has_data: raise ValueError('Gambar shader native tidak terbaca.')
+                        from native_dds import pack_image
+                        if node.image.as_pointer() not in texture_images:
+                            texture_images.add(node.image.as_pointer())
+                            texture_pixels += node.image.size[0]*node.image.size[1]
+                            if texture_pixels > 64*1024*1024: raise ValueError('Total gambar ekspor clothing maksimal 64 megapixel.')
+                        pack_image(bpy,node.image,f'ditasha_{len(clones)}_{index}_{len(converted)}_'+node.name,output)
                         node.texture_properties.embedded = True
                 converted.append(native)
             clone.data.materials.clear()
@@ -148,10 +156,39 @@ def export_native(bpy, arm, garments, output, slot, image_node):
                     target_formats={'NATIVE'}, target_versions={'GEN8'}, limit_to_selected=True,
                     exclude_skeleton=False, apply_transforms=False, mesh_domain='FACE_CORNER')
         target = stream / (slot + '.ydd')
-        if 'FINISHED' not in result or not target.is_file() or target.read_bytes()[:4] != b'RSC7':
+        if 'FINISHED' not in result or not target.is_file() or target.stat().st_size > 128*1024*1024 or target.open('rb').read(4) != b'RSC7':
             raise ValueError('Ekspor tidak menghasilkan YDD native yang valid.')
+        # Verify each user's actual output, not only our fixtures. A source preview
+        # must not hide an exporter dropping UVs, skin data or embedded images.
+        before = set(bpy.data.objects)
+        verified = {'meshes':0, 'vertices':0, 'lodMeshes':0}
+        try:
+            status = bpy.ops.sollumz.import_assets(directory=str(stream), files=[{'name':target.name}],
+                         use_custom_settings=True, textures_mode='PACK', dwd_import_external_skeleton='NO')
+            imported = [obj for obj in bpy.data.objects if obj not in before and obj.type == 'MESH']
+            if 'FINISHED' not in status or not imported: raise ValueError('YDD hasil tidak dapat diimpor ulang.')
+            from native_bridge import mesh_levels
+            for obj in imported:
+                if obj.find_armature() is None: raise ValueError('YDD hasil kehilangan armature binding.')
+                verified['meshes'] += 1
+                for mesh in mesh_levels(obj):
+                    if not len(mesh.vertices): continue
+                    verified['lodMeshes'] += 1
+                    if not mesh.uv_layers: raise ValueError('YDD hasil kehilangan UV pada salah satu LOD.')
+                    for vertex in mesh.vertices:
+                        weights = [g.weight for g in vertex.groups if g.weight > 1e-6]
+                        if not weights or len(weights) > 4 or abs(sum(weights)-1) > .02:
+                            raise ValueError('Weights YDD hasil tidak lolos pemeriksaan ulang.')
+                        verified['vertices'] += 1
+                    for material in mesh.materials:
+                        diffuse = material.node_tree.nodes.get('DiffuseSampler') if material and material.node_tree else None
+                        if not diffuse or not diffuse.image or not diffuse.image.has_data:
+                            raise ValueError('YDD hasil kehilangan diffuse image embedded.')
+        finally:
+            for obj in list(bpy.data.objects):
+                if obj not in before: bpy.data.objects.remove(obj, do_unlink=True)
         (Path(output)/'fxmanifest.lua').write_text("fx_version 'cerulean'\ngame 'gta5'\nauthor 'Ditasha-Workshop'\n", encoding='utf-8')
         return {'file': 'stream/' + target.name, 'slot': slot, 'kind': 'existing-slot-replacement',
-                'textures': 'embedded', 'lods': 'geometry-preserving copies', 'ymt': 'unchanged; existing collection required'}
+                'textures': 'embedded', 'lods': 'geometry-preserving copies', 'verified':verified, 'ymt': 'unchanged; existing collection required'}
     finally:
         for obj in [*clones, drawable, dictionary]: bpy.data.objects.remove(obj, do_unlink=True)
