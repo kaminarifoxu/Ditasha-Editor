@@ -38,8 +38,8 @@ with tempfile.TemporaryDirectory() as directory:
     rgba[:4]=[255,0,0,255];rgba[4:]=[0,0,255,128];rgba[0,0,3]=0
     dds=temp/'alpha-orientation.dds';dds.write_bytes(native_dds.encode_dds(rgba))
     decoded=bpy.data.images.load(str(dds),check_existing=False)
-    assert decoded.has_data and decoded.size[:]==(8,8)
     bottom=decoded.pixels[:4]
+    assert decoded.has_data and decoded.size[:]==(8,8),(decoded.has_data,decoded.size[:],bottom)
     assert bottom[2]>.95 and abs(bottom[3]-128/255)<.02,bottom
     assert decoded.pixels[(7*8)*4+3]<.02,'DDS alpha/orientation lost'
     bpy.data.images.remove(decoded)
@@ -74,6 +74,7 @@ with tempfile.TemporaryDirectory() as directory:
         assert len(coordinates)>=3,coordinates
         assert len(list(bridge.mesh_levels(obj))) >= 3
         diffuse=obj.data.materials[0].node_tree.nodes.get('DiffuseSampler')
+        if diffuse and diffuse.image: diffuse.image.pixels[:4]
         assert diffuse and diffuse.image and diffuse.image.has_data,'Native embedded diffuse did not round-trip'
         color=diffuse.image.pixels[:4]
         assert color[0]>.05 and color[2]>.7 and color[0]<color[1]<color[2],color

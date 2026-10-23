@@ -126,6 +126,9 @@ def export_native(bpy, arm, garments, output, slot, image_node):
                     native.node_tree.nodes['DiffuseSampler'].image = image
                 for node in native.node_tree.nodes:
                     if node.type == 'TEX_IMAGE' and node.image:
+                        # Image loading is lazy in background Blender. Touch a
+                        # pixel before interpreting has_data as an actual failure.
+                        node.image.pixels[:4]
                         if not node.image.has_data: raise ValueError('Gambar shader native tidak terbaca.')
                         from native_dds import pack_image
                         if node.image.as_pointer() not in texture_images:
@@ -182,6 +185,7 @@ def export_native(bpy, arm, garments, output, slot, image_node):
                         verified['vertices'] += 1
                     for material in mesh.materials:
                         diffuse = material.node_tree.nodes.get('DiffuseSampler') if material and material.node_tree else None
+                        if diffuse and diffuse.image: diffuse.image.pixels[:4]
                         if not diffuse or not diffuse.image or not diffuse.image.has_data:
                             raise ValueError('YDD hasil kehilangan diffuse image embedded.')
         finally:
