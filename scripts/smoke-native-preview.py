@@ -79,7 +79,8 @@ else:raise AssertionError('Existing siren must be rejected')
 print('PASS_SIREN_TRANSFER',result)
 
 # Test a real native rigid-part export and reimport, including coordinate agreement.
-bpy.ops.wm.read_factory_settings(use_empty=True)
+for old_object in list(bpy.data.objects):
+    bpy.data.objects.remove(old_object, do_unlink=True)
 target, draw = arm('parts_target')
 donor, ddraw = arm('parts_donor')
 body = mesh('target_body', draw)

@@ -84,7 +84,7 @@ def import_vehicle(bpy, filename):
     file = Path(filename)
     if file.name.lower().endswith('_hi.yft') or file.name.lower().endswith('_hi.yft.xml'):
         raise ValueError('Pilih YFT dasar, dengan _hi.YFT di folder yang sama.')
-    result = bpy.ops.sollumz.import_assets(directory=str(file.parent), files=[{'name': file.name}], use_custom_settings=True, split_by_group=True)
+    result = bpy.ops.sollumz.import_assets(directory=str(file.parent), files=[{'name': file.name}], use_custom_settings=True, split_by_group=True, textures_mode='PACK')
     roots = [o for o in bpy.data.objects if o not in before and getattr(o, 'sollum_type', '') == 'sollumz_fragment' and o.type == 'ARMATURE']
     if 'FINISHED' not in result or len(roots) != 1:
         raise RuntimeError('Sollumz gagal mengimpor satu fragment kendaraan.')
