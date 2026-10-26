@@ -108,6 +108,15 @@
 .ft-table-scroll th:nth-child(2) {
   width: 105px;
 }
+.ft-table-scroll th:nth-child(4) {
+  width: 180px;
+}
+.ft-table-scroll td select {
+  width: 100%;
+  max-width: 100%;
+  font-size: 11px;
+  margin-top: 5px;
+}
 .ft-code {
   font-family: monospace;
   resize: vertical;

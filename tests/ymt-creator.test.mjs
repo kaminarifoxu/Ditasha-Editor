@@ -13,7 +13,7 @@ import { openArchive } from '../src/archives.js';
 const scan = (names, options = {}) =>
   scanClothing(
     names.map((path) => ({ path })),
-    { collection: 'ditasha_test', gender: 'm', ...options },
+    { collection: 'ditasha_test', gender: 'm', autoRename: false, ...options },
   );
 const pair = ['jbib_000_u.ydd', 'jbib_diff_000_a_uni.ytd'];
 test('YMT metadata groups freemode male/female components, prop anchors, races, alternatives and cloth', () => {

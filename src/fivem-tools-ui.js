@@ -5,8 +5,11 @@ import {
   resourceManifest,
   scanClothing,
   YMT_MAX_BYTES,
+  COMPONENTS,
+  PROPS,
 } from './ymt-creator.js';
 import { zipFiles } from './asset-tools.js';
+import { decodeResource } from './resource-client.js';
 import { ICON_CODES } from './ui-icons.js';
 export function mountFivemTools({ nav, activate, download, toast, confirmDiscard, getPack }) {
   const icon = (name) =>
@@ -26,6 +29,32 @@ export function mountFivemTools({ nav, activate, download, toast, confirmDiscard
   <section data-ft-panel="hash" class="ft-card ft-utility" hidden><h2>joaat / GetHashKey</h2><label>Model, texture atau collection<input id="ftHashName" value="adder" maxlength="4096" spellcheck="false"></label><p class="muted">Hash dihitung lokal tanpa membedakan huruf besar/kecil.</p><dl id="ftHashResults"></dl></section>
   <section data-ft-panel="manifest" class="ft-card ft-utility" hidden><h2>fxmanifest.lua generator</h2><p class="muted">Satu path per baris. Untuk collection clothing, gunakan metadata dan manifest dari YMT Creator.</p><div class="ft-manifest-fields"><label>Client scripts<textarea id="ftClient" rows="3" spellcheck="false">client.lua</textarea></label><label>Server scripts<textarea id="ftServer" rows="3" spellcheck="false">server.lua</textarea></label><label>Shared scripts<textarea id="ftShared" rows="3" spellcheck="false"></textarea></label><label>Dependencies<textarea id="ftDependencies" rows="3" spellcheck="false"></textarea></label></div><label>NUI page (opsional)<input id="ftNui" placeholder="html/index.html"></label><textarea id="ftManifest" class="ft-code" rows="12" readonly aria-label="Preview fxmanifest.lua"></textarea><button id="ftSaveManifest" class="primary">Simpan fxmanifest.lua</button><p id="ftManifestStatus" role="status"></p></section>`;
   nav.after(root);
+  const collectionHint = document.createElement('p');
+  collectionHint.id = 'ymtCollectionOutput';
+  collectionHint.className = 'muted';
+  root.querySelector('#ymtCollection').closest('label').after(collectionHint);
+  const fallback = document.createElement('label');
+  fallback.textContent = 'Jenis tanpa nama';
+  const slotSelect = document.createElement('select');
+  slotSelect.id = 'ymtDefaultSlot';
+  for (const [value, label] of [
+    ['auto', 'Auto · nama, isi atau folder'],
+    ...[...COMPONENTS, ...PROPS].map((s) => [s, s]),
+  ]) {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = label;
+    slotSelect.append(option);
+  }
+  fallback.append(slotSelect);
+  root.querySelector('#ymtGender').closest('label').after(fallback);
+  const guidance = root.querySelector('#ymtGender').closest('label')
+    .nextElementSibling.nextElementSibling;
+  guidance.textContent =
+    'Nomor drawable, huruf varian dan nama collection dirapikan otomatis saat ekspor. Pilih jenis untuk nama acak; pasangan YDD–YTD dicari dari isi file, nama dan folder.';
+  const pairHeading = document.createElement('th');
+  pairHeading.textContent = 'Model pasangan';
+  root.querySelector('thead th:last-child').before(pairHeading);
   const $ = (id) => root.querySelector('#' + id);
   let entries = [],
     history = [],
@@ -48,12 +77,20 @@ export function mountFivemTools({ nav, activate, download, toast, confirmDiscard
       plan = scanClothing(entries, {
         collection: $('ymtCollection').value,
         gender: $('ymtGender').value,
+        defaultSlot: $('ymtDefaultSlot').value,
       });
+      const uninspected = entries.filter((e) => e.inspectionWarning).length;
+      if (uninspected)
+        plan.warnings.push(
+          `${uninspected} file belum dapat dibaca isinya; pasangan memakai nama/folder atau pilihan pada baris.`,
+        );
+      $('ymtCollectionOutput').textContent = 'Nama hasil: ' + plan.collection;
       messages = [...plan.errors, ...plan.warnings];
       if (!plan.errors.length) docs = buildYmtDocuments(plan);
       $('ymtSummary').textContent =
         `${plan.groups.length} drawable · ${plan.files.filter((f) => f.kind === 'texture').length} texture variant · ${plan.errors.length} masalah`;
     } catch (e) {
+      $('ymtCollectionOutput').textContent = '';
       messages = [e.message];
       $('ymtSummary').textContent = 'Tambahkan file atau perbaiki pengaturan.';
     }
@@ -77,6 +114,51 @@ export function mountFivemTools({ nav, activate, download, toast, confirmDiscard
         td.title = text;
         tr.append(td);
       }
+      const type = document.createElement('select');
+      type.setAttribute('aria-label', 'Jenis ' + entry.path);
+      type.dataset.ymtSlot = String(index);
+      for (const slot of ['', ...COMPONENTS, ...PROPS]) {
+        const option = document.createElement('option');
+        option.value = slot;
+        option.textContent = slot || 'Auto';
+        type.append(option);
+      }
+      type.value = entry.slot || '';
+      type.disabled = busy;
+      type.onchange = () => {
+        remember();
+        entries[index] = { ...entry, slot: type.value };
+        changed();
+      };
+      if (!item || entry.slot) tr.children[1].append(type);
+      const pairCell = document.createElement('td');
+      if (/\.(ytd|yld)$/i.test(entry.path) || /_[ur]_\d+\.ydd$/i.test(entry.path)) {
+        const pairing = document.createElement('select');
+        pairing.setAttribute('aria-label', 'Pasangan ' + entry.path);
+        pairing.dataset.ymtModel = String(index);
+        const auto = document.createElement('option');
+        auto.value = '';
+        auto.textContent = item?.sourceModel
+          ? 'Auto · ' + item.sourceModel.split('/').at(-1)
+          : 'Auto · pilih jika ambigu';
+        pairing.append(auto);
+        for (const model of plan?.models || []) {
+          const option = document.createElement('option');
+          option.value = model.path;
+          option.textContent =
+            (model.sex === 'f' ? 'F' : 'M') + ' / ' + model.slot + ' · ' + model.path;
+          pairing.append(option);
+        }
+        pairing.value = entry.modelPath || '';
+        pairing.disabled = busy;
+        pairing.onchange = () => {
+          remember();
+          entries[index] = { ...entry, modelPath: pairing.value };
+          changed();
+        };
+        pairCell.append(pairing);
+      } else pairCell.textContent = '—';
+      tr.append(pairCell);
       const td = document.createElement('td'),
         remove = document.createElement('button');
       remove.textContent = '×';
@@ -106,7 +188,7 @@ export function mountFivemTools({ nav, activate, download, toast, confirmDiscard
     $('ymtUndo').disabled = busy || !history.length;
   };
   const remember = () => {
-    history.push(entries.slice());
+    history.push(entries.map((e) => ({ ...e })));
     if (history.length > 8) history.shift();
   };
   const changed = () => {
@@ -121,31 +203,64 @@ export function mountFivemTools({ nav, activate, download, toast, confirmDiscard
     entries.push(...items);
     changed();
   };
-  const addFiles = (files) => {
+  const addFiles = async (files) => {
+    if (busy) return;
     const items = Array.from(files)
       .filter((f) => /\.(ydd|ytd|yld)$/i.test(f.name))
       .map((file) => ({ path: file.webkitRelativePath || file.name, file }));
     if (!items.length) return toast('Pilih YDD/YTD/YLD.');
+    if (entries.length + items.length > 5000) return toast('Maksimum 5.000 file.');
     add(items);
+    await inspectFiles(items);
+  };
+  const inspectFiles = async (items) => {
+    busy = true;
+    root.querySelectorAll('input,select,button,textarea').forEach((e) => (e.disabled = true));
+    try {
+      for (const [i, item] of items.entries()) {
+        const extension = item.path.split('.').at(-1).toLowerCase();
+        if (extension === 'yld') continue;
+        $('ymtSummary').textContent =
+          `Mencari pasangan dari isi file ${i + 1}/${items.length} · ${item.path}`;
+        try {
+          if (
+            (item.file?.size ?? item.data?.length) >
+            (extension === 'ytd' ? 256 : 64) * 1024 * 1024
+          )
+            throw Error('Di atas batas analisis');
+          const buffer = item.file ? await item.file.arrayBuffer() : item.data.slice().buffer;
+          item.hints = await decodeResource('clothing-hints', buffer, { extension });
+        } catch (e) {
+          item.inspectionWarning = e.message;
+        }
+      }
+    } finally {
+      busy = false;
+      root.querySelectorAll('input,select,button,textarea').forEach((e) => (e.disabled = false));
+      refresh();
+      updateManifest();
+    }
   };
   for (const [button, input] of [
     ['ymtFiles', 'ymtFileInput'],
     ['ymtFolder', 'ymtFolderInput'],
   ]) {
     $(button).onclick = () => $(input).click();
-    $(input).onchange = () => {
-      addFiles($(input).files);
+    $(input).onchange = async () => {
+      await addFiles($(input).files);
       $(input).value = '';
     };
   }
-  $('ymtUsePack').onclick = () => {
+  $('ymtUsePack').onclick = async () => {
+    if (busy) return;
     const items = getPack();
     if (!items.length) return toast('Tambahkan file di Clothing pack dahulu.');
-    add(
-      items
-        .filter((e) => /\.(ydd|ytd|yld)$/i.test(e.path))
-        .map((e) => ({ path: e.path, data: e.data })),
-    );
+    const imported = items
+      .filter((e) => /\.(ydd|ytd|yld)$/i.test(e.path))
+      .map((e) => ({ path: e.path, data: e.data }));
+    if (entries.length + imported.length > 5000) return toast('Maksimum 5.000 file.');
+    add(imported);
+    await inspectFiles(imported);
   };
   $('ymtAddNames').onclick = () => {
     const text = $('ymtNames').value;
@@ -177,6 +292,7 @@ export function mountFivemTools({ nav, activate, download, toast, confirmDiscard
     changed();
   };
   $('ymtCollection').oninput = $('ymtGender').onchange = changed;
+  $('ymtDefaultSlot').onchange = changed;
   $('ymtDocument').onchange = updateDocument;
   const save = async (kind) => {
     if (busy || !plan || !docs.length) return;

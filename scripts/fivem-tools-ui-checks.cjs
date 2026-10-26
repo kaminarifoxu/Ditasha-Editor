@@ -81,24 +81,41 @@ module.exports = async function checkFivemTools() {
     'Metadata ZIP missing',
   );
   add(['jbib_diff_000_c_uni.ytd']);
-  assert($('ymtSaveMetadata').disabled, 'Texture gap was not blocked');
+  assert(!$('ymtSaveMetadata').disabled, 'Texture letters with gaps were not normalized');
+  assert(
+    [...$('ymtRows').children]
+      .find((r) => r.children[0].textContent === 'jbib_diff_000_c_uni.ytd')
+      .children[2].textContent.endsWith('_b_uni.ytd'),
+    'Texture c did not become variant b',
+  );
   $('ymtUndo').click();
   assert(!$('ymtSaveMetadata').disabled, 'Undo did not restore valid inputs');
   const rows = $('ymtRows').children.length;
   document.querySelector('[data-page=editor]').click();
   document.querySelector('[data-page=fivemtools]').click();
   assert($('ymtRows').children.length === rows, 'Switching workspace lost YMT inputs');
-  $('ymtCollection').value = 'resource_test';
+  $('ymtCollection').value = 'Resource Test';
   $('ymtCollection').dispatchEvent(new Event('input'));
   // Undo the two additions to test actual file-byte export in the same session.
   $('ymtUndo').click();
   assert($('ymtRows').children.length === 0, 'Undo did not return to empty list');
+  $('ymtDefaultSlot').value = 'hair';
+  $('ymtDefaultSlot').dispatchEvent(new Event('change'));
   const dt = new DataTransfer();
-  dt.items.add(new File([new Uint8Array([82, 83, 67, 55, 1])], 'jbib_000_u.ydd'));
-  dt.items.add(new File([new Uint8Array([82, 83, 67, 55, 2])], 'jbib_diff_000_a_uni.ytd'));
+  dt.items.add(new File([new Uint8Array([82, 83, 67, 55, 1])], 'randomStyle 738.ydd'));
+  dt.items.add(new File([new Uint8Array([82, 83, 67, 55, 2])], 'palette 922.ytd'));
   $('ymtFileInput').files = dt.files;
   $('ymtFileInput').dispatchEvent(new Event('change'));
-  assert(!$('ymtSaveResource').disabled, 'Original files cannot export resource ZIP');
+  await wait(() => !$('ymtSaveResource').disabled);
+  assert(
+    $('ymtCollectionOutput').textContent.includes('resource_test'),
+    'Collection normalization was not shown',
+  );
+  assert(
+    $('ymtRows').textContent.includes('hair_000_u.ydd') &&
+      $('ymtRows').textContent.includes('hair_diff_000_a_uni.ytd'),
+    'Random file names did not become canonical output',
+  );
   $('ymtSaveResource').click();
   await wait(() => saves.length === 2);
   await wait(() => !$('ymtSaveResource').disabled);
@@ -118,6 +135,20 @@ module.exports = async function checkFivemTools() {
   await wait(() => saves.length === 3);
   assert(saves[2].name === 'fxmanifest.lua', 'Manifest not saved');
   document.querySelector('[data-ft-tab=ymt]').click();
+  $('ymtUndo').click();
+  add(['style 41.ydd', 'style 83.ydd', 'red 9.ytd', 'blue 74.ytd']);
+  assert($('ymtSaveMetadata').disabled, 'Ambiguous pairs were guessed');
+  const assign = (index, path) => {
+    const s = root.querySelector(`[data-ymt-model="${index}"]`);
+    s.value = path;
+    s.dispatchEvent(new Event('change'));
+  };
+  assign(2, 'style 41.ydd');
+  assign(3, 'style 83.ydd');
+  assert(!$('ymtSaveMetadata').disabled, 'Pairing dropdowns did not resolve arbitrary names');
+  $('ymtUndo').click();
+  assert($('ymtSaveMetadata').disabled, 'Pairing undo did not restore ambiguity');
+  assign(3, 'style 83.ydd');
   assert(
     document.documentElement.scrollWidth <= innerWidth + 1,
     'FiveM tools causes horizontal window overflow',
@@ -125,6 +156,6 @@ module.exports = async function checkFivemTools() {
   return {
     saves,
     checks:
-      'XML structure, components/props, missing texture gate, Undo, workspace persistence, canceled save, original-file ZIP, hash and manifest validation',
+      'Automatic indices/letters and collection normalization, random file ZIP, explicit ambiguous pairing and undo, XML structure, components/props, workspace persistence, canceled save, hash and manifest validation',
   };
 };

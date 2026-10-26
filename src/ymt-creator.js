@@ -1,4 +1,6 @@
 import { hashName, safePath, zipFiles } from './asset-tools.js';
+import { normalizeClothingEntries, normalizeCollectionName } from './clothing-normalize.js';
+export { normalizeCollectionName } from './clothing-normalize.js';
 export const COMPONENTS = [
   'head',
   'berd',
@@ -61,7 +63,40 @@ export function hashValues(text) {
     hex: '0x' + unsigned.toString(16).padStart(8, '0').toUpperCase(),
   };
 }
-export function scanClothing(entries, { collection, gender = 'm' }) {
+export function scanClothing(entries, options) {
+  if (options.autoRename === false) return scanCanonicalClothing(entries, options);
+  if (!['m', 'f'].includes(options.gender || 'm')) throw Error('Pilih gender m atau f.');
+  if (!entries.length || entries.length > 5000) throw Error('Pilih 1–5.000 file YDD/YTD/YLD.');
+  const collection = normalizeCollectionName(options.collection);
+  const normalized = normalizeClothingEntries(entries, {
+    gender: options.gender || 'm',
+    defaultSlot: options.defaultSlot || 'auto',
+    slots: [...COMPONENTS, ...PROPS],
+  });
+  const plan = normalized.entries.length
+    ? scanCanonicalClothing(normalized.entries, { collection, gender: options.gender || 'm' })
+    : { collection, groups: [], files: [], errors: [], warnings: [] };
+  for (const item of plan.files) {
+    const source = item.entry;
+    Object.assign(item, {
+      entry: source.originalEntry,
+      path: source.sourcePath,
+      sourceIndex: source.sourceIndex,
+      sourceVariant: source.sourceVariant,
+      sourceModel: source.sourceModel,
+    });
+  }
+  plan.errors = [...new Set([...normalized.errors, ...plan.errors])];
+  if (!plan.groups.length && !plan.errors.length)
+    plan.errors.push('Tidak ada clothing yang dikenali.');
+  plan.models = normalized.models;
+  plan.normalized = true;
+  plan.collectionInput = options.collection;
+  if (collection !== options.collection)
+    plan.warnings.unshift('Nama collection otomatis: ' + collection);
+  return plan;
+}
+function scanCanonicalClothing(entries, { collection, gender = 'm' }) {
   collectionName(collection);
   if (!['m', 'f'].includes(gender)) throw Error('Pilih gender m atau f.');
   if (!entries.length || entries.length > 5000) throw Error('Pilih 1–5.000 file YDD/YTD/YLD.');
@@ -355,8 +390,16 @@ export function buildYmtDocuments(plan) {
     data: JSON.stringify(
       {
         collection: plan.collection,
+        automaticNaming: !!plan.normalized,
+        collectionInput: plan.collectionInput || plan.collection,
         requiresBinaryConversion: true,
-        mapping: plan.files.map((f) => ({ source: f.path, output: f.output })),
+        mapping: plan.files.map((f) => ({
+          source: f.path,
+          output: f.output,
+          model: f.sourceModel,
+          sourceIndex: f.sourceIndex,
+          sourceVariant: f.sourceVariant,
+        })),
         warnings: plan.warnings,
       },
       null,

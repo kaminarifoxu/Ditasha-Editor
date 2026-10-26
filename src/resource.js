@@ -405,7 +405,7 @@ const shaderNumericComponents = new Map(
     ['specularFalloffMult', 1],
   ].map(([name, count]) => [nameHash(name), count]),
 );
-function shaderInfo(r, d) {
+function shaderInfo(r, d, decodeEmbedded = true) {
   const group = r.ptr(d + 16),
     bindings = [],
     embeddedTextures = [],
@@ -415,6 +415,10 @@ function shaderInfo(r, d) {
   if (dictionary !== null) {
     let pixels = 0;
     for (const { p, name, nameHash } of dictionaryTextures(r, dictionary)) {
+      if (!decodeEmbedded) {
+        embeddedTextures.push({ name, nameHash });
+        continue;
+      }
       pixels += r.u16(p + 80) * r.u16(p + 82);
       if (pixels > 33554432) throw Error('Embedded textures exceed 128 MB.');
       try {
@@ -735,6 +739,28 @@ function readDrawables(r, drawables, metadata = new Map()) {
 export function readYdd(buffer) {
   const r = new Resource(buffer, 165);
   return requireGeometry(readDrawables(r, r.list(48, r.u16(56))));
+}
+// Naming/pairing hints only: never decode geometry or texture pixels for a bulk import.
+export function clothingAssetHints(buffer, extension) {
+  if (extension === 'ytd') {
+    const entries = indexYtd(buffer);
+    return {
+      names: entries.map((t) => t.name),
+      keys: entries.flatMap((t) => [
+        nameHash(t.name),
+        ...(t.nameHash === undefined ? [] : [t.nameHash]),
+      ]),
+    };
+  }
+  if (extension !== 'ydd') throw Error('Hints memerlukan YDD atau YTD.');
+  const r = new Resource(buffer, 165),
+    names = [];
+  for (const drawable of r.list(48, r.u16(56))) {
+    const info = shaderInfo(r, drawable, false);
+    for (const binding of info.bindings)
+      if (binding.diffuseTexture) names.push(binding.diffuseTexture);
+  }
+  return { names: [...new Set(names)], keys: [...new Set(names.map(nameHash))] };
 }
 export function readYdr(buffer) {
   const r = new Resource(buffer, 165);
