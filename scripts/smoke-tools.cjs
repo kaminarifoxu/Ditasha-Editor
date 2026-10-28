@@ -478,6 +478,19 @@ app.whenReady().then(async () => {
         ')(' +
         JSON.stringify({
           native: [...new Uint8Array(boothPedFixture())],
+          missingRig: [...new Uint8Array(boothPedFixture({ missingRig: true, paletteBone: 40 }))],
+          replacementYtd: [
+            ...createYtd([
+              {
+                name: 'preview_repair',
+                w: 2,
+                h: 2,
+                out: new Uint8Array([
+                  230, 35, 35, 255, 230, 35, 35, 255, 230, 35, 35, 255, 230, 35, 35, 255,
+                ]),
+              },
+            ]),
+          ],
           glb: [...new Uint8Array(await boothGlbFixture())],
         }) +
         ')',

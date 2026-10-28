@@ -280,7 +280,154 @@ module.exports = async function checkPhotoBooth(fixtures) {
   await sleep(150);
   console.log('DITASHA_SNAPSHOT:photo-booth-outfit-categories');
   await sleep(150);
+  $('pbClear').click();
+  $('pbPed').click();
+  upload('pbInput', [['unknown-no-skeleton.ydd', fixtures.missingRig]]);
+  await wait(
+    () => !$('pbPed').disabled && $('pbAssets').children.length === 1,
+    'Missing skeleton import',
+  );
+  assert(
+    !$('pbIssues').hidden && $('pbIssueList').textContent.includes('41'),
+    'Missing skeleton not diagnosed',
+  );
+  assert($('pbPlay').disabled, 'Incompatible skin incorrectly enabled playback');
+  $('pbRigSource').value = 'freemode-male';
+  $('pbRigSource').dispatchEvent(new Event('change'));
+  assert(
+    $('pbRigStatus').textContent.includes('1 mesh GTA skinned'),
+    'Selected freemode reference did not bind native skin',
+  );
+  document.querySelector('[data-quick-pose=walk]').click();
+  await sleep(200);
+  assert(Number($('pbTime').value) > 0, 'Quick emote did not start native animation');
+  $('pbPauseAll').click();
+  $('pbTextures').click();
+  upload('pbTextureInput', [['replacement.ytd', fixtures.replacementYtd]]);
+  await wait(
+    () => !$('pbPed').disabled && $('pbAssets').querySelector('[data-preview-texture]'),
+    'Replacement texture import',
+  );
+  $('pbPose').value = 'rest';
+  $('pbPose').dispatchEvent(new Event('change'));
+  $('pbFit').click();
+  const beforeReplacement = canvas().toDataURL();
+  const replace = $('pbAssets').querySelector('[data-preview-texture]');
+  replace.selectedIndex = 1;
+  replace.dispatchEvent(new Event('change'));
+  assert(
+    canvas().toDataURL() !== beforeReplacement,
+    'Texture override did not change native preview',
+  );
+  $('pbLibraryName').value = 'QA repaired native rig';
+  $('pbLibrarySave').click();
+  await wait(
+    () =>
+      !$('pbLibrarySave').disabled &&
+      [...$('pbLibraryList').querySelectorAll('strong')].some(
+        (n) => n.textContent === 'QA repaired native rig',
+      ),
+    'Repaired preset save',
+  );
+  const repaired = [...$('pbLibraryList').querySelectorAll('article')]
+    .find((a) => a.querySelector('strong').textContent === 'QA repaired native rig')
+    .querySelector('[data-library-load]').dataset.libraryLoad;
+  $('pbClear').click();
+  $('pbLibraryList').querySelector(`[data-library-load="${repaired}"]`).click();
+  await wait(
+    () => !$('pbPed').disabled && $('pbActor').options.length === 1,
+    'Repaired preset restore',
+  );
+  assert(
+    $('pbRigSource').value === 'freemode-male' &&
+      $('pbAssets').querySelector('[data-preview-texture]').selectedIndex === 1,
+    'Library lost rig or preview texture override',
+  );
+  $('pbClear').click();
+  $('pbPed').click();
+  upload('pbInput', [['mp_m_freemode_01^head_002_r.ydd', fixtures.missingRig]]);
+  await wait(
+    () => !$('pbPed').disabled && $('pbAssets').children.length === 1,
+    'Freemode no-skeleton import',
+  );
+  assert(
+    $('pbRigStatus').textContent.includes('1 mesh GTA skinned'),
+    'Automatic freemode recovery failed',
+  );
+  $('pbClear').click();
+  $('pbPed').click();
+  upload('pbInput', [['height-test.glb', fixtures.glb]]);
+  await wait(
+    () => !$('pbPed').disabled && $('pbAssets').children.length === 1,
+    'Height regression model',
+  );
+  $('pbPose').value = 'rest';
+  $('pbPose').dispatchEvent(new Event('change'));
+  $('pbFit').click();
+  $('pbTransparent').checked = true;
+  $('pbTransparent').dispatchEvent(new Event('input'));
+  const pixelHeight = () => {
+    const source = canvas(),
+      c = document.createElement('canvas');
+    c.width = source.width;
+    c.height = source.height;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(source, 0, 0);
+    const data = ctx.getImageData(0, 0, c.width, c.height).data;
+    let min = Infinity,
+      max = -Infinity;
+    for (let y = 0; y < c.height; y++)
+      for (let x = 0; x < c.width; x++)
+        if (data[(y * c.width + x) * 4 + 3] > 40) {
+          min = Math.min(min, y);
+          max = Math.max(max, y);
+        }
+    return max - min;
+  };
+  const originalHeight = Number($('pbHeightCm').value),
+    beforeSize = pixelHeight();
+  $('pbHeightCm').value = String(originalHeight * 0.7);
+  $('pbHeightCm').dispatchEvent(new Event('change'));
+  assert(
+    pixelHeight() > 0 && pixelHeight() < beforeSize * 0.85,
+    'Height change was canceled by auto-fit',
+  );
+  const beforeRaise = canvas().toDataURL();
+  $('pbElevationCm').value = '20';
+  $('pbElevationCm').dispatchEvent(new Event('change'));
+  assert(canvas().toDataURL() !== beforeRaise, 'Elevation did not move visible model');
+  document.querySelector('[data-quick-pose=walk]').click();
+  $('pbHeightCm').value = '123';
+  await sleep(120);
+  assert($('pbHeightCm').value === '123', 'Playback overwrote height typing');
+  $('pbHeightCm').dispatchEvent(new Event('change'));
+  $('pbSpeed').value = '.5';
+  await sleep(120);
+  assert(Number($('pbSpeed').value) === 0.5, 'Playback overwrote speed typing');
+  $('pbSpeed').dispatchEvent(new Event('change'));
+  $('pbPauseAll').click();
+  $('pbReference').click();
+  upload('pbReferenceInput', [['rig-source.ydd', fixtures.native]]);
+  await wait(
+    () => !$('pbReference').disabled && $('pbAssets').children.length === 2,
+    'Reference skeleton import',
+  );
+  assert(
+    $('pbAssets').lastElementChild.querySelector('[data-reference-checkbox]'),
+    'Reference file checkbox not marked',
+  );
+  await sleep(150);
+  console.log('DITASHA_SNAPSHOT:photo-booth-height-rig-controls');
+  await sleep(150);
   return {
+    automaticFreemodeRig: true,
+    manualReference: true,
+    nativeEmoteRecovery: true,
+    heightWithoutRefit: true,
+    elevation: true,
+    typingDuringPlayback: true,
+    previewTextureOverride: true,
+    repairedPresetPersistence: true,
     detailedOutfits: 16,
     folderImport: true,
     maxModels: 100,

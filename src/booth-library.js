@@ -44,6 +44,23 @@ export function validateBoothScene(record) {
       !OUTFIT_CATEGORIES.some(([id]) => id === a.category)
     )
       throw Error('Kategori preset tidak valid.');
+    if (
+      a.rigChoice !== undefined &&
+      !['auto', 'reference', 'freemode-male', 'freemode-female'].includes(a.rigChoice)
+    )
+      throw Error('Acuan skeleton tidak valid.');
+    if (a.referenceOnly !== undefined && typeof a.referenceOnly !== 'boolean')
+      throw Error('Acuan skeleton tidak valid.');
+    if (
+      a.targetHeightCm != null &&
+      (!Number.isFinite(a.targetHeightCm) || a.targetHeightCm < 1 || a.targetHeightCm > 1000)
+    )
+      throw Error('Tinggi preset tidak valid.');
+    if (
+      a.textureOverride !== undefined &&
+      (typeof a.textureOverride !== 'string' || a.textureOverride.length > 2048)
+    )
+      throw Error('Penggantian tekstur tidak valid.');
     validateActorMotion(a.motion);
     if (
       typeof a.motion.clip !== 'string' ||

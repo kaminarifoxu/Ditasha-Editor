@@ -1,3 +1,5 @@
+import { freemodeFamily, selectBoothRig } from './booth-rig.js';
+import { boothHeight, setBoothHeight, setBoothElevation } from './booth-transform.js';
 import {
   MAX_BOOTH_MODELS,
   MAX_BOOTH_VERTICES,
@@ -12,7 +14,7 @@ import { MAX_DECODED_TEXTURE_BYTES } from './texture-memory.js';
 import { createBoothLibrary, validateBoothScene } from './booth-library.js';
 import { createActorMotion, actorForAsset, advanceActorMotion } from './booth-actors.js';
 import * as THREE from 'three';
-import { fitPhotoshoot } from './photoshoot-framing.js';
+import { photoshootPoints, fitPhotoshoot } from './photoshoot-framing.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { decodeResource } from './resource-client.js';
@@ -44,8 +46,8 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
   root.hidden = true;
   root.innerHTML = `<div class="pb-heading"><div><span class="eyebrow">DITASHA / OFFLINE PHOTO BOOTH</span><h1>Photo Booth</h1><p class="muted">Ped, outfit dan aksesori · pose, atur kamera, ambil foto.</p></div><button id="pbCapture" class="primary" disabled>▣ Simpan PNG</button></div>
   <div class="pb-layout"><aside class="pb-panel pb-assets"><h2>Model & outfit</h2><div class="pb-buttons"><button id="pbPed">+ Ped / tubuh</button><button id="pbClothes">+ Outfit / batch</button><button id="pbAccessory">+ Aksesori</button><button id="pbTextures">+ Tekstur</button></div><input id="pbInput" type="file" accept=".ydd,.ydr,.yft,.ytd,.glb" multiple hidden><input id="pbTextureInput" type="file" accept=".ytd,.dds,.png,.jpg,.jpeg,.webp" multiple hidden><p class="muted">Masukkan YDD + YTD. YFT skeleton pendamping dapat ditambahkan. GLB rigged juga didukung.</p><details class="pb-outfit-import" open><summary>Kategori outfit & impor folder</summary><div id="pbOutfitButtons" class="pb-outfit-grid"></div><label>Kategori folder / drag & drop<select id="pbImportCategory"><option value="auto">Otomatis dari nama GTA</option>${OUTFIT_CATEGORIES.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}</select></label><button id="pbFolder">+ Folder outfit</button><input id="pbFolderInput" type="file" webkitdirectory multiple hidden></details><p id="pbModelCount" class="muted" role="status">0 / ${MAX_BOOTH_MODELS} model</p><p class="muted">100 model · 64 MB per model · 1 GB file model per scene. Batas tekstur decoded 1 GB.</p><label>Filter bagian<select id="pbCategoryFilter"><option value="all">Semua bagian</option><option value="ped">Ped / tubuh</option>${OUTFIT_CATEGORIES.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}</select></label><input id="pbAssetSearch" placeholder="Cari model / outfit…" aria-label="Cari model Photo Booth"><div id="pbAssets"></div><p id="pbEmpty">Belum ada model. Mulai dari ped / tubuh milikmu.</p><button id="pbClear">Kosongkan booth</button><h2 class="pb-library-heading">Library lokal</h2><p class="muted">Preset maksimal 512 MB, termasuk file sumber dan tekstur.</p><label>Nama preset<input id="pbLibraryName" maxlength="80" placeholder="Foto grup / outfit favorit"></label><button id="pbLibrarySave">Simpan scene & outfit</button><button id="pbLibraryRefresh">Muat daftar library</button><input id="pbLibrarySearch" placeholder="Cari preset ped / outfit…" aria-label="Cari library"><div id="pbLibraryList"></div></aside>
-  <section class="pb-stage"><div class="pb-stage-toolbar"><button id="pbFit">Fit tubuh</button><button id="pbFront">Depan</button><button id="pbBack">Belakang</button><label class="check"><input id="pbFloor" type="checkbox" checked>Lantai</label><span>Drag: orbit · scroll: zoom</span></div><div id="pbViewport"></div><p id="pbStatus" role="status">Siap untuk sesi foto offline.</p></section>
-  <aside class="pb-panel pb-settings"><h2>Pose & emote per ped</h2><label>Ped yang diatur<select id="pbActor"></select></label><p class="muted">Pose, clip dan frame hanya berubah untuk ped yang dipilih. Outfit mengikuti pemiliknya.</p><label>Pose<select id="pbPose">${BOOTH_POSES.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}<option value="clip">Clip GLB</option></select></label><div class="pb-buttons"><button id="pbPlay" disabled>▶ Putar</button><button id="pbResetPose">Reset pose</button><button id="pbPlayAll">Putar semua</button><button id="pbPauseAll">Jeda semua</button></div><label>Kecepatan<input id="pbSpeed" type="number" min="0.1" max="3" step="0.1" value="1"></label><label>Frame / waktu <output id="pbTimeLabel">0.00 s</output><input id="pbTime" type="range" min="0" max="4" step="0.01" value="0"></label><button id="pbImportClip">+ Animasi GLB</button><input id="pbClipInput" type="file" accept=".glb" hidden><label id="pbClipField" hidden>Clip<select id="pbClip"></select></label><p id="pbRigStatus" class="muted" role="status">Pose memerlukan skeleton dan skin weights yang cocok.</p><h2>Studio</h2><label>Background<input id="pbBackground" type="color" value="#242938"></label><label class="check"><input id="pbTransparent" type="checkbox">PNG transparan</label><label>Cahaya<input id="pbLight" type="range" min="0.3" max="3" value="1" step="0.05"></label><label>Resolusi foto<select id="pbSize"><option value="1080x1350">1080 × 1350 · katalog</option><option value="1920x1080">1920 × 1080 · landscape</option><option value="2048x2048">2048 × 2048 · square</option><option value="3000x4000">3000 × 4000 · portrait</option></select></label><p class="muted">Pose/emote bawaan dibuat untuk preview. Animasi GLB memakai nama bone yang cocok; binary YCD belum didukung di booth.</p></aside></div>`;
+  <section class="pb-stage"><div class="pb-stage-toolbar"><button id="pbFit">Fit tubuh</button><button id="pbFront">Depan</button><button id="pbBack">Belakang</button><label class="check"><input id="pbFloor" type="checkbox" checked>Lantai</label><span>Drag: orbit · scroll: zoom</span></div><div id="pbViewport"></div><p id="pbStatus" role="status">Siap untuk sesi foto offline.</p><button id="pbShowIssues" hidden>Lihat masalah</button></section>
+  <aside class="pb-panel pb-settings"><h2>Pose & emote per ped</h2><label>Ped yang diatur<select id="pbActor"></select></label><p class="muted">Pose, tinggi dan outfit mengikuti ped yang dipilih.</p><fieldset class="pb-ped-sizing"><legend>Tinggi & posisi ped terpilih</legend><label>Tinggi grup ped · cm<input id="pbHeightCm" type="number" min="1" max="1000" step="1"></label><label>Naik / turun · cm<input id="pbElevationCm" type="number" min="-10000" max="10000" step="1" value="0"></label><p class="muted">Seluruh outfit ikut berubah. Kamera tetap; gunakan Fit tubuh bila perlu.</p></fieldset><details class="pb-rig-settings"><summary>Skeleton / acuan (opsional)</summary><label>Skeleton acuan<select id="pbRigSource"><option value="auto">Otomatis · model / freemode</option><option value="freemode-male">Freemode laki-laki</option><option value="freemode-female">Freemode perempuan</option><option value="reference">Dari file skeleton acuan</option></select></label><button id="pbReference">+ Skeleton YFT / YDD</button><input id="pbReferenceInput" type="file" accept=".yft,.ydd,.ydr" multiple hidden></details><label>Pose<select id="pbPose">${BOOTH_POSES.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}<option value="clip">Clip GLB</option></select></label><div id="pbQuickPose" class="pb-buttons pb-quick-pose"><button data-quick-pose="walk">Berjalan</button><button data-quick-pose="dance">Dance</button><button data-quick-pose="wave">Lambaikan</button></div><div class="pb-buttons"><button id="pbPlay" disabled>▶ Putar</button><button id="pbResetPose">Reset pose</button><button id="pbPlayAll">Putar semua</button><button id="pbPauseAll">Jeda semua</button></div><label>Kecepatan<input id="pbSpeed" type="number" min="0.1" max="3" step="0.1" value="1"></label><label>Frame / waktu <output id="pbTimeLabel">0.00 s</output><input id="pbTime" type="range" min="0" max="4" step="0.01" value="0"></label><button id="pbImportClip">+ Animasi GLB</button><input id="pbClipInput" type="file" accept=".glb" hidden><label id="pbClipField" hidden>Clip<select id="pbClip"></select></label><p id="pbRigStatus" class="muted" role="status">Pose memerlukan skeleton dan skin weights yang cocok.</p><details id="pbIssues" hidden><summary id="pbIssueSummary">Periksa masalah</summary><p class="muted">Skeleton: pilih acuan atau impor YFT/YDD yang cocok. Tekstur: tambahkan YTD atau pilih penggantian preview di kartu model.</p><ul id="pbIssueList"></ul></details><h2>Studio</h2><label>Background<input id="pbBackground" type="color" value="#242938"></label><label class="check"><input id="pbTransparent" type="checkbox">PNG transparan</label><label>Cahaya<input id="pbLight" type="range" min="0.3" max="3" value="1" step="0.05"></label><label>Resolusi foto<select id="pbSize"><option value="1080x1350">1080 × 1350 · katalog</option><option value="1920x1080">1920 × 1080 · landscape</option><option value="2048x2048">2048 × 2048 · square</option><option value="3000x4000">3000 × 4000 · portrait</option></select></label><p class="muted">Pose/emote bawaan dibuat untuk preview. Animasi GLB memakai nama bone yang cocok; binary YCD belum didukung di booth.</p></aside></div>`;
   nav.after(root);
   const $ = (id) => root.querySelector('#' + id);
   let renderer,
@@ -92,7 +94,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         speed: Number($('pbSpeed').value) || 1,
       });
   }
-  function loadMotion() {
+  function loadMotion({ controls: syncControls = true } = {}) {
     const a = currentActor();
     if (!a) {
       time = 0;
@@ -101,8 +103,11 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     }
     selectedActor = a.id;
     const m = a.motion;
-    $('pbPose').value = m.pose;
-    $('pbSpeed').value = m.speed;
+    if (syncControls) {
+      $('pbPose').value = m.pose;
+      $('pbSpeed').value = m.speed;
+      syncPedFields();
+    }
     time = m.time;
     playing = m.playing;
   }
@@ -120,6 +125,81 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     $('pbActor').value = String(selectedActor);
     loadMotion();
   }
+  function syncPedFields() {
+    const a = currentActor();
+    $('pbHeightCm').value = a?.baseHeight ? Number((a.baseHeight * a.scale * 100).toFixed(1)) : '';
+    $('pbElevationCm').value = a ? Number((a.offset[1] * 100).toFixed(1)) : 0;
+    $('pbRigSource').value = a?.rigChoice || 'auto';
+  }
+  function updateTransform(a) {
+    const owner = actorForAsset(assets, a),
+      frame = actorFrames.get(owner.id);
+    if (a === owner && frame) {
+      frame.position.set(...a.offset);
+      frame.rotation.y = ((a.yaw || 0) * Math.PI) / 180;
+      frame.scale.setScalar(a.scale);
+    } else if (a.previewBase) {
+      a.root.position.copy(a.previewBase.position).add(new THREE.Vector3(...a.offset));
+      a.root.quaternion.copy(a.previewBase.quaternion);
+      a.root.rotateY(((a.yaw || 0) * Math.PI) / 180);
+      a.root.scale.copy(a.previewBase.scale).multiplyScalar(a.scale);
+    }
+    stage?.updateMatrixWorld(true);
+    syncPedFields();
+    render();
+  }
+  function updateIssues(messages) {
+    $('pbIssueList').replaceChildren(
+      ...messages.map((message) => {
+        const li = document.createElement('li');
+        li.textContent = message;
+        return li;
+      }),
+    );
+    $('pbIssueSummary').textContent = 'Periksa masalah (' + messages.length + ')';
+    $('pbIssues').hidden = !messages.length;
+    $('pbShowIssues').hidden = !messages.length;
+  }
+  $('pbShowIssues').onclick = () => {
+    $('pbIssues').open = true;
+    $('pbIssues').scrollIntoView({ block: 'center', behavior: 'smooth' });
+  };
+  $('pbHeightCm').onchange = () => {
+    const a = currentActor();
+    if (!a) return;
+    try {
+      setBoothHeight(a, Number($('pbHeightCm').value));
+      updateTransform(a);
+      setStatus('Tinggi ped dan outfit diperbarui.');
+    } catch (e) {
+      setStatus(e.message);
+      syncPedFields();
+    }
+  };
+  $('pbElevationCm').onchange = () => {
+    const a = currentActor();
+    if (!a) return;
+    try {
+      setBoothElevation(a, Number($('pbElevationCm').value));
+      updateTransform(a);
+    } catch (e) {
+      setStatus(e.message);
+      syncPedFields();
+    }
+  };
+  $('pbRigSource').onchange = () => {
+    const a = currentActor();
+    if (a) {
+      a.rigChoice = $('pbRigSource').value;
+      rebuild({ fitCamera: false });
+    }
+  };
+  $('pbReference').onclick = () => $('pbReferenceInput').click();
+  $('pbReferenceInput').onchange = (e) => {
+    const files = [...e.target.files];
+    e.target.value = '';
+    guard(() => importFiles(files, 'accessory', 'other', { referenceOnly: true }));
+  };
   const setStatus = (s) => {
     $('pbStatus').textContent = s;
   };
@@ -150,6 +230,10 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       'pbActor',
       'pbPlayAll',
       'pbPauseAll',
+      'pbHeightCm',
+      'pbElevationCm',
+      'pbRigSource',
+      'pbReference',
       'pbLibrarySave',
       'pbLibraryRefresh',
     ])
@@ -159,8 +243,12 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       .forEach((b) => (b.disabled = busy));
     $('pbAssets')
       .querySelectorAll('button,input,select')
-      .forEach((e) => (e.disabled = busy));
+      .forEach((e) => (e.disabled = busy || e.dataset.referenceCheckbox === 'true'));
     $('pbLibrarySave').disabled = busy || !assets.length;
+    $('pbReference').disabled = busy || !currentActor();
+    $('pbRigSource').disabled = busy || !currentActor();
+    $('pbHeightCm').disabled = busy || !currentActor()?.baseHeight;
+    $('pbElevationCm').disabled = busy || !currentActor();
     const owner = currentActor(),
       frame = owner && actorFrames.get(owner.id);
     let ownAnimated = false;
@@ -171,6 +259,9 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       $('pbPose').value === 'clip'
         ? mixers.some((m) => m.userData.actor === owner?.id)
         : ownAnimated && rest.some((r) => r.role && frame?.getObjectById(r.bone.id));
+    $('pbQuickPose')
+      .querySelectorAll('button')
+      .forEach((b) => (b.disabled = busy || !movable));
     $('pbCapture').disabled = busy || !assets.length;
     $('pbPlay').disabled = busy || !movable;
     $('pbTime').disabled = busy || !movable;
@@ -306,7 +397,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     maps.forEach((m) => m.map.dispose());
     maps = [];
   }
-  function rebuild() {
+  function rebuild({ fitCamera = true } = {}) {
     ensure();
     clearStage();
     actorFrames = new Map();
@@ -316,6 +407,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       stage.add(frame);
     }
     const warnings = [];
+    for (const a of actors()) a.rigReport = { skinned: 0, static: 0, sources: new Set() };
     let skinned = 0,
       staticMeshes = 0;
     for (const a of assets) {
@@ -324,12 +416,19 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       a.root.visible = a.visible;
       const owner = actorForAsset(assets, a);
       actorFrames.get(owner.id).add(a.root);
-      const fallback = assets
+      const family = freemodeFamily(owner.name) || freemodeFamily(a.name);
+      const candidates = assets
         .filter((b) => actorForAsset(assets, b) === owner)
-        .flatMap((b) => b.drawables || [])
-        .map((d) => d.rig)
-        .filter((r) => r?.length)
-        .sort((a, b) => b.length - a.length)[0];
+        .flatMap((b) =>
+          (b.drawables || [])
+            .filter((d) => d.rig?.length)
+            .map((d) => ({ rig: d.rig, label: b.name, referenceOnly: b.referenceOnly })),
+        )
+        .sort(
+          (a, b) =>
+            Number(!!b.referenceOnly) - Number(!!a.referenceOnly) || b.rig.length - a.rig.length,
+        );
+      if (a.referenceOnly) continue;
       if (a.gltf) {
         a.root.add(a.gltf.scene);
         continue;
@@ -341,10 +440,20 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         part.name = d.name;
         part.visible = !a.hiddenSlots.has(d.componentSlot);
         a.root.add(part);
-        const data = d.rig?.length ? d.rig : fallback;
-        const rig = data?.length ? nativeRig(data) : null;
-        if (rig) part.add(rig.holder);
+        const rigCache = new Map();
         for (const g of (d.lods.find((l) => l.name === 'High') || d.lods[0]).geometries) {
+          const selection = selectBoothRig(d.rig, g.skin, candidates, {
+            family,
+            choice: owner.rigChoice || 'auto',
+          });
+          let rig = selection.rig.length ? rigCache.get(selection.rig) : null;
+          if (!rig && selection.rig.length) {
+            rig = nativeRig(selection.rig);
+            rigCache.set(selection.rig, rig);
+            part.add(rig.holder);
+          }
+          if (selection.warning) warnings.push(a.name + ': ' + selection.warning);
+          if (selection.source && rig) owner.rigReport.sources.add(selection.source);
           const geom = new THREE.BufferGeometry();
           geom.setAttribute('position', new THREE.BufferAttribute(g.positions, 3));
           if (g.uvs) geom.setAttribute('uv', new THREE.BufferAttribute(g.uvs, 2));
@@ -354,8 +463,14 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           const ownTextures = textures.filter(
             (t) => t.boothOwner == null || t.boothOwner === a.id || t.boothOwner === owner.id,
           );
-          const embedded = d.embeddedTextures || [],
-            t = resolveModelTexture(g.diffuseTexture, ownTextures, embedded, a.name);
+          const embedded = d.embeddedTextures || [];
+          const override =
+            a.textureOverride &&
+            [...ownTextures.filter((t) => t.boothOwner === a.id), ...ownTextures, ...embedded].find(
+              (t) => JSON.stringify([t.dictionary || '', t.name]) === a.textureOverride,
+            );
+          const t =
+            override || resolveModelTexture(g.diffuseTexture, ownTextures, embedded, a.name);
           if (g.diffuseTexture && !t)
             warnings.push(a.name + ': tekstur ' + g.diffuseTexture + ' belum ditemukan');
           const alpha = modelPreviewAlpha(g) || {
@@ -378,12 +493,9 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
             textureMap,
           );
           let mesh;
-          const valid =
-            g.skin &&
-            rig &&
-            g.skin.indices.every((id, i) => !g.skin.weights[i] || id < rig.bones.length);
+          const valid = g.skin && rig && selection.indices;
           if (valid) {
-            geom.setAttribute('skinIndex', new THREE.BufferAttribute(g.skin.indices, 4));
+            geom.setAttribute('skinIndex', new THREE.BufferAttribute(selection.indices, 4));
             geom.setAttribute('skinWeight', new THREE.BufferAttribute(g.skin.weights, 4));
             mesh = new THREE.SkinnedMesh(geom, material);
             part.add(mesh);
@@ -391,11 +503,12 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
             mesh.bind(rig.skeleton, new THREE.Matrix4());
             mesh.frustumCulled = false;
             skinned++;
+            owner.rigReport.skinned++;
           } else {
             mesh = new THREE.Mesh(geom, material);
             part.add(mesh);
             staticMeshes++;
-            if (g.skin) warnings.push(a.name + ': skin tidak cocok dengan skeleton');
+            owner.rigReport.static++;
           }
           mesh.name = g.name;
           mesh.userData.boothNative = true;
@@ -420,6 +533,11 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         else warnings.push(a.name + ': bone tujuan tidak ditemukan');
       }
     for (const a of assets) {
+      a.previewBase = {
+        position: a.root.position.clone(),
+        quaternion: a.root.quaternion.clone(),
+        scale: a.root.scale.clone(),
+      };
       const owner = actorForAsset(assets, a);
       if (a !== owner) {
         a.root.position.add(new THREE.Vector3(...a.offset));
@@ -429,6 +547,9 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     }
     for (const a of actors()) {
       const frame = actorFrames.get(a.id);
+      a.baseHeight = boothHeight(photoshootPoints([frame]));
+      if (a.targetHeightCm && a.baseHeight > 0)
+        a.scale = Math.max(0.01, Math.min(100, a.targetHeightCm / (a.baseHeight * 100)));
       frame.position.set(...a.offset);
       frame.rotation.y = ((a.yaw || 0) * Math.PI) / 180;
       frame.scale.setScalar(a.scale);
@@ -443,21 +564,18 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     });
     rest = captureBoothRest(stage);
     const roles = new Set(rest.map((b) => b.role).filter(Boolean));
-    $('pbRigStatus').textContent =
-      roles.size && animatedMeshes
-        ? `${roles.size} bagian rig dikenali · ${skinned} mesh GTA skinned. ${staticMeshes} mesh statis/rigid.`
-        : 'Model statis: pose tidak dapat mengubah mesh tanpa rig/weights. Gunakan ped rigged atau GLB dari Auto Rig.';
     actorPicker();
     updateClips();
     applyPose();
     assetList();
     setControls();
+    updateIssues([...new Set(warnings)]);
     setStatus(
       warnings.length
-        ? [...new Set(warnings)].slice(0, 10).join(' · ')
+        ? `${assets.length} aset · ${new Set(warnings).size} hal perlu diperiksa. Klik Lihat masalah.`
         : `${assets.length} aset · siap foto. File sumber tetap utuh.`,
     );
-    fit();
+    if (fitCamera) fit();
   }
   function clipsFor(actor) {
     return [
@@ -553,7 +671,15 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       }
     }
     stage.updateMatrixWorld(true);
-    loadMotion();
+    loadMotion({ controls: false });
+    const selected = currentActor(),
+      report = selected?.rigReport;
+    $('pbRigStatus').textContent = report
+      ? `${report.skinned} mesh GTA skinned · ${report.static} mesh statis/rigid. ${[...report.sources].slice(0, 2).join(' · ')}`
+      : 'Pilih ped untuk mengatur emote.';
+    if (['relaxed', 'catalog', 'rest'].includes(selected?.motion.pose))
+      $('pbRigStatus').textContent +=
+        ' Pose ini statis. Pilih Berjalan, Dance atau Lambaikan untuk gerakan.';
     $('pbTime').value = String(time);
     $('pbTimeLabel').textContent = time.toFixed(2) + ' s';
     $('pbPlay').textContent = playing ? 'Ⅱ Jeda' : '▶ Putar';
@@ -583,7 +709,18 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         a.visible = visible.checked;
         rebuild();
       };
-      label.append(visible, document.createTextNode('Tampilkan · ' + outfitLabel(category)));
+      label.append(
+        visible,
+        document.createTextNode(
+          a.referenceOnly
+            ? 'Skeleton acuan · tidak ikut difoto'
+            : 'Tampilkan · ' + outfitLabel(category),
+        ),
+      );
+      if (a.referenceOnly) {
+        visible.disabled = true;
+        visible.dataset.referenceCheckbox = 'true';
+      }
       card.append(label);
       if (a.kind !== 'ped') {
         const label = document.createElement('label');
@@ -603,6 +740,42 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         };
         label.append(select);
         card.append(label);
+      }
+      if (!a.referenceOnly) {
+        const owner = actorForAsset(assets, a),
+          available = [
+            ...textures.filter((t) => t.boothOwner === a.id),
+            ...textures.filter((t) => t.boothOwner === owner.id),
+            ...(a.drawables || []).flatMap((d) => d.embeddedTextures || []),
+          ];
+        if (available.length) {
+          const label = document.createElement('label');
+          label.textContent = 'Tekstur diffuse semua mesh · preview';
+          const select = document.createElement('select');
+          select.dataset.previewTexture = a.id;
+          const auto = document.createElement('option');
+          auto.value = '';
+          auto.textContent = 'Otomatis sesuai material';
+          select.append(auto);
+          const keys = new Set();
+          for (const t of available) {
+            if (/normal|spec|bump|_(?:n|s)$/i.test(t.name)) continue;
+            const key = JSON.stringify([t.dictionary || '', t.name]);
+            if (keys.has(key)) continue;
+            keys.add(key);
+            const o = document.createElement('option');
+            o.value = key;
+            o.textContent = t.name + ' · ' + (t.dictionary || 'embedded');
+            select.append(o);
+          }
+          select.value = a.textureOverride || '';
+          select.onchange = () => {
+            a.textureOverride = select.value;
+            rebuild({ fitCamera: false });
+          };
+          label.append(select);
+          card.append(label);
+        }
       }
       if (a.drawables?.length > 1) {
         const select = document.createElement('select');
@@ -688,7 +861,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         fields.className = 'pb-offsets';
         for (let k = 0; k < 4; k++) {
           const l = document.createElement('label');
-          l.textContent = ['X', 'Y', 'Z', 'Skala'][k];
+          l.textContent = ['X', 'Y · tinggi', 'Z · kedalaman', 'Skala'][k];
           const input = document.createElement('input');
           input.type = 'number';
           input.step = '0.01';
@@ -698,8 +871,11 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
             const v = Number(input.value);
             if (!Number.isFinite(v) || Math.abs(v) > 100 || (k === 3 && v <= 0)) return;
             if (k < 3) a.offset[k] = v;
-            else a.scale = v;
-            rebuild();
+            else {
+              a.scale = v;
+              a.targetHeightCm = null;
+            }
+            updateTransform(a);
           };
           l.append(input);
           fields.append(l);
@@ -715,7 +891,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           const v = Number(turn.value);
           if (!Number.isFinite(v) || Math.abs(v) > 360) return;
           a.yaw = v;
-          rebuild();
+          updateTransform(a);
         };
         if (a.kind === 'ped') {
           const label = document.createElement('label');
@@ -740,6 +916,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       remove.textContent = 'Hapus';
       remove.onclick = () => {
         const dependents = assets.filter((b) => b.owner === a.id);
+        const obsoleteRefs = new Set(dependents.filter((b) => b.referenceOnly));
         for (const b of dependents) {
           b.owner = null;
           b.motion = { ...a.motion, playing: false };
@@ -750,7 +927,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         textureFiles = kept.map((row) => row.file);
         textureOwners = kept.map((row) => row.owner);
         textures = textures.filter((t) => t.boothOwner !== a.id);
-        assets = assets.filter((b) => b !== a);
+        assets = assets.filter((b) => b !== a && !obsoleteRefs.has(b));
         loadMotion();
         rebuild();
         disposeGlb(a);
@@ -792,7 +969,9 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     });
     return new GLTFLoader(manager).parseAsync(buffer, '');
   }
-  async function importFiles(files, assetKind, category = 'auto') {
+  async function importFiles(files, assetKind, category = 'auto', options = {}) {
+    if (options.referenceOnly && !currentActor())
+      throw Error('Buka ped dahulu sebelum mengimpor skeleton acuan.');
     if (!files.length) return;
     ensure();
     const models = files.filter((f) => /\.(ydd|ydr|yft|glb)$/i.test(f.name)),
@@ -816,7 +995,9 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           name: file.name,
           kind: assetKind,
           category: outfitCategory(file.name, category, assetKind),
-          visible: true,
+          visible: !options.referenceOnly,
+          referenceOnly: !!options.referenceOnly,
+          rigChoice: 'auto',
           file,
           offset: [
             assetKind === 'ped'
@@ -842,6 +1023,10 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           );
           a.drawable = defaultDrawableSelection(a.drawables);
         }
+        if (options.referenceOnly && !(a.drawables || []).some((d) => d.rig?.length))
+          throw Error(
+            file.name + ': file ini tidak memiliki skeleton. Pilih YFT/YDD acuan yang lengkap.',
+          );
         pending.push(a);
       }
       if (assetKind === 'ped') {
@@ -1002,7 +1187,11 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     clipFiles = [];
     time = 0;
     selectedActor = null;
+    $('pbCategoryFilter').value = 'all';
+    $('pbAssetSearch').value = '';
+    updateIssues([]);
     actorPicker();
+    syncPedFields();
     assetList();
     setControls();
     setStatus('Booth kosong.');
@@ -1016,6 +1205,15 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     applyPose();
     setControls();
   };
+  $('pbQuickPose')
+    .querySelectorAll('[data-quick-pose]')
+    .forEach((b) => {
+      b.onclick = () => {
+        $('pbPose').value = b.dataset.quickPose;
+        $('pbPose').dispatchEvent(new Event('change'));
+        if (!$('pbPlay').disabled) $('pbPlay').click();
+      };
+    });
   $('pbClip').onchange = () => {
     time = 0;
     saveMotion();
@@ -1182,6 +1380,10 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       assets: assets.map((a) => ({
         file: a.file,
         kind: a.kind,
+        rigChoice: a.rigChoice || 'auto',
+        referenceOnly: !!a.referenceOnly,
+        targetHeightCm: a.targetHeightCm || null,
+        textureOverride: a.textureOverride || '',
         category: a.category,
         oldId: a.id,
         ownerIndex: a.owner == null ? null : assets.findIndex((b) => b.id === a.owner),

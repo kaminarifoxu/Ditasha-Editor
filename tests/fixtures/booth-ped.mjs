@@ -1,7 +1,7 @@
 import { deflateRaw } from 'pako';
 import { testYdd } from '../format.test.mjs';
 import { Resource } from '../../src/resource.js';
-export function boothPedFixture() {
+export function boothPedFixture({ missingRig = false, paletteBone = 1 } = {}) {
   const original = new Resource(testYdd, 165),
     bytes = new Uint8Array(4608),
     v = new DataView(bytes.buffer);
@@ -14,7 +14,7 @@ export function boothPedFixture() {
   ptr(1056, 2400);
   ptr(1104, 1800);
   v.setUint16(1114, 1, true);
-  v.setUint16(1800, 1, true);
+  v.setUint16(1800, paletteBone, true);
   v.setUint32(312, 0x100, true); // skinned DrawableModel
   v.setUint16(2008, 28, true);
   gfx(2016, 0);
@@ -50,6 +50,7 @@ export function boothPedFixture() {
     v.setFloat32(at + 24, i === 2 ? 1 : 0, true);
     v.setUint16(4224 + i * 2, i, true);
   }
+  if (missingRig) v.setBigUint64(104, 0n, true);
   const header = original.header.slice();
   new DataView(header.buffer).setUint32(8, 0x08000003, true);
   const compressed = deflateRaw(bytes),

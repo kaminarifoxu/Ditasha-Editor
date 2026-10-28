@@ -214,3 +214,65 @@ body[data-motion='reduced'] .photo-booth-workspace {
   padding: 10px;
   font-size: 11px;
 }
+.pb-ped-sizing {
+  margin: 14px 0;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.pb-ped-sizing legend {
+  font-size: 11px;
+  font-weight: 600;
+}
+.pb-ped-sizing label {
+  margin: 0;
+}
+.pb-ped-sizing p {
+  grid-column: 1/-1;
+  margin: 0;
+  font-size: 10px;
+}
+.pb-rig-settings {
+  margin: 14px 0;
+}
+.pb-rig-settings summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.pb-quick-pose {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin: 10px 0;
+}
+.pb-quick-pose button {
+  min-width: 0;
+  padding: 9px 3px;
+  font-size: 10px;
+}
+#pbIssues {
+  margin-top: 16px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+#pbIssues summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+#pbIssueList {
+  padding-left: 16px;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  line-height: 1.6;
+}
+#pbIssueList li {
+  margin: 12px 0;
+}
+#pbShowIssues {
+  align-self: flex-start;
+  margin: 0 12px 12px;
+}

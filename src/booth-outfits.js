@@ -55,6 +55,7 @@ export function outfitLabel(id) {
     : OUTFIT_CATEGORIES.find(([key]) => key === id)?.[1] || 'Lainnya';
 }
 export function boothVertexCount(asset) {
+  if (asset.referenceOnly) return 0;
   if (asset.gltf) {
     let count = 0;
     asset.gltf.scene.traverse((o) => {
