@@ -187,6 +187,10 @@ test('TRIUM executable import is verified and retains an existing installation o
   await tools.installExe(file);
   assert.equal((await tools.state()).tools[0].installed, true);
   assert.equal(path.basename((await tools.gui('trium')).file), 'trium.exe');
+  const cancelled = tools.installExe(file);
+  tools.cancel();
+  await assert.rejects(cancelled);
+  assert.equal((await tools.state()).tools[0].installed, true);
   await fs.writeFile(file, 'changed');
   await assert.rejects(tools.installExe(file), /Checksum/);
   assert.equal(await fs.readFile((await tools.gui('trium')).file, 'utf8'), exe.toString());

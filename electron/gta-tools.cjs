@@ -291,6 +291,7 @@ function createGtaTools({
             log: append,
             timeout: 30000,
           });
+        signal.throwIfAborted();
         await promote(id, unpacked);
         return state();
       } finally {
@@ -309,12 +310,13 @@ function createGtaTools({
     async installExe(file) {
       const id = 'trium',
         spec = specFor(id, specs);
-      return job('Memasang ' + spec.name + '…', async () => {
+      return job('Memasang ' + spec.name + '…', async (signal) => {
         await fs.mkdir(path.join(root, id), { recursive: true });
         const temp = await fs.mkdtemp(path.join(root, id, 'stage-'));
         try {
           await fs.copyFile(file, path.join(temp, spec.gui));
           await verify(id, temp);
+          signal.throwIfAborted();
           await promote(id, temp);
           return state();
         } finally {
@@ -363,6 +365,7 @@ function createGtaTools({
         append(spec.name + ' ' + spec.version + ' · ' + action + '\n');
         try {
           await run(path.join(base, spec.cli), args, { cwd: base, signal, log: append });
+          signal.throwIfAborted();
           result = { id, action, output, success: true };
           if (output)
             await fs.writeFile(
