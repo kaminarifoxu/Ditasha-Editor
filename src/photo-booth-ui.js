@@ -99,10 +99,10 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     const a = currentActor();
     selectedActor = a?.id ?? null;
     $('pbActor').replaceChildren(
-      ...actors().map((a) => {
+      ...actors().map((a, index) => {
         const o = document.createElement('option');
         o.value = a.id;
-        o.textContent = a.name;
+        o.textContent = index + 1 + ' · ' + a.name;
         return o;
       }),
     );
@@ -597,7 +597,8 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         for (const ped of assets.filter((a) => a.kind === 'ped')) {
           const o = document.createElement('option');
           o.value = ped.id;
-          o.textContent = ped.name;
+          o.textContent =
+            assets.filter((b) => b.kind === 'ped').indexOf(ped) + 1 + ' · ' + ped.name;
           ownerSelect.append(o);
         }
         ownerSelect.value = String(a.owner);
@@ -695,8 +696,12 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           b.owner = null;
           b.motion = { ...a.motion, playing: false };
         }
-        textureOwners = textureOwners.map((id) => (id === a.id ? null : id));
-        textures = textures.map((t) => (t.boothOwner === a.id ? { ...t, boothOwner: null } : t));
+        const kept = textureFiles
+          .map((file, i) => ({ file, owner: textureOwners[i] }))
+          .filter((row) => row.owner !== a.id);
+        textureFiles = kept.map((row) => row.file);
+        textureOwners = kept.map((row) => row.owner);
+        textures = textures.filter((t) => t.boothOwner !== a.id);
         assets = assets.filter((b) => b !== a);
         loadMotion();
         rebuild();
