@@ -17,3 +17,11 @@ Limits: 20 models, 64 MB per model/GLB, the existing bounded YTD decoded-memory 
 Validation includes native bind/palette parsing, malformed-rig rejection, reversible vertex deformation, UI separation, native/GLB animation rendering, play/pause/scrubbing, outfit/accessory imports and transparent PNG export in the Windows Electron test. Actual GTA/FiveM rendering is not used by the booth.
 
 Layout references: [CodeWalker Skeleton/Bone/DrawableGeometry](https://github.com/dexyfex/CodeWalker/blob/master/CodeWalker.Core/GameFiles/Resources/Drawable.cs). Original implementation; no upstream binary or ped assets are included.
+
+## Multiple peds and local library (v1.50)
+
+Import multiple peds, then select **Ped yang diatur** or **Atur emote ped ini** in a model card. Each ped keeps its own pose, GLB clip, speed, paused frame and playback state. **Putar semua** starts each ped's own emote; **Jeda semua** freezes the group. Position, yaw and scale are editable per ped. Procedural arm poses use the actor's orientation.
+
+Clothing/accessories belong to the selected ped when imported. Change **Pemilik outfit / aksesori** to move a piece to another character. Rig fallback, bone targets and pose evaluation stay within that actor.
+
+**Library lokal → Simpan scene & outfit** stores source model/texture/GLB animation files, ped transforms, individual emotes and outfit ownership in the application's IndexedDB. **Buka preset** restores the whole scene paused, retaining each ped's frame. Presets are capped at 512 MB and preserve the original files. Library storage is local to this DITASHA profile; it is not cloud sync. Binary YCD is still unsupported in Photo Booth; use compatible GLB clips for now.

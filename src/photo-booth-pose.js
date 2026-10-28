@@ -78,7 +78,7 @@ export function captureBoothRest(root) {
   });
   return bones;
 }
-export function applyBoothPose(bones, pose, time) {
+export function applyBoothPose(bones, pose, time, worldBasis = new Quaternion()) {
   const angles = boothPoseAngles(pose, time);
   for (const { bone, rest } of bones) bone.quaternion.copy(rest);
   for (const { bone, role } of bones) {
@@ -101,9 +101,12 @@ export function applyBoothPose(bones, pose, time) {
         .getWorldPosition(new Vector3())
         .sub(bone.getWorldPosition(new Vector3()))
         .normalize();
-      const target = new Vector3(role === 'leftArm' ? 1 : -1, 0, 0);
+      const target = new Vector3(role === 'leftArm' ? 1 : -1, 0, 0).applyQuaternion(worldBasis);
       for (const [axis, angle] of Object.entries(rotations))
-        target.applyAxisAngle(axes[axis], (angle * Math.PI) / 180);
+        target.applyAxisAngle(
+          axes[axis].clone().applyQuaternion(worldBasis),
+          (angle * Math.PI) / 180,
+        );
       if (direction.lengthSq() > 1e-10) {
         const delta = new Quaternion().setFromUnitVectors(direction, target);
         delta.premultiply(parentRotation).multiply(parentRotation.clone().invert());
@@ -113,7 +116,10 @@ export function applyBoothPose(bones, pose, time) {
       }
     }
     for (const [axis, angle] of Object.entries(rotations)) {
-      const localAxis = axes[axis].clone().applyQuaternion(parentRotation);
+      const localAxis = axes[axis]
+        .clone()
+        .applyQuaternion(worldBasis)
+        .applyQuaternion(parentRotation);
       bone.quaternion.premultiply(
         new Quaternion().setFromAxisAngle(localAxis, (angle * Math.PI) / 180),
       );

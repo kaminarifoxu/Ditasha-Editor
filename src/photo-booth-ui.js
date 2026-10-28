@@ -1,3 +1,6 @@
+import { MAX_DECODED_TEXTURE_BYTES } from './texture-memory.js';
+import { createBoothLibrary, validateBoothScene } from './booth-library.js';
+import { createActorMotion, actorForAsset, advanceActorMotion } from './booth-actors.js';
 import * as THREE from 'three';
 import { fitPhotoshoot } from './photoshoot-framing.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -30,9 +33,9 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
   root.className = 'photo-booth-workspace';
   root.hidden = true;
   root.innerHTML = `<div class="pb-heading"><div><span class="eyebrow">DITASHA / OFFLINE PHOTO BOOTH</span><h1>Photo Booth</h1><p class="muted">Ped, outfit dan aksesori · pose, atur kamera, ambil foto.</p></div><button id="pbCapture" class="primary" disabled>▣ Simpan PNG</button></div>
-  <div class="pb-layout"><aside class="pb-panel pb-assets"><h2>Model & outfit</h2><div class="pb-buttons"><button id="pbPed">+ Ped / tubuh</button><button id="pbClothes">+ Baju</button><button id="pbAccessory">+ Aksesori</button><button id="pbTextures">+ Tekstur</button></div><input id="pbInput" type="file" accept=".ydd,.ydr,.yft,.ytd,.glb" multiple hidden><input id="pbTextureInput" type="file" accept=".ytd,.dds,.png,.jpg,.jpeg,.webp" multiple hidden><p class="muted">Masukkan YDD + YTD. YFT skeleton pendamping dapat ditambahkan. GLB rigged juga didukung.</p><div id="pbAssets"></div><p id="pbEmpty">Belum ada model. Mulai dari ped / tubuh milikmu.</p><button id="pbClear">Kosongkan booth</button></aside>
+  <div class="pb-layout"><aside class="pb-panel pb-assets"><h2>Model & outfit</h2><div class="pb-buttons"><button id="pbPed">+ Ped / tubuh</button><button id="pbClothes">+ Baju</button><button id="pbAccessory">+ Aksesori</button><button id="pbTextures">+ Tekstur</button></div><input id="pbInput" type="file" accept=".ydd,.ydr,.yft,.ytd,.glb" multiple hidden><input id="pbTextureInput" type="file" accept=".ytd,.dds,.png,.jpg,.jpeg,.webp" multiple hidden><p class="muted">Masukkan YDD + YTD. YFT skeleton pendamping dapat ditambahkan. GLB rigged juga didukung.</p><div id="pbAssets"></div><p id="pbEmpty">Belum ada model. Mulai dari ped / tubuh milikmu.</p><button id="pbClear">Kosongkan booth</button><h2 class="pb-library-heading">Library lokal</h2><label>Nama preset<input id="pbLibraryName" maxlength="80" placeholder="Foto grup / outfit favorit"></label><button id="pbLibrarySave">Simpan scene & outfit</button><button id="pbLibraryRefresh">Muat daftar library</button><input id="pbLibrarySearch" placeholder="Cari preset ped / outfit…" aria-label="Cari library"><div id="pbLibraryList"></div></aside>
   <section class="pb-stage"><div class="pb-stage-toolbar"><button id="pbFit">Fit tubuh</button><button id="pbFront">Depan</button><button id="pbBack">Belakang</button><label class="check"><input id="pbFloor" type="checkbox" checked>Lantai</label><span>Drag: orbit · scroll: zoom</span></div><div id="pbViewport"></div><p id="pbStatus" role="status">Siap untuk sesi foto offline.</p></section>
-  <aside class="pb-panel pb-settings"><h2>Pose & emote</h2><label>Pose<select id="pbPose">${BOOTH_POSES.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}<option value="clip">Clip GLB</option></select></label><div class="pb-buttons"><button id="pbPlay" disabled>▶ Putar</button><button id="pbResetPose">Reset pose</button></div><label>Frame / waktu <output id="pbTimeLabel">0.00 s</output><input id="pbTime" type="range" min="0" max="4" step="0.01" value="0"></label><button id="pbImportClip">+ Animasi GLB</button><input id="pbClipInput" type="file" accept=".glb" hidden><label id="pbClipField" hidden>Clip<select id="pbClip"></select></label><p id="pbRigStatus" class="muted" role="status">Pose memerlukan skeleton dan skin weights yang cocok.</p><h2>Studio</h2><label>Background<input id="pbBackground" type="color" value="#242938"></label><label class="check"><input id="pbTransparent" type="checkbox">PNG transparan</label><label>Cahaya<input id="pbLight" type="range" min="0.3" max="3" value="1" step="0.05"></label><label>Resolusi foto<select id="pbSize"><option value="1080x1350">1080 × 1350 · katalog</option><option value="1920x1080">1920 × 1080 · landscape</option><option value="2048x2048">2048 × 2048 · square</option><option value="3000x4000">3000 × 4000 · portrait</option></select></label><p class="muted">Pose/emote bawaan dibuat untuk preview. Animasi GLB memakai nama bone yang cocok; binary YCD belum didukung di booth.</p></aside></div>`;
+  <aside class="pb-panel pb-settings"><h2>Pose & emote per ped</h2><label>Ped yang diatur<select id="pbActor"></select></label><p class="muted">Pose, clip dan frame hanya berubah untuk ped yang dipilih. Outfit mengikuti pemiliknya.</p><label>Pose<select id="pbPose">${BOOTH_POSES.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}<option value="clip">Clip GLB</option></select></label><div class="pb-buttons"><button id="pbPlay" disabled>▶ Putar</button><button id="pbResetPose">Reset pose</button><button id="pbPlayAll">Putar semua</button><button id="pbPauseAll">Jeda semua</button></div><label>Kecepatan<input id="pbSpeed" type="number" min="0.1" max="3" step="0.1" value="1"></label><label>Frame / waktu <output id="pbTimeLabel">0.00 s</output><input id="pbTime" type="range" min="0" max="4" step="0.01" value="0"></label><button id="pbImportClip">+ Animasi GLB</button><input id="pbClipInput" type="file" accept=".glb" hidden><label id="pbClipField" hidden>Clip<select id="pbClip"></select></label><p id="pbRigStatus" class="muted" role="status">Pose memerlukan skeleton dan skin weights yang cocok.</p><h2>Studio</h2><label>Background<input id="pbBackground" type="color" value="#242938"></label><label class="check"><input id="pbTransparent" type="checkbox">PNG transparan</label><label>Cahaya<input id="pbLight" type="range" min="0.3" max="3" value="1" step="0.05"></label><label>Resolusi foto<select id="pbSize"><option value="1080x1350">1080 × 1350 · katalog</option><option value="1920x1080">1920 × 1080 · landscape</option><option value="2048x2048">2048 × 2048 · square</option><option value="3000x4000">3000 × 4000 · portrait</option></select></label><p class="muted">Pose/emote bawaan dibuat untuk preview. Animasi GLB memakai nama bone yang cocok; binary YCD belum didukung di booth.</p></aside></div>`;
   nav.after(root);
   const $ = (id) => root.querySelector('#' + id);
   let renderer,
@@ -57,7 +60,55 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     externalClips = [],
     animatedMeshes = 0,
     time = 0,
-    token = 0;
+    token = 0,
+    selectedActor = null,
+    actorFrames = new Map(),
+    textureFiles = [],
+    textureOwners = [],
+    clipFiles = [],
+    clipSerial = 0;
+  const library = createBoothLibrary();
+  const actors = () => assets.filter((a) => actorForAsset(assets, a) === a);
+  const currentActor = () => actors().find((a) => a.id === selectedActor) || actors()[0];
+  function saveMotion() {
+    const a = currentActor();
+    if (a)
+      Object.assign(a.motion, {
+        pose: $('pbPose').value,
+        clip: $('pbClip').value,
+        time,
+        playing,
+        speed: Number($('pbSpeed').value) || 1,
+      });
+  }
+  function loadMotion() {
+    const a = currentActor();
+    if (!a) {
+      time = 0;
+      playing = false;
+      return;
+    }
+    selectedActor = a.id;
+    const m = a.motion;
+    $('pbPose').value = m.pose;
+    $('pbSpeed').value = m.speed;
+    time = m.time;
+    playing = m.playing;
+  }
+  function actorPicker() {
+    const a = currentActor();
+    selectedActor = a?.id ?? null;
+    $('pbActor').replaceChildren(
+      ...actors().map((a) => {
+        const o = document.createElement('option');
+        o.value = a.id;
+        o.textContent = a.name;
+        return o;
+      }),
+    );
+    $('pbActor').value = String(selectedActor);
+    loadMotion();
+  }
   const setStatus = (s) => {
     $('pbStatus').textContent = s;
   };
@@ -76,15 +127,34 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     }
   };
   function setControls() {
-    for (const id of ['pbPed', 'pbClothes', 'pbAccessory', 'pbTextures', 'pbClear', 'pbImportClip'])
+    for (const id of [
+      'pbPed',
+      'pbClothes',
+      'pbAccessory',
+      'pbTextures',
+      'pbClear',
+      'pbImportClip',
+      'pbActor',
+      'pbPlayAll',
+      'pbPauseAll',
+      'pbLibrarySave',
+      'pbLibraryRefresh',
+    ])
       $(id).disabled = busy;
     $('pbAssets')
       .querySelectorAll('button,input,select')
       .forEach((e) => (e.disabled = busy));
+    $('pbLibrarySave').disabled = busy || !assets.length;
+    const owner = currentActor(),
+      frame = owner && actorFrames.get(owner.id);
+    let ownAnimated = false;
+    frame?.traverse((o) => {
+      if (o.isSkinnedMesh) ownAnimated = true;
+    });
     const movable =
       $('pbPose').value === 'clip'
-        ? mixers.length > 0
-        : animatedMeshes > 0 && rest.some((r) => r.role);
+        ? mixers.some((m) => m.userData.actor === owner?.id)
+        : ownAnimated && rest.some((r) => r.role && frame?.getObjectById(r.bone.id));
     $('pbCapture').disabled = busy || !assets.length;
     $('pbPlay').disabled = busy || !movable;
     $('pbTime').disabled = busy || !movable;
@@ -223,21 +293,28 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
   }
   function rebuild() {
     ensure();
-    playing = false;
     clearStage();
+    actorFrames = new Map();
+    for (const a of actors()) {
+      const frame = new THREE.Group();
+      actorFrames.set(a.id, frame);
+      stage.add(frame);
+    }
     const warnings = [];
     let skinned = 0,
       staticMeshes = 0;
-    const fallback = assets
-      .flatMap((a) => a.drawables || [])
-      .map((d) => d.rig)
-      .filter((r) => r?.length)
-      .sort((a, b) => b.length - a.length)[0];
     for (const a of assets) {
       a.root = new THREE.Group();
       a.root.name = a.name;
       a.root.visible = a.visible;
-      stage.add(a.root);
+      const owner = actorForAsset(assets, a);
+      actorFrames.get(owner.id).add(a.root);
+      const fallback = assets
+        .filter((b) => actorForAsset(assets, b) === owner)
+        .flatMap((b) => b.drawables || [])
+        .map((d) => d.rig)
+        .filter((r) => r?.length)
+        .sort((a, b) => b.length - a.length)[0];
       if (a.gltf) {
         a.root.add(a.gltf.scene);
         continue;
@@ -259,8 +336,11 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           geom.setIndex(new THREE.BufferAttribute(g.indices, 1));
           if (g.normals) geom.setAttribute('normal', new THREE.BufferAttribute(g.normals, 3));
           else geom.computeVertexNormals();
+          const ownTextures = textures.filter(
+            (t) => t.boothOwner == null || t.boothOwner === a.id || t.boothOwner === owner.id,
+          );
           const embedded = d.embeddedTextures || [],
-            t = resolveModelTexture(g.diffuseTexture, textures, embedded, a.name);
+            t = resolveModelTexture(g.diffuseTexture, ownTextures, embedded, a.name);
           if (g.diffuseTexture && !t)
             warnings.push(a.name + ': tekstur ' + g.diffuseTexture + ' belum ditemukan');
           const alpha = modelPreviewAlpha(g) || {
@@ -277,7 +357,11 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
             transparent: alpha.mode === 'blend',
             alphaTest: alpha.mode === 'opaque' ? 0 : alpha.cutoff,
           });
-          setSurfaceMaps(material, resolveSurfaceMaps(g, textures, embedded, a.name), textureMap);
+          setSurfaceMaps(
+            material,
+            resolveSurfaceMaps(g, ownTextures, embedded, a.name),
+            textureMap,
+          );
           let mesh;
           const valid =
             g.skin &&
@@ -309,23 +393,30 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       }
     }
     stage.updateMatrixWorld(true);
-    // Rigid accessories can be attached to an explicitly selected body bone.
-    const ped = assets.find((a) => a.kind === 'ped' && a.visible),
-      targets = [];
-    ped?.root.traverse((o) => {
-      if (o.isBone) targets.push(o);
-    });
+    // Bind each accessory to its own actor, never to another ped's skeleton.
     for (const a of assets)
       if (a.kind !== 'ped' && a.attach !== 'auto') {
-        const bone = targets.find((b) => b.name === a.attach);
-        if (bone) {
-          bone.attach(a.root);
-          a.attached = true;
-        } else warnings.push(a.name + ': bone tujuan tidak ditemukan');
+        const owner = actorForAsset(assets, a);
+        let bone;
+        owner.root.traverse((o) => {
+          if (!bone && o.isBone && o.name === a.attach) bone = o;
+        });
+        if (bone) bone.attach(a.root);
+        else warnings.push(a.name + ': bone tujuan tidak ditemukan');
       }
     for (const a of assets) {
-      a.root.position.add(new THREE.Vector3(...a.offset));
-      a.root.scale.multiplyScalar(a.scale);
+      const owner = actorForAsset(assets, a);
+      if (a !== owner) {
+        a.root.position.add(new THREE.Vector3(...a.offset));
+        a.root.scale.multiplyScalar(a.scale);
+        a.root.rotateY(((a.yaw || 0) * Math.PI) / 180);
+      }
+    }
+    for (const a of actors()) {
+      const frame = actorFrames.get(a.id);
+      frame.position.set(...a.offset);
+      frame.rotation.y = ((a.yaw || 0) * Math.PI) / 180;
+      frame.scale.setScalar(a.scale);
     }
     animatedMeshes = 0;
     stage.traverse((o) => {
@@ -341,9 +432,10 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       roles.size && animatedMeshes
         ? `${roles.size} bagian rig dikenali · ${skinned} mesh GTA skinned. ${staticMeshes} mesh statis/rigid.`
         : 'Model statis: pose tidak dapat mengubah mesh tanpa rig/weights. Gunakan ped rigged atau GLB dari Auto Rig.';
+    actorPicker();
     updateClips();
     applyPose();
-    assetList(targets);
+    assetList();
     setControls();
     setStatus(
       warnings.length
@@ -352,18 +444,23 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     );
     fit();
   }
-  function updateClips() {
-    const old = $('pbClip').value;
-    const clips = [
-      ...assets.flatMap((a) =>
-        (a.gltf?.animations || []).map((clip, i) => ({
-          clip,
-          id: a.id + ':' + i,
-          label: a.name + ' / ' + clip.name,
-        })),
-      ),
+  function clipsFor(actor) {
+    return [
+      ...assets
+        .filter((a) => actorForAsset(assets, a) === actor)
+        .flatMap((a) =>
+          (a.gltf?.animations || []).map((clip, i) => ({
+            clip,
+            id: a.id + ':' + i,
+            label: a.name + ' / ' + clip.name,
+          })),
+        ),
       ...externalClips,
     ];
+  }
+  function updateClips() {
+    const actor = currentActor(),
+      clips = actor ? clipsFor(actor) : [];
     $('pbClip').replaceChildren(
       ...clips.map((c) => {
         const o = document.createElement('option');
@@ -372,55 +469,74 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         return o;
       }),
     );
-    if (clips.some((c) => c.id === old)) $('pbClip').value = old;
+    if (actor && clips.some((c) => c.id === actor.motion.clip))
+      $('pbClip').value = actor.motion.clip;
+    if (actor) actor.motion.clip = $('pbClip').value;
     $('pbClipField').hidden = !clips.length;
-    const selected = clips.find((c) => c.id === $('pbClip').value);
     mixers.forEach((m) => {
       m.stopAllAction();
       m.uncacheRoot(m.getRoot());
     });
     mixers = [];
-    if (selected)
-      for (const a of assets.filter((a) => a.gltf)) {
+    for (const owner of actors()) {
+      const selected = clipsFor(owner).find((c) => c.id === owner.motion.clip);
+      if (!selected) continue;
+      for (const a of assets.filter((a) => a.gltf && actorForAsset(assets, a) === owner)) {
         const names = new Set();
-        a.root.traverse((o) => names.add(o.name));
-        const tracks = selected.clip.tracks.filter((track) => {
+        a.gltf.scene.traverse((o) => names.add(o.name));
+        const tracks = selected.clip.tracks.filter((t) => {
           try {
-            return names.has(THREE.PropertyBinding.parseTrackName(track.name).nodeName);
+            return names.has(THREE.PropertyBinding.parseTrackName(t.name).nodeName);
           } catch {
             return false;
           }
         });
         if (tracks.length) {
           const mixer = new THREE.AnimationMixer(a.gltf.scene);
+          mixer.userData = { actor: owner.id };
           mixer
             .clipAction(new THREE.AnimationClip(selected.clip.name, selected.clip.duration, tracks))
             .play();
           mixers.push(mixer);
         }
       }
+    }
+    const selected = actor && clips.find((c) => c.id === actor.motion.clip);
     $('pbTime').max = String(
-      $('pbPose').value === 'clip' && selected ? Math.max(0.01, selected.clip.duration) : 4,
+      actor?.motion.pose === 'clip' && selected ? Math.max(0.01, selected.clip.duration) : 4,
     );
-    if ($('pbPose').value === 'clip' && !mixers.length)
-      setStatus('Clip tidak memiliki nama bone yang cocok dengan GLB di booth.');
   }
   function applyPose() {
     if (!stage) return;
-    if ($('pbPose').value === 'clip') {
-      applyBoothPose(rest, 'rest', 0);
-      mixers.forEach((m) => m.setTime(time));
-    } else {
-      mixers.forEach((m) => m.stopAllAction());
-      applyBoothPose(rest, $('pbPose').value, time);
+    for (const actor of actors()) {
+      const m = actor.motion;
+      const bones = rest.filter((r) => {
+        let o = r.bone;
+        while (o && o !== actorFrames.get(actor.id)) o = o.parent;
+        return !!o;
+      });
+      const ownMixers = mixers.filter((m) => m.userData.actor === actor.id);
+      if (m.pose === 'clip') {
+        applyBoothPose(bones, 'rest', 0);
+        ownMixers.forEach((mixer) => mixer.setTime(m.time));
+      } else {
+        ownMixers.forEach((mixer) => mixer.stopAllAction());
+        applyBoothPose(
+          bones,
+          m.pose,
+          m.time,
+          actorFrames.get(actor.id).getWorldQuaternion(new THREE.Quaternion()),
+        );
+      }
     }
     stage.updateMatrixWorld(true);
+    loadMotion();
     $('pbTime').value = String(time);
     $('pbTimeLabel').textContent = time.toFixed(2) + ' s';
     $('pbPlay').textContent = playing ? 'Ⅱ Jeda' : '▶ Putar';
     render();
   }
-  function assetList(targets = []) {
+  function assetList() {
     $('pbAssets').replaceChildren();
     $('pbEmpty').hidden = !!assets.length;
     for (const a of assets) {
@@ -474,9 +590,32 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         card.append(l);
       }
       if (a.kind !== 'ped') {
+        const ownerLabel = document.createElement('label');
+        ownerLabel.textContent = 'Pemilik outfit / aksesori';
+        const ownerSelect = document.createElement('select');
+        ownerSelect.dataset.owner = a.id;
+        for (const ped of assets.filter((a) => a.kind === 'ped')) {
+          const o = document.createElement('option');
+          o.value = ped.id;
+          o.textContent = ped.name;
+          ownerSelect.append(o);
+        }
+        ownerSelect.value = String(a.owner);
+        ownerSelect.onchange = () => {
+          a.owner = Number(ownerSelect.value);
+          a.attach = 'auto';
+          rebuild();
+        };
+        ownerLabel.append(ownerSelect);
+        card.append(ownerLabel);
+        const targets = [];
+        actorForAsset(assets, a).root.traverse((o) => {
+          if (o.isBone) targets.push(o);
+        });
         const label = document.createElement('label');
         label.textContent = 'Ikuti bone (aksesori rigid)';
         const select = document.createElement('select');
+        select.dataset.bone = a.id;
         const auto = document.createElement('option');
         auto.value = 'auto';
         auto.textContent = 'Otomatis / rig sendiri';
@@ -494,6 +633,8 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         };
         label.append(select);
         card.append(label);
+      }
+      {
         const fields = document.createElement('div');
         fields.className = 'pb-offsets';
         for (let k = 0; k < 4; k++) {
@@ -514,12 +655,50 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           l.append(input);
           fields.append(l);
         }
+        const turn = document.createElement('input');
+        turn.type = 'number';
+        turn.min = '-360';
+        turn.max = '360';
+        turn.step = '5';
+        turn.value = a.yaw || 0;
+        turn.setAttribute('aria-label', 'Rotasi ' + a.name);
+        turn.onchange = () => {
+          const v = Number(turn.value);
+          if (!Number.isFinite(v) || Math.abs(v) > 360) return;
+          a.yaw = v;
+          rebuild();
+        };
+        if (a.kind === 'ped') {
+          const label = document.createElement('label');
+          label.textContent = 'Arah ped · derajat';
+          label.append(turn);
+          card.append(label);
+          const select = document.createElement('button');
+          select.textContent = 'Atur emote ped ini';
+          select.onclick = () => {
+            saveMotion();
+            selectedActor = a.id;
+            actorPicker();
+            updateClips();
+            applyPose();
+            setControls();
+          };
+          card.append(select);
+        }
         card.append(fields);
       }
       const remove = document.createElement('button');
       remove.textContent = 'Hapus';
       remove.onclick = () => {
+        const dependents = assets.filter((b) => b.owner === a.id);
+        for (const b of dependents) {
+          b.owner = null;
+          b.motion = { ...a.motion, playing: false };
+        }
+        textureOwners = textureOwners.map((id) => (id === a.id ? null : id));
+        textures = textures.map((t) => (t.boothOwner === a.id ? { ...t, boothOwner: null } : t));
         assets = assets.filter((b) => b !== a);
+        loadMotion();
         rebuild();
         disposeGlb(a);
       };
@@ -576,7 +755,19 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           name: file.name,
           kind: assetKind,
           visible: true,
-          offset: [0, 0, 0],
+          file,
+          offset: [
+            assetKind === 'ped'
+              ? (assets.filter((a) => a.kind === 'ped').length +
+                  pending.filter((a) => a.kind === 'ped').length) *
+                1.5
+              : 0,
+            0,
+            0,
+          ],
+          yaw: 0,
+          owner: assetKind === 'ped' ? null : currentActor()?.id,
+          motion: createActorMotion(),
           scale: 1,
           attach: 'auto',
           hiddenSlots: new Set(),
@@ -591,17 +782,61 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         }
         pending.push(a);
       }
+      if (assetKind === 'ped') {
+        const primaries = pending.filter((a) => !/\.yft$/i.test(a.name));
+        for (const a of pending.filter((a) => /\.yft$/i.test(a.name))) {
+          const stem = a.name.replace(/\.[^.]+$/, '').toLowerCase();
+          const owner =
+            primaries.find((b) => b.name.replace(/\.[^.]+$/, '').toLowerCase() === stem) ||
+            (primaries.length === 1 ? primaries[0] : null);
+          if (owner) {
+            a.kind = 'accessory';
+            a.owner = owner.id;
+            a.offset = [0, 0, 0];
+          }
+        }
+        pending
+          .filter((a) => a.kind === 'ped')
+          .forEach((a, i) => {
+            a.offset[0] = (assets.filter((b) => b.kind === 'ped').length + i) * 1.5;
+          });
+      }
       const all = [...assets, ...pending];
       const refs = modelTextureReferences(all.flatMap((a) => a.drawables || []));
-      const loaded = await loadVehicleTextures(images, refs, {
-        decode: decodeResource,
-        image: imageData,
-        existing: textures,
-      });
-      textures = mergeVehicleTextures(textures, loaded.textures);
+      const warnings = [];
+      for (const file of images) {
+        const stem = file.name.replace(/\.[^.]+$/, '').toLowerCase();
+        const target =
+          pending.find((a) => a.name.replace(/\.[^.]+$/, '').toLowerCase() === stem) ||
+          pending[0] ||
+          currentActor();
+        const loaded = await loadVehicleTextures([file], refs, {
+          decode: decodeResource,
+          image: imageData,
+          existing: textures,
+        });
+        const ownerId = target?.id ?? null;
+        const merged = [
+          ...textures.filter((t) => t.boothOwner !== ownerId),
+          ...mergeVehicleTextures(
+            textures.filter((t) => t.boothOwner === ownerId),
+            loaded.textures.map((t) => ({ ...t, boothOwner: ownerId })),
+          ),
+        ];
+        if (merged.reduce((n, t) => n + t.out.length, 0) > MAX_DECODED_TEXTURE_BYTES)
+          throw Error('Tekstur booth melebihi batas decoded 1024 MB.');
+        textures = merged;
+        textureFiles.push(file);
+        textureOwners.push(ownerId);
+        warnings.push(...loaded.warnings);
+      }
+      saveMotion();
       assets.push(...pending);
+      if (pending.some((a) => a.kind === 'ped'))
+        selectedActor = pending.find((a) => a.kind === 'ped').id;
+      loadMotion();
       rebuild();
-      if (loaded.warnings.length) setStatus(loaded.warnings.join(' · '));
+      if (warnings.length) setStatus(warnings.join(' · '));
     } catch (e) {
       pending.filter((a) => !assets.includes(a)).forEach(disposeGlb);
       throw e;
@@ -633,17 +868,25 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     e.target.value = '';
     if (file)
       guard(async () => {
+        if (clipFiles.length >= 32) throw Error('Maksimal 32 file emote dalam satu sesi.');
         const gltf = await parseGlb(file);
         try {
+          if (gltf.animations.length > 256) throw Error('GLB emote maksimal 256 clip.');
           if (!gltf.animations.length) throw Error('GLB tidak berisi animasi.');
-          externalClips = gltf.animations.map((clip, i) => ({
-            clip,
-            id: 'external:' + i,
-            label: file.name + ' / ' + clip.name,
-          }));
+          const prefix = 'external:' + ++clipSerial;
+          externalClips.push(
+            ...gltf.animations.map((clip, i) => ({
+              clip,
+              id: prefix + ':' + i,
+              label: file.name + ' / ' + clip.name,
+            })),
+          );
+          clipFiles.push({ file, prefix });
           $('pbPose').value = 'clip';
-          updateClips();
           time = 0;
+          saveMotion();
+          if (currentActor()) currentActor().motion.clip = prefix + ':0';
+          updateClips();
           applyPose();
           setControls();
         } finally {
@@ -659,7 +902,12 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     textures = [];
     animatedMeshes = 0;
     externalClips = [];
+    textureFiles = [];
+    textureOwners = [];
+    clipFiles = [];
     time = 0;
+    selectedActor = null;
+    actorPicker();
     assetList();
     setControls();
     setStatus('Booth kosong.');
@@ -668,12 +916,14 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
   $('pbPose').onchange = () => {
     playing = false;
     time = 0;
+    saveMotion();
     updateClips();
     applyPose();
     setControls();
   };
   $('pbClip').onchange = () => {
     time = 0;
+    saveMotion();
     updateClips();
     applyPose();
   };
@@ -681,18 +931,21 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     playing = !playing;
     if ($('pbPose').value === 'clip') updateClips();
     last = 0;
+    saveMotion();
     applyPose();
   };
   $('pbResetPose').onclick = () => {
     playing = false;
     time = 0;
     $('pbPose').value = 'relaxed';
+    saveMotion();
     applyPose();
     fit();
   };
   $('pbTime').oninput = () => {
     playing = false;
     time = Number($('pbTime').value);
+    saveMotion();
     applyPose();
   };
   $('pbSize').onchange = () => {
@@ -705,6 +958,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
   for (const id of ['pbBackground', 'pbTransparent', 'pbFloor', 'pbLight']) $(id).oninput = render;
   $('pbCapture').onclick = () =>
     guard(async () => {
+      for (const a of actors()) a.motion.playing = false;
       playing = false;
       applyPose();
       const [w, h] = $('pbSize').value.split('x').map(Number);
@@ -739,22 +993,222 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       return;
     }
     raf = requestAnimationFrame(tick);
-    if (playing && !busy && now - last > 33) {
+    if (!busy && now - last > 33) {
       const delta = last ? Math.min((now - last) / 1000, 0.1) : 0;
       last = now;
-      time = (time + delta) % Number($('pbTime').max);
-      applyPose();
+      let changed = false;
+      for (const a of actors())
+        if (a.motion.playing) {
+          const clip = clipsFor(a).find((c) => c.id === a.motion.clip);
+          advanceActorMotion(
+            a.motion,
+            delta,
+            a.motion.pose === 'clip' && clip ? Math.max(0.01, clip.clip.duration) : 4,
+          );
+          changed = true;
+        }
+      if (changed) applyPose();
     }
   }
+  $('pbActor').onchange = () => {
+    saveMotion();
+    selectedActor = Number($('pbActor').value);
+    loadMotion();
+    updateClips();
+    applyPose();
+    setControls();
+  };
+  $('pbSpeed').onchange = () => {
+    const speed = Number($('pbSpeed').value);
+    if (!Number.isFinite(speed) || speed < 0.1 || speed > 3) {
+      $('pbSpeed').value = currentActor()?.motion.speed || 1;
+      return;
+    }
+    saveMotion();
+  };
+  $('pbPlayAll').onclick = () => {
+    saveMotion();
+    for (const a of actors()) a.motion.playing = true;
+    last = 0;
+    updateClips();
+    applyPose();
+  };
+  $('pbPauseAll').onclick = () => {
+    for (const a of actors()) a.motion.playing = false;
+    applyPose();
+  };
+
+  async function refreshLibrary() {
+    const rows = await library.list();
+    $('pbLibraryList').replaceChildren();
+    for (const row of rows.filter((row) =>
+      row.name.toLowerCase().includes($('pbLibrarySearch').value.trim().toLowerCase()),
+    )) {
+      const card = document.createElement('article');
+      card.className = 'pb-asset';
+      if (row.thumbnail) {
+        const img = document.createElement('img');
+        img.src = row.thumbnail;
+        img.alt = 'Preview ' + row.name;
+        img.width = 128;
+        card.append(img);
+      }
+      const name = document.createElement('strong');
+      name.textContent = row.name;
+      card.append(name);
+      const load = document.createElement('button');
+      load.textContent = 'Buka preset';
+      load.dataset.libraryLoad = row.id;
+      load.onclick = () =>
+        guard(async () => {
+          await restoreScene(await library.get(row.id));
+        });
+      const remove = document.createElement('button');
+      remove.textContent = 'Hapus preset';
+      remove.onclick = () =>
+        guard(async () => {
+          await library.remove(row.id);
+          await refreshLibrary();
+        });
+      card.append(load, remove);
+      $('pbLibraryList').append(card);
+    }
+  }
+  function snapshotScene() {
+    saveMotion();
+    const small = document.createElement('canvas');
+    small.width = 160;
+    small.height = 200;
+    small.getContext('2d').drawImage(renderer.domElement, 0, 0, 160, 200);
+    return {
+      version: 1,
+      name: $('pbLibraryName').value,
+      thumbnail: small.toDataURL('image/png'),
+      assets: assets.map((a) => ({
+        file: a.file,
+        kind: a.kind,
+        oldId: a.id,
+        ownerIndex: a.owner == null ? null : assets.findIndex((b) => b.id === a.owner),
+        offset: [...a.offset],
+        yaw: a.yaw || 0,
+        scale: a.scale,
+        visible: a.visible,
+        motion: { ...a.motion, playing: false },
+        drawable: a.drawable,
+        hiddenSlots: [...a.hiddenSlots],
+        attach: a.attach,
+      })),
+      textureFiles,
+      textureOwners: textureOwners.map((id) =>
+        id == null ? null : assets.findIndex((a) => a.id === id),
+      ),
+      clipFiles,
+    };
+  }
+  async function restoreScene(record) {
+    validateBoothScene(record);
+    const pending = [],
+      newClips = [];
+    try {
+      for (const source of record.assets) {
+        const a = {
+          ...source,
+          id: ++token,
+          name: source.file.name,
+          hiddenSlots: new Set(source.hiddenSlots || []),
+          motion: { ...source.motion, playing: false },
+        };
+        if (/\.glb$/i.test(a.name)) a.gltf = await parseGlb(a.file);
+        else
+          a.drawables = await decodeResource(
+            a.name.split('.').pop().toLowerCase(),
+            await a.file.arrayBuffer(),
+          );
+        pending.push(a);
+      }
+      for (const a of pending) {
+        a.owner = a.ownerIndex === null ? null : pending[a.ownerIndex].id;
+        if (a.motion.clip && !a.motion.clip.startsWith('external:')) {
+          const [old, index] = a.motion.clip.split(':');
+          const original = record.assets.findIndex((s) => String(s.oldId) === old);
+          if (original >= 0) a.motion.clip = pending[original].id + ':' + index;
+        }
+      }
+      const refs = modelTextureReferences(pending.flatMap((a) => a.drawables || []));
+      let restoredTextures = [];
+      for (const [i, file] of record.textureFiles.entries()) {
+        const loaded = await loadVehicleTextures([file], refs, {
+          decode: decodeResource,
+          image: imageData,
+          existing: restoredTextures,
+        });
+        if (loaded.warnings.length) throw Error(loaded.warnings.join(' · '));
+        const ownerIndex = record.textureOwners?.[i],
+          ownerId = ownerIndex == null ? null : pending[ownerIndex].id;
+        restoredTextures = [
+          ...restoredTextures.filter((t) => t.boothOwner !== ownerId),
+          ...mergeVehicleTextures(
+            restoredTextures.filter((t) => t.boothOwner === ownerId),
+            loaded.textures.map((t) => ({ ...t, boothOwner: ownerId })),
+          ),
+        ];
+        if (restoredTextures.reduce((n, t) => n + t.out.length, 0) > MAX_DECODED_TEXTURE_BYTES)
+          throw Error('Tekstur preset terlalu besar.');
+      }
+      for (const c of record.clipFiles) {
+        const gltf = await parseGlb(c.file);
+        try {
+          newClips.push(
+            ...gltf.animations.map((clip, i) => ({
+              clip,
+              id: c.prefix + ':' + i,
+              label: c.file.name + ' / ' + clip.name,
+            })),
+          );
+        } finally {
+          disposeGlb({ gltf });
+        }
+      }
+      if (stage) clearStage();
+      assets.forEach(disposeGlb);
+      assets = pending;
+      textures = restoredTextures;
+      textureFiles = [...record.textureFiles];
+      textureOwners = record.textureFiles.map((_, i) =>
+        record.textureOwners?.[i] == null ? null : pending[record.textureOwners[i]].id,
+      );
+      clipFiles = [...record.clipFiles];
+      externalClips = newClips;
+      clipSerial = Math.max(clipSerial, ...clipFiles.map((c) => Number(c.prefix.split(':')[1])));
+      selectedActor = actors()[0]?.id;
+      loadMotion();
+      rebuild();
+      $('pbLibraryName').value = record.name;
+      setStatus('Preset dibuka. Pose tiap ped dipertahankan; playback dijeda.');
+    } catch (e) {
+      pending.filter((a) => !assets.includes(a)).forEach(disposeGlb);
+      throw e;
+    }
+  }
+  $('pbLibrarySave').onclick = () =>
+    guard(async () => {
+      await library.save(snapshotScene());
+      await refreshLibrary();
+      setStatus('Scene, outfit dan emote tersimpan di library lokal.');
+    });
+  $('pbLibraryRefresh').onclick = () => guard(refreshLibrary);
+  $('pbLibrarySearch').oninput = () => refreshLibrary().catch((e) => setStatus(e.message));
   return {
     root,
     setActive(value) {
       active = value;
       if (value) {
         ensure();
+        setControls();
         resize();
         if (!raf) raf = requestAnimationFrame(tick);
       } else {
+        for (const a of actors()) a.motion.playing = false;
         playing = false;
         last = 0;
         if (raf) cancelAnimationFrame(raf);

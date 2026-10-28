@@ -22,6 +22,92 @@ module.exports = async function checkPhotoBooth(fixtures) {
   window.ditashaDesktop = {
     saveExport: async (req) => {
       saved = req;
+      // Two characters must keep independent pose, clip and timeline states.
+      $('pbPed').click();
+      upload('pbInput', [
+        ['ped-a.glb', fixtures.glb],
+        ['ped-b.glb', fixtures.glb],
+      ]);
+      await wait(
+        () => !$('pbPed').disabled && $('pbActor').options.length === 2,
+        'Multiple ped import',
+      );
+      const actorIds = [...$('pbActor').options].map((o) => o.value);
+      const selectActor = (id) => {
+        $('pbActor').value = id;
+        $('pbActor').dispatchEvent(new Event('change'));
+      };
+      const choosePose = (pose, t) => {
+        $('pbPose').value = pose;
+        $('pbPose').dispatchEvent(new Event('change'));
+        $('pbTime').value = t;
+        $('pbTime').dispatchEvent(new Event('input'));
+      };
+      choosePose('catalog', '.25');
+      selectActor(actorIds[1]);
+      choosePose('wave', '1.25');
+      selectActor(actorIds[0]);
+      assert(
+        $('pbPose').value === 'catalog' && $('pbTimeLabel').textContent === '0.25 s',
+        'Ped A pose/time overwritten by ped B',
+      );
+      $('pbPlay').click();
+      await sleep(220);
+      selectActor(actorIds[1]);
+      assert($('pbTimeLabel').textContent === '1.25 s', 'Ped B clock advanced while paused');
+      $('pbPauseAll').click();
+      choosePose('dance', '.75');
+      selectActor(actorIds[0]);
+      assert($('pbPose').value === 'catalog', 'Changing ped B changed ped A pose');
+      $('pbClothes').click();
+      upload('pbInput', [['owned-shirt.ydd', fixtures.native]]);
+      await wait(
+        () => !$('pbPed').disabled && $('pbAssets').children.length === 3,
+        'Owned clothing import',
+      );
+      let owner = $('pbAssets').lastElementChild.querySelector('[data-owner]');
+      assert(owner.value === actorIds[0], 'Clothing assigned to wrong ped');
+      owner.value = actorIds[1];
+      owner.dispatchEvent(new Event('change'));
+      assert(
+        $('pbAssets').lastElementChild.querySelector('[data-owner]').value === actorIds[1],
+        'Changing outfit owner failed',
+      );
+      selectActor(actorIds[1]);
+      assert($('pbPose').value === 'dance', 'Outfit reassignment overwrote emote');
+      $('pbLibraryName').value = 'QA two-ped outfit';
+      $('pbLibrarySave').click();
+      await wait(
+        () =>
+          !$('pbLibrarySave').disabled && $('pbLibraryList').querySelector('[data-library-load]'),
+        'Library save',
+      );
+      const libraryId = $('pbLibraryList').querySelector('[data-library-load]').dataset.libraryLoad;
+      $('pbClear').click();
+      $('pbLibraryList').querySelector(`[data-library-load="${libraryId}"]`).click();
+      await wait(
+        () =>
+          !$('pbPed').disabled &&
+          $('pbActor').options.length === 2 &&
+          $('pbAssets').children.length === 3,
+        'Library restore',
+      );
+      const loadedIds = [...$('pbActor').options].map((o) => o.value);
+      selectActor(loadedIds[0]);
+      assert($('pbPose').value === 'catalog', 'Library lost ped A pose');
+      selectActor(loadedIds[1]);
+      assert(
+        $('pbPose').value === 'dance' && $('pbTimeLabel').textContent === '0.75 s',
+        'Library lost independent ped B pose/time',
+      );
+      assert(
+        $('pbAssets').lastElementChild.querySelector('[data-owner]').value === loadedIds[1],
+        'Library lost outfit owner',
+      );
+      $('pbFit').click();
+      await sleep(150);
+      console.log('DITASHA_SNAPSHOT:photo-booth-multiple-peds');
+      await sleep(150);
       return { saved: true };
     },
   };
@@ -46,11 +132,11 @@ module.exports = async function checkPhotoBooth(fixtures) {
   $('pbAccessory').click();
   upload('pbInput', [['accessory.ydd', fixtures.native]]);
   await wait(() => !$('pbPed').disabled && $('pbAssets').children.length === 3, 'Accessory import');
-  const bone = $('pbAssets').lastElementChild.querySelector('select');
+  const bone = $('pbAssets').lastElementChild.querySelector('[data-bone]');
   bone.value = 'SKEL_L_UpperArm';
   bone.dispatchEvent(new Event('change'));
   assert(
-    $('pbAssets').lastElementChild.querySelector('select').value === 'SKEL_L_UpperArm',
+    $('pbAssets').lastElementChild.querySelector('[data-bone]').value === 'SKEL_L_UpperArm',
     'Rigid bone target did not persist',
   );
   $('pbPose').value = 'walk';
@@ -118,6 +204,10 @@ module.exports = async function checkPhotoBooth(fixtures) {
   $('pbClear').click();
   assert($('pbCapture').disabled, 'Clear retained exportable meshes');
   return {
+    independentPedEmotes: true,
+    independentClocks: true,
+    outfitOwnership: true,
+    persistentLibraryRoundTrip: true,
     nativeSkin: true,
     nativePoseChangesPixels: true,
     clothing: true,
