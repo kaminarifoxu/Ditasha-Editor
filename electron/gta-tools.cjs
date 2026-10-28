@@ -38,19 +38,6 @@ const SPECS = {
       'awbctl.dll': '1378e70bd571c5b26cca21bc6d9df8d6de3443eb1971ca9edaeb1df32859da1f',
     },
   },
-  trium: {
-    name: 'TRIUM Skeleton Studio Free',
-    version: '1.0',
-    archive: 'rar',
-    bytes: 62559018,
-    sha256: '4ca8e395ad0a36f03e2f0aac88558c7ece0e559af9d5423037415967f3a70b5c',
-    folder: '',
-    gui: 'TRIUM Skeleton Studio Free.exe',
-    files: {
-      'TRIUM Skeleton Studio Free.exe':
-        'c3a7c84bf96425106c125dfdb7209e27665cc4f001bdfb8b998b0c03f49a9daf',
-    },
-  },
 };
 async function digest(file) {
   const h = createHash('sha256');
@@ -115,7 +102,7 @@ function command(id, action, values, source, output, toolRoot) {
     if (action === 'clothing' && v.female) args.push('--female');
     return args;
   }
-  throw Error('TRIUM dibuka melalui aplikasi desktop aslinya.');
+  throw Error('Tool tidak didukung.');
 }
 function execute(file, args, { cwd, signal, log = () => {}, timeout = 15 * 60 * 1000 } = {}) {
   return new Promise((resolve, reject) => {
@@ -176,10 +163,12 @@ function createGtaTools({
   let active = null,
     log = '',
     message = 'Siap.',
-    result = null;
+    result = null,
+    jobTool = null;
+  const sessions = {};
   const folder = (id) => path.join(root, id, 'current');
   function emit() {
-    notify({ busy: !!active, message, log, result });
+    notify({ busy: !!active, message, log, result, tool: jobTool });
   }
   function append(s) {
     log = (log + String(s)).slice(-256 * 1024);
@@ -210,13 +199,23 @@ function createGtaTools({
         download: !!spec.url,
       });
     }
-    return { supported: platform === 'win32', tools, busy: !!active, message, log, result };
+    return {
+      supported: platform === 'win32',
+      tools,
+      busy: !!active,
+      message,
+      log,
+      result,
+      tool: jobTool,
+      sessions,
+    };
   }
-  async function job(label, fn) {
+  async function job(id, label, fn) {
     if (platform !== 'win32') throw Error('Tools desktop ini memerlukan Windows x64.');
     if (active) throw Error('Tunggu proses aktif selesai atau tekan Hentikan.');
     const controller = new AbortController();
     active = controller;
+    jobTool = id;
     log = '';
     message = label;
     result = null;
@@ -230,6 +229,7 @@ function createGtaTools({
       append(message + '\n');
       throw e;
     } finally {
+      sessions[id] = { message, log, result };
       active = null;
       emit();
     }
@@ -260,7 +260,7 @@ function createGtaTools({
   }
   async function install(id, file, { download = false } = {}) {
     const spec = specFor(id, specs);
-    return job('Memasang ' + spec.name + '…', async (signal) => {
+    return job(id, 'Memasang ' + spec.name + '…', async (signal) => {
       await fs.mkdir(path.join(root, id), { recursive: true });
       const temp = await fs.mkdtemp(path.join(root, id, 'stage-'));
       const archive = path.join(temp, 'package.' + spec.archive),
@@ -307,23 +307,6 @@ function createGtaTools({
   return {
     state,
     install,
-    async installExe(file) {
-      const id = 'trium',
-        spec = specFor(id, specs);
-      return job('Memasang ' + spec.name + '…', async (signal) => {
-        await fs.mkdir(path.join(root, id), { recursive: true });
-        const temp = await fs.mkdtemp(path.join(root, id, 'stage-'));
-        try {
-          await fs.copyFile(file, path.join(temp, spec.gui));
-          await verify(id, temp);
-          signal.throwIfAborted();
-          await promote(id, temp);
-          return state();
-        } finally {
-          await fs.rm(temp, { recursive: true, force: true });
-        }
-      });
-    },
     cancel() {
       active?.abort();
       return { cancelled: !!active };
@@ -333,7 +316,7 @@ function createGtaTools({
       return { file: path.join(base, spec.gui), cwd: base };
     },
     async run(id, action, values, source, outputParent) {
-      return job('Menjalankan ' + specFor(id, specs).name + '…', async (signal) => {
+      return job(id, 'Menjalankan ' + specFor(id, specs).name + '…', async (signal) => {
         const { spec, base } = await executable(id);
         if (!spec.cli) throw Error('Tool ini tidak menyediakan CLI.');
         const stat = await fs.stat(source);
@@ -431,15 +414,6 @@ function registerGtaTools({ app, ipcMain, dialog, win, trusted, shell }) {
     const r = await tools.run(id, action, values, source, output);
     return r;
   });
-  handle('exe', async () => {
-    const pick = await dialog.showOpenDialog(win, {
-      title: 'Pilih TRIUM Skeleton Studio Free.exe',
-      properties: ['openFile'],
-      filters: [{ name: 'TRIUM Free 1.0', extensions: ['exe'] }],
-    });
-    if (pick.canceled || !pick.filePaths[0]) return { cancelled: true };
-    return tools.installExe(pick.filePaths[0]);
-  });
   handle('cancel', () => tools.cancel());
   handle('gui', async (id) => {
     const target = await tools.gui(id);
@@ -447,8 +421,9 @@ function registerGtaTools({ app, ipcMain, dialog, win, trusted, shell }) {
     if (error) throw Error(error);
     return { opened: true };
   });
-  handle('output', async () => {
-    const output = (await tools.state()).result?.output;
+  handle('output', async (id) => {
+    specFor(id);
+    const output = (await tools.state()).sessions[id]?.result?.output;
     if (!output) throw Error('Belum ada hasil build.');
     const error = await shell.openPath(output);
     if (error) throw Error(error);

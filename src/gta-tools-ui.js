@@ -1,28 +1,33 @@
 import { ICON_CODES } from './ui-icons.js';
-export function mountGtaTools({ nav, activate, viewers, toast }) {
+export function mountGtaTool({ nav, activate, viewers, toast, tool }) {
   const icon = (name) =>
     `<i class="di-icon" aria-hidden="true" data-icon="${name}" data-glyph="${String.fromCodePoint(parseInt(ICON_CODES[name] || ICON_CODES.cube, 16))}"></i>`;
   const button = document.createElement('button');
-  button.dataset.page = 'gtatools';
-  button.innerHTML = icon('cube') + '<span>GTA Toolchain</span>';
+  const title = tool === 'moddrop' ? 'ModDropV' : 'AddonWeaponsBuilder';
+  button.dataset.page = tool;
+  button.onclick = () => activate(tool);
+  button.innerHTML = icon('cube') + '<span>' + title + '</span>';
   nav.append(button);
   const root = document.createElement('section');
   root.className = 'gta-tools-workspace';
   root.hidden = true;
-  root.innerHTML = `<div class="gt-heading"><div><span class="eyebrow">DITASHA / DESKTOP ENGINES</span><h1>GTA Toolchain</h1><p class="muted">ModDropV, AddonWeaponsBuilder dan TRIUM untuk alur kerja aset GTA.</p></div><button id="gtRefresh">Periksa tools</button></div>
+  root.innerHTML = `<div class="gt-heading"><div><span class="eyebrow">DITASHA / DESKTOP ENGINES</span><h1>${title}</h1><p class="muted">${tool === 'moddrop' ? 'Builder DLC kendaraan, ped, prop dan pakaian.' : 'Analisis, rencana nama dan build DLC senjata.'}</p></div><button id="gtRefresh">Periksa tools</button></div>
   <div class="gt-cards" id="gtCards"></div>
-  <div class="gt-layout"><section class="gt-panel"><span class="eyebrow">BUILD WORKSPACE</span><h2>Siapkan add-on DLC</h2><div class="gt-fields"><label>Engine<select id="gtTool"><option value="weapons">AddonWeaponsBuilder</option><option value="moddrop">ModDropV</option></select></label><label>Proses<select id="gtOperation"></select></label></div>
+  <div class="gt-layout"><section class="gt-panel"><span class="eyebrow">BUILD WORKSPACE</span><h2>Siapkan add-on DLC</h2><div class="gt-fields"><label hidden>Engine<select id="gtTool"><option value="weapons">AddonWeaponsBuilder</option><option value="moddrop">ModDropV</option></select></label><label>Proses<select id="gtOperation"></select></label></div>
   <div class="gt-path"><button id="gtSource">Pilih folder sumber</button><span id="gtSourcePath">Belum dipilih</span></div><p class="muted">Pilih folder mod yang sudah diekstrak. Gunakan aplikasi asli untuk instalasi dan pengelolaan mod di GTA V.</p>
   <div class="gt-path"><button id="gtOutput">Pilih folder hasil</button><span id="gtOutputPath">Belum dipilih</span></div>
   <div class="gt-fields"><label>Nama proyek<input id="gtName" maxlength="100" placeholder="Ditasha addon"></label><label>Nama model baru<input id="gtModel" maxlength="64" placeholder="ditasha_model"></label><label id="gtBaseField">Base kendaraan / ped<input id="gtBase" maxlength="64" placeholder="adder"></label><label id="gtPriceField">Harga senjata<input id="gtPrice" type="number" min="0" max="2147483647" value="5000"></label><label>Edisi<select id="gtEdition"><option value="legacy">GTA V Legacy</option><option value="enhanced">GTA V Enhanced</option></select></label><label id="gtFemaleField" class="check"><input id="gtFemale" type="checkbox">Fallback pakaian female</label></div>
   <p class="gt-note">Hasil berupa DLC GTA V. Untuk FiveM, susunan resource dan metadata tetap perlu disesuaikan. Build disimpan ke subfolder baru pada folder hasil.</p><div class="gt-actions"><button id="gtRun" class="primary">Jalankan</button><button id="gtCancel" disabled>Hentikan</button><button id="gtReveal" disabled>Buka hasil</button><button id="gtPreview">Preview 3D</button></div><input id="gtPreviewInput" type="file" accept=".ydd,.ydr,.yft,.ytd" multiple hidden></section>
-  <section class="gt-panel gt-log-panel"><div class="gt-heading"><h2>Proses & hasil</h2><span id="gtStatus" role="status">Pilih tool dan folder sumber.</span></div><pre id="gtLog" tabindex="0" aria-label="Log tool"></pre><details><summary>Cara menggunakan</summary><ol><li>Pasang paket tool pada kartu di atas. Pilih ZIP ModDropV / AddonWeaponsBuilder atau RAR TRIUM yang kamu unduh.</li><li>Pilih engine dan folder sumber. Untuk senjata, mulai dari Analisis lalu Rencana nama.</li><li>Pilih folder hasil di luar sumber, lengkapi pengaturan dan jalankan build.</li><li>Periksa log, buka hasil, atau pilih model + YTD lewat Preview 3D.</li></ol><p>TRIUM Free menyediakan pemeriksaan dan perbandingan skeleton di jendela desktop aslinya. Buka file model dari dalam TRIUM. Instalasi game, mod library dan fitur lainnya tersedia melalui tombol Buka aplikasi asli.</p></details></section></div>`;
+  <section class="gt-panel gt-log-panel"><div class="gt-heading"><h2>Proses & hasil</h2><span id="gtStatus" role="status">Pilih tool dan folder sumber.</span></div><pre id="gtLog" tabindex="0" aria-label="Log tool"></pre><details><summary>Cara menggunakan</summary><ol><li>Pasang paket tool pada kartu di atas. Pilih ZIP asli untuk aplikasi ini.</li><li>Pilih folder sumber. Untuk senjata, mulai dari Analisis lalu Rencana nama.</li><li>Pilih folder hasil di luar sumber, lengkapi pengaturan dan jalankan build.</li><li>Periksa log, buka hasil, atau pilih model + YTD lewat Preview 3D.</li></ol></details></section></div>`;
+  root.dataset.tool = tool;
+  root.querySelectorAll('[id]').forEach((el) => (el.id = tool + '-' + el.id));
   nav.after(root);
-  const $ = (id) => root.querySelector('#' + id),
+  const $ = (id) => root.querySelector('#' + tool + '-' + id),
     api = () => window.ditashaGtaTools;
   let records = [],
     supported = false,
     busy = false,
+    activeTool = null,
     source = null,
     output = null,
     lastResult = null,
@@ -40,18 +45,12 @@ export function mountGtaTools({ nav, activate, viewers, toast }) {
       '2.0.0',
       'Analisis model, rencana nama dan build senjata add-on lewat engine aslinya.',
     ],
-    [
-      'trium',
-      'TRIUM Skeleton Studio',
-      'Free 1.0',
-      'Inspeksi, bandingkan dan validasi skeleton. Dibuka di jendela desktop TRIUM.',
-    ],
   ];
   function controls() {
     const ready = records.find((r) => r.id === $('gtTool').value)?.installed;
     const analysis = ['scan', 'plan'].includes($('gtOperation').value);
     $('gtRun').disabled = busy || !supported || !ready || !source || (!analysis && !output);
-    $('gtCancel').disabled = !busy;
+    $('gtCancel').disabled = !busy || activeTool !== tool;
     $('gtReveal').disabled = busy || !lastResult?.output;
     for (const id of [
       'gtTool',
@@ -78,6 +77,11 @@ export function mountGtaTools({ nav, activate, viewers, toast }) {
   }
   function progress(s) {
     busy = !!s.busy;
+    activeTool = s.activeTool ?? s.tool;
+    if (s.tool && s.tool !== tool) {
+      controls();
+      return;
+    }
     $('gtStatus').textContent = s.message || '';
     $('gtLog').textContent = s.log || '';
     lastResult = s.result || null;
@@ -86,7 +90,7 @@ export function mountGtaTools({ nav, activate, viewers, toast }) {
   }
   function cards() {
     $('gtCards').replaceChildren();
-    for (const [id, name, version, description] of ids) {
+    for (const [id, name, version, description] of ids.filter(([id]) => id === tool)) {
       const record = records.find((r) => r.id === id),
         card = document.createElement('article');
       card.className = 'gt-tool-card';
@@ -101,16 +105,9 @@ export function mountGtaTools({ nav, activate, viewers, toast }) {
       actions.className = 'gt-actions';
       const install = document.createElement('button');
       install.dataset.install = id;
-      install.textContent = id === 'trium' ? 'Pasang RAR' : 'Pasang ZIP';
+      install.textContent = 'Pasang ZIP';
       install.onclick = () => act(() => api().install(id, false), true);
       actions.append(install);
-      if (id === 'trium') {
-        const exe = document.createElement('button');
-        exe.dataset.exe = id;
-        exe.textContent = 'Pasang EXE';
-        exe.onclick = () => act(() => api().exe(), true);
-        actions.append(exe);
-      }
       if (id === 'weapons') {
         const dl = document.createElement('button');
         dl.dataset.download = id;
@@ -153,7 +150,13 @@ export function mountGtaTools({ nav, activate, viewers, toast }) {
       supported = state.supported;
       if (!unsubscribe && api().subscribe) unsubscribe = api().subscribe(progress);
       cards();
-      if (updateStatus) progress(state);
+      if (updateStatus)
+        progress({
+          ...state,
+          ...(state.sessions?.[tool] || {}),
+          tool: state.sessions?.[tool] ? tool : state.tool,
+          activeTool: state.tool,
+        });
       else controls();
     } catch (e) {
       toast(e.message);
@@ -232,7 +235,7 @@ export function mountGtaTools({ nav, activate, viewers, toast }) {
       await refresh();
     });
   $('gtCancel').onclick = () => act(() => api().cancel());
-  $('gtReveal').onclick = () => act(() => api().output());
+  $('gtReveal').onclick = () => act(() => api().output(tool));
   $('gtPreview').onclick = () => $('gtPreviewInput').click();
   $('gtPreviewInput').onchange = async (e) => {
     const files = [...e.target.files];
@@ -242,6 +245,7 @@ export function mountGtaTools({ nav, activate, viewers, toast }) {
     }
     e.target.value = '';
   };
+  $('gtTool').value = tool;
   operations();
   cards();
   return { root, refresh };

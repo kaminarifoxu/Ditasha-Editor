@@ -97,7 +97,9 @@ export function mountWorkspaceShell({ toast }) {
     'pack',
     'compressor',
     'fivemtools',
-    'gtatools',
+    'moddrop',
+    'weapons',
+    'photobooth',
     'converter',
     'code',
   ]) {

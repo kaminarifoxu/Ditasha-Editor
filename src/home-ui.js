@@ -4,12 +4,20 @@ import { ICON_CODES } from './ui-icons.js';
 const icon = (name) =>
   `<i class="di-icon" aria-hidden="true" data-icon="${name}" data-glyph="${String.fromCodePoint(parseInt(ICON_CODES[name], 16))}"></i>`;
 const workspaces = [
+  ['moddrop', 'cube', 'ModDropV', 'Build DLC kendaraan, ped, prop dan pakaian.', 'DLC BUILDER'],
   [
-    'gtatools',
+    'weapons',
     'cube',
-    'GTA Toolchain',
-    'ModDropV, AddonWeaponsBuilder dan TRIUM dalam alur kerja desktop.',
-    'DLC BUILDER · SKELETON TOOLS',
+    'AddonWeaponsBuilder',
+    'Analisis dan build senjata add-on.',
+    'WEAPON BUILDER',
+  ],
+  [
+    'photobooth',
+    'camera',
+    'Photo Booth',
+    'Pasang ped, pakaian dan aksesori. Pilih pose lalu foto offline.',
+    'POSE · EMOTE · PNG',
   ],
   [
     'fivemtools',

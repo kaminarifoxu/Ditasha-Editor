@@ -20,9 +20,11 @@ module.exports = async function checkHome({ ytd, size, interactions }) {
     'Homepage does not replace the editor',
   );
   assert(
-    document.querySelectorAll('.home-workspace-card').length === 10 &&
+    document.querySelectorAll('.home-workspace-card').length === 12 &&
       home.querySelector('[data-home-page=fivemtools]') &&
-      home.querySelector('[data-home-page=gtatools]'),
+      home.querySelector('[data-home-page=moddrop]') &&
+      home.querySelector('[data-home-page=weapons]') &&
+      home.querySelector('[data-home-page=photobooth]'),
     'Homepage tool cards missing',
   );
   assert(

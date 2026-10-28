@@ -1,3 +1,4 @@
+import { readPedRig, readPedWeights } from './ped-skin.js';
 import { decodeBC7 } from 'tex-decoder/build/esm/bc7.js';
 import { Matrix3, Matrix4, Quaternion, Vector3 } from 'three';
 import { deflateRaw, Inflate } from 'pako';
@@ -647,7 +648,16 @@ function readDrawables(r, drawables, metadata = new Map()) {
       indices[i] = r.u16(ip + i * 2);
       if (indices[i] >= count) throw Error('Index model tidak valid.');
     }
+    let skin = null,
+      skinWarning = '';
+    try {
+      skin = readPedWeights(r, g, data, count, stride, offsets);
+    } catch (e) {
+      skinWarning = e.message;
+    }
     const result = {
+      skin,
+      skinWarning,
       positions,
       normals: normalsValid ? normals : null,
       uvs,
@@ -665,6 +675,13 @@ function readDrawables(r, drawables, metadata = new Map()) {
       const details = typeof entry === 'number' ? metadata.get(d) || {} : entry;
       try {
         const ownBones = drawableBones(r, d);
+        let rig = [],
+          rigWarning = '';
+        try {
+          rig = readPedRig(r, d);
+        } catch (e) {
+          rigWarning = e.message;
+        }
         const bones =
           details.boneMatrices || (ownBones.length ? ownBones : details.inheritedBones || []);
         const lods = [],
@@ -716,6 +733,8 @@ function readDrawables(r, drawables, metadata = new Map()) {
         }
         if (!lods.length) return null;
         return {
+          rig,
+          rigWarning,
           name: details.name || 'Drawable ' + (di + 1),
           geometries: lods[0].geometries,
           lods,

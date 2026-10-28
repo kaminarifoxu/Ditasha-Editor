@@ -470,6 +470,19 @@ app.whenReady().then(async () => {
       '(' + require('./gta-tools-ui-checks.cjs').toString() + ')()',
     );
     await win.loadFile(path.resolve('ui/index.html'));
+    const { boothPedFixture } = await import('../tests/fixtures/booth-ped.mjs');
+    const { boothGlbFixture } = await import('../tests/fixtures/booth-glb.mjs');
+    const photoBoothReport = await win.webContents.executeJavaScript(
+      '(' +
+        require('./photo-booth-ui-checks.cjs').toString() +
+        ')(' +
+        JSON.stringify({
+          native: [...new Uint8Array(boothPedFixture())],
+          glb: [...new Uint8Array(await boothGlbFixture())],
+        }) +
+        ')',
+    );
+    await win.loadFile(path.resolve('ui/index.html'));
     const fivemToolsReport = await win.webContents.executeJavaScript(
       '(' + require('./fivem-tools-ui-checks.cjs').toString() + ')()',
     );
@@ -494,6 +507,7 @@ app.whenReady().then(async () => {
           fivemToolsReport,
           fullpedReport,
           gtaToolsReport,
+          photoBoothReport,
         }),
     );
     win.destroy();

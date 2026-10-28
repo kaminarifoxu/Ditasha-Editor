@@ -165,37 +165,6 @@ test('Cancellation terminates the active command, releases the busy state and re
   );
 });
 
-test('TRIUM executable import is verified and retains an existing installation on a mismatched file', async (t) => {
-  const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'ditasha-trium-'));
-  t.after(() => fs.rm(temp, { recursive: true, force: true }));
-  const exe = Buffer.from('single self contained fixture'),
-    file = path.join(temp, 'TRIUM.exe');
-  await fs.writeFile(file, exe);
-  const tools = createGtaTools({
-    root: path.join(temp, 'tools'),
-    platform: 'win32',
-    specs: {
-      trium: {
-        name: 'TRIUM',
-        version: '1',
-        folder: '',
-        gui: 'trium.exe',
-        files: { 'trium.exe': sha(exe) },
-      },
-    },
-  });
-  await tools.installExe(file);
-  assert.equal((await tools.state()).tools[0].installed, true);
-  assert.equal(path.basename((await tools.gui('trium')).file), 'trium.exe');
-  const cancelled = tools.installExe(file);
-  tools.cancel();
-  await assert.rejects(cancelled);
-  assert.equal((await tools.state()).tools[0].installed, true);
-  await fs.writeFile(file, 'changed');
-  await assert.rejects(tools.installExe(file), /Checksum/);
-  assert.equal(await fs.readFile((await tools.gui('trium')).file, 'utf8'), exe.toString());
-});
-
 test('Process invocation uses argument arrays, propagates failures and can be aborted', async () => {
   const literal = 'space & $(echo bad) ; `no`';
   const out = await execute(process.execPath, ['-e', 'console.log(process.argv[1])', literal]);
@@ -225,7 +194,7 @@ test('Every desktop tool IPC handler enforces the trusted renderer before doing 
   });
   for (const fn of handlers.values()) await assert.rejects(fn({}), /untrusted/);
   assert.equal(checks, handlers.size);
-  assert.equal(handlers.size, 8);
-  assert.equal(Object.keys(SPECS).length, 3);
+  assert.equal(handlers.size, 7);
+  assert.equal(Object.keys(SPECS).length, 2);
   assert.equal(SPECS.weapons.bytes, 66732285);
 });
