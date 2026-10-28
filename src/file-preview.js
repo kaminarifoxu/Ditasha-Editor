@@ -114,6 +114,7 @@ export function createFilePreview(container) {
           if (mapCache.get(t)?.has(role)) return mapCache.get(t).get(role);
           const map = new THREE.DataTexture(t.out, t.w, t.h, THREE.RGBAFormat);
           map.flipY = false;
+          map.wrapS = map.wrapT = THREE.RepeatWrapping;
           map.colorSpace = role === 'data' ? THREE.NoColorSpace : THREE.SRGBColorSpace;
           map.needsUpdate = true;
           maps.push(map);

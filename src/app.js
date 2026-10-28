@@ -302,6 +302,7 @@ function applyTexture() {
     mapped.needsUpdate = true;
     if (mapped) {
       mapped.flipY = false;
+      mapped.wrapS = mapped.wrapT = THREE.RepeatWrapping;
       mapped.generateMipmaps = true;
       mapped.minFilter = THREE.LinearMipmapLinearFilter;
       mapped.anisotropy = Math.min(16, renderer?.capabilities.getMaxAnisotropy() || 1);
@@ -338,6 +339,7 @@ function applyTexture() {
       THREE.RGBAFormat,
     );
     map.flipY = false;
+    map.wrapS = map.wrapT = THREE.RepeatWrapping;
     map.colorSpace = role === 'data' ? THREE.NoColorSpace : THREE.SRGBColorSpace;
     map.generateMipmaps = true;
     map.minFilter = THREE.LinearMipmapLinearFilter;

@@ -1,3 +1,4 @@
+import { repeatedUVTriangles } from './uv-repeat.js';
 import * as THREE from 'three';
 import { surfacePoint, surfaceFacing } from './surface-projection.js';
 
@@ -105,46 +106,49 @@ export function projectTexture(
         )
       )
         continue;
-      const t = ids.map((id) => [uv.getX(id) * width, uv.getY(id) * height]);
-      const [u, v, w] = t;
-      const denominator = (v[1] - w[1]) * (u[0] - w[0]) + (w[0] - v[0]) * (u[1] - w[1]);
-      if (Math.abs(denominator) < 1e-9) continue;
-      const x0 = Math.max(0, Math.floor(Math.min(...t.map((t) => t[0]))) - 1),
-        x1 = Math.min(width - 1, Math.ceil(Math.max(...t.map((t) => t[0]))) + 1);
-      const y0 = Math.max(0, Math.floor(Math.min(...t.map((t) => t[1]))) - 1),
-        y1 = Math.min(height - 1, Math.ceil(Math.max(...t.map((t) => t[1]))) + 1);
-      if (x1 < x0 || y1 < y0) continue;
-      visits += (x1 - x0 + 1) * (y1 - y0 + 1);
-      if (visits > 64000000)
-        throw Error('Proyeksi terlalu rumit. Kurangi ukuran PNG atau resolusi tekstur.');
-      for (let y = y0; y <= y1; y++)
-        for (let x = x0; x <= x1; x++) {
-          let wa =
-            ((v[1] - w[1]) * (x + 0.5 - w[0]) + (w[0] - v[0]) * (y + 0.5 - w[1])) / denominator;
-          let wb =
-              ((w[1] - u[1]) * (x + 0.5 - w[0]) + (u[0] - w[0]) * (y + 0.5 - w[1])) / denominator,
-            wc = 1 - wa - wb;
-          const interior = Math.min(wa, wb, wc) >= -1e-7;
-          const pixel = y * width + x;
-          if (!interior) {
-            if (coverage[pixel] === 2) continue;
-            const padded = edgeWeights(x + 0.5, y + 0.5, t);
-            if (!padded) continue;
-            [wa, wb, wc] = padded;
+      const sourceUV = ids.map((id) => [uv.getX(id), uv.getY(id)]);
+      for (const tile of repeatedUVTriangles(sourceUV)) {
+        const t = tile.map(([u, v]) => [u * width, v * height]);
+        const [u, v, w] = t;
+        const denominator = (v[1] - w[1]) * (u[0] - w[0]) + (w[0] - v[0]) * (u[1] - w[1]);
+        if (Math.abs(denominator) < 1e-9) continue;
+        const x0 = Math.max(0, Math.floor(Math.min(...t.map((t) => t[0]))) - 1),
+          x1 = Math.min(width - 1, Math.ceil(Math.max(...t.map((t) => t[0]))) + 1);
+        const y0 = Math.max(0, Math.floor(Math.min(...t.map((t) => t[1]))) - 1),
+          y1 = Math.min(height - 1, Math.ceil(Math.max(...t.map((t) => t[1]))) + 1);
+        if (x1 < x0 || y1 < y0) continue;
+        visits += (x1 - x0 + 1) * (y1 - y0 + 1);
+        if (visits > 64000000)
+          throw Error('Proyeksi terlalu rumit. Kurangi ukuran PNG atau resolusi tekstur.');
+        for (let y = y0; y <= y1; y++)
+          for (let x = x0; x <= x1; x++) {
+            let wa =
+              ((v[1] - w[1]) * (x + 0.5 - w[0]) + (w[0] - v[0]) * (y + 0.5 - w[1])) / denominator;
+            let wb =
+                ((w[1] - u[1]) * (x + 0.5 - w[0]) + (u[0] - w[0]) * (y + 0.5 - w[1])) / denominator,
+              wc = 1 - wa - wb;
+            const interior = Math.min(wa, wb, wc) >= -1e-7;
+            const pixel = y * width + x;
+            if (!interior) {
+              if (coverage[pixel] === 2) continue;
+              const padded = edgeWeights(x + 0.5, y + 0.5, t);
+              if (!padded) continue;
+              [wa, wb, wc] = padded;
+            }
+            p.copy(a).multiplyScalar(wa).addScaledVector(b, wb).addScaledVector(c, wc);
+            const mapped = surfacePoint(p, size, wrap);
+            if (
+              Math.abs(mapped.x) > size.x / 2 ||
+              Math.abs(mapped.y) > size.y / 2 ||
+              Math.abs(mapped.depth) > size.z / 2
+            )
+              continue;
+            coverage[pixel] = interior ? 2 : 1;
+            const sx = (mapped.x / size.x + 0.5) * image.width - 0.5;
+            const sy = (0.5 - mapped.y / size.y) * image.height - 0.5;
+            if (sample(image, sx, sy, output, pixel * 4, opacity)) painted++;
           }
-          p.copy(a).multiplyScalar(wa).addScaledVector(b, wb).addScaledVector(c, wc);
-          const mapped = surfacePoint(p, size, wrap);
-          if (
-            Math.abs(mapped.x) > size.x / 2 ||
-            Math.abs(mapped.y) > size.y / 2 ||
-            Math.abs(mapped.depth) > size.z / 2
-          )
-            continue;
-          coverage[pixel] = interior ? 2 : 1;
-          const sx = (mapped.x / size.x + 0.5) * image.width - 0.5;
-          const sy = (0.5 - mapped.y / size.y) * image.height - 0.5;
-          if (sample(image, sx, sy, output, pixel * 4, opacity)) painted++;
-        }
+      }
     }
   }
   if (!painted)

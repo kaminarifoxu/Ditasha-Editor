@@ -1,3 +1,5 @@
+import { repeatedUVTriangles } from './uv-repeat.js';
+
 export function validSize(w, h) {
   return (
     Number.isInteger(w) &&
@@ -143,22 +145,27 @@ export function drawUV(ctx, geometries, w, h) {
   ctx.lineWidth = Math.max(0.35, w / 2048);
   let triangles = 0;
   for (const g of geometries) {
+    if (!g.uvs) continue;
     for (let i = 0; i < g.indices.length; i += 3) {
       const ids = [g.indices[i], g.indices[i + 1], g.indices[i + 2]],
-        points = ids.map((id) => [g.uvs[id * 2] * w, g.uvs[id * 2 + 1] * h]);
-      if (points.some((p) => !Number.isFinite(p[0]) || !Number.isFinite(p[1]))) continue;
-      const a = points[0],
-        b = points[1],
-        c = points[2];
-      if (Math.abs((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])) < 0.001) continue;
-      ctx.beginPath();
-      ctx.moveTo(...a);
-      ctx.lineTo(...b);
-      ctx.lineTo(...c);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      triangles++;
+        source = ids.map((id) => [g.uvs[id * 2], g.uvs[id * 2 + 1]]);
+      for (const tile of repeatedUVTriangles(source)) {
+        const points = tile.map(([u, v]) => [u * w, v * h]);
+        if (points.some((p) => !Number.isFinite(p[0]) || !Number.isFinite(p[1]))) continue;
+        const a = points[0],
+          b = points[1],
+          c = points[2];
+        if (Math.abs((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])) < 0.001)
+          continue;
+        ctx.beginPath();
+        ctx.moveTo(...a);
+        ctx.lineTo(...b);
+        ctx.lineTo(...c);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        triangles++;
+      }
     }
   }
   return triangles;
