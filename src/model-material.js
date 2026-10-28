@@ -140,8 +140,17 @@ const blendedVehicle = new Set(
     'vehicle_lightsemissive_siren',
   ].flatMap((name) => [hashName(name), hashName(name + '.sps')]),
 );
+// Native ped hair cards use diffuse alpha even when they share a head/body atlas.
+const cutoutPed = new Set(
+  ['ped_hair_cutout_alpha', 'ped_default_cutout'].flatMap((name) => [
+    hashName(name),
+    hashName(name + '.sps'),
+  ]),
+);
 export function modelPreviewAlpha(geometry, override = 'auto') {
   if (override !== 'auto') return { mode: override, cutoff: override === 'opaque' ? 0 : 0.02 };
+  if (cutoutPed.has(geometry.shaderHash) || cutoutPed.has(geometry.shaderFileHash))
+    return { mode: 'cutout', cutoff: 0.25 };
   if (opaqueVehicle.has(geometry.shaderHash) || opaqueVehicle.has(geometry.shaderFileHash))
     return { mode: 'opaque', cutoff: 0 };
   if (blendedVehicle.has(geometry.shaderHash) || blendedVehicle.has(geometry.shaderFileHash))

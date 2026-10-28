@@ -124,9 +124,11 @@ export function createFilePreview(container) {
         };
         const map = textureMap(t),
           livery = resolveVehicleLivery(g, external, drawable.embeddedTextures || [], file.name);
-        const opaque =
-          modelAlphaMode(g) === 'opaque' ||
-          /^(sbase|head_diff|uppr_diff|body_diff)/i.test(g.diffuseTexture || '');
+        const alpha = modelPreviewAlpha(g);
+        const opaque = alpha
+          ? alpha.mode === 'opaque'
+          : modelAlphaMode(g) === 'opaque' ||
+            /^(sbase|head_diff|uppr_diff|body_diff)/i.test(g.diffuseTexture || '');
         const mesh = new THREE.Mesh(
           geometry,
           createModelMaterial(g, {
@@ -134,9 +136,9 @@ export function createFilePreview(container) {
             color: map ? 0xffffff : 0xb6bfcc,
             roughness: 0.8,
             side: THREE.DoubleSide,
-            transparent: !!map && !opaque,
-            alphaTest: opaque ? 0 : (modelPreviewAlpha(g)?.cutoff ?? 0.01),
-            depthWrite: opaque || !map,
+            transparent: !!map && (alpha ? alpha.mode === 'blend' : !opaque),
+            alphaTest: opaque ? 0 : (alpha?.cutoff ?? 0.01),
+            depthWrite: !map || (alpha ? alpha.mode !== 'blend' : opaque),
           }),
         );
         setSurfaceMaps(

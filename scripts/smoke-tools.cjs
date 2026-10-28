@@ -367,6 +367,38 @@ app.whenReady().then(async () => {
         ')',
     );
     await win.loadFile(path.resolve('ui/index.html'));
+    const pedAlphaReport = await win.webContents.executeJavaScript(
+      '(' +
+        require('./ped-alpha-ui-checks.cjs').toString() +
+        ')(' +
+        JSON.stringify({
+          skin: [
+            ...new Uint8Array(
+              liveryYftFixture(viewerModel, {
+                embedded: false,
+                shader: 'ped',
+                primary: 'head_diff_000_a_uni',
+              }),
+            ),
+          ],
+          brow: [
+            ...new Uint8Array(
+              liveryYftFixture(viewerModel, {
+                embedded: false,
+                shader: 'ped_hair_cutout_alpha',
+                primary: 'head_diff_000_a_uni',
+              }),
+            ),
+          ],
+          texture: [
+            ...createYtd([
+              { name: 'head_diff_000_a_uni', w: 1, h: 1, out: new Uint8Array([255, 0, 0, 32]) },
+            ]),
+          ],
+        }) +
+        ')',
+    );
+    await win.loadFile(path.resolve('ui/index.html'));
     const { surfaceYftFixture } = await import('../tests/fixtures/surface-yft.mjs');
     const surfaceDictionary = (normal, specular, base = true) => [
       ...createYtd([
@@ -437,6 +469,7 @@ app.whenReady().then(async () => {
           largeYtdReport,
           wheelReport,
           liveryReport,
+          pedAlphaReport,
           surfaceReport,
           fivemToolsReport,
         }),

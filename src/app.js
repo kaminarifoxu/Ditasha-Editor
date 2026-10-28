@@ -436,8 +436,9 @@ function showDrawable(index) {
     const alphaDefault = modelPreviewAlpha(g);
     if (alphaDefault) mesh.material.userData.previewAlphaDefault = alphaDefault;
     if (
-      modelAlphaMode(g) === 'opaque' ||
-      /^(sbase|head_diff|uppr_diff|lowr_diff|body_diff)/i.test(g.diffuseTexture || '')
+      !alphaDefault &&
+      (modelAlphaMode(g) === 'opaque' ||
+        /^(sbase|head_diff|uppr_diff|lowr_diff|body_diff)/i.test(g.diffuseTexture || ''))
     )
       mesh.material.userData.previewAlphaDefault = { mode: 'opaque', cutoff: 0 };
     mesh.name =
