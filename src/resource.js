@@ -725,6 +725,9 @@ function readDrawables(r, drawables, metadata = new Map()) {
           fragmentIndex: details.fragmentIndex,
           fragmentBoneTag: details.fragmentBoneTag,
           sourceDrawable: d,
+          ...(details.componentSlot
+            ? { componentSlot: details.componentSlot, drawableHash: details.drawableHash }
+            : {}),
         };
       } catch (e) {
         if (!details.fragmentChild) throw e;
@@ -736,9 +739,45 @@ function readDrawables(r, drawables, metadata = new Map()) {
 }
 
 // Legacy resource layouts: CodeWalker DrawableBase / FragType.
+let pedDrawableNames;
+function componentDrawableNames() {
+  if (pedDrawableNames) return pedDrawableNames;
+  pedDrawableNames = new Map();
+  for (const slot of [
+    'head',
+    'hair',
+    'uppr',
+    'lowr',
+    'hand',
+    'feet',
+    'teef',
+    'accs',
+    'task',
+    'decl',
+    'jbib',
+  ])
+    for (let i = 0; i < 256; i++)
+      for (const suffix of ['u', 'r']) {
+        const name = slot + '_' + String(i).padStart(3, '0') + '_' + suffix;
+        pedDrawableNames.set(nameHash(name), { name, componentSlot: slot });
+      }
+  return pedDrawableNames;
+}
 export function readYdd(buffer) {
   const r = new Resource(buffer, 165);
-  return requireGeometry(readDrawables(r, r.list(48, r.u16(56))));
+  const pointers = r.list(48, r.u16(56)),
+    metadata = new Map();
+  const hashes = r.ptr(32),
+    count = r.u16(40);
+  if (hashes !== null && count === pointers.length && hashes + count * 4 <= r.sys) {
+    const names = componentDrawableNames();
+    pointers.forEach((p, i) => {
+      const hash = r.u32(hashes + i * 4),
+        component = names.get(hash);
+      if (component) metadata.set(p, { ...component, drawableHash: hash });
+    });
+  }
+  return requireGeometry(readDrawables(r, pointers, metadata));
 }
 // Naming/pairing hints only: never decode geometry or texture pixels for a bulk import.
 export function clothingAssetHints(buffer, extension) {

@@ -1,3 +1,4 @@
+import { defaultDrawableSelection, drawableView } from './drawable-selection.js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { decodeResource } from './resource-client.js';
@@ -77,7 +78,7 @@ export function createFilePreview(container) {
           /* An unavailable companion must not hide readable geometry. */
         }
       if (version !== generation) return;
-      const drawable = drawables[0],
+      const drawable = drawableView(drawables, defaultDrawableSelection(drawables)),
         level = drawable?.lods?.[0];
       if (!level?.geometries.length) throw Error('Geometri model tidak tersedia.');
       const host = document.createElement('div');
@@ -97,18 +98,14 @@ export function createFilePreview(container) {
       scene.add(light);
       const mapCache = new Map();
       for (const g of level.geometries) {
+        const embedded = g.sourceEmbeddedTextures || drawable.embeddedTextures || [];
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute('position', new THREE.BufferAttribute(g.positions, 3));
         if (g.uvs) geometry.setAttribute('uv', new THREE.BufferAttribute(g.uvs, 2));
         geometry.setIndex(new THREE.BufferAttribute(g.indices, 1));
         if (g.normals) geometry.setAttribute('normal', new THREE.BufferAttribute(g.normals, 3));
         else geometry.computeVertexNormals();
-        const t = resolveModelTexture(
-          g.diffuseTexture,
-          external,
-          drawable.embeddedTextures || [],
-          file.name,
-        );
+        const t = resolveModelTexture(g.diffuseTexture, external, embedded, file.name);
         const textureMap = (t, role = 'color') => {
           if (!t) return null;
           if (mapCache.get(t)?.has(role)) return mapCache.get(t).get(role);
@@ -123,7 +120,7 @@ export function createFilePreview(container) {
           return map;
         };
         const map = textureMap(t),
-          livery = resolveVehicleLivery(g, external, drawable.embeddedTextures || [], file.name);
+          livery = resolveVehicleLivery(g, external, embedded, file.name);
         const alpha = modelPreviewAlpha(g);
         const opaque = alpha
           ? alpha.mode === 'opaque'
@@ -143,7 +140,7 @@ export function createFilePreview(container) {
         );
         setSurfaceMaps(
           mesh.material,
-          g.uvs ? resolveSurfaceMaps(g, external, drawable.embeddedTextures || [], file.name) : {},
+          g.uvs ? resolveSurfaceMaps(g, external, embedded, file.name) : {},
           textureMap,
         );
         if (livery && g.uvs2) {

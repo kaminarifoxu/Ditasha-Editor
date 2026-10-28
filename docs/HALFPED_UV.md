@@ -11,3 +11,11 @@ Regression tests cover negative and positive tiles, repeated seams, invalid/rang
 ## Brow and lash alpha (v1.46)
 
 Native `ped_hair_cutout_alpha` and `ped_default_cutout` shaders now keep their cutout settings ahead of head/body texture-name heuristics in Texture & Model and File Manager. The same atlas can render skin as solid and brow/lash cards with texture alpha. Preview overrides remain explicit, reset restores shader defaults, and source pixels/export bytes are unchanged. A Windows GPU smoke test compares the same low-alpha head atlas on skin and hair-card shaders and checks manual override/reset.
+
+## Fullped drawable assembly (v1.47)
+
+YDD dictionaries can store a ped as several independent component drawables. Recognized native component hashes are labeled by their source names. A dictionary with a head and distinct recognized component slots opens with all drawables assembled; repeated-slot clothing alternatives and unknown dictionaries retain individual selection. Multi-drawable models also provide an explicit Semua drawable option.
+
+Texture & Model, Model Viewer and File Manager preserve the components in their original coordinate space. Texture & Model provides both individual and combined UV maps; selecting an individual UV card now switches its matching 3D component. Combined LODs retain each drawable's own embedded textures and fall back to its High level when a selected LOD is missing. Selecting one component, material overrides, and visibility controls remain available. Preview assembly does not rewrite the source YDD/YFT/YTD.
+
+The supplied Lego sample contains three recognized drawables (lowr, teef and head), four High meshes and 14,389 vertices. Its companion YFT contains a four-vertex untextured support plane; the visual body is in the YDD. Private sample assets are not committed.

@@ -450,6 +450,22 @@ app.whenReady().then(async () => {
         ')',
     );
     await win.loadFile(path.resolve('ui/index.html'));
+    const { componentYddFixture } = await import('../tests/fixtures/component-ydd.mjs');
+    const fullpedReport = await win.webContents.executeJavaScript(
+      '(' +
+        require('./fullped-ui-checks.cjs').toString() +
+        ')(' +
+        JSON.stringify({
+          model: [...new Uint8Array(componentYddFixture(viewerModel))],
+          texture: [
+            ...createYtd([
+              { name: 'cloth_diffuse', w: 1, h: 1, out: new Uint8Array([20, 90, 180, 255]) },
+            ]),
+          ],
+        }) +
+        ')',
+    );
+    await win.loadFile(path.resolve('ui/index.html'));
     const fivemToolsReport = await win.webContents.executeJavaScript(
       '(' + require('./fivem-tools-ui-checks.cjs').toString() + ')()',
     );
@@ -472,6 +488,7 @@ app.whenReady().then(async () => {
           pedAlphaReport,
           surfaceReport,
           fivemToolsReport,
+          fullpedReport,
         }),
     );
     win.destroy();

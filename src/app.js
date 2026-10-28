@@ -1,3 +1,4 @@
+import { defaultDrawableSelection, drawableView } from './drawable-selection.js';
 import { resolveModelTexture, modelAlphaMode, modelPreviewAlpha } from './model-material.js';
 import { resolveEditorDiffuse, editorTextureMatches } from './editor-material.js';
 import { liveryReference, setVehicleLivery } from './vehicle-livery.js';
@@ -66,6 +67,7 @@ let current = null,
 let toastTimer, livery, nativeBuild, canvasStudio, sceneStudio;
 const materialMaps = [];
 const previewMapSources = new WeakMap();
+const modelEmbeddedSources = new WeakMap();
 let mode = 'move',
   gesture = null,
   cropRect = null,
@@ -310,7 +312,7 @@ function applyTexture() {
     }
   }
   const available = workspaceTextures().filter((t) => !t.isUV && t.out?.length === t.w * t.h * 4);
-  const embedded = modelFile?.drawables?.[drawableIndex]?.embeddedTextures || [];
+  const embedded = drawableView(modelFile?.drawables || [], drawableIndex)?.embeddedTextures || [];
   const meshes = [];
   model.traverse((o) => {
     if (o.isMesh) meshes.push(o);
@@ -352,9 +354,10 @@ function applyTexture() {
     return map;
   };
   for (const o of meshes) {
+    const localEmbedded = modelEmbeddedSources.get(o) || embedded;
     const texture =
       $('apply').checked &&
-      resolveEditorDiffuse(o.userData, available, embedded, displayedModel?.name);
+      resolveEditorDiffuse(o.userData, available, localEmbedded, displayedModel?.name);
     const useCurrent =
       mapped &&
       (editorTextureMatches(o.userData, current, displayedModel?.name) ||
@@ -363,7 +366,7 @@ function applyTexture() {
     if (!map && texture) map = textureMap(texture);
     const livery =
       $('apply').checked &&
-      resolveModelTexture(o.userData.liveryTexture, available, embedded, displayedModel?.name);
+      resolveModelTexture(o.userData.liveryTexture, available, localEmbedded, displayedModel?.name);
     const liveryMap = o.geometry.getAttribute('ditashaLiveryUv') ? textureMap(livery) : null;
     for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
       m.map = map || m.userData.originalMap || null;
@@ -374,7 +377,7 @@ function applyTexture() {
           ? resolveSurfaceMaps(
               o.userData.surfaceBinding || {},
               available,
-              embedded,
+              localEmbedded,
               displayedModel?.name,
             )
           : {},
@@ -392,7 +395,12 @@ function applyTexture() {
         .filter(
           (o) =>
             o.userData.diffuseTexture &&
-            !resolveEditorDiffuse(o.userData, available, embedded, displayedModel?.name),
+            !resolveEditorDiffuse(
+              o.userData,
+              available,
+              modelEmbeddedSources.get(o) || embedded,
+              displayedModel?.name,
+            ),
         )
         .map((o) => o.userData.diffuseTexture),
     ),
@@ -409,7 +417,8 @@ function showDrawable(index) {
   drawableIndex = index;
   displayedModel = modelFile;
   clearModel();
-  const d = modelFile.drawables[index];
+  const d = drawableView(modelFile.drawables, index);
+  if (!d) return;
   for (const [index, g] of d.geometries.entries()) {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(g.positions, 3));
@@ -427,6 +436,7 @@ function showDrawable(index) {
         side: THREE.DoubleSide,
       }),
     );
+    modelEmbeddedSources.set(mesh, g.sourceEmbeddedTextures || d.embeddedTextures || []);
     mesh.userData.diffuseTexture = g.diffuseTexture || null;
     mesh.userData.liveryTexture = liveryReference(g);
     mesh.userData.surfaceBinding = {
@@ -442,6 +452,7 @@ function showDrawable(index) {
     )
       mesh.material.userData.previewAlphaDefault = { mode: 'opaque', cutoff: 0 };
     mesh.name =
+      (g.drawableLabel ? g.drawableLabel + ' · ' : '') +
       'Part ' +
       ((g.part ?? 0) + 1) +
       ' · mesh ' +
@@ -560,11 +571,16 @@ function selectFile(f) {
   if (f.drawables) {
     if (displayedModel !== f) pedAttachments.clear();
     modelFile = f;
-    f.uvTextures ??= f.drawables.map((d, i) => {
+    const initial = defaultDrawableSelection(f.drawables);
+    f.uvTextures ??= [
+      ...f.drawables,
+      ...(f.drawables.length > 1 ? [drawableView(f.drawables, -1)] : []),
+    ].map((d, i) => {
       const c = document.createElement('canvas');
       c.width = c.height = 1;
       return {
         name: 'UV · ' + d.name,
+        drawableIndex: i === f.drawables.length ? -1 : i,
         w: 2048,
         h: 2048,
         canvas: c,
@@ -575,13 +591,20 @@ function selectFile(f) {
     });
     textures.splice(0, textures.length, ...f.uvTextures);
     renderTextures();
-    selectTexture(0);
     $('modelTitle').textContent = f.name;
     options(
       $('drawable'),
       f.drawables.map((d) => d.name),
     );
-    showDrawable(0);
+    if (f.drawables.length > 1) {
+      const all = document.createElement('option');
+      all.value = -1;
+      all.textContent = 'Semua drawable';
+      $('drawable').append(all);
+    }
+    $('drawable').value = initial;
+    showDrawable(initial);
+    selectTexture(initial === -1 ? f.drawables.length : initial);
   }
   if (f.gltf) {
     if (displayedModel !== f) pedAttachments.clear();
@@ -633,6 +656,14 @@ function selectTexture(i) {
   gesture = null;
   hideContext();
   current = textures[i];
+  if (
+    current.isUV &&
+    Number.isInteger(current.drawableIndex) &&
+    drawableIndex !== current.drawableIndex
+  ) {
+    $('drawable').value = current.drawableIndex;
+    showDrawable(current.drawableIndex);
+  }
   initLayers(current);
   canvas.width = current.w;
   canvas.height = current.h;
@@ -892,9 +923,9 @@ $('drawable').onchange = (e) => {
   if (current?.isUV && modelFile.uvTextures?.includes(current)) {
     textures.splice(0, textures.length, ...modelFile.uvTextures);
     renderTextures();
-    selectTexture(i);
+    selectTexture(i === -1 ? modelFile.drawables.length : i);
   }
-  showDrawable(i);
+  if (drawableIndex !== i) showDrawable(i);
 };
 $('apply').onchange = applyTexture;
 $('bindPreviewTexture').onclick = () => {
@@ -1152,7 +1183,7 @@ function drawGuide() {
   if (!current) return;
   uv.width = current.w;
   uv.height = current.h;
-  const d = modelFile?.drawables?.[drawableIndex];
+  const d = drawableView(modelFile?.drawables || [], drawableIndex);
   if (d) {
     const n = drawUV(uv.getContext('2d'), d.geometries, current.w, current.h);
     $('uvToggle').disabled = !n;

@@ -1,3 +1,9 @@
+import {
+  defaultDrawableSelection,
+  drawableView,
+  selectedDrawables,
+  drawableLevel,
+} from './drawable-selection.js';
 import { mountPedFiles } from './ped-files-ui.js';
 import { setProject } from './project-context.js';
 import { isTextureParentFile } from './texture-parents.js';
@@ -522,8 +528,14 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
         return o;
       }),
     );
+    if (drawables.length > 1) {
+      const all = document.createElement('option');
+      all.value = -1;
+      all.textContent = 'Semua drawable';
+      $('mvDrawable').append(all);
+    }
     $('mvDrawable').value = drawable;
-    const levels = drawables[drawable]?.lods || [];
+    const levels = drawableView(drawables, drawable)?.lods || [];
     $('mvLod').replaceChildren(
       ...levels.map((level, i) => {
         const o = document.createElement('option');
@@ -536,7 +548,7 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
   }
   function renderModel() {
     disposeModel();
-    const d = drawables[drawable];
+    const d = drawableView(drawables, drawable);
     if (!d) return;
     initRenderer();
     const level = d.lods[lod],
@@ -544,7 +556,12 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
       embedded = [d, ...activeExtras.map((e) => e.data)].flatMap((e) => e.embeddedTextures || []);
     renderedMeshes = [];
     const sources = [
-      { data: d, level, key: 'base:' + drawable, name: modelName },
+      ...selectedDrawables(drawables, drawable).map(({ data, index }) => ({
+        data,
+        level: drawableLevel(data, level.name),
+        key: 'base:' + index,
+        name: drawable === -1 ? modelName + ' · ' + data.name : modelName,
+      })),
       ...activeExtras.map((e) => ({
         data: e.data,
         level: e.data.lods[0],
@@ -1032,7 +1049,10 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
       .uvs2;
   }
   function sourcesTextures() {
-    return [drawables[drawable], ...extraDrawables.filter((e) => e.visible).map((e) => e.data)]
+    return [
+      ...selectedDrawables(drawables, drawable).map((e) => e.data),
+      ...extraDrawables.filter((e) => e.visible).map((e) => e.data),
+    ]
       .filter(Boolean)
       .flatMap((d) => d.embeddedTextures || []);
   }
@@ -1132,7 +1152,8 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
       );
       modelRevision++;
       modelSource = parsed[0].file;
-      drawable = lod = 0;
+      drawable = defaultDrawableSelection(drawables);
+      lod = 0;
       renderModel();
       if (textureWarning) {
         $('mvStatus').textContent = textureWarning;
