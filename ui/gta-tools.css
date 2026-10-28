@@ -1,3 +1,11 @@
+.workspace-shell > .gta-tools-workspace {
+  grid-column: 2 / -1;
+  grid-row: 2;
+  width: calc(100% - var(--rail-width));
+  margin-left: var(--rail-width);
+  height: calc(100dvh - var(--header-height));
+  min-height: 0;
+}
 .gta-tools-workspace {
   flex: 1;
   min-width: 0;
