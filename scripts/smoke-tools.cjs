@@ -472,12 +472,14 @@ app.whenReady().then(async () => {
     await win.loadFile(path.resolve('ui/index.html'));
     const { boothPedFixture } = await import('../tests/fixtures/booth-ped.mjs');
     const { boothGlbFixture } = await import('../tests/fixtures/booth-glb.mjs');
+    const { boothYcdFixture } = await import('../tests/fixtures/booth-ycd.mjs');
     const photoBoothReport = await win.webContents.executeJavaScript(
       '(' +
         require('./photo-booth-ui-checks.cjs').toString() +
         ')(' +
         JSON.stringify({
           native: [...new Uint8Array(boothPedFixture())],
+          ycd: [...new Uint8Array(boothYcdFixture())],
           missingRig: [...new Uint8Array(boothPedFixture({ missingRig: true, paletteBone: 40 }))],
           replacementYtd: [
             ...createYtd([

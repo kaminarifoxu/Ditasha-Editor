@@ -52,6 +52,58 @@ module.exports = async function checkPhotoBooth(fixtures) {
     canvas().toDataURL() !== nativeClipStart,
     'Compatible custom GLB clip did not animate native GTA bones',
   );
+  upload('pbClipInput', [
+    ['batch-one.ycd', fixtures.ycd],
+    ['batch-two.ycd', fixtures.ycd],
+    ['broken.ycd', [1, 2, 3]],
+  ]);
+  await wait(
+    () => !$('pbImportClip').disabled && $('pbClip').options.length === 3,
+    'YCD batch import',
+  );
+  assert($('pbStatus').textContent.includes('broken.ycd'), 'Invalid YCD not diagnosed');
+  const ycdStart = canvas().toDataURL();
+  $('pbTime').value = '.75';
+  $('pbTime').dispatchEvent(new Event('input'));
+  assert(canvas().toDataURL() !== ycdStart, 'Native binary YCD did not move skinned mesh');
+  assert(!$('pbPlay').disabled, 'YCD playback disabled with matching tags');
+  $('pbPlay').click();
+  await sleep(150);
+  $('pbPlay').click();
+  assert(Number($('pbTime').value) > 0.75, 'YCD clock did not advance');
+  $('pbClipSearch').value = 'batch-two';
+  $('pbClipSearch').dispatchEvent(new Event('input'));
+  assert($('pbClip').options.length === 2, 'Emote search must keep current clip and matching clip');
+  $('pbClipSearch').value = '';
+  $('pbClipSearch').dispatchEvent(new Event('input'));
+  $('pbLibraryName').value = 'QA binary YCD';
+  $('pbLibrarySave').click();
+  await wait(
+    () => !$('pbLibrarySave').disabled && $('pbLibraryList').querySelector('[data-library-load]'),
+    'YCD library save',
+  );
+  const ycdLibraryId = $('pbLibraryList').querySelector('[data-library-load]').dataset.libraryLoad;
+  $('pbClear').click();
+  $('pbLibraryList').querySelector(`[data-library-load="${ycdLibraryId}"]`).click();
+  await wait(
+    () =>
+      !$('pbPed').disabled &&
+      $('pbAssets').children.length === 1 &&
+      $('pbClip').options.length === 3,
+    'YCD library restore',
+  );
+  assert($('pbPose').value === 'clip' && !$('pbPlay').disabled, 'YCD preset lost native binding');
+  const restoredYcd = canvas().toDataURL();
+  $('pbTime').value = '0';
+  $('pbTime').dispatchEvent(new Event('input'));
+  assert(canvas().toDataURL() !== restoredYcd, 'Restored YCD lost animation samples');
+  $('pbLibraryList').querySelector(`[data-library-remove="${ycdLibraryId}"]`).click();
+  await wait(
+    () => !$('pbLibraryList').querySelector(`[data-library-load="${ycdLibraryId}"]`),
+    'YCD preset cleanup',
+  );
+  console.log('DITASHA_SNAPSHOT:photo-booth-ycd-emote');
+  await sleep(150);
   $('pbPose').value = 'rest';
   $('pbPose').dispatchEvent(new Event('change'));
   $('pbClothes').click();
@@ -420,6 +472,10 @@ module.exports = async function checkPhotoBooth(fixtures) {
   console.log('DITASHA_SNAPSHOT:photo-booth-height-rig-controls');
   await sleep(150);
   return {
+    binaryYcd: true,
+    batchYcdImport: true,
+    ycdSearch: true,
+    ycdLibraryPersistence: true,
     automaticFreemodeRig: true,
     manualReference: true,
     nativeEmoteRecovery: true,

@@ -1,3 +1,4 @@
+import { readYcd, ycdAnimationClip } from './ycd.js';
 import { freemodeFamily, selectBoothRig } from './booth-rig.js';
 import { boothHeight, setBoothHeight, setBoothElevation } from './booth-transform.js';
 import {
@@ -47,7 +48,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
   root.innerHTML = `<div class="pb-heading"><div><span class="eyebrow">DITASHA / OFFLINE PHOTO BOOTH</span><h1>Photo Booth</h1><p class="muted">Ped, outfit dan aksesori · pose, atur kamera, ambil foto.</p></div><button id="pbCapture" class="primary" disabled>▣ Simpan PNG</button></div>
   <div class="pb-layout"><aside class="pb-panel pb-assets"><h2>Model & outfit</h2><div class="pb-buttons"><button id="pbPed">+ Ped / tubuh</button><button id="pbClothes">+ Outfit / batch</button><button id="pbAccessory">+ Aksesori</button><button id="pbTextures">+ Tekstur</button></div><input id="pbInput" type="file" accept=".ydd,.ydr,.yft,.ytd,.glb" multiple hidden><input id="pbTextureInput" type="file" accept=".ytd,.dds,.png,.jpg,.jpeg,.webp" multiple hidden><p class="muted">Masukkan YDD + YTD. YFT skeleton pendamping dapat ditambahkan. GLB rigged juga didukung.</p><details class="pb-outfit-import" open><summary>Kategori outfit & impor folder</summary><div id="pbOutfitButtons" class="pb-outfit-grid"></div><label>Kategori folder / drag & drop<select id="pbImportCategory"><option value="auto">Otomatis dari nama GTA</option>${OUTFIT_CATEGORIES.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}</select></label><button id="pbFolder">+ Folder outfit</button><input id="pbFolderInput" type="file" webkitdirectory multiple hidden></details><p id="pbModelCount" class="muted" role="status">0 / ${MAX_BOOTH_MODELS} model</p><p class="muted">100 model · 64 MB per model · 1 GB file model per scene. Batas tekstur decoded 1 GB.</p><label>Filter bagian<select id="pbCategoryFilter"><option value="all">Semua bagian</option><option value="ped">Ped / tubuh</option>${OUTFIT_CATEGORIES.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}</select></label><input id="pbAssetSearch" placeholder="Cari model / outfit…" aria-label="Cari model Photo Booth"><div id="pbAssets"></div><p id="pbEmpty">Belum ada model. Mulai dari ped / tubuh milikmu.</p><button id="pbClear">Kosongkan booth</button><h2 class="pb-library-heading">Library lokal</h2><p class="muted">Preset maksimal 512 MB, termasuk file sumber dan tekstur.</p><label>Nama preset<input id="pbLibraryName" maxlength="80" placeholder="Foto grup / outfit favorit"></label><button id="pbLibrarySave">Simpan scene & outfit</button><button id="pbLibraryRefresh">Muat daftar library</button><input id="pbLibrarySearch" placeholder="Cari preset ped / outfit…" aria-label="Cari library"><div id="pbLibraryList"></div></aside>
   <section class="pb-stage"><div class="pb-stage-toolbar"><button id="pbFit">Fit tubuh</button><button id="pbFront">Depan</button><button id="pbBack">Belakang</button><label class="check"><input id="pbFloor" type="checkbox" checked>Lantai</label><span>Drag: orbit · scroll: zoom</span></div><div id="pbViewport"></div><p id="pbStatus" role="status">Siap untuk sesi foto offline.</p><button id="pbShowIssues" hidden>Lihat masalah</button></section>
-  <aside class="pb-panel pb-settings"><h2>Pose & emote per ped</h2><label>Ped yang diatur<select id="pbActor"></select></label><p class="muted">Pose, tinggi dan outfit mengikuti ped yang dipilih.</p><fieldset class="pb-ped-sizing"><legend>Tinggi & posisi ped terpilih</legend><label>Tinggi grup ped · cm<input id="pbHeightCm" type="number" min="1" max="1000" step="1"></label><label>Naik / turun · cm<input id="pbElevationCm" type="number" min="-10000" max="10000" step="1" value="0"></label><p class="muted">Seluruh outfit ikut berubah. Kamera tetap; gunakan Fit tubuh bila perlu.</p></fieldset><details class="pb-rig-settings"><summary>Skeleton / acuan (opsional)</summary><label>Skeleton acuan<select id="pbRigSource"><option value="auto">Otomatis · model / freemode</option><option value="freemode-male">Freemode laki-laki</option><option value="freemode-female">Freemode perempuan</option><option value="reference">Dari file skeleton acuan</option></select></label><button id="pbReference">+ Skeleton YFT / YDD</button><input id="pbReferenceInput" type="file" accept=".yft,.ydd,.ydr" multiple hidden></details><label>Pose<select id="pbPose">${BOOTH_POSES.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}<option value="clip">Clip GLB</option></select></label><div id="pbQuickPose" class="pb-buttons pb-quick-pose"><button data-quick-pose="walk">Berjalan</button><button data-quick-pose="dance">Dance</button><button data-quick-pose="wave">Lambaikan</button></div><div class="pb-buttons"><button id="pbPlay" disabled>▶ Putar</button><button id="pbResetPose">Reset pose</button><button id="pbPlayAll">Putar semua</button><button id="pbPauseAll">Jeda semua</button></div><label>Kecepatan<input id="pbSpeed" type="number" min="0.1" max="3" step="0.1" value="1"></label><label>Frame / waktu <output id="pbTimeLabel">0.00 s</output><input id="pbTime" type="range" min="0" max="4" step="0.01" value="0"></label><button id="pbImportClip">+ Animasi GLB</button><input id="pbClipInput" type="file" accept=".glb" hidden><label id="pbClipField" hidden>Clip<select id="pbClip"></select></label><p id="pbRigStatus" class="muted" role="status">Pose memerlukan skeleton dan skin weights yang cocok.</p><details id="pbIssues" hidden><summary id="pbIssueSummary">Periksa masalah</summary><p class="muted">Skeleton: pilih acuan atau impor YFT/YDD yang cocok. Tekstur: tambahkan YTD atau pilih penggantian preview di kartu model.</p><ul id="pbIssueList"></ul></details><h2>Studio</h2><label>Background<input id="pbBackground" type="color" value="#242938"></label><label class="check"><input id="pbTransparent" type="checkbox">PNG transparan</label><label>Cahaya<input id="pbLight" type="range" min="0.3" max="3" value="1" step="0.05"></label><label>Resolusi foto<select id="pbSize"><option value="1080x1350">1080 × 1350 · katalog</option><option value="1920x1080">1920 × 1080 · landscape</option><option value="2048x2048">2048 × 2048 · square</option><option value="3000x4000">3000 × 4000 · portrait</option></select></label><p class="muted">Pose/emote bawaan dibuat untuk preview. Animasi GLB memakai nama bone yang cocok; binary YCD belum didukung di booth.</p></aside></div>`;
+  <aside class="pb-panel pb-settings"><h2>Pose & emote per ped</h2><label>Ped yang diatur<select id="pbActor"></select></label><p class="muted">Pose, tinggi dan outfit mengikuti ped yang dipilih.</p><fieldset class="pb-ped-sizing"><legend>Tinggi & posisi ped terpilih</legend><label>Tinggi grup ped · cm<input id="pbHeightCm" type="number" min="1" max="1000" step="1"></label><label>Naik / turun · cm<input id="pbElevationCm" type="number" min="-10000" max="10000" step="1" value="0"></label><p class="muted">Seluruh outfit ikut berubah. Kamera tetap; gunakan Fit tubuh bila perlu.</p></fieldset><details class="pb-rig-settings"><summary>Skeleton / acuan (opsional)</summary><label>Skeleton acuan<select id="pbRigSource"><option value="auto">Otomatis · model / freemode</option><option value="freemode-male">Freemode laki-laki</option><option value="freemode-female">Freemode perempuan</option><option value="reference">Dari file skeleton acuan</option></select></label><button id="pbReference">+ Skeleton YFT / YDD</button><input id="pbReferenceInput" type="file" accept=".yft,.ydd,.ydr" multiple hidden></details><label>Pose<select id="pbPose">${BOOTH_POSES.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}<option value="clip">Custom emote · YCD / GLB</option></select></label><div id="pbQuickPose" class="pb-buttons pb-quick-pose"><button data-quick-pose="walk">Berjalan</button><button data-quick-pose="dance">Dance</button><button data-quick-pose="wave">Lambaikan</button></div><div class="pb-buttons"><button id="pbPlay" disabled>▶ Putar</button><button id="pbResetPose">Reset pose</button><button id="pbPlayAll">Putar semua</button><button id="pbPauseAll">Jeda semua</button></div><label>Kecepatan<input id="pbSpeed" type="number" min="0.1" max="3" step="0.1" value="1"></label><label>Frame / waktu <output id="pbTimeLabel">0.00 s</output><input id="pbTime" type="range" min="0" max="4" step="0.01" value="0"></label><button id="pbImportClip">+ Emote YCD / GLB</button><input id="pbClipInput" type="file" accept=".ycd,.glb" multiple hidden><label id="pbClipField" hidden>Cari emote<input id="pbClipSearch" type="search" placeholder="Nama file / emote…">Clip<select id="pbClip"></select></label><p id="pbRigStatus" class="muted" role="status">Pose memerlukan skeleton dan skin weights yang cocok.</p><details id="pbIssues" hidden><summary id="pbIssueSummary">Periksa masalah</summary><p class="muted">Skeleton: pilih acuan atau impor YFT/YDD yang cocok. Tekstur: tambahkan YTD atau pilih penggantian preview di kartu model.</p><ul id="pbIssueList"></ul></details><h2>Studio</h2><label>Background<input id="pbBackground" type="color" value="#242938"></label><label class="check"><input id="pbTransparent" type="checkbox">PNG transparan</label><label>Cahaya<input id="pbLight" type="range" min="0.3" max="3" value="1" step="0.05"></label><label>Resolusi foto<select id="pbSize"><option value="1080x1350">1080 × 1350 · katalog</option><option value="1920x1080">1920 × 1080 · landscape</option><option value="2048x2048">2048 × 2048 · square</option><option value="3000x4000">3000 × 4000 · portrait</option></select></label><p class="muted">Pose/emote bawaan dibuat untuk preview. YCD Legacy: clip skeletal tunggal, dipetakan melalui bone tag GTA. GLB memakai nama bone yang cocok. Blend, prop dan efek game belum didukung.</p></aside></div>`;
   nav.after(root);
   const $ = (id) => root.querySelector('#' + id);
   let renderer,
@@ -79,7 +80,8 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     textureFiles = [],
     textureOwners = [],
     clipFiles = [],
-    clipSerial = 0;
+    clipSerial = 0,
+    emoteValues = 0;
   const library = createBoothLibrary();
   const actors = () => assets.filter((a) => actorForAsset(assets, a) === a);
   const currentActor = () => actors().find((a) => a.id === selectedActor) || actors()[0];
@@ -593,14 +595,19 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
   }
   function updateClips() {
     const actor = currentActor(),
-      clips = actor ? clipsFor(actor) : [];
+      clips = actor ? clipsFor(actor) : [],
+      query = $('pbClipSearch').value.trim().toLowerCase();
     $('pbClip').replaceChildren(
-      ...clips.map((c) => {
-        const o = document.createElement('option');
-        o.value = c.id;
-        o.textContent = c.label;
-        return o;
-      }),
+      ...clips
+        .filter(
+          (c) => !query || c.label.toLowerCase().includes(query) || c.id === actor?.motion.clip,
+        )
+        .map((c) => {
+          const o = document.createElement('option');
+          o.value = c.id;
+          o.textContent = c.label;
+          return o;
+        }),
     );
     if (actor && clips.some((c) => c.id === actor.motion.clip))
       $('pbClip').value = actor.motion.clip;
@@ -625,9 +632,11 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       for (const root of roots) {
         const names = new Set();
         root.traverse((o) => names.add(o.name));
-        const tracks = selected.clip.tracks.filter((t) => {
+        const boundClip = selected.ycd ? ycdAnimationClip(selected.ycd, root) : selected.clip;
+        const tracks = boundClip.tracks.filter((t) => {
           try {
-            return names.has(THREE.PropertyBinding.parseTrackName(t.name).nodeName);
+            const node = THREE.PropertyBinding.parseTrackName(t.name).nodeName;
+            return names.has(node) || !!root.getObjectByProperty('uuid', node);
           } catch {
             return false;
           }
@@ -636,7 +645,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           const mixer = new THREE.AnimationMixer(root);
           mixer.userData = { actor: owner.id };
           mixer
-            .clipAction(new THREE.AnimationClip(selected.clip.name, selected.clip.duration, tracks))
+            .clipAction(new THREE.AnimationClip(boundClip.name, boundClip.duration, tracks))
             .play();
           mixers.push(mixer);
         }
@@ -677,6 +686,13 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     $('pbRigStatus').textContent = report
       ? `${report.skinned} mesh GTA skinned · ${report.static} mesh statis/rigid. ${[...report.sources].slice(0, 2).join(' · ')}`
       : 'Pilih ped untuk mengatur emote.';
+    const selectedEmote = selected && clipsFor(selected).find((c) => c.id === selected.motion.clip);
+    if (selected?.motion.pose === 'clip' && selectedEmote?.ycd) {
+      const bound = mixers.filter((m) => m.userData.actor === selected.id).length;
+      $('pbRigStatus').textContent += bound
+        ? ` YCD: ${bound} skeleton terikat ke bone tag GTA.`
+        : ' YCD tidak cocok: tidak ditemukan bone tag GTA pada skeleton ped ini. Gunakan skeleton GTA yang sesuai; GLB arbitrer belum diretarget otomatis.';
+    }
     if (['relaxed', 'catalog', 'rest'].includes(selected?.motion.pose))
       $('pbRigStatus').textContent +=
         ' Pose ini statis. Pilih Berjalan, Dance atau Lambaikan untuk gerakan.';
@@ -1143,35 +1159,94 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     guard(() => importFiles(files, 'texture'));
   };
   $('pbImportClip').onclick = () => $('pbClipInput').click();
+  async function decodeEmote(file, prefix) {
+    if (file.size > 64 * 1024 ** 2) throw Error('File emote maksimal 64 MB.');
+    if (/\.ycd$/i.test(file.name)) {
+      const decoded = readYcd(await file.arrayBuffer());
+      return {
+        entries: decoded.clips.map((ycd, i) => ({
+          ycd,
+          clip: { name: ycd.name, duration: ycd.duration, tracks: [] },
+          id: prefix + ':' + i,
+          label: file.name + ' / ' + ycd.name,
+        })),
+        warnings: decoded.warnings,
+        values: decoded.values,
+      };
+    }
+    if (!/\.glb$/i.test(file.name)) throw Error('Pilih emote .ycd atau .glb.');
+    const gltf = await parseGlb(file);
+    try {
+      if (!gltf.animations.length || gltf.animations.length > 256)
+        throw Error('GLB memerlukan 1–256 clip.');
+      return {
+        entries: gltf.animations.map((clip, i) => ({
+          clip,
+          id: prefix + ':' + i,
+          label: file.name + ' / ' + clip.name,
+        })),
+        warnings: [],
+        values: gltf.animations.reduce(
+          (n, c) => n + c.tracks.reduce((n, t) => n + t.values.length, 0),
+          0,
+        ),
+      };
+    } finally {
+      disposeGlb({ gltf });
+    }
+  }
+  $('pbClipSearch').oninput = () => {
+    updateClips();
+    applyPose();
+    setControls();
+  };
   $('pbClipInput').onchange = (e) => {
-    const file = e.target.files[0];
+    const files = [...e.target.files];
     e.target.value = '';
-    if (file)
+    if (files.length)
       guard(async () => {
-        if (clipFiles.length >= 32) throw Error('Maksimal 32 file emote dalam satu sesi.');
-        const gltf = await parseGlb(file);
-        try {
-          if (gltf.animations.length > 256) throw Error('GLB emote maksimal 256 clip.');
-          if (!gltf.animations.length) throw Error('GLB tidak berisi animasi.');
-          const prefix = 'external:' + ++clipSerial;
-          externalClips.push(
-            ...gltf.animations.map((clip, i) => ({
-              clip,
-              id: prefix + ':' + i,
-              label: file.name + ' / ' + clip.name,
-            })),
-          );
-          clipFiles.push({ file, prefix });
+        if (clipFiles.length + files.length > 100)
+          throw Error('Maksimal 100 file emote dalam satu sesi.');
+        if (
+          [...clipFiles.map((c) => c.file), ...files].reduce((n, f) => n + f.size, 0) >
+          512 * 1024 ** 2
+        )
+          throw Error('Total sumber emote maksimal 512 MB.');
+        let first = null;
+        const errors = [];
+        for (const file of files) {
+          try {
+            const prefix = 'external:' + ++clipSerial,
+              decoded = await decodeEmote(file, prefix);
+            if (
+              externalClips.length + decoded.entries.length > 2048 ||
+              emoteValues + decoded.values > 16e6
+            )
+              throw Error('Batas sesi 2048 clip / 16 juta nilai animasi tercapai.');
+            externalClips.push(...decoded.entries);
+            emoteValues += decoded.values;
+            clipFiles.push({ file, prefix });
+            first ||= prefix + ':0';
+            errors.push(...decoded.warnings.map((w) => file.name + ': ' + w));
+          } catch (e) {
+            errors.push(file.name + ': ' + e.message);
+          }
+        }
+        if (first) {
+          $('pbClipSearch').value = '';
           $('pbPose').value = 'clip';
           time = 0;
+          playing = false;
           saveMotion();
-          if (currentActor()) currentActor().motion.clip = prefix + ':0';
+          if (currentActor()) currentActor().motion.clip = first;
           updateClips();
           applyPose();
           setControls();
-        } finally {
-          disposeGlb({ gltf });
         }
+        setStatus(
+          `${clipFiles.length} file emote · ${externalClips.length} clip. ` +
+            (errors.join(' · ') || 'Pilih emote lalu Putar untuk ped terpilih.'),
+        );
       });
   };
   $('pbClear').onclick = () => {
@@ -1182,6 +1257,8 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     textures = [];
     animatedMeshes = 0;
     externalClips = [];
+    emoteValues = 0;
+    $('pbClipSearch').value = '';
     textureFiles = [];
     textureOwners = [];
     clipFiles = [];
@@ -1216,9 +1293,11 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     });
   $('pbClip').onchange = () => {
     time = 0;
+    playing = false;
     saveMotion();
     updateClips();
     applyPose();
+    setControls();
   };
   $('pbPlay').onclick = () => {
     playing = !playing;
@@ -1358,6 +1437,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         });
       const remove = document.createElement('button');
       remove.textContent = 'Hapus preset';
+      remove.dataset.libraryRemove = row.id;
       remove.onclick = () =>
         guard(async () => {
           await library.remove(row.id);
@@ -1456,19 +1536,13 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         if (restoredTextures.reduce((n, t) => n + t.out.length, 0) > MAX_DECODED_TEXTURE_BYTES)
           throw Error('Tekstur preset terlalu besar.');
       }
+      let restoredEmoteValues = 0;
       for (const c of record.clipFiles) {
-        const gltf = await parseGlb(c.file);
-        try {
-          newClips.push(
-            ...gltf.animations.map((clip, i) => ({
-              clip,
-              id: c.prefix + ':' + i,
-              label: c.file.name + ' / ' + clip.name,
-            })),
-          );
-        } finally {
-          disposeGlb({ gltf });
-        }
+        const decoded = await decodeEmote(c.file, c.prefix);
+        restoredEmoteValues += decoded.values;
+        if (restoredEmoteValues > 16e6 || newClips.length + decoded.entries.length > 2048)
+          throw Error('Preset melebihi batas nilai/clip emote.');
+        newClips.push(...decoded.entries);
       }
       if (stage) clearStage();
       assets.forEach(disposeGlb);
@@ -1480,6 +1554,8 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       );
       clipFiles = [...record.clipFiles];
       externalClips = newClips;
+      emoteValues = restoredEmoteValues;
+      $('pbClipSearch').value = '';
       clipSerial = Math.max(clipSerial, ...clipFiles.map((c) => Number(c.prefix.split(':')[1])));
       selectedActor = actors()[0]?.id;
       loadMotion();

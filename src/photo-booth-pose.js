@@ -74,13 +74,24 @@ export function captureBoothRest(root) {
   const bones = [];
   root.updateMatrixWorld(true);
   root.traverse((o) => {
-    if (o.isBone) bones.push({ bone: o, rest: o.quaternion.clone(), role: boothBoneRole(o.name) });
+    if (o.isBone)
+      bones.push({
+        bone: o,
+        rest: o.quaternion.clone(),
+        position: o.position.clone(),
+        scale: o.scale.clone(),
+        role: boothBoneRole(o.name),
+      });
   });
   return bones;
 }
 export function applyBoothPose(bones, pose, time, worldBasis = new Quaternion()) {
   const angles = boothPoseAngles(pose, time);
-  for (const { bone, rest } of bones) bone.quaternion.copy(rest);
+  for (const { bone, rest, position, scale } of bones) {
+    bone.quaternion.copy(rest);
+    if (position) bone.position.copy(position);
+    if (scale) bone.scale.copy(scale);
+  }
   for (const { bone, role } of bones) {
     const rotations = angles[role];
     if (!rotations) continue;

@@ -36,3 +36,13 @@ test('Local library validates complete source bundles and rejects broken ownersh
   assert.throws(() => validateBoothScene(s), /terlalu besar/);
   assert.throws(() => validateBoothScene({ version: 99 }), /tidak valid/);
 });
+
+test('Scene library accepts source YCD clips with stable external IDs', () => {
+  const s = scene();
+  s.clipFiles = [
+    { file: Object.assign(new Blob(['ycd']), { name: 'emote.ycd' }), prefix: 'external:1' },
+  ];
+  assert.equal(validateBoothScene(s), s);
+  s.clipFiles[0].file.name = 'emote.exe';
+  assert.throws(() => validateBoothScene(s), /Clip/);
+});

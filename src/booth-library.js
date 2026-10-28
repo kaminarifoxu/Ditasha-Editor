@@ -94,7 +94,7 @@ export function validateBoothScene(record) {
   }
   for (const c of record.clipFiles) {
     file(c.file, 64 * 1024 ** 2);
-    if (!/\.glb$/i.test(c.file.name) || !/^external:\d+$/.test(c.prefix))
+    if (!/\.(glb|ycd)$/i.test(c.file.name) || !/^external:\d+$/.test(c.prefix))
       throw Error('Clip preset tidak valid.');
   }
   if (bytes > 512 * 1024 ** 2) throw Error('Preset library maksimal 512 MB.');
