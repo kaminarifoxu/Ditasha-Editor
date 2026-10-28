@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { fitPhotoshoot } from './photoshoot-framing.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { decodeResource } from './resource-client.js';
@@ -153,15 +154,22 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     });
     const box = new THREE.Box3().setFromObject(stage);
     if (box.isEmpty()) return;
-    const center = box.getCenter(new THREE.Vector3()),
-      size = box.getSize(new THREE.Vector3());
     const dir = direction || camera.position.clone().sub(controls.target).normalize();
-    const radius = Math.max(size.length() / 2, 0.05),
-      distance =
-        (radius / Math.sin((camera.fov * Math.PI) / 360) / Math.min(1, camera.aspect)) * 1.08;
+    const corners = [];
+    for (const x of [box.min.x, box.max.x])
+      for (const y of [box.min.y, box.max.y])
+        for (const z of [box.min.z, box.max.z]) corners.push(x, y, z);
+    const { center, distance, depth } = fitPhotoshoot(
+      corners,
+      dir,
+      camera.up,
+      camera.aspect,
+      camera.fov,
+      0.98,
+    );
     camera.position.copy(center).addScaledVector(dir, distance);
     camera.near = Math.max(0.0001, distance / 10000);
-    camera.far = Math.max(100, distance * 20);
+    camera.far = Math.max(100, distance + depth * 2 + 1);
     camera.updateProjectionMatrix();
     controls.target.copy(center);
     controls.update();

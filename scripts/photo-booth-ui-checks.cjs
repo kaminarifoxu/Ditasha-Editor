@@ -87,6 +87,7 @@ module.exports = async function checkPhotoBooth(fixtures) {
   $('pbPose').value = 'catalog';
   $('pbPose').dispatchEvent(new Event('change'));
   $('pbFront').click();
+  await sleep(120);
   console.log('DITASHA_SNAPSHOT:photo-booth');
   await sleep(200);
   $('pbTransparent').checked = true;
