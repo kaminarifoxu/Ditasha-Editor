@@ -84,3 +84,31 @@ test('Relaxed and animated poses deform native skinned vertices, return to bind 
   assert.throws(() => applyBoothPose(rest, 'invalid', 0), /tidak dikenal/);
   assert.throws(() => applyBoothPose(rest, 'wave', NaN), /tidak valid/);
 });
+
+// A-pose and already relaxed imports must not receive another fixed arm drop.
+test('Arm pose normalizes source shoulder direction and rigid accessory follows the bone', () => {
+  const root = new THREE.Group(),
+    arm = new THREE.Bone(),
+    elbow = new THREE.Bone();
+  arm.name = 'SKEL_L_UpperArm';
+  elbow.name = 'SKEL_L_Forearm';
+  elbow.position.set(0, -1, 0);
+  arm.add(elbow);
+  root.add(arm);
+  const accessory = new THREE.Object3D();
+  accessory.position.set(0, -1, 0);
+  root.add(accessory);
+  root.updateMatrixWorld(true);
+  arm.attach(accessory);
+  const rest = captureBoothRest(root);
+  applyBoothPose(rest, 'relaxed', 0);
+  root.updateMatrixWorld(true);
+  const p = elbow.getWorldPosition(new THREE.Vector3());
+  assert.ok(p.y < -0.8 && p.x > 0, 'Already relaxed arm flipped across body');
+  assert.ok(accessory.getWorldPosition(new THREE.Vector3()).distanceTo(p) < 1e-6);
+  applyBoothPose(rest, 'rest', 0);
+  root.updateMatrixWorld(true);
+  assert.ok(
+    elbow.getWorldPosition(new THREE.Vector3()).distanceTo(new THREE.Vector3(0, -1, 0)) < 1e-6,
+  );
+});

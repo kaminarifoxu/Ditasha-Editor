@@ -11,7 +11,12 @@ import {
   mergeVehicleTextures,
 } from './vehicle-textures.js';
 import { imageData } from './converter.js';
-import { BOOTH_POSES, captureBoothRest, applyBoothPose } from './photo-booth-pose.js';
+import {
+  BOOTH_POSES,
+  boothBoneRole,
+  captureBoothRest,
+  applyBoothPose,
+} from './photo-booth-pose.js';
 import { ICON_CODES } from './ui-icons.js';
 
 export function mountPhotoBooth({ nav, activate, download, toast }) {
@@ -49,6 +54,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     rest = [],
     mixers = [],
     externalClips = [],
+    animatedMeshes = 0,
     time = 0,
     token = 0;
   const setStatus = (s) => {
@@ -74,7 +80,10 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     $('pbAssets')
       .querySelectorAll('button,input,select')
       .forEach((e) => (e.disabled = busy));
-    const movable = rest.some((r) => r.role) || mixers.length > 0;
+    const movable =
+      $('pbPose').value === 'clip'
+        ? mixers.length > 0
+        : animatedMeshes > 0 && rest.some((r) => r.role);
     $('pbCapture').disabled = busy || !assets.length;
     $('pbPlay').disabled = busy || !movable;
     $('pbTime').disabled = busy || !movable;
@@ -246,7 +255,12 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
             t = resolveModelTexture(g.diffuseTexture, textures, embedded, a.name);
           if (g.diffuseTexture && !t)
             warnings.push(a.name + ': tekstur ' + g.diffuseTexture + ' belum ditemukan');
-          const alpha = modelPreviewAlpha(g) || { mode: modelAlphaMode(g), cutoff: 0.02 };
+          const alpha = modelPreviewAlpha(g) || {
+            mode: /^(sbase|head_diff|uppr_diff|lowr_diff|body_diff)/i.test(g.diffuseTexture || '')
+              ? 'opaque'
+              : modelAlphaMode(g),
+            cutoff: 0.02,
+          };
           const material = createModelMaterial(g, {
             color: t ? 0xffffff : 0xa7b1c0,
             map: textureMap(t),
@@ -305,11 +319,20 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       a.root.position.add(new THREE.Vector3(...a.offset));
       a.root.scale.multiplyScalar(a.scale);
     }
+    animatedMeshes = 0;
+    stage.traverse((o) => {
+      if (!o.isMesh) return;
+      let bound = o.isSkinnedMesh;
+      for (let p = o.parent; p && p !== stage; p = p.parent)
+        if (p.isBone && boothBoneRole(p.name)) bound = true;
+      if (bound) animatedMeshes++;
+    });
     rest = captureBoothRest(stage);
     const roles = new Set(rest.map((b) => b.role).filter(Boolean));
-    $('pbRigStatus').textContent = roles.size
-      ? `${roles.size} bagian rig dikenali · ${skinned} mesh GTA skinned. ${staticMeshes} mesh statis/rigid.`
-      : 'Model statis: pose tidak dapat mengubah mesh tanpa rig/weights. Gunakan ped rigged atau GLB dari Auto Rig.';
+    $('pbRigStatus').textContent =
+      roles.size && animatedMeshes
+        ? `${roles.size} bagian rig dikenali · ${skinned} mesh GTA skinned. ${staticMeshes} mesh statis/rigid.`
+        : 'Model statis: pose tidak dapat mengubah mesh tanpa rig/weights. Gunakan ped rigged atau GLB dari Auto Rig.';
     updateClips();
     applyPose();
     assetList(targets);
@@ -626,6 +649,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     assets.forEach(disposeGlb);
     assets = [];
     textures = [];
+    animatedMeshes = 0;
     externalClips = [];
     time = 0;
     assetList();

@@ -88,6 +88,30 @@ export function applyBoothPose(bones, pose, time) {
     const parentRotation = bone.parent
       ? bone.parent.getWorldQuaternion(new Quaternion()).invert()
       : new Quaternion();
+    const forearmRole =
+      role === 'leftArm' ? 'leftForearm' : role === 'rightArm' ? 'rightForearm' : '';
+    let elbow;
+    if (forearmRole)
+      bone.traverse((child) => {
+        if (!elbow && child !== bone && boothBoneRole(child.name) === forearmRole) elbow = child;
+      });
+    if (elbow) {
+      bone.updateWorldMatrix(true, true);
+      const direction = elbow
+        .getWorldPosition(new Vector3())
+        .sub(bone.getWorldPosition(new Vector3()))
+        .normalize();
+      const target = new Vector3(role === 'leftArm' ? 1 : -1, 0, 0);
+      for (const [axis, angle] of Object.entries(rotations))
+        target.applyAxisAngle(axes[axis], (angle * Math.PI) / 180);
+      if (direction.lengthSq() > 1e-10) {
+        const delta = new Quaternion().setFromUnitVectors(direction, target);
+        delta.premultiply(parentRotation).multiply(parentRotation.clone().invert());
+        bone.quaternion.premultiply(delta);
+        bone.updateMatrix();
+        continue;
+      }
+    }
     for (const [axis, angle] of Object.entries(rotations)) {
       const localAxis = axes[axis].clone().applyQuaternion(parentRotation);
       bone.quaternion.premultiply(

@@ -1,6 +1,6 @@
-# Separate GTA builders (v1.48 preview)
+# Separate GTA builders (v1.49 preview)
 
-Open **ModDropV / AddonWeaponsBuilder** from Home or Asset workshop. This workspace connects the original Windows tools to DITASHA.
+Open **ModDropV / AddonWeaponsBuilder** from Home or Asset workshop. Each workspace connects the original Windows tools to DITASHA.
 
 | Tool                | Package               | In DITASHA                                                                                                     | Original desktop window                                   |
 | ------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
@@ -9,10 +9,14 @@ Open **ModDropV / AddonWeaponsBuilder** from Home or Asset workshop. This worksp
 
 ## Setup
 
+Open either builder from its own menu. Use **Pasang ZIP** to import the original pinned Windows package. AddonWeaponsBuilder also offers **Unduh resmi**. Windows `tar.exe` extracts verified archives; native binaries are not redistributed.
+
+Each page retains its own input settings, log and output. TRIUM has been removed from the application.
+
 ## Build
 
 1. Extract a mod into a source folder and select that folder.
-2. Select the engine and action. For weapons, use Analisis and Rencana nama before Build. ModDropV vehicle builds require a base vehicle, for example `adder`; ped base is optional. Clothing supports a female fallback for unprefixed inputs.
+2. Select the action. For weapons, use Analisis and Rencana nama before Build. ModDropV vehicle builds require a base vehicle, for example `adder`; ped base is optional. Clothing supports a female fallback for unprefixed inputs.
 3. Choose an output parent outside the source folder. Every build creates a separate `DITASHA-...` output folder and writes a result report.
 4. Inspect live logs, open the output folder or open models plus YTD in the existing DITASHA 3D viewer.
 
