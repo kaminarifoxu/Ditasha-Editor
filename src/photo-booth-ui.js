@@ -4,6 +4,7 @@ import {
   MAX_BOOTH_MODEL_BYTES,
   OUTFIT_CATEGORIES,
   outfitCategory,
+  outfitTextureTarget,
   outfitLabel,
   boothVertexCount,
 } from './booth-outfits.js';
@@ -871,16 +872,18 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       const refs = modelTextureReferences(all.flatMap((a) => a.drawables || []));
       const warnings = [];
       for (const file of images) {
-        const stem = file.name.replace(/\.[^.]+$/, '').toLowerCase();
-        const target =
-          pending.find((a) => a.name.replace(/\.[^.]+$/, '').toLowerCase() === stem) ||
-          pending[0] ||
-          currentActor();
         const loaded = await loadVehicleTextures([file], refs, {
           decode: decodeResource,
           image: imageData,
           existing: textures,
         });
+        const target = outfitTextureTarget(
+          file,
+          pending,
+          currentActor() || pending.find((a) => a.kind === 'ped'),
+          loaded.textures,
+          (a) => modelTextureReferences(a.drawables || []),
+        );
         const ownerId = target?.id ?? null;
         const merged = [
           ...textures.filter((t) => t.boothOwner !== ownerId),

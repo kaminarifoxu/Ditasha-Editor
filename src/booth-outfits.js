@@ -21,13 +21,13 @@ export const OUTFIT_CATEGORIES = [
 ];
 const slots = {
   jbib: 'tops',
-  accs: 'jewelry',
+  accs: 'undershirt',
   lowr: 'pants',
   feet: 'shoes',
   hand: 'bags',
   task: 'vest',
   uppr: 'torso',
-  teef: 'undershirt',
+  teef: 'jewelry',
   hair: 'hair',
   berd: 'mask',
   decl: 'decals',
@@ -66,4 +66,42 @@ export function boothVertexCount(asset) {
     (n, d) => n + (d.geometries || []).reduce((s, g) => s + g.positions.length / 3, 0),
     0,
   );
+}
+
+// Keep a folder batch's texture dictionaries with the matching model, not its first item.
+export function outfitTextureTarget(
+  file,
+  candidates,
+  fallback,
+  textures = [],
+  references = () => [],
+) {
+  const path = (f) =>
+    String(f?.webkitRelativePath || f?.name || '')
+      .replaceAll('\\', '/')
+      .toLowerCase();
+  const folder = (f) => path(f).split('/').slice(0, -1).join('/');
+  const stem = (f) =>
+    String(f?.name || '')
+      .replace(/\.[^.]+$/, '')
+      .toLowerCase();
+  const pick = (rows) => {
+    const same = rows.filter((a) => folder(a.file) === folder(file));
+    return same.length === 1 ? same[0] : rows.length === 1 ? rows[0] : null;
+  };
+  const exact = pick(candidates.filter((a) => stem(a.file) === stem(file)));
+  if (exact) return exact;
+  const identity = (f) => {
+    const name = String(f?.name || '').toLowerCase();
+    const m = name.match(/(?:^|[\/^])((?:p_)?[a-z]+)_(?:diff_)?(\d+)(?:_|\.)/);
+    return m ? [name.includes('^') ? name.split('^')[0] : '', m[1], Number(m[2])].join(':') : null;
+  };
+  const key = identity(file),
+    paired = key && pick(candidates.filter((a) => identity(a.file) === key));
+  if (paired) return paired;
+  const names = new Set(textures.map((t) => t.name.toLowerCase()));
+  const matched = pick(
+    candidates.filter((a) => references(a).some((name) => names.has(String(name).toLowerCase()))),
+  );
+  return matched || (candidates.length === 1 ? candidates[0] : fallback);
 }
