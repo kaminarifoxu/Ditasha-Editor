@@ -35,7 +35,7 @@ module.exports = async function checkFullped(fixtures) {
     $('mvStatus').textContent.includes('18 vertices'),
     'Viewer dropped fullped geometry: ' + $('mvStatus').textContent,
   );
-  assert($('mvParts').querySelectorAll('input').length === 6, 'Fullped visibility groups missing');
+  assert($('mvParts').querySelectorAll('.mesh-parts').length === 6, 'Fullped visibility groups missing');
   $('mvDrawable').value = '0';
   $('mvDrawable').dispatchEvent(new Event('change'));
   assert($('mvStatus').textContent.includes('6 vertices'), 'Individual component selection failed');
