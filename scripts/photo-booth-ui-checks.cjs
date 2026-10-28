@@ -40,6 +40,20 @@ module.exports = async function checkPhotoBooth(fixtures) {
   $('pbPose').value = 'rest';
   $('pbPose').dispatchEvent(new Event('change'));
   assert(canvas().toDataURL() !== initial, 'Pose did not change rendered skin');
+  upload('pbClipInput', [['native-compatible-emote.glb', fixtures.glb]]);
+  await wait(
+    () => !$('pbImportClip').disabled && $('pbPose').value === 'clip',
+    'Native custom emote import',
+  );
+  const nativeClipStart = canvas().toDataURL();
+  $('pbTime').value = '.5';
+  $('pbTime').dispatchEvent(new Event('input'));
+  assert(
+    canvas().toDataURL() !== nativeClipStart,
+    'Compatible custom GLB clip did not animate native GTA bones',
+  );
+  $('pbPose').value = 'rest';
+  $('pbPose').dispatchEvent(new Event('change'));
   $('pbClothes').click();
   upload('pbInput', [['outfit.ydd', fixtures.native]]);
   await wait(() => !$('pbPed').disabled && $('pbAssets').children.length === 2, 'Clothing import');
@@ -203,6 +217,7 @@ module.exports = async function checkPhotoBooth(fixtures) {
   console.log('DITASHA_SNAPSHOT:photo-booth-multiple-peds');
   await sleep(150);
   return {
+    nativeCustomGlbClip: true,
     independentPedEmotes: true,
     independentClocks: true,
     outfitOwnership: true,

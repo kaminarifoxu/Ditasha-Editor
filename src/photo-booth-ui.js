@@ -258,16 +258,15 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     return map;
   }
   function nativeRig(data) {
-    const holder = new THREE.Group(),
-      bones = data.map((b) => {
-        const bone = new THREE.Bone();
-        bone.name = b.name;
-        bone.userData.tag = b.tag;
-        new THREE.Matrix4()
-          .fromArray(b.matrix)
-          .decompose(bone.position, bone.quaternion, bone.scale);
-        return bone;
-      });
+    const holder = new THREE.Group();
+    holder.userData.boothRig = true;
+    const bones = data.map((b) => {
+      const bone = new THREE.Bone();
+      bone.name = b.name;
+      bone.userData.tag = b.tag;
+      new THREE.Matrix4().fromArray(b.matrix).decompose(bone.position, bone.quaternion, bone.scale);
+      return bone;
+    });
     bones.forEach((bone, i) => (data[i].parent < 0 ? holder : bones[data[i].parent]).add(bone));
     holder.updateMatrixWorld(true);
     return { holder, bones, skeleton: new THREE.Skeleton(bones) };
@@ -481,9 +480,17 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     for (const owner of actors()) {
       const selected = clipsFor(owner).find((c) => c.id === owner.motion.clip);
       if (!selected) continue;
-      for (const a of assets.filter((a) => a.gltf && actorForAsset(assets, a) === owner)) {
+      const roots = [];
+      for (const a of assets.filter((a) => actorForAsset(assets, a) === owner)) {
+        if (a.gltf) roots.push(a.gltf.scene);
+        else
+          a.root.traverse((o) => {
+            if (o.userData.boothRig) roots.push(o);
+          });
+      }
+      for (const root of roots) {
         const names = new Set();
-        a.gltf.scene.traverse((o) => names.add(o.name));
+        root.traverse((o) => names.add(o.name));
         const tracks = selected.clip.tracks.filter((t) => {
           try {
             return names.has(THREE.PropertyBinding.parseTrackName(t.name).nodeName);
@@ -492,7 +499,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           }
         });
         if (tracks.length) {
-          const mixer = new THREE.AnimationMixer(a.gltf.scene);
+          const mixer = new THREE.AnimationMixer(root);
           mixer.userData = { actor: owner.id };
           mixer
             .clipAction(new THREE.AnimationClip(selected.clip.name, selected.clip.duration, tracks))

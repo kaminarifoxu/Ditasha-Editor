@@ -80,7 +80,7 @@ export async function boothGlbFixture() {
   const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -0.8);
   const clip = new THREE.AnimationClip('Arm emote', 1, [
     new THREE.QuaternionKeyframeTrack(
-      'SKEL_R_UpperArm.quaternion',
+      'SKEL_L_UpperArm.quaternion',
       [0, 0.5, 1],
       [0, 0, 0, 1, ...q.toArray(), 0, 0, 0, 1],
     ),
