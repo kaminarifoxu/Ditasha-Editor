@@ -49,10 +49,59 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
   root.hidden = true;
   root.innerHTML = `<div class="pb-heading"><div><span class="eyebrow">DITASHA / OFFLINE PHOTO BOOTH</span><h1>Photo Booth</h1><p class="muted">Ped, outfit dan aksesori · pose, atur kamera, ambil foto.</p></div><button id="pbCapture" class="primary" disabled>▣ Simpan PNG</button></div>
   <div class="pb-layout"><aside class="pb-panel pb-assets"><h2>Model & outfit</h2><div class="pb-buttons"><button id="pbPed">+ Ped / tubuh</button><button id="pbClothes">+ Outfit / batch</button><button id="pbAccessory">+ Aksesori</button><button id="pbTextures">+ Tekstur</button></div><input id="pbInput" type="file" accept=".ydd,.ydr,.yft,.ytd,.glb" multiple hidden><input id="pbTextureInput" type="file" accept=".ytd,.dds,.png,.jpg,.jpeg,.webp" multiple hidden><p class="muted">Masukkan YDD + YTD. YFT skeleton pendamping dapat ditambahkan. GLB rigged juga didukung.</p><details class="pb-outfit-import" open><summary>Kategori outfit & impor folder</summary><div id="pbOutfitButtons" class="pb-outfit-grid"></div><label>Kategori folder / drag & drop<select id="pbImportCategory"><option value="auto">Otomatis dari nama GTA</option>${OUTFIT_CATEGORIES.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}</select></label><button id="pbFolder">+ Folder outfit</button><input id="pbFolderInput" type="file" webkitdirectory multiple hidden></details><p id="pbModelCount" class="muted" role="status">0 / ${MAX_BOOTH_MODELS} model</p><p class="muted">100 model · 64 MB per model · 1 GB file model per scene. Batas tekstur decoded 1 GB.</p><label>Filter bagian<select id="pbCategoryFilter"><option value="all">Semua bagian</option><option value="ped">Ped / tubuh</option>${OUTFIT_CATEGORIES.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}</select></label><input id="pbAssetSearch" placeholder="Cari model / outfit…" aria-label="Cari model Photo Booth"><div id="pbAssets"></div><p id="pbEmpty">Belum ada model. Mulai dari ped / tubuh milikmu.</p><button id="pbClear">Kosongkan booth</button><h2 class="pb-library-heading">Library lokal</h2><p class="muted">Preset maksimal 512 MB, termasuk file sumber dan tekstur.</p><label>Nama preset<input id="pbLibraryName" maxlength="80" placeholder="Foto grup / outfit favorit"></label><button id="pbLibrarySave">Simpan scene & outfit</button><button id="pbLibraryRefresh">Muat daftar library</button><input id="pbLibrarySearch" placeholder="Cari preset ped / outfit…" aria-label="Cari library"><div id="pbLibraryList"></div></aside>
-  <section class="pb-stage"><div class="pb-stage-toolbar"><button id="pbFit">Lihat semua ped</button><button id="pbMove" aria-pressed="false">Pindah ped</button><label class="pb-stage-picker">Ped<select id="pbStageActor" aria-label="Ped di viewport"></select></label><label class="check"><input id="pbSnap" type="checkbox">Snap 10 cm</label><button id="pbFullscreen" aria-pressed="false">Layar penuh</button><button id="pbStageCapture">Simpan PNG</button><label class="pb-stage-picker">Set<select id="pbStageStudio" aria-label="Set studio di viewport">${BOOTH_STUDIOS.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}</select></label><button id="pbFront">Depan</button><button id="pbBack">Belakang</button><label class="check"><input id="pbFloor" type="checkbox" checked>Grid (polos)</label><span>Orbit: drag · pindah: panah X/Y/Z · scroll: zoom</span></div><div id="pbViewport"></div><p id="pbStatus" role="status">Siap untuk sesi foto offline.</p><button id="pbShowIssues" hidden>Lihat masalah</button></section>
+  <section class="pb-stage"><div class="pb-stage-toolbar"><button id="pbFit">Lihat semua ped</button><button id="pbMove" aria-pressed="false">Pindah ped</button><label class="pb-stage-picker">Ped<select id="pbStageActor" aria-label="Ped di viewport"></select></label><label class="check"><input id="pbSnap" type="checkbox">Snap 10 cm</label><button id="pbFullscreen" aria-pressed="false">Layar penuh</button><button id="pbStageCapture">Simpan PNG</button><button id="pbEmoteToggle" hidden aria-controls="pbEmotePlayer" aria-expanded="true">Emote player</button><label class="pb-stage-picker">Set<select id="pbStageStudio" aria-label="Set studio di viewport">${BOOTH_STUDIOS.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}</select></label><button id="pbFront">Depan</button><button id="pbBack">Belakang</button><label class="check"><input id="pbFloor" type="checkbox" checked>Grid (polos)</label><span>Orbit: drag · pindah: panah X/Y/Z · scroll: zoom</span></div><div id="pbViewport"></div><section id="pbEmotePlayer" class="pb-emote-player" role="region" aria-label="Emote player fullscreen" hidden><div class="pb-emote-header"><div><strong>Emote player</strong><span id="pbEmoteSummary"></span></div><button id="pbEmotePlay" aria-label="Putar emote ped terpilih">▶</button><button id="pbEmoteMinimize" aria-controls="pbEmoteBody" aria-expanded="true" title="Minimalkan emote player">Minimalkan</button></div><div id="pbEmoteBody" class="pb-panel pb-emote-body"></div></section><p id="pbStatus" role="status">Siap untuk sesi foto offline.</p><button id="pbShowIssues" hidden>Lihat masalah</button></section>
   <aside class="pb-panel pb-settings"><h2>Pose & emote per ped</h2><label>Ped yang diatur<select id="pbActor"></select></label><p class="muted">Pose, tinggi dan outfit mengikuti ped yang dipilih.</p><fieldset class="pb-ped-sizing"><legend>Posisi & ukuran ped terpilih</legend><label>Kiri / kanan · cm<input id="pbPositionX" type="number" min="-10000" max="10000" step="1"></label><label>Depan / belakang · cm<input id="pbPositionZ" type="number" min="-10000" max="10000" step="1"></label><label>Tinggi grup ped · cm<input id="pbHeightCm" type="number" min="1" max="1000" step="1"></label><label>Naik / turun · cm<input id="pbElevationCm" type="number" min="-10000" max="10000" step="1" value="0"></label><p class="muted">Seluruh outfit ikut berubah. Kamera tetap; gunakan Fit tubuh bila perlu.</p></fieldset><details class="pb-rig-settings"><summary>Skeleton / acuan (opsional)</summary><label>Skeleton acuan<select id="pbRigSource"><option value="auto">Otomatis · model / freemode</option><option value="freemode-male">Freemode laki-laki</option><option value="freemode-female">Freemode perempuan</option><option value="reference">Dari file skeleton acuan</option></select></label><button id="pbReference">+ Skeleton YFT / YDD</button><input id="pbReferenceInput" type="file" accept=".yft,.ydd,.ydr" multiple hidden></details><label>Pose<select id="pbPose">${BOOTH_POSES.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}<option value="clip">Custom emote · YCD / GLB</option></select></label><div id="pbQuickPose" class="pb-buttons pb-quick-pose"><button data-quick-pose="walk">Berjalan</button><button data-quick-pose="dance">Dance</button><button data-quick-pose="wave">Lambaikan</button></div><div class="pb-buttons"><button id="pbPlay" disabled>▶ Putar</button><button id="pbResetPose">Reset pose</button><button id="pbPlayAll">Putar semua</button><button id="pbPauseAll">Jeda semua</button></div><label>Kecepatan<input id="pbSpeed" type="number" min="0.1" max="3" step="0.1" value="1"></label><label>Frame / waktu <output id="pbTimeLabel">0.00 s</output><input id="pbTime" type="range" min="0" max="4" step="0.01" value="0"></label><button id="pbImportClip">+ Emote YCD / GLB</button><input id="pbClipInput" type="file" accept=".ycd,.glb" multiple hidden><label id="pbClipField" hidden>Cari emote<input id="pbClipSearch" type="search" placeholder="Nama file / emote…">Clip<select id="pbClip"></select></label><p id="pbRigStatus" class="muted" role="status">Pose memerlukan skeleton dan skin weights yang cocok.</p><details id="pbIssues" hidden><summary id="pbIssueSummary">Periksa masalah</summary><p class="muted">Skeleton: pilih acuan atau impor YFT/YDD yang cocok. Tekstur: tambahkan YTD atau pilih penggantian preview di kartu model.</p><ul id="pbIssueList"></ul></details><h2>Studio</h2><label>Set photo studio<select id="pbStudio">${BOOTH_STUDIOS.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}</select></label><p class="muted">Studio 3D offline. PNG transparan menyembunyikan set dan lantai.</p><label>Background · mode polos<input id="pbBackground" type="color" value="#242938"></label><label class="check"><input id="pbTransparent" type="checkbox">PNG transparan</label><label>Cahaya<input id="pbLight" type="range" min="0.3" max="3" value="1" step="0.05"></label><label>Resolusi foto<select id="pbSize"><option value="1080x1350">1080 × 1350 · katalog</option><option value="1920x1080">1920 × 1080 · landscape</option><option value="2048x2048">2048 × 2048 · square</option><option value="3000x4000">3000 × 4000 · portrait</option></select></label><p class="muted">Pose/emote bawaan dibuat untuk preview. YCD Legacy: clip skeletal tunggal, dipetakan melalui bone tag GTA. GLB memakai nama bone yang cocok. Blend, prop dan efek game belum didukung.</p></aside></div>`;
   nav.after(root);
   const $ = (id) => root.querySelector('#' + id);
+  let emoteMinimized = false;
+  // Reuse the live controls: callbacks, clip selection and actor clocks stay shared.
+  const emoteControlIds = [
+    'pbActor',
+    'pbPose',
+    'pbQuickPose',
+    'pbPlay',
+    'pbSpeed',
+    'pbTime',
+    'pbImportClip',
+    'pbClipInput',
+    'pbClipField',
+    'pbRigStatus',
+  ];
+  const emoteNodes = emoteControlIds.map((id) => {
+    const control = $(id),
+      node =
+        id === 'pbPlay'
+          ? control.parentElement
+          : ['pbActor', 'pbPose', 'pbSpeed', 'pbTime'].includes(id)
+            ? control.closest('label')
+            : control;
+    const marker = document.createComment('emote-home:' + id);
+    node.before(marker);
+    return { node, marker };
+  });
+  function minimizeEmote(value) {
+    emoteMinimized = value;
+    $('pbEmoteBody').hidden = value;
+    $('pbEmotePlayer').classList.toggle('pb-emote-minimized', value);
+    $('pbEmoteMinimize').textContent = value ? 'Buka' : 'Minimalkan';
+    $('pbEmoteMinimize').title = value ? 'Buka emote player' : 'Minimalkan emote player';
+    $('pbEmoteMinimize').setAttribute('aria-expanded', String(!value));
+    $('pbEmoteToggle').setAttribute('aria-expanded', String(!value));
+  }
+  function showFullscreenEmotes(value) {
+    for (const { node, marker } of emoteNodes) {
+      if (value) $('pbEmoteBody').append(node);
+      else marker.after(node);
+    }
+    $('pbEmotePlayer').hidden = !value;
+    $('pbEmoteToggle').hidden = !value;
+    minimizeEmote(emoteMinimized);
+  }
+  $('pbEmoteMinimize').onclick = () => minimizeEmote(!emoteMinimized);
+  $('pbEmoteToggle').onclick = () => minimizeEmote(!emoteMinimized);
+  $('pbEmotePlay').onclick = () => {
+    if (!$('pbPlay').disabled) $('pbPlay').click();
+  };
   let renderer,
     scene,
     camera,
@@ -121,6 +170,13 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     time = m.time;
     playing = m.playing;
   }
+  function syncEmoteHeader() {
+    const actorIndex = actors().indexOf(currentActor());
+    $('pbEmoteSummary').textContent =
+      actorIndex < 0
+        ? 'Belum ada ped'
+        : `Ped ${actorIndex + 1} · ${$('pbPose').selectedOptions[0]?.textContent || ''}`;
+  }
   function actorPicker() {
     const a = currentActor();
     selectedActor = a?.id ?? null;
@@ -135,6 +191,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     $('pbActor').value = String(selectedActor);
     syncStageActor();
     loadMotion();
+    syncEmoteHeader();
     attachTransform();
   }
   function syncPedFields() {
@@ -283,6 +340,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     $('pbCapture').disabled = busy || !assets.length;
     $('pbStageCapture').disabled = busy || !assets.length;
     $('pbPlay').disabled = busy || !movable;
+    $('pbEmotePlay').disabled = $('pbPlay').disabled;
     $('pbTime').disabled = busy || !movable;
   }
   function syncStageActor() {
@@ -349,6 +407,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
   function setExpanded(value) {
     expanded = value;
     root.querySelector('.pb-stage').classList.toggle('pb-expanded', value);
+    showFullscreenEmotes(value);
     $('pbFullscreen').textContent = value ? 'Keluar layar penuh · Esc' : 'Layar penuh';
     $('pbFullscreen').setAttribute('aria-pressed', String(value));
     requestAnimationFrame(() => {
@@ -896,6 +955,12 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     $('pbTime').value = String(time);
     $('pbTimeLabel').textContent = time.toFixed(2) + ' s';
     $('pbPlay').textContent = playing ? 'Ⅱ Jeda' : '▶ Putar';
+    $('pbEmotePlay').textContent = playing ? 'Ⅱ' : '▶';
+    $('pbEmotePlay').setAttribute(
+      'aria-label',
+      playing ? 'Jeda emote ped terpilih' : 'Putar emote ped terpilih',
+    );
+    syncEmoteHeader();
     render();
   }
   function assetList() {

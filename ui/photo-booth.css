@@ -313,3 +313,74 @@ body[data-motion='reduced'] .photo-booth-workspace {
 .pb-expanded #pbStatus {
   max-height: 50px;
 }
+.pb-emote-player {
+  position: absolute;
+  right: 18px;
+  top: 84px;
+  width: min(310px, calc(100vw - 36px));
+  max-height: calc(100dvh - 152px);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border, #353c50);
+  border-radius: 13px;
+  background: var(--panel, #1b202c);
+  box-shadow: 0 12px 40px #0005;
+  z-index: 3;
+  overflow: hidden;
+}
+.pb-emote-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px;
+  border-bottom: 1px solid var(--border);
+}
+.pb-emote-header > div {
+  flex: 1;
+  min-width: 0;
+}
+.pb-emote-header strong {
+  display: block;
+  font-size: 12px;
+}
+#pbEmoteSummary {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 175px;
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.pb-emote-header button {
+  padding: 7px;
+  font-size: 10px;
+}
+.pb-emote-body {
+  flex: 1;
+  min-height: 0;
+  padding: 0 15px 12px;
+  border: 0;
+  border-radius: 0;
+  overflow: auto;
+}
+.pb-emote-body #pbRigStatus {
+  max-height: 75px;
+  overflow: auto;
+  font-size: 10px;
+}
+.pb-emote-player.pb-emote-minimized {
+  top: auto;
+  bottom: 8px;
+  width: min(285px, calc(100vw - 36px));
+}
+.pb-emote-minimized .pb-emote-header {
+  border-bottom: 0;
+}
+@media (max-height: 650px), (max-width: 850px) {
+  .pb-emote-player {
+    top: 125px;
+    max-height: calc(100dvh - 185px);
+  }
+}

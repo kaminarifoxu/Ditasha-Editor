@@ -59,19 +59,56 @@ module.exports = async function checkBoothStage(win, glb, fs, path) {
   await win.webContents.executeJavaScript(
     `document.getElementById('pbMove').click();document.getElementById('pbFit').click();`,
   );
+  await win.webContents.executeJavaScript(`(async () => {
+    const $=id=>document.getElementById(id), pause=ms=>new Promise(r=>setTimeout(r,ms));
+    const player=$('pbEmotePlayer');
+    if(player.hidden||!player.contains($('pbActor'))||!player.contains($('pbClip'))||!player.contains($('pbPlay')))throw Error('Fullscreen emote controls not mounted');
+    const ids=[...$('pbActor').options].map(o=>o.value);
+    $('pbActor').value=ids[1];$('pbActor').dispatchEvent(new Event('change'));
+    if($('pbStageActor').value!==ids[1])throw Error('Fullscreen emote actor selection not synchronized');
+    $('pbPose').value='clip';$('pbPose').dispatchEvent(new Event('change'));
+    $('pbSpeed').value='.5';$('pbSpeed').dispatchEvent(new Event('change'));
+    $('pbTime').value='.2';$('pbTime').dispatchEvent(new Event('input'));
+    const clip=$('pbClip').value;
+    $('pbPlay').click();$('pbEmoteMinimize').click();
+    if(!$('pbEmoteBody').hidden||$('pbEmoteMinimize').getAttribute('aria-expanded')!=='false')throw Error('Emote player did not minimize');
+    await pause(250);
+    if(Number($('pbTime').value)<=.2)throw Error('Minimizing stopped the emote clock');
+    $('pbEmotePlay').click();const paused=$('pbTime').value;await pause(120);
+    if($('pbTime').value!==paused)throw Error('Minimized player pause failed');
+    $('pbEmoteToggle').click();
+    if($('pbEmoteBody').hidden||$('pbClip').value!==clip||Number($('pbSpeed').value)!==.5)throw Error('Restoring player lost clip or speed');
+    $('pbActor').value=ids[0];$('pbActor').dispatchEvent(new Event('change'));
+    if($('pbPose').value!=='relaxed')throw Error('Fullscreen emote changed another actor');
+    $('pbActor').value=ids[1];$('pbActor').dispatchEvent(new Event('change'));
+    if($('pbPose').value!=='clip')throw Error('Fullscreen actor lost custom emote');
+  })()`);
   await new Promise((r) => setTimeout(r, 250));
   await fs.writeFile(
     path.resolve('release/qa/photo-booth-fullscreen-neon-verified.png'),
     (await win.webContents.capturePage()).toPNG(),
   );
   await win.webContents.executeJavaScript(
-    `document.getElementById('pbStageStudio').value='loft';document.getElementById('pbStageStudio').dispatchEvent(new Event('change'));`,
+    `document.getElementById('pbStageStudio').value='loft';document.getElementById('pbStageStudio').dispatchEvent(new Event('change'));document.getElementById('pbEmoteMinimize').click();`,
   );
   await new Promise((r) => setTimeout(r, 250));
   await fs.writeFile(
     path.resolve('release/qa/photo-booth-fullscreen-loft-verified.png'),
     (await win.webContents.capturePage()).toPNG(),
   );
-  await win.webContents.executeJavaScript(`document.getElementById('pbFullscreen').click();`);
-  return { realMouseGizmoDrag: true, windowOriginFullscreen: true, stableStudioScreenshots: true };
+  await win.webContents.executeJavaScript(`(() => {
+    const $=id=>document.getElementById(id);$('pbFullscreen').click();
+    if(!document.querySelector('.pb-settings').contains($('pbActor'))||!document.querySelector('.pb-settings').contains($('pbClip')))throw Error('Emote controls not restored after fullscreen');
+    $('pbFullscreen').click();
+    if(!$('pbEmoteBody').hidden)throw Error('Minimized state not preserved on re-entry');
+    $('pbFullscreen').click();
+  })()`);
+  return {
+    realMouseGizmoDrag: true,
+    windowOriginFullscreen: true,
+    stableStudioScreenshots: true,
+    fullscreenEmotePlayer: true,
+    minimizedPlayback: true,
+    sharedActorControls: true,
+  };
 };
