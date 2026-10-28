@@ -574,7 +574,7 @@ function selectFile(f) {
     const initial = defaultDrawableSelection(f.drawables);
     f.uvTextures ??= [
       ...f.drawables,
-      ...(f.drawables.length > 1 ? [drawableView(f.drawables, -1)] : []),
+      ...(f.ext === 'ydd' && f.drawables.length > 1 ? [drawableView(f.drawables, -1)] : []),
     ].map((d, i) => {
       const c = document.createElement('canvas');
       c.width = c.height = 1;
@@ -596,7 +596,7 @@ function selectFile(f) {
       $('drawable'),
       f.drawables.map((d) => d.name),
     );
-    if (f.drawables.length > 1) {
+    if (f.ext === 'ydd' && f.drawables.length > 1) {
       const all = document.createElement('option');
       all.value = -1;
       all.textContent = 'Semua drawable';

@@ -528,7 +528,7 @@ export function mountViewers({ nav, download, toast, activate, confirmDiscard, g
         return o;
       }),
     );
-    if (drawables.length > 1) {
+    if (/\.ydd$/i.test(modelName) && drawables.length > 1) {
       const all = document.createElement('option');
       all.value = -1;
       all.textContent = 'Semua drawable';
