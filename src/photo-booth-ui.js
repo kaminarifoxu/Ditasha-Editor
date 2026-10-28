@@ -618,6 +618,9 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       m.uncacheRoot(m.getRoot());
     });
     mixers = [];
+    // Reset once before binding. Resetting every frame bypasses Three's cached
+    // property mixer and erases constant YCD translations / paused rotations.
+    applyBoothPose(rest, 'rest', 0);
     for (const owner of actors()) {
       const selected = clipsFor(owner).find((c) => c.id === owner.motion.clip);
       if (!selected) continue;
@@ -667,7 +670,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       });
       const ownMixers = mixers.filter((m) => m.userData.actor === actor.id);
       if (m.pose === 'clip') {
-        applyBoothPose(bones, 'rest', 0);
+        if (!ownMixers.length) applyBoothPose(bones, 'rest', 0);
         ownMixers.forEach((mixer) => mixer.setTime(m.time));
       } else {
         ownMixers.forEach((mixer) => mixer.stopAllAction());

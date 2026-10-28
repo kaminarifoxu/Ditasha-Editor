@@ -66,6 +66,12 @@ module.exports = async function checkPhotoBooth(fixtures) {
   $('pbTime').value = '.75';
   $('pbTime').dispatchEvent(new Event('input'));
   assert(canvas().toDataURL() !== ycdStart, 'Native binary YCD did not move skinned mesh');
+  const pausedYcd = canvas().toDataURL();
+  $('pbTime').dispatchEvent(new Event('input'));
+  assert(
+    canvas().toDataURL() === pausedYcd,
+    'YCD repeated paused frame reset cached bone properties',
+  );
   assert(!$('pbPlay').disabled, 'YCD playback disabled with matching tags');
   $('pbPlay').click();
   await sleep(150);
