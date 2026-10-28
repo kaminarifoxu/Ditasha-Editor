@@ -212,6 +212,7 @@ else {
       win,
       trusted,
     });
+    require('./gta-tools.cjs').registerGtaTools({ app, ipcMain, dialog, shell, win, trusted });
     embeddedIDE = require('./embedded-ide.cjs').registerEmbeddedIDE({
       app,
       ipcMain,

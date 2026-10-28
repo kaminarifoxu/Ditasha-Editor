@@ -5,6 +5,13 @@ const icon = (name) =>
   `<i class="di-icon" aria-hidden="true" data-icon="${name}" data-glyph="${String.fromCodePoint(parseInt(ICON_CODES[name], 16))}"></i>`;
 const workspaces = [
   [
+    'gtatools',
+    'cube',
+    'GTA Toolchain',
+    'ModDropV, AddonWeaponsBuilder dan TRIUM dalam alur kerja desktop.',
+    'DLC BUILDER · SKELETON TOOLS',
+  ],
+  [
     'fivemtools',
     'tshirt',
     'YMT & FiveM Tools',

@@ -38,6 +38,9 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Compressor checks failed.' }
           if (!(Test-Path 'release/qa/compressor-result.json')) { throw 'Compressor checks exited before completion.' }
         timeout-minutes: 4
+      - name: Test real AddonWeaponsBuilder download, analysis and native DLC export
+        run: node scripts/smoke-gta-tools.cjs
+        timeout-minutes: 8
       - name: Prepare verified offline creative engines
         run: npm run prepare:craft
         timeout-minutes: 15

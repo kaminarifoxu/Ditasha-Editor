@@ -1,3 +1,4 @@
+import { mountGtaTools } from './gta-tools-ui.js';
 import { mountFivemTools } from './fivem-tools-ui.js';
 import { mountCompressor } from './compressor-ui.js';
 import { mountCraft, craftWorkspaces } from './craft-ui.js';
@@ -137,6 +138,7 @@ export function mountTools({
     activate,
     viewers,
   });
+  const gtaTools = mountGtaTools({ nav, activate, viewers, toast });
   const vehicles = mountVehicleWorkspace({ nav, viewers, onVehicleBuild });
   vehicles.root.append(nativeHost);
   const ide = mountEmbeddedIDE({ nav, toast, openQuickEditor: archives.openCode });
@@ -204,6 +206,8 @@ export function mountTools({
     page = next;
     fivemTools.root.hidden = next !== 'fivemtools';
     compressor.root.hidden = next !== 'compressor';
+    gtaTools.root.hidden = next !== 'gtatools';
+    if (next === 'gtatools') gtaTools.refresh();
     $('workspaceLabel').textContent =
       next === 'compressor'
         ? 'Asset Compressor'
@@ -229,6 +233,7 @@ export function mountTools({
                             ? 'Integrated IDE'
                             : 'Converter';
     if (next === 'fivemtools') $('workspaceLabel').textContent = 'YMT & FiveM Tools';
+    if (next === 'gtatools') $('workspaceLabel').textContent = 'GTA Toolchain';
     craft.root.hidden = !next.startsWith('craft-');
     if (next.startsWith('craft-')) {
       $('workspaceLabel').textContent =

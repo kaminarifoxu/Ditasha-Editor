@@ -466,6 +466,10 @@ app.whenReady().then(async () => {
         ')',
     );
     await win.loadFile(path.resolve('ui/index.html'));
+    const gtaToolsReport = await win.webContents.executeJavaScript(
+      '(' + require('./gta-tools-ui-checks.cjs').toString() + ')()',
+    );
+    await win.loadFile(path.resolve('ui/index.html'));
     const fivemToolsReport = await win.webContents.executeJavaScript(
       '(' + require('./fivem-tools-ui-checks.cjs').toString() + ')()',
     );
@@ -489,6 +493,7 @@ app.whenReady().then(async () => {
           surfaceReport,
           fivemToolsReport,
           fullpedReport,
+          gtaToolsReport,
         }),
     );
     win.destroy();

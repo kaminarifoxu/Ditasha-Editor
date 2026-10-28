@@ -1,0 +1,169 @@
+.gta-tools-workspace {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  padding: 24px;
+  animation: gt-appear 0.22s ease-out;
+}
+.gt-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.gt-heading h1 {
+  margin: 6px 0;
+  font-size: 28px;
+}
+.gt-heading h2 {
+  margin: 0;
+}
+.gt-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin-bottom: 22px;
+}
+.gt-tool-card,
+.gt-panel {
+  padding: 22px;
+  border: 1px solid var(--border, #353c50);
+  border-radius: 16px;
+  background: var(--panel, #1b202c);
+  min-width: 0;
+}
+.gt-tool-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  transition:
+    border-color 0.2s,
+    transform 0.2s;
+}
+.gt-tool-card:hover {
+  border-color: #b99557;
+  transform: translateY(-2px);
+}
+.gt-tool-card h2 {
+  font-size: 18px;
+  margin: 14px 0 8px;
+}
+.gt-tool-card p {
+  line-height: 1.65;
+  color: var(--muted, #abb5ca);
+  flex: 1;
+  margin: 0 0 18px;
+}
+.gt-badge {
+  font-size: 11px;
+  color: #e8c17b;
+  background: #e4b56514;
+  border: 1px solid #e4b56540;
+  border-radius: 30px;
+  padding: 5px 10px;
+}
+.gt-layout {
+  display: grid;
+  grid-template-columns: minmax(330px, 1fr) minmax(320px, 1.15fr);
+  gap: 20px;
+}
+.gt-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 18px 0;
+}
+.gt-fields label {
+  min-width: 0;
+}
+.gt-fields input:not([type='checkbox']),
+.gt-fields select {
+  width: 100%;
+  box-sizing: border-box;
+}
+.gt-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.gt-actions button {
+  white-space: normal;
+}
+.gt-path {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin: 18px 0;
+}
+.gt-path span {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  flex: 1;
+  min-width: 120px;
+}
+.gt-note {
+  border-left: 3px solid #e4b565;
+  padding: 12px 14px;
+  background: #e4b5650b;
+  line-height: 1.6;
+  font-size: 12px;
+}
+#gtLog {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  height: 330px;
+  overflow: auto;
+  padding: 16px;
+  background: var(--bg, #11141d);
+  border: 1px solid var(--border, #353c50);
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.65;
+}
+#gtStatus {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.gt-panel details {
+  line-height: 1.7;
+  margin-top: 18px;
+}
+.gt-panel ol {
+  padding-left: 20px;
+}
+@keyframes gt-appear {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (max-width: 1100px) {
+  .gt-cards {
+    grid-template-columns: 1fr;
+  }
+  .gt-layout {
+    grid-template-columns: 1fr;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gta-tools-workspace {
+    animation: none;
+  }
+  .gt-tool-card {
+    transition: none;
+  }
+}
+body[data-motion='reduced'] .gta-tools-workspace {
+  animation: none;
+}
+body[data-motion='reduced'] .gt-tool-card {
+  transition: none;
+}

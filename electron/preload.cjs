@@ -80,3 +80,19 @@ contextBridge.exposeInMainWorld('ditashaCompressor', {
   finish: (value) => ipcRenderer.invoke('ditasha:compressor-finish', value),
   reveal: (id) => ipcRenderer.invoke('ditasha:compressor-reveal', id),
 });
+
+contextBridge.exposeInMainWorld('ditashaGtaTools', {
+  state: () => ipcRenderer.invoke('ditasha:gta-tools-state'),
+  install: (id, download = false) => ipcRenderer.invoke('ditasha:gta-tools-install', id, download),
+  choose: (kind) => ipcRenderer.invoke('ditasha:gta-tools-choose', kind),
+  exe: () => ipcRenderer.invoke('ditasha:gta-tools-exe'),
+  run: (request) => ipcRenderer.invoke('ditasha:gta-tools-run', request),
+  cancel: () => ipcRenderer.invoke('ditasha:gta-tools-cancel'),
+  gui: (id) => ipcRenderer.invoke('ditasha:gta-tools-gui', id),
+  output: () => ipcRenderer.invoke('ditasha:gta-tools-output'),
+  subscribe: (callback) => {
+    const listener = (_event, state) => callback(state);
+    ipcRenderer.on('ditasha:gta-tools-progress', listener);
+    return () => ipcRenderer.removeListener('ditasha:gta-tools-progress', listener);
+  },
+});
