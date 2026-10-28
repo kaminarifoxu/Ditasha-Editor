@@ -46,3 +46,24 @@ test('Scene library accepts source YCD clips with stable external IDs', () => {
   s.clipFiles[0].file.name = 'emote.exe';
   assert.throws(() => validateBoothScene(s), /Clip/);
 });
+test('Scene presets retain studio selection, photo settings and independent ped positions', () => {
+  const s = scene();
+  s.studio = {
+    id: 'loft',
+    background: '#242938',
+    light: 1.2,
+    transparent: false,
+    floor: true,
+    size: '1920x1080',
+  };
+  s.assets[0].offset = [-1.25, 0.15, 2.5];
+  assert.equal(validateBoothScene(s), s);
+  s.studio.id = 'remote-script';
+  assert.throws(() => validateBoothScene(s), /studio/);
+  s.studio.id = 'loft';
+  s.studio.light = Infinity;
+  assert.throws(() => validateBoothScene(s), /studio/);
+  s.studio.light = 1.2;
+  s.assets[0].offset[0] = 101;
+  assert.throws(() => validateBoothScene(s), /Penempatan/);
+});

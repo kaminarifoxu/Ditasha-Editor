@@ -276,3 +276,40 @@ body[data-motion='reduced'] .photo-booth-workspace {
   align-self: flex-start;
   margin: 0 12px 12px;
 }
+.pb-stage-picker {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 11px;
+  min-width: 0;
+}
+.pb-stage-picker select {
+  max-width: 155px;
+  min-width: 90px;
+}
+#pbMove[aria-pressed='true'] {
+  border-color: var(--accent, #eec575);
+  background: #604c2b;
+  color: #ffe6b2;
+}
+.pb-stage.pb-expanded {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  width: 100vw;
+  height: 100dvh;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  box-sizing: border-box;
+}
+.pb-expanded #pbViewport {
+  min-height: 0;
+  overflow: hidden;
+}
+.pb-expanded .pb-stage-toolbar {
+  padding: 10px 18px;
+}
+.pb-expanded #pbStatus {
+  max-height: 50px;
+}

@@ -204,6 +204,70 @@ module.exports = async function checkPhotoBooth(fixtures) {
     $('pbActor').value = id;
     $('pbActor').dispatchEvent(new Event('change'));
   };
+  const setCm = (id, value) => {
+    $(id).value = String(value);
+    $(id).dispatchEvent(new Event('change'));
+  };
+  selectActor(actorIds[0]);
+  const beforeMove = canvas().toDataURL();
+  setCm('pbPositionX', -100);
+  setCm('pbPositionZ', 25);
+  assert(canvas().toDataURL() !== beforeMove, 'Ped XY/Z controls did not move rendered model');
+  selectActor(actorIds[1]);
+  assert(Number($('pbPositionZ').value) === 0, 'Moving ped A moved ped B');
+  setCm('pbPositionX', 100);
+  selectActor(actorIds[0]);
+  assert(
+    Number($('pbPositionX').value) === -100 && Number($('pbPositionZ').value) === 25,
+    'Ped placement lost on selection',
+  );
+  $('pbMove').click();
+  assert($('pbMove').getAttribute('aria-pressed') === 'true', 'Move tool not enabled');
+  $('pbStageActor').value = actorIds[1];
+  $('pbStageActor').dispatchEvent(new Event('change'));
+  assert($('pbActor').value === actorIds[1], 'Viewport actor picker out of sync');
+  $('pbMove').click();
+  $('pbStudio').value = 'catalogue';
+  $('pbStudio').dispatchEvent(new Event('change'));
+  $('pbTransparent').checked = false;
+  $('pbTransparent').dispatchEvent(new Event('input'));
+  $('pbFit').click();
+  const catalogue = canvas().toDataURL();
+  $('pbStudio').value = 'loft';
+  $('pbStudio').dispatchEvent(new Event('change'));
+  assert(canvas().toDataURL() !== catalogue, 'Loft scene did not change rendered background');
+  const loft = canvas().toDataURL();
+  $('pbStageStudio').value = 'neon';
+  $('pbStageStudio').dispatchEvent(new Event('change'));
+  assert(
+    $('pbStudio').value === 'neon' && canvas().toDataURL() !== loft,
+    'Neon studio missing or unsynchronized',
+  );
+  $('pbFullscreen').click();
+  await sleep(180);
+  const stageRect = document.querySelector('.pb-stage').getBoundingClientRect();
+  assert(
+    stageRect.width >= innerWidth - 2 && stageRect.height >= innerHeight - 2,
+    'Fullscreen stage does not fill window',
+  );
+  const viewportRect = $('pbViewport').getBoundingClientRect(),
+    canvasRect = canvas().getBoundingClientRect();
+  assert(
+    canvasRect.width >= viewportRect.width - 2 && canvasRect.height >= viewportRect.height - 2,
+    'Fullscreen preview did not use available width/height',
+  );
+  $('pbFit').click();
+  console.log('DITASHA_SNAPSHOT:photo-booth-fullscreen-neon');
+  await sleep(150);
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  await sleep(150);
+  assert(
+    !document.querySelector('.pb-stage').classList.contains('pb-expanded'),
+    'Escape did not leave fullscreen',
+  );
+  $('pbStudio').value = 'loft';
+  $('pbStudio').dispatchEvent(new Event('change'));
+  selectActor(actorIds[0]);
   const choosePose = (pose, t) => {
     $('pbPose').value = pose;
     $('pbPose').dispatchEvent(new Event('change'));
@@ -269,6 +333,14 @@ module.exports = async function checkPhotoBooth(fixtures) {
   const loadedIds = [...$('pbActor').options].map((o) => o.value);
   selectActor(loadedIds[0]);
   assert($('pbPose').value === 'catalog', 'Library lost ped A pose');
+  assert(
+    Number($('pbPositionX').value) === -100 && Number($('pbPositionZ').value) === 25,
+    'Library lost ped position',
+  );
+  assert(
+    $('pbStudio').value === 'loft' && $('pbStageStudio').value === 'loft',
+    'Library lost studio preset',
+  );
   selectActor(loadedIds[1]);
   assert(
     $('pbPose').value === 'dance' && $('pbTimeLabel').textContent === '0.75 s',
@@ -478,6 +550,10 @@ module.exports = async function checkPhotoBooth(fixtures) {
   console.log('DITASHA_SNAPSHOT:photo-booth-height-rig-controls');
   await sleep(150);
   return {
+    pedPlacement: true,
+    fullscreenAllPeds: true,
+    offlineStudios: true,
+    studioPresetPersistence: true,
     binaryYcd: true,
     batchYcdImport: true,
     ycdSearch: true,

@@ -1,3 +1,5 @@
+import { BOOTH_STUDIOS, createBoothStudio, disposeBoothStudio } from './booth-studio.js';
+import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { readYcd, ycdAnimationClip } from './ycd.js';
 import { freemodeFamily, selectBoothRig } from './booth-rig.js';
 import { boothHeight, setBoothHeight, setBoothElevation } from './booth-transform.js';
@@ -47,8 +49,8 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
   root.hidden = true;
   root.innerHTML = `<div class="pb-heading"><div><span class="eyebrow">DITASHA / OFFLINE PHOTO BOOTH</span><h1>Photo Booth</h1><p class="muted">Ped, outfit dan aksesori · pose, atur kamera, ambil foto.</p></div><button id="pbCapture" class="primary" disabled>▣ Simpan PNG</button></div>
   <div class="pb-layout"><aside class="pb-panel pb-assets"><h2>Model & outfit</h2><div class="pb-buttons"><button id="pbPed">+ Ped / tubuh</button><button id="pbClothes">+ Outfit / batch</button><button id="pbAccessory">+ Aksesori</button><button id="pbTextures">+ Tekstur</button></div><input id="pbInput" type="file" accept=".ydd,.ydr,.yft,.ytd,.glb" multiple hidden><input id="pbTextureInput" type="file" accept=".ytd,.dds,.png,.jpg,.jpeg,.webp" multiple hidden><p class="muted">Masukkan YDD + YTD. YFT skeleton pendamping dapat ditambahkan. GLB rigged juga didukung.</p><details class="pb-outfit-import" open><summary>Kategori outfit & impor folder</summary><div id="pbOutfitButtons" class="pb-outfit-grid"></div><label>Kategori folder / drag & drop<select id="pbImportCategory"><option value="auto">Otomatis dari nama GTA</option>${OUTFIT_CATEGORIES.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}</select></label><button id="pbFolder">+ Folder outfit</button><input id="pbFolderInput" type="file" webkitdirectory multiple hidden></details><p id="pbModelCount" class="muted" role="status">0 / ${MAX_BOOTH_MODELS} model</p><p class="muted">100 model · 64 MB per model · 1 GB file model per scene. Batas tekstur decoded 1 GB.</p><label>Filter bagian<select id="pbCategoryFilter"><option value="all">Semua bagian</option><option value="ped">Ped / tubuh</option>${OUTFIT_CATEGORIES.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}</select></label><input id="pbAssetSearch" placeholder="Cari model / outfit…" aria-label="Cari model Photo Booth"><div id="pbAssets"></div><p id="pbEmpty">Belum ada model. Mulai dari ped / tubuh milikmu.</p><button id="pbClear">Kosongkan booth</button><h2 class="pb-library-heading">Library lokal</h2><p class="muted">Preset maksimal 512 MB, termasuk file sumber dan tekstur.</p><label>Nama preset<input id="pbLibraryName" maxlength="80" placeholder="Foto grup / outfit favorit"></label><button id="pbLibrarySave">Simpan scene & outfit</button><button id="pbLibraryRefresh">Muat daftar library</button><input id="pbLibrarySearch" placeholder="Cari preset ped / outfit…" aria-label="Cari library"><div id="pbLibraryList"></div></aside>
-  <section class="pb-stage"><div class="pb-stage-toolbar"><button id="pbFit">Fit tubuh</button><button id="pbFront">Depan</button><button id="pbBack">Belakang</button><label class="check"><input id="pbFloor" type="checkbox" checked>Lantai</label><span>Drag: orbit · scroll: zoom</span></div><div id="pbViewport"></div><p id="pbStatus" role="status">Siap untuk sesi foto offline.</p><button id="pbShowIssues" hidden>Lihat masalah</button></section>
-  <aside class="pb-panel pb-settings"><h2>Pose & emote per ped</h2><label>Ped yang diatur<select id="pbActor"></select></label><p class="muted">Pose, tinggi dan outfit mengikuti ped yang dipilih.</p><fieldset class="pb-ped-sizing"><legend>Tinggi & posisi ped terpilih</legend><label>Tinggi grup ped · cm<input id="pbHeightCm" type="number" min="1" max="1000" step="1"></label><label>Naik / turun · cm<input id="pbElevationCm" type="number" min="-10000" max="10000" step="1" value="0"></label><p class="muted">Seluruh outfit ikut berubah. Kamera tetap; gunakan Fit tubuh bila perlu.</p></fieldset><details class="pb-rig-settings"><summary>Skeleton / acuan (opsional)</summary><label>Skeleton acuan<select id="pbRigSource"><option value="auto">Otomatis · model / freemode</option><option value="freemode-male">Freemode laki-laki</option><option value="freemode-female">Freemode perempuan</option><option value="reference">Dari file skeleton acuan</option></select></label><button id="pbReference">+ Skeleton YFT / YDD</button><input id="pbReferenceInput" type="file" accept=".yft,.ydd,.ydr" multiple hidden></details><label>Pose<select id="pbPose">${BOOTH_POSES.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}<option value="clip">Custom emote · YCD / GLB</option></select></label><div id="pbQuickPose" class="pb-buttons pb-quick-pose"><button data-quick-pose="walk">Berjalan</button><button data-quick-pose="dance">Dance</button><button data-quick-pose="wave">Lambaikan</button></div><div class="pb-buttons"><button id="pbPlay" disabled>▶ Putar</button><button id="pbResetPose">Reset pose</button><button id="pbPlayAll">Putar semua</button><button id="pbPauseAll">Jeda semua</button></div><label>Kecepatan<input id="pbSpeed" type="number" min="0.1" max="3" step="0.1" value="1"></label><label>Frame / waktu <output id="pbTimeLabel">0.00 s</output><input id="pbTime" type="range" min="0" max="4" step="0.01" value="0"></label><button id="pbImportClip">+ Emote YCD / GLB</button><input id="pbClipInput" type="file" accept=".ycd,.glb" multiple hidden><label id="pbClipField" hidden>Cari emote<input id="pbClipSearch" type="search" placeholder="Nama file / emote…">Clip<select id="pbClip"></select></label><p id="pbRigStatus" class="muted" role="status">Pose memerlukan skeleton dan skin weights yang cocok.</p><details id="pbIssues" hidden><summary id="pbIssueSummary">Periksa masalah</summary><p class="muted">Skeleton: pilih acuan atau impor YFT/YDD yang cocok. Tekstur: tambahkan YTD atau pilih penggantian preview di kartu model.</p><ul id="pbIssueList"></ul></details><h2>Studio</h2><label>Background<input id="pbBackground" type="color" value="#242938"></label><label class="check"><input id="pbTransparent" type="checkbox">PNG transparan</label><label>Cahaya<input id="pbLight" type="range" min="0.3" max="3" value="1" step="0.05"></label><label>Resolusi foto<select id="pbSize"><option value="1080x1350">1080 × 1350 · katalog</option><option value="1920x1080">1920 × 1080 · landscape</option><option value="2048x2048">2048 × 2048 · square</option><option value="3000x4000">3000 × 4000 · portrait</option></select></label><p class="muted">Pose/emote bawaan dibuat untuk preview. YCD Legacy: clip skeletal tunggal, dipetakan melalui bone tag GTA. GLB memakai nama bone yang cocok. Blend, prop dan efek game belum didukung.</p></aside></div>`;
+  <section class="pb-stage"><div class="pb-stage-toolbar"><button id="pbFit">Lihat semua ped</button><button id="pbMove" aria-pressed="false">Pindah ped</button><label class="pb-stage-picker">Ped<select id="pbStageActor" aria-label="Ped di viewport"></select></label><label class="check"><input id="pbSnap" type="checkbox">Snap 10 cm</label><button id="pbFullscreen" aria-pressed="false">Layar penuh</button><button id="pbStageCapture">Simpan PNG</button><label class="pb-stage-picker">Set<select id="pbStageStudio" aria-label="Set studio di viewport">${BOOTH_STUDIOS.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}</select></label><button id="pbFront">Depan</button><button id="pbBack">Belakang</button><label class="check"><input id="pbFloor" type="checkbox" checked>Grid (polos)</label><span>Orbit: drag · pindah: panah X/Y/Z · scroll: zoom</span></div><div id="pbViewport"></div><p id="pbStatus" role="status">Siap untuk sesi foto offline.</p><button id="pbShowIssues" hidden>Lihat masalah</button></section>
+  <aside class="pb-panel pb-settings"><h2>Pose & emote per ped</h2><label>Ped yang diatur<select id="pbActor"></select></label><p class="muted">Pose, tinggi dan outfit mengikuti ped yang dipilih.</p><fieldset class="pb-ped-sizing"><legend>Posisi & ukuran ped terpilih</legend><label>Kiri / kanan · cm<input id="pbPositionX" type="number" min="-10000" max="10000" step="1"></label><label>Depan / belakang · cm<input id="pbPositionZ" type="number" min="-10000" max="10000" step="1"></label><label>Tinggi grup ped · cm<input id="pbHeightCm" type="number" min="1" max="1000" step="1"></label><label>Naik / turun · cm<input id="pbElevationCm" type="number" min="-10000" max="10000" step="1" value="0"></label><p class="muted">Seluruh outfit ikut berubah. Kamera tetap; gunakan Fit tubuh bila perlu.</p></fieldset><details class="pb-rig-settings"><summary>Skeleton / acuan (opsional)</summary><label>Skeleton acuan<select id="pbRigSource"><option value="auto">Otomatis · model / freemode</option><option value="freemode-male">Freemode laki-laki</option><option value="freemode-female">Freemode perempuan</option><option value="reference">Dari file skeleton acuan</option></select></label><button id="pbReference">+ Skeleton YFT / YDD</button><input id="pbReferenceInput" type="file" accept=".yft,.ydd,.ydr" multiple hidden></details><label>Pose<select id="pbPose">${BOOTH_POSES.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}<option value="clip">Custom emote · YCD / GLB</option></select></label><div id="pbQuickPose" class="pb-buttons pb-quick-pose"><button data-quick-pose="walk">Berjalan</button><button data-quick-pose="dance">Dance</button><button data-quick-pose="wave">Lambaikan</button></div><div class="pb-buttons"><button id="pbPlay" disabled>▶ Putar</button><button id="pbResetPose">Reset pose</button><button id="pbPlayAll">Putar semua</button><button id="pbPauseAll">Jeda semua</button></div><label>Kecepatan<input id="pbSpeed" type="number" min="0.1" max="3" step="0.1" value="1"></label><label>Frame / waktu <output id="pbTimeLabel">0.00 s</output><input id="pbTime" type="range" min="0" max="4" step="0.01" value="0"></label><button id="pbImportClip">+ Emote YCD / GLB</button><input id="pbClipInput" type="file" accept=".ycd,.glb" multiple hidden><label id="pbClipField" hidden>Cari emote<input id="pbClipSearch" type="search" placeholder="Nama file / emote…">Clip<select id="pbClip"></select></label><p id="pbRigStatus" class="muted" role="status">Pose memerlukan skeleton dan skin weights yang cocok.</p><details id="pbIssues" hidden><summary id="pbIssueSummary">Periksa masalah</summary><p class="muted">Skeleton: pilih acuan atau impor YFT/YDD yang cocok. Tekstur: tambahkan YTD atau pilih penggantian preview di kartu model.</p><ul id="pbIssueList"></ul></details><h2>Studio</h2><label>Set photo studio<select id="pbStudio">${BOOTH_STUDIOS.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}</select></label><p class="muted">Studio 3D offline. PNG transparan menyembunyikan set dan lantai.</p><label>Background · mode polos<input id="pbBackground" type="color" value="#242938"></label><label class="check"><input id="pbTransparent" type="checkbox">PNG transparan</label><label>Cahaya<input id="pbLight" type="range" min="0.3" max="3" value="1" step="0.05"></label><label>Resolusi foto<select id="pbSize"><option value="1080x1350">1080 × 1350 · katalog</option><option value="1920x1080">1920 × 1080 · landscape</option><option value="2048x2048">2048 × 2048 · square</option><option value="3000x4000">3000 × 4000 · portrait</option></select></label><p class="muted">Pose/emote bawaan dibuat untuk preview. YCD Legacy: clip skeletal tunggal, dipetakan melalui bone tag GTA. GLB memakai nama bone yang cocok. Blend, prop dan efek game belum didukung.</p></aside></div>`;
   nav.after(root);
   const $ = (id) => root.querySelector('#' + id);
   let renderer,
@@ -57,6 +59,12 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     controls,
     stage,
     floor,
+    studio,
+    transform,
+    gizmo,
+    moving = false,
+    expanded = false,
+    capturing = false,
     key,
     fill,
     active = false,
@@ -125,13 +133,17 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       }),
     );
     $('pbActor').value = String(selectedActor);
+    syncStageActor();
     loadMotion();
+    attachTransform();
   }
   function syncPedFields() {
     const a = currentActor();
     $('pbHeightCm').value = a?.baseHeight ? Number((a.baseHeight * a.scale * 100).toFixed(1)) : '';
     $('pbElevationCm').value = a ? Number((a.offset[1] * 100).toFixed(1)) : 0;
     $('pbRigSource').value = a?.rigChoice || 'auto';
+    $('pbPositionX').value = a ? Number((a.offset[0] * 100).toFixed(1)) : 0;
+    $('pbPositionZ').value = a ? Number((a.offset[2] * 100).toFixed(1)) : 0;
   }
   function updateTransform(a) {
     const owner = actorForAsset(assets, a),
@@ -147,6 +159,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       a.root.scale.copy(a.previewBase.scale).multiplyScalar(a.scale);
     }
     stage?.updateMatrixWorld(true);
+    syncStudioPlacement();
     syncPedFields();
     render();
   }
@@ -251,6 +264,9 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     $('pbRigSource').disabled = busy || !currentActor();
     $('pbHeightCm').disabled = busy || !currentActor()?.baseHeight;
     $('pbElevationCm').disabled = busy || !currentActor();
+    for (const id of ['pbPositionX', 'pbPositionZ', 'pbMove', 'pbStageActor'])
+      $(id).disabled = busy || !currentActor();
+    if (transform) transform.enabled = moving && !busy && !!currentActor();
     const owner = currentActor(),
       frame = owner && actorFrames.get(owner.id);
     let ownAnimated = false;
@@ -265,9 +281,124 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       .querySelectorAll('button')
       .forEach((b) => (b.disabled = busy || !movable));
     $('pbCapture').disabled = busy || !assets.length;
+    $('pbStageCapture').disabled = busy || !assets.length;
     $('pbPlay').disabled = busy || !movable;
     $('pbTime').disabled = busy || !movable;
   }
+  function syncStageActor() {
+    $('pbStageActor').replaceChildren(...[...$('pbActor').options].map((o) => o.cloneNode(true)));
+    $('pbStageActor').value = String(selectedActor);
+  }
+  function attachTransform() {
+    if (!transform) return;
+    const frame = actorFrames.get(currentActor()?.id);
+    if (moving && frame) transform.attach(frame);
+    else transform.detach();
+    render();
+  }
+  function selectPed(id) {
+    if (busy || !actors().some((a) => a.id === id)) return;
+    saveMotion();
+    selectedActor = id;
+    $('pbActor').value = String(id);
+    syncStageActor();
+    loadMotion();
+    updateClips();
+    applyPose();
+    attachTransform();
+    setControls();
+  }
+  function syncStudioPlacement() {
+    if (!studio || !key) return;
+    const visible = actors().filter((a) => a.visible && !a.referenceOnly);
+    let minX = Infinity,
+      maxX = -Infinity,
+      minZ = Infinity,
+      maxZ = -Infinity;
+    for (const a of visible) {
+      minX = Math.min(minX, a.offset[0] - 1);
+      maxX = Math.max(maxX, a.offset[0] + 1);
+      minZ = Math.min(minZ, a.offset[2] - 1);
+      maxZ = Math.max(maxZ, a.offset[2] + 1);
+    }
+    const x = visible.length ? (minX + maxX) / 2 : 0,
+      z = visible.length ? (minZ + maxZ) / 2 : 0;
+    studio.position.set(x, 0, z);
+    studio.scale.set(
+      visible.length ? Math.max(1, (maxX - minX) / 7) : 1,
+      1,
+      visible.length ? Math.max(1, (maxZ - minZ) / 7) : 1,
+    );
+    key.position.set(x + 3, 5, z - 4);
+    key.target.position.set(x, 0, z);
+    key.target.updateMatrixWorld();
+    const radius = visible.length ? Math.max(8, (maxX - minX) / 2 + 3, (maxZ - minZ) / 2 + 3) : 8;
+    key.shadow.camera.left = key.shadow.camera.bottom = -radius;
+    key.shadow.camera.right = key.shadow.camera.top = radius;
+    key.shadow.camera.updateProjectionMatrix();
+  }
+  function changeStudio() {
+    if (!scene) return;
+    $('pbStageStudio').value = $('pbStudio').value;
+    disposeBoothStudio(studio);
+    studio = createBoothStudio($('pbStudio').value);
+    scene.add(studio);
+    syncStudioPlacement();
+    render();
+  }
+  function setExpanded(value) {
+    expanded = value;
+    root.querySelector('.pb-stage').classList.toggle('pb-expanded', value);
+    $('pbFullscreen').textContent = value ? 'Keluar layar penuh · Esc' : 'Layar penuh';
+    $('pbFullscreen').setAttribute('aria-pressed', String(value));
+    requestAnimationFrame(() => {
+      resize();
+      fit();
+      $('pbFullscreen').focus();
+    });
+  }
+  $('pbFullscreen').onclick = () => setExpanded(!expanded);
+  document.addEventListener('keydown', (e) => {
+    if (active && expanded && e.key === 'Escape') {
+      e.preventDefault();
+      setExpanded(false);
+    }
+  });
+  $('pbMove').onclick = () => {
+    moving = !moving;
+    $('pbMove').setAttribute('aria-pressed', String(moving));
+    $('pbMove').textContent = moving ? 'Pindah ped · aktif' : 'Pindah ped';
+    attachTransform();
+    setControls();
+    setStatus(
+      moving
+        ? 'Pilih ped, lalu tarik panah X/Y/Z. Outfit mengikuti ped. Klik area kosong untuk orbit kamera.'
+        : 'Mode orbit kamera. Drag untuk memutar, scroll untuk zoom.',
+    );
+  };
+  $('pbSnap').onchange = () => transform?.setTranslationSnap($('pbSnap').checked ? 0.1 : null);
+  for (const [id, index] of [
+    ['pbPositionX', 0],
+    ['pbPositionZ', 2],
+  ])
+    $(id).onchange = () => {
+      const a = currentActor(),
+        cm = Number($(id).value);
+      if (!a) return;
+      if (!Number.isFinite(cm) || Math.abs(cm) > 10000) {
+        syncPedFields();
+        return;
+      }
+      a.offset[index] = cm / 100;
+      updateTransform(a);
+      assetList();
+    };
+  $('pbStudio').onchange = changeStudio;
+  $('pbStageStudio').onchange = () => {
+    $('pbStudio').value = $('pbStageStudio').value;
+    changeStudio();
+  };
+
   function ensure() {
     if (renderer) return;
     renderer = new THREE.WebGLRenderer({
@@ -276,24 +407,77 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       preserveDrawingBuffer: true,
     });
     renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     $('pbViewport').append(renderer.domElement);
     scene = new THREE.Scene();
     stage = new THREE.Group();
     scene.add(stage);
     scene.add(new THREE.HemisphereLight(0xffffff, 0x777987, 2));
     key = new THREE.DirectionalLight(0xfff1df, 3);
-    key.position.set(3, 5, 4);
+    key.position.set(3, 5, -4);
+    key.castShadow = true;
+    key.shadow.mapSize.set(1024, 1024);
+    key.shadow.bias = -0.0005;
+    key.shadow.normalBias = 0.02;
+    key.shadow.camera.left = key.shadow.camera.bottom = -8;
+    key.shadow.camera.right = key.shadow.camera.top = 8;
     scene.add(key);
     fill = new THREE.DirectionalLight(0xcbdcff, 1.5);
     fill.position.set(-4, 2, -3);
     scene.add(fill);
     floor = new THREE.GridHelper(10, 40, 0x717785, 0x414858);
     scene.add(floor);
+    changeStudio();
     camera = new THREE.PerspectiveCamera(35, 1, 0.001, 1000);
     camera.position.set(0, 1.3, -4);
     controls = new OrbitControls(camera, renderer.domElement);
     controls.target.set(0, 1, 0);
     controls.addEventListener('change', render);
+    transform = new TransformControls(camera, renderer.domElement);
+    transform.setMode('translate');
+    transform.setSpace('world');
+    transform.setSize(0.85);
+    gizmo = transform.getHelper();
+    scene.add(gizmo);
+    transform.addEventListener('dragging-changed', (e) => {
+      controls.enabled = !e.value;
+      if (!e.value) assetList();
+    });
+    transform.addEventListener('objectChange', () => {
+      const a = currentActor();
+      if (!a || !transform.object) return;
+      a.offset = transform.object.position.toArray().map((v) => Math.max(-100, Math.min(100, v)));
+      transform.object.position.fromArray(a.offset);
+      syncPedFields();
+      syncStudioPlacement();
+      render();
+    });
+    transform.addEventListener('change', render);
+    renderer.domElement.addEventListener('pointerdown', (e) => {
+      if (!moving || busy || e.button !== 0 || transform.axis) return;
+      const rect = renderer.domElement.getBoundingClientRect(),
+        ray = new THREE.Raycaster();
+      ray.setFromCamera(
+        new THREE.Vector2(
+          ((e.clientX - rect.left) / rect.width) * 2 - 1,
+          1 - ((e.clientY - rect.top) / rect.height) * 2,
+        ),
+        camera,
+      );
+      const hit = ray.intersectObject(stage, true).find((hit) => {
+        for (let o = hit.object; o && o !== stage; o = o.parent) if (!o.visible) return false;
+        return hit.object.isMesh;
+      });
+      if (hit)
+        for (const [id, frame] of actorFrames) {
+          for (let o = hit.object; o && o !== stage; o = o.parent)
+            if (o === frame) {
+              selectPed(id);
+              return;
+            }
+        }
+    });
     new ResizeObserver(resize).observe($('pbViewport'));
     renderer.domElement.addEventListener('webglcontextlost', (e) => {
       e.preventDefault();
@@ -308,7 +492,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       h = $('pbViewport').clientHeight;
     if (!w || !h) return;
     const [sw, sh] = $('pbSize').value.split('x').map(Number),
-      ratio = sw / sh;
+      ratio = expanded ? w / h : sw / sh;
     const rw = Math.min(w, h * ratio),
       rh = rw / ratio;
     renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
@@ -318,9 +502,12 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     render();
   }
   function render() {
-    if (!renderer || !active) return;
+    if (!renderer || !camera || !active) return;
     renderer.setClearColor($('pbBackground').value, $('pbTransparent').checked ? 0 : 1);
-    floor.visible = $('pbFloor').checked && !$('pbTransparent').checked;
+    floor.visible =
+      $('pbFloor').checked && !$('pbTransparent').checked && $('pbStudio').value === 'plain';
+    if (studio) studio.visible = !$('pbTransparent').checked;
+    if (gizmo) gizmo.visible = moving && !!transform.object && !capturing;
     key.intensity = 3 * Number($('pbLight').value);
     fill.intensity = 1.5 * Number($('pbLight').value);
     renderer.render(scene, camera);
@@ -328,10 +515,14 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
   function fit(direction) {
     if (!stage?.children.length) return;
     stage.updateMatrixWorld(true);
-    stage.traverse((o) => {
+    const box = new THREE.Box3();
+    stage.traverseVisible((o) => {
+      if (!o.isMesh) return;
       if (o.isSkinnedMesh) o.computeBoundingBox();
+      else if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+      const local = o.isSkinnedMesh ? o.boundingBox : o.geometry.boundingBox;
+      if (local) box.union(local.clone().applyMatrix4(o.matrixWorld));
     });
-    const box = new THREE.Box3().setFromObject(stage);
     if (box.isEmpty()) return;
     const dir = direction || camera.position.clone().sub(controls.target).normalize();
     const corners = [];
@@ -381,6 +572,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     return { holder, bones, skeleton: new THREE.Skeleton(bones) };
   }
   function clearStage() {
+    transform?.detach();
     applyBoothPose(rest, 'rest', 0);
     mixers.forEach((m) => {
       m.stopAllAction();
@@ -559,6 +751,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     animatedMeshes = 0;
     stage.traverse((o) => {
       if (!o.isMesh) return;
+      o.castShadow = o.receiveShadow = true;
       let bound = o.isSkinnedMesh;
       for (let p = o.parent; p && p !== stage; p = p.parent)
         if (p.isBone && boothBoneRole(p.name)) bound = true;
@@ -566,6 +759,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     });
     rest = captureBoothRest(stage);
     const roles = new Set(rest.map((b) => b.role).filter(Boolean));
+    syncStudioPlacement();
     actorPicker();
     updateClips();
     applyPose();
@@ -1271,6 +1465,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     $('pbAssetSearch').value = '';
     updateIssues([]);
     actorPicker();
+    syncStudioPlacement();
     syncPedFields();
     assetList();
     setControls();
@@ -1331,18 +1526,23 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
   $('pbFront').onclick = () => fit(new THREE.Vector3(0, 0, -1));
   $('pbBack').onclick = () => fit(new THREE.Vector3(0, 0, 1));
   for (const id of ['pbBackground', 'pbTransparent', 'pbFloor', 'pbLight']) $(id).oninput = render;
+  $('pbStageCapture').onclick = () => $('pbCapture').click();
   $('pbCapture').onclick = () =>
     guard(async () => {
       for (const a of actors()) a.motion.playing = false;
       playing = false;
       applyPose();
       const [w, h] = $('pbSize').value.split('x').map(Number);
-      const aspect = camera.aspect;
+      const aspect = camera.aspect,
+        oldPosition = camera.position.clone(),
+        oldTarget = controls.target.clone();
+      capturing = true;
       try {
         renderer.setPixelRatio(1);
         renderer.setSize(w, h, false);
         camera.aspect = w / h;
         camera.updateProjectionMatrix();
+        if (expanded) fit();
         render();
         const blob = await new Promise((r) => renderer.domElement.toBlob(r, 'image/png'));
         if (!blob) throw Error('Gagal membuat PNG.');
@@ -1352,6 +1552,10 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
             : 'Simpan dibatalkan.',
         );
       } finally {
+        capturing = false;
+        camera.position.copy(oldPosition);
+        controls.target.copy(oldTarget);
+        controls.update();
         camera.aspect = aspect;
         resize();
       }
@@ -1385,14 +1589,8 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       if (changed) applyPose();
     }
   }
-  $('pbActor').onchange = () => {
-    saveMotion();
-    selectedActor = Number($('pbActor').value);
-    loadMotion();
-    updateClips();
-    applyPose();
-    setControls();
-  };
+  $('pbActor').onchange = () => selectPed(Number($('pbActor').value));
+  $('pbStageActor').onchange = () => selectPed(Number($('pbStageActor').value));
   $('pbSpeed').onchange = () => {
     const speed = Number($('pbSpeed').value);
     if (!Number.isFinite(speed) || speed < 0.1 || speed > 3) {
@@ -1484,6 +1682,14 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         id == null ? null : assets.findIndex((a) => a.id === id),
       ),
       clipFiles,
+      studio: {
+        id: $('pbStudio').value,
+        background: $('pbBackground').value,
+        light: Number($('pbLight').value),
+        transparent: $('pbTransparent').checked,
+        floor: $('pbFloor').checked,
+        size: $('pbSize').value,
+      },
     };
   }
   async function restoreScene(record) {
@@ -1561,8 +1767,19 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       $('pbClipSearch').value = '';
       clipSerial = Math.max(clipSerial, ...clipFiles.map((c) => Number(c.prefix.split(':')[1])));
       selectedActor = actors()[0]?.id;
+      if (record.studio) {
+        $('pbStudio').value = record.studio.id;
+        $('pbBackground').value = record.studio.background;
+        $('pbLight').value = record.studio.light;
+        $('pbTransparent').checked = record.studio.transparent;
+        $('pbFloor').checked = record.studio.floor;
+        $('pbSize').value = record.studio.size;
+        changeStudio();
+      }
       loadMotion();
       rebuild();
+      resize();
+      fit();
       $('pbLibraryName').value = record.name;
       setStatus('Preset dibuka. Pose tiap ped dipertahankan; playback dijeda.');
     } catch (e) {
@@ -1584,10 +1801,13 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       active = value;
       if (value) {
         ensure();
+        attachTransform();
         setControls();
         resize();
         if (!raf) raf = requestAnimationFrame(tick);
       } else {
+        if (expanded) setExpanded(false);
+        transform?.detach();
         for (const a of actors()) a.motion.playing = false;
         playing = false;
         last = 0;

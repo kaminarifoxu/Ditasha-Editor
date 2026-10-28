@@ -1,3 +1,4 @@
+import { BOOTH_STUDIOS } from './booth-studio.js';
 import { MAX_BOOTH_MODELS, OUTFIT_CATEGORIES } from './booth-outfits.js';
 import { validateActorMotion } from './booth-actors.js';
 export function validateBoothScene(record) {
@@ -10,6 +11,21 @@ export function validateBoothScene(record) {
     !Array.isArray(record.clipFiles)
   )
     throw Error('Preset Photo Booth tidak valid.');
+  if (record.studio !== undefined) {
+    const s = record.studio;
+    if (
+      !s ||
+      !BOOTH_STUDIOS.some(([id]) => id === s.id) ||
+      !/^#[0-9a-f]{6}$/i.test(s.background) ||
+      !Number.isFinite(s.light) ||
+      s.light < 0.3 ||
+      s.light > 3 ||
+      typeof s.transparent !== 'boolean' ||
+      typeof s.floor !== 'boolean' ||
+      !['1080x1350', '1920x1080', '2048x2048', '3000x4000'].includes(s.size)
+    )
+      throw Error('Pengaturan studio preset tidak valid.');
+  }
   let bytes = 0;
   const file = (f, max) => {
     if (
