@@ -1,10 +1,11 @@
+import { MAX_BOOTH_MODELS, OUTFIT_CATEGORIES } from './booth-outfits.js';
 import { validateActorMotion } from './booth-actors.js';
 export function validateBoothScene(record) {
   if (
     record?.version !== 1 ||
     !Array.isArray(record.assets) ||
     !record.assets.length ||
-    record.assets.length > 20 ||
+    record.assets.length > MAX_BOOTH_MODELS ||
     !Array.isArray(record.textureFiles) ||
     !Array.isArray(record.clipFiles)
   )
@@ -37,6 +38,12 @@ export function validateBoothScene(record) {
       Math.abs(a.yaw) > 360
     )
       throw Error('Penempatan ped tidak valid.');
+    if (
+      a.category !== undefined &&
+      a.category !== 'ped' &&
+      !OUTFIT_CATEGORIES.some(([id]) => id === a.category)
+    )
+      throw Error('Kategori preset tidak valid.');
     validateActorMotion(a.motion);
     if (
       typeof a.motion.clip !== 'string' ||
@@ -55,7 +62,7 @@ export function validateBoothScene(record) {
     )
       throw Error('Pemilik outfit tidak valid.');
   }
-  if (record.textureFiles.length > 200 || record.clipFiles.length > 100)
+  if (record.textureFiles.length > 1000 || record.clipFiles.length > 100)
     throw Error('Terlalu banyak file dalam preset.');
   if (
     record.textureOwners &&

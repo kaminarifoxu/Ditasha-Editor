@@ -184,6 +184,14 @@ module.exports = async function checkPhotoBooth(fixtures) {
   );
   selectActor(actorIds[1]);
   assert($('pbPose').value === 'dance', 'Outfit reassignment overwrote emote');
+  const category = $('pbAssets').lastElementChild.querySelector('[data-outfit-category]');
+  category.value = 'vest';
+  category.dispatchEvent(new Event('change'));
+  $('pbCategoryFilter').value = 'vest';
+  $('pbCategoryFilter').dispatchEvent(new Event('change'));
+  assert($('pbAssets').children.length === 1, 'Category filter missing outfit');
+  $('pbCategoryFilter').value = 'all';
+  $('pbCategoryFilter').dispatchEvent(new Event('change'));
   $('pbLibraryName').value = 'QA two-ped outfit';
   $('pbLibrarySave').click();
   await wait(
@@ -212,11 +220,71 @@ module.exports = async function checkPhotoBooth(fixtures) {
     $('pbAssets').lastElementChild.querySelector('[data-owner]').value === loadedIds[1],
     'Library lost outfit owner',
   );
+  assert(
+    $('pbAssets').lastElementChild.dataset.category === 'vest',
+    'Library lost outfit category',
+  );
   $('pbFit').click();
   await sleep(150);
   console.log('DITASHA_SNAPSHOT:photo-booth-multiple-peds');
   await sleep(150);
+  assert(
+    document.querySelectorAll('[data-import-outfit]').length >= 16,
+    'Detailed outfit import buttons missing',
+  );
+  $('pbImportCategory').value = 'auto';
+  upload(
+    'pbFolderInput',
+    Array.from({ length: 22 }, (_, i) => [
+      'lowr_' + String(i).padStart(3, '0') + '_r.ydd',
+      fixtures.native,
+    ]),
+  );
+  await wait(
+    () => !$('pbPed').disabled && $('pbAssets').children.length === 25,
+    'Folder import above old 20-model limit',
+  );
+  assert(
+    $('pbAssets').querySelectorAll('[data-category=pants]').length === 22,
+    'GTA folder category detection failed',
+  );
+  $('pbAssetSearch').value = 'lowr_005';
+  $('pbAssetSearch').dispatchEvent(new Event('input'));
+  assert($('pbAssets').children.length === 1, 'Model search failed');
+  $('pbAssetSearch').value = '';
+  $('pbAssetSearch').dispatchEvent(new Event('input'));
+  upload(
+    'pbFolderInput',
+    Array.from({ length: 78 }, (_, i) => ['overflow_' + i + '.ydd', fixtures.native]),
+  );
+  await wait(
+    () => !$('pbPed').disabled && $('pbStatus').textContent.includes('100 model'),
+    '100-model guard',
+  );
+  assert($('pbAssets').children.length === 25, 'Over-limit import changed scene');
+  upload(
+    'pbFolderInput',
+    Array.from({ length: 75 }, (_, i) => [
+      'feet_' + String(i).padStart(3, '0') + '_u.ydd',
+      fixtures.native,
+    ]),
+  );
+  await wait(
+    () => !$('pbPed').disabled && $('pbAssets').children.length === 100,
+    '100 model import',
+  );
+  assert($('pbModelCount').textContent === '100 / 100 model', 'Model counter incorrect');
+  $('pbCategoryFilter').value = 'shoes';
+  $('pbCategoryFilter').dispatchEvent(new Event('change'));
+  assert($('pbAssets').children.length === 75, 'Shoe filter lost imports');
+  await sleep(150);
+  console.log('DITASHA_SNAPSHOT:photo-booth-outfit-categories');
+  await sleep(150);
   return {
+    detailedOutfits: 16,
+    folderImport: true,
+    maxModels: 100,
+    categoryPersistence: true,
     nativeCustomGlbClip: true,
     independentPedEmotes: true,
     independentClocks: true,

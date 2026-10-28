@@ -1,3 +1,12 @@
+import {
+  MAX_BOOTH_MODELS,
+  MAX_BOOTH_VERTICES,
+  MAX_BOOTH_MODEL_BYTES,
+  OUTFIT_CATEGORIES,
+  outfitCategory,
+  outfitLabel,
+  boothVertexCount,
+} from './booth-outfits.js';
 import { MAX_DECODED_TEXTURE_BYTES } from './texture-memory.js';
 import { createBoothLibrary, validateBoothScene } from './booth-library.js';
 import { createActorMotion, actorForAsset, advanceActorMotion } from './booth-actors.js';
@@ -33,7 +42,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
   root.className = 'photo-booth-workspace';
   root.hidden = true;
   root.innerHTML = `<div class="pb-heading"><div><span class="eyebrow">DITASHA / OFFLINE PHOTO BOOTH</span><h1>Photo Booth</h1><p class="muted">Ped, outfit dan aksesori · pose, atur kamera, ambil foto.</p></div><button id="pbCapture" class="primary" disabled>▣ Simpan PNG</button></div>
-  <div class="pb-layout"><aside class="pb-panel pb-assets"><h2>Model & outfit</h2><div class="pb-buttons"><button id="pbPed">+ Ped / tubuh</button><button id="pbClothes">+ Baju</button><button id="pbAccessory">+ Aksesori</button><button id="pbTextures">+ Tekstur</button></div><input id="pbInput" type="file" accept=".ydd,.ydr,.yft,.ytd,.glb" multiple hidden><input id="pbTextureInput" type="file" accept=".ytd,.dds,.png,.jpg,.jpeg,.webp" multiple hidden><p class="muted">Masukkan YDD + YTD. YFT skeleton pendamping dapat ditambahkan. GLB rigged juga didukung.</p><div id="pbAssets"></div><p id="pbEmpty">Belum ada model. Mulai dari ped / tubuh milikmu.</p><button id="pbClear">Kosongkan booth</button><h2 class="pb-library-heading">Library lokal</h2><label>Nama preset<input id="pbLibraryName" maxlength="80" placeholder="Foto grup / outfit favorit"></label><button id="pbLibrarySave">Simpan scene & outfit</button><button id="pbLibraryRefresh">Muat daftar library</button><input id="pbLibrarySearch" placeholder="Cari preset ped / outfit…" aria-label="Cari library"><div id="pbLibraryList"></div></aside>
+  <div class="pb-layout"><aside class="pb-panel pb-assets"><h2>Model & outfit</h2><div class="pb-buttons"><button id="pbPed">+ Ped / tubuh</button><button id="pbClothes">+ Outfit / batch</button><button id="pbAccessory">+ Aksesori</button><button id="pbTextures">+ Tekstur</button></div><input id="pbInput" type="file" accept=".ydd,.ydr,.yft,.ytd,.glb" multiple hidden><input id="pbTextureInput" type="file" accept=".ytd,.dds,.png,.jpg,.jpeg,.webp" multiple hidden><p class="muted">Masukkan YDD + YTD. YFT skeleton pendamping dapat ditambahkan. GLB rigged juga didukung.</p><details class="pb-outfit-import" open><summary>Kategori outfit & impor folder</summary><div id="pbOutfitButtons" class="pb-outfit-grid"></div><label>Kategori folder / drag & drop<select id="pbImportCategory"><option value="auto">Otomatis dari nama GTA</option>${OUTFIT_CATEGORIES.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}</select></label><button id="pbFolder">+ Folder outfit</button><input id="pbFolderInput" type="file" webkitdirectory multiple hidden></details><p id="pbModelCount" class="muted" role="status">0 / ${MAX_BOOTH_MODELS} model</p><p class="muted">100 model · 64 MB per model · 1 GB file model per scene. Batas tekstur decoded 1 GB.</p><label>Filter bagian<select id="pbCategoryFilter"><option value="all">Semua bagian</option><option value="ped">Ped / tubuh</option>${OUTFIT_CATEGORIES.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}</select></label><input id="pbAssetSearch" placeholder="Cari model / outfit…" aria-label="Cari model Photo Booth"><div id="pbAssets"></div><p id="pbEmpty">Belum ada model. Mulai dari ped / tubuh milikmu.</p><button id="pbClear">Kosongkan booth</button><h2 class="pb-library-heading">Library lokal</h2><p class="muted">Preset maksimal 512 MB, termasuk file sumber dan tekstur.</p><label>Nama preset<input id="pbLibraryName" maxlength="80" placeholder="Foto grup / outfit favorit"></label><button id="pbLibrarySave">Simpan scene & outfit</button><button id="pbLibraryRefresh">Muat daftar library</button><input id="pbLibrarySearch" placeholder="Cari preset ped / outfit…" aria-label="Cari library"><div id="pbLibraryList"></div></aside>
   <section class="pb-stage"><div class="pb-stage-toolbar"><button id="pbFit">Fit tubuh</button><button id="pbFront">Depan</button><button id="pbBack">Belakang</button><label class="check"><input id="pbFloor" type="checkbox" checked>Lantai</label><span>Drag: orbit · scroll: zoom</span></div><div id="pbViewport"></div><p id="pbStatus" role="status">Siap untuk sesi foto offline.</p></section>
   <aside class="pb-panel pb-settings"><h2>Pose & emote per ped</h2><label>Ped yang diatur<select id="pbActor"></select></label><p class="muted">Pose, clip dan frame hanya berubah untuk ped yang dipilih. Outfit mengikuti pemiliknya.</p><label>Pose<select id="pbPose">${BOOTH_POSES.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}<option value="clip">Clip GLB</option></select></label><div class="pb-buttons"><button id="pbPlay" disabled>▶ Putar</button><button id="pbResetPose">Reset pose</button><button id="pbPlayAll">Putar semua</button><button id="pbPauseAll">Jeda semua</button></div><label>Kecepatan<input id="pbSpeed" type="number" min="0.1" max="3" step="0.1" value="1"></label><label>Frame / waktu <output id="pbTimeLabel">0.00 s</output><input id="pbTime" type="range" min="0" max="4" step="0.01" value="0"></label><button id="pbImportClip">+ Animasi GLB</button><input id="pbClipInput" type="file" accept=".glb" hidden><label id="pbClipField" hidden>Clip<select id="pbClip"></select></label><p id="pbRigStatus" class="muted" role="status">Pose memerlukan skeleton dan skin weights yang cocok.</p><h2>Studio</h2><label>Background<input id="pbBackground" type="color" value="#242938"></label><label class="check"><input id="pbTransparent" type="checkbox">PNG transparan</label><label>Cahaya<input id="pbLight" type="range" min="0.3" max="3" value="1" step="0.05"></label><label>Resolusi foto<select id="pbSize"><option value="1080x1350">1080 × 1350 · katalog</option><option value="1920x1080">1920 × 1080 · landscape</option><option value="2048x2048">2048 × 2048 · square</option><option value="3000x4000">3000 × 4000 · portrait</option></select></label><p class="muted">Pose/emote bawaan dibuat untuk preview. Animasi GLB memakai nama bone yang cocok; binary YCD belum didukung di booth.</p></aside></div>`;
   nav.after(root);
@@ -50,6 +59,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     playing = false,
     busy = false,
     kind = 'ped',
+    importCategory = 'auto',
     last = 0,
     raf = 0,
     assets = [],
@@ -131,6 +141,8 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       'pbPed',
       'pbClothes',
       'pbAccessory',
+      'pbFolder',
+      'pbImportCategory',
       'pbTextures',
       'pbClear',
       'pbImportClip',
@@ -141,6 +153,9 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       'pbLibraryRefresh',
     ])
       $(id).disabled = busy;
+    $('pbOutfitButtons')
+      .querySelectorAll('button')
+      .forEach((b) => (b.disabled = busy));
     $('pbAssets')
       .querySelectorAll('button,input,select')
       .forEach((e) => (e.disabled = busy));
@@ -546,8 +561,14 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
   function assetList() {
     $('pbAssets').replaceChildren();
     $('pbEmpty').hidden = !!assets.length;
+    $('pbModelCount').textContent = assets.length + ' / ' + MAX_BOOTH_MODELS + ' model';
     for (const a of assets) {
+      const category = a.category || outfitCategory(a.name, 'auto', a.kind);
+      if ($('pbCategoryFilter').value !== 'all' && $('pbCategoryFilter').value !== category)
+        continue;
+      if (!a.name.toLowerCase().includes($('pbAssetSearch').value.trim().toLowerCase())) continue;
       const card = document.createElement('article');
+      card.dataset.category = category;
       card.className = 'pb-asset';
       const name = document.createElement('strong');
       name.textContent = a.name;
@@ -561,8 +582,27 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         a.visible = visible.checked;
         rebuild();
       };
-      label.append(visible, document.createTextNode('Tampilkan · ' + a.kind));
+      label.append(visible, document.createTextNode('Tampilkan · ' + outfitLabel(category)));
       card.append(label);
+      if (a.kind !== 'ped') {
+        const label = document.createElement('label');
+        label.textContent = 'Jenis outfit';
+        const select = document.createElement('select');
+        select.dataset.outfitCategory = a.id;
+        for (const [id, title] of OUTFIT_CATEGORIES) {
+          const o = document.createElement('option');
+          o.value = id;
+          o.textContent = title;
+          select.append(o);
+        }
+        select.value = category;
+        select.onchange = () => {
+          a.category = select.value;
+          assetList();
+        };
+        label.append(select);
+        card.append(label);
+      }
       if (a.drawables?.length > 1) {
         const select = document.createElement('select');
         select.setAttribute('aria-label', 'Drawable ' + a.name);
@@ -751,12 +791,20 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     });
     return new GLTFLoader(manager).parseAsync(buffer, '');
   }
-  async function importFiles(files, assetKind) {
+  async function importFiles(files, assetKind, category = 'auto') {
     if (!files.length) return;
     ensure();
     const models = files.filter((f) => /\.(ydd|ydr|yft|glb)$/i.test(f.name)),
       images = files.filter((f) => /\.(ytd|dds|png|jpg|jpeg|webp)$/i.test(f.name));
-    if (assets.length + models.length > 20) throw Error('Maksimal 20 model per sesi.');
+    if (images.length + textureFiles.length > 1000)
+      throw Error('Maksimal 1.000 file tekstur per scene.');
+    if (assets.length + models.length > MAX_BOOTH_MODELS)
+      throw Error('Maksimal ' + MAX_BOOTH_MODELS + ' model per sesi.');
+    if (
+      assets.reduce((n, a) => n + (a.file?.size || 0), 0) + models.reduce((n, f) => n + f.size, 0) >
+      MAX_BOOTH_MODEL_BYTES
+    )
+      throw Error('Total file model maksimal 1 GB per scene.');
     const pending = [];
     try {
       for (const file of models) {
@@ -766,6 +814,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           id: ++token,
           name: file.name,
           kind: assetKind,
+          category: outfitCategory(file.name, category, assetKind),
           visible: true,
           file,
           offset: [
@@ -803,6 +852,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
             (primaries.length === 1 ? primaries[0] : null);
           if (owner) {
             a.kind = 'accessory';
+            a.category = 'other';
             a.owner = owner.id;
             a.offset = [0, 0, 0];
           }
@@ -814,6 +864,10 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           });
       }
       const all = [...assets, ...pending];
+      if (all.reduce((n, a) => n + boothVertexCount(a), 0) > MAX_BOOTH_VERTICES)
+        throw Error(
+          'Scene melebihi 5 juta vertex. Kurangi model atau gunakan LOD yang lebih ringan.',
+        );
       const refs = modelTextureReferences(all.flatMap((a) => a.drawables || []));
       const warnings = [];
       for (const file of images) {
@@ -844,6 +898,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       }
       saveMotion();
       assets.push(...pending);
+      if (pending.length) root.querySelector('.pb-outfit-import').open = false;
       if (pending.some((a) => a.kind === 'ped'))
         selectedActor = pending.find((a) => a.kind === 'ped').id;
       loadMotion();
@@ -861,12 +916,37 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
   ])
     $(id).onclick = () => {
       kind = value;
+      importCategory = 'auto';
       $('pbInput').click();
     };
+  for (const [id, label, type] of OUTFIT_CATEGORIES) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.dataset.importOutfit = id;
+    button.textContent = '+ ' + label;
+    button.onclick = () => {
+      kind = type;
+      importCategory = id;
+      $('pbInput').click();
+    };
+    $('pbOutfitButtons').append(button);
+  }
+  $('pbCategoryFilter').onchange = assetList;
+  $('pbAssetSearch').oninput = assetList;
+  $('pbFolder').onclick = () => {
+    $('pbFolderInput').click();
+  };
+  $('pbFolderInput').onchange = (e) => {
+    const files = [...e.target.files].filter((f) =>
+      /\.(ydd|ydr|yft|ytd|glb|dds|png|jpg|jpeg|webp)$/i.test(f.name),
+    );
+    e.target.value = '';
+    guard(() => importFiles(files, 'clothing', $('pbImportCategory').value));
+  };
   $('pbInput').onchange = (e) => {
     const files = [...e.target.files];
     e.target.value = '';
-    guard(() => importFiles(files, kind));
+    guard(() => importFiles(files, kind, importCategory));
   };
   $('pbTextures').onclick = () => $('pbTextureInput').click();
   $('pbTextureInput').onchange = (e) => {
@@ -997,7 +1077,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
   root.addEventListener('drop', (e) => {
     e.preventDefault();
     e.stopPropagation();
-    guard(() => importFiles([...e.dataTransfer.files], kind));
+    guard(() => importFiles([...e.dataTransfer.files], kind, $('pbImportCategory').value));
   });
   function tick(now) {
     if (!active) {
@@ -1099,6 +1179,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       assets: assets.map((a) => ({
         file: a.file,
         kind: a.kind,
+        category: a.category,
         oldId: a.id,
         ownerIndex: a.owner == null ? null : assets.findIndex((b) => b.id === a.owner),
         offset: [...a.offset],
@@ -1127,6 +1208,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           ...source,
           id: ++token,
           name: source.file.name,
+          category: source.category || outfitCategory(source.file.name, 'auto', source.kind),
           hiddenSlots: new Set(source.hiddenSlots || []),
           motion: { ...source.motion, playing: false },
         };
@@ -1138,6 +1220,8 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           );
         pending.push(a);
       }
+      if (pending.reduce((n, a) => n + boothVertexCount(a), 0) > MAX_BOOTH_VERTICES)
+        throw Error('Preset melebihi 5 juta vertex.');
       for (const a of pending) {
         a.owner = a.ownerIndex === null ? null : pending[a.ownerIndex].id;
         if (a.motion.clip && !a.motion.clip.startsWith('external:')) {

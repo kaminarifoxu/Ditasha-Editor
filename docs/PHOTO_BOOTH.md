@@ -12,7 +12,7 @@ Native GTA skinning uses bounded Legacy skeleton metadata, local bone transforms
 
 GLB animations embedded in the model are available in **Clip GLB**. **+ Animasi GLB** loads another embedded GLB clip; only tracks with matching node names are used. Compatible GLB bone tracks can also drive native GTA ped/clothing rigs; each drawable skeleton is bound separately within its own actor. This does not retarget arbitrary skeletons or load binary YCD. GLBs must embed all buffers and textures. A model without usable skin weights or rigid bone bindings remains static and shows a status explanation. No base game ped files or animation packs are redistributed.
 
-Limits: 20 models, 64 MB per model/GLB, the existing bounded YTD decoded-memory policy, and PNG resolutions up to 3000×4000. Sessions remain in memory while navigating workspaces. Clearing the booth releases scene resources. Animation stops while away from the booth.
+Limits: 100 models (1 GB of model source files and 5 million vertices across the scene), 64 MB per model/GLB, the existing bounded YTD decoded-memory policy, and PNG resolutions up to 3000×4000. Sessions remain in memory while navigating workspaces. Clearing the booth releases scene resources. Animation stops while away from the booth.
 
 Validation includes native bind/palette parsing, malformed-rig rejection, reversible vertex deformation, UI separation, native/GLB animation rendering, play/pause/scrubbing, outfit/accessory imports and transparent PNG export in the Windows Electron test. Actual GTA/FiveM rendering is not used by the booth.
 
@@ -25,3 +25,9 @@ Import multiple peds, then select **Ped yang diatur** or **Atur emote ped ini** 
 Clothing/accessories belong to the selected ped when imported. Change **Pemilik outfit / aksesori** to move a piece to another character. Rig fallback, bone targets and pose evaluation stay within that actor.
 
 **Library lokal → Simpan scene & outfit** stores source model/texture/GLB animation files, ped transforms, individual emotes and outfit ownership in the application's IndexedDB. **Buka preset** restores the whole scene paused, retaining each ped's frame. Presets are capped at 512 MB and preserve the original files. Library storage is local to this DITASHA profile; it is not cloud sync. Binary YCD is still unsupported in Photo Booth; use compatible GLB clips for now.
+
+## Detailed outfit categories (v1.51)
+
+The outfit panel provides dedicated imports for tops/jackets, undershirts, pants/skirts, shoes, bags, vests/armor, torso/arms, masks, hair, hats/helmets, glasses, earrings, watches/bracelets, jewelry, decals and other items. Each model card has an editable category. Categories persist in local library presets; older presets remain readable.
+
+**Folder outfit** imports supported model/texture files recursively through the folder picker. Choose automatic GTA slot detection or a category override. Random filenames can use the explicit category buttons. Category filtering and model-name search affect the list only; they do not hide meshes in the photo. Up to 100 models and 1,000 texture source files can be imported. Per-model input remains 64 MB; decoded textures remain bounded at 1 GB. Library source bundles remain capped at 512 MB.
