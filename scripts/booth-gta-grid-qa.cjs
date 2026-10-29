@@ -54,7 +54,7 @@ module.exports = async function checkGtaGrid(win, ped, fs, path) {
  await chooseArchive('open-rpf');if([...$('pbStudio').options].filter(o=>o.value.startsWith('custom:')).length!==beforeMaps+1)throw Error('Installed OPEN RPF failed to import: '+$('pbStatus').textContent);
  await chooseArchive('encrypted-rpf');if(!$('pbStatus').textContent.includes('Encrypted RPF')||[...$('pbStudio').options].filter(o=>o.value.startsWith('custom:')).length!==beforeMaps+1)throw Error('Encrypted RPF did not fail safely');
  if(!$('pbViewCulling').checked||!$('pbCullStats').textContent.includes('mesh studio'))throw Error('Viewport culling missing');
- $('pbFullscreen').click();await pause(80);picker.open=true;await pause(40);if(!$('pbEmoteBody').contains(picker))throw Error('Grid did not move into fullscreen player');
+ $('pbFullscreen').click();await pause(80);if($('pbEmoteBody').hidden)$('pbEmoteMinimize').click();picker.open=true;await pause(40);picker.scrollIntoView({block:'center'});await pause(100);if(!$('pbEmoteBody').contains(picker)||$('pbEmoteBody').hidden||grid.getBoundingClientRect().width===0)throw Error('Grid is not visible in expanded fullscreen player');
  return{gtaInstallSettings:true,gtaInstallStudioImport:true,installedOpenRpf:true,encryptedRpfRejected:true,threeColumnEmotePicker:true,independentGridSelection:true,fullscreenEmoteGrid:true,studioFrustumControl:true};
  })()`);
   await fs.writeFile(
