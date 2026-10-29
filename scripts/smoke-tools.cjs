@@ -10,7 +10,7 @@ app.whenReady().then(async () => {
   let win;
   const captures = [];
   try {
-    const { testYdd, testYtd } = await import('../tests/format.test.mjs');
+    const { testYdd, testYtd, testYft } = await import('../tests/format.test.mjs');
     const { createYtd } = await import('../src/asset-tools.js');
     const packYtd = createYtd([
       {
@@ -471,7 +471,8 @@ app.whenReady().then(async () => {
     );
     await win.loadFile(path.resolve('ui/index.html'));
     const { boothPedFixture } = await import('../tests/fixtures/booth-ped.mjs');
-    const { boothGlbFixture } = await import('../tests/fixtures/booth-glb.mjs');
+    const { boothGlbFixture, boothVehicleFixture } =
+      await import('../tests/fixtures/booth-glb.mjs');
     const { boothYcdFixture } = await import('../tests/fixtures/booth-ycd.mjs');
     const photoBoothReport = await win.webContents.executeJavaScript(
       '(' +
@@ -500,6 +501,18 @@ app.whenReady().then(async () => {
     Object.assign(
       photoBoothReport,
       await require('./booth-stage-qa.cjs')(win, await boothGlbFixture(), fs, path),
+    );
+    Object.assign(
+      photoBoothReport,
+      await require('./booth-extras-qa.cjs')(
+        win,
+        {
+          yft: [...new Uint8Array(testYft)],
+          vehicle: [...new Uint8Array(await boothVehicleFixture())],
+        },
+        fs,
+        path,
+      ),
     );
     await win.loadFile(path.resolve('ui/index.html'));
     const fivemToolsReport = await win.webContents.executeJavaScript(

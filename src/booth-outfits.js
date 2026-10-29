@@ -38,7 +38,7 @@ const slots = {
   p_rwrist: 'wrist',
 };
 export function outfitCategory(name, requested = 'auto', kind = 'clothing') {
-  if (kind === 'ped') return 'ped';
+  if (['ped', 'vehicle'].includes(kind)) return kind;
   if (requested !== 'auto') {
     if (!OUTFIT_CATEGORIES.some(([id]) => id === requested))
       throw Error('Kategori outfit tidak valid.');
@@ -50,6 +50,7 @@ export function outfitCategory(name, requested = 'auto', kind = 'clothing') {
   return slots[match?.[1]] || 'other';
 }
 export function outfitLabel(id) {
+  if (id === 'vehicle') return 'Kendaraan';
   return id === 'ped'
     ? 'Ped / tubuh'
     : OUTFIT_CATEGORIES.find(([key]) => key === id)?.[1] || 'Lainnya';

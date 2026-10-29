@@ -165,6 +165,8 @@ module.exports = async function checkPhotoBooth(fixtures) {
   $('pbTransparent').checked = true;
   $('pbTransparent').dispatchEvent(new Event('input'));
   $('pbCapture').click();
+  assert($('pbExportDialog').open, 'PNG orientation dialog missing');
+  $('pbExportConfirm').click();
   await wait(() => saved && !$('pbCapture').disabled, 'PNG export');
   const bytes = new Uint8Array(saved.data);
   assert(
@@ -180,6 +182,21 @@ module.exports = async function checkPhotoBooth(fixtures) {
   ctx.drawImage(bitmap, 0, 0);
   assert(ctx.getImageData(0, 0, 1, 1).data[3] === 0, 'Transparent PNG lost alpha');
   bitmap.close();
+  saved = null;
+  $('pbCapture').click();
+  $('pbExportOrientation').value = 'landscape';
+  $('pbExportOrientation').dispatchEvent(new Event('change'));
+  $('pbExportConfirm').click();
+  await wait(() => saved && !$('pbCapture').disabled, 'Landscape PNG export');
+  const landscape = await createImageBitmap(
+    new Blob([new Uint8Array(saved.data)], { type: 'image/png' }),
+  );
+  assert(landscape.width === 1920 && landscape.height === 1080, 'Landscape PNG dimensions wrong');
+  landscape.close();
+  $('pbCapture').click();
+  $('pbExportCancel').click();
+  assert(!$('pbExportDialog').open, 'PNG cancel did not close dialog');
+
   document.querySelector('[data-page=editor]').click();
   const t = $('pbTime').value;
   await sleep(100);
@@ -550,6 +567,7 @@ module.exports = async function checkPhotoBooth(fixtures) {
   console.log('DITASHA_SNAPSHOT:photo-booth-height-rig-controls');
   await sleep(150);
   return {
+    portraitLandscapeExport: true,
     pedPlacement: true,
     fullscreenAllPeds: true,
     offlineStudios: true,

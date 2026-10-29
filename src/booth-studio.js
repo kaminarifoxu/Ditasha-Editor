@@ -1,13 +1,16 @@
+import { LOCATION_STUDIOS, createBoothLocation } from './booth-locations.js';
 import * as THREE from 'three';
 export const BOOTH_STUDIOS = [
   ['catalogue', 'Studio Katalog · warm'],
   ['loft', 'Editorial Loft · daylight'],
   ['neon', 'Neon Gallery · midnight'],
+  ...LOCATION_STUDIOS,
   ['plain', 'Polos / grid'],
 ];
 // Original offline geometry, no game assets or remote studio downloads.
 export function createBoothStudio(id) {
   if (!BOOTH_STUDIOS.some(([key]) => key === id)) throw Error('Studio tidak dikenal.');
+  if (LOCATION_STUDIOS.some(([key]) => key === id)) return createBoothLocation(id);
   const root = new THREE.Group();
   root.name = 'DITASHA studio ' + id;
   if (id === 'plain') return root;
@@ -146,6 +149,9 @@ export function disposeBoothStudio(root) {
     }
   });
   geometries.forEach((g) => g.dispose());
-  materials.forEach((m) => m.dispose());
+  materials.forEach((m) => {
+    m.map?.dispose();
+    m.dispose();
+  });
   root?.removeFromParent();
 }

@@ -91,3 +91,29 @@ export async function boothGlbFixture() {
   mesh.skeleton.dispose();
   return result;
 }
+export async function boothVehicleFixture() {
+  const root = new THREE.Group();
+  root.name = 'Synthetic studio vehicle';
+  const paint = new THREE.MeshStandardMaterial({
+      color: 0x356d96,
+      metalness: 0.45,
+      roughness: 0.3,
+    }),
+    tyre = new THREE.MeshStandardMaterial({ color: 0x202329, roughness: 1 }),
+    glass = new THREE.MeshStandardMaterial({ color: 0x293b4b, roughness: 0.15 });
+  const add = (g, m, x, y, z) => {
+    const o = new THREE.Mesh(g, m);
+    o.position.set(x, y, z);
+    root.add(o);
+    return o;
+  };
+  add(new THREE.BoxGeometry(1.8, 0.65, 3.8), paint, 0, 0.7, 0);
+  add(new THREE.BoxGeometry(1.55, 0.7, 1.8), glass, 0, 1.3, 0.2);
+  add(new THREE.BoxGeometry(1.65, 0.1, 1.9), paint, 0, 1.7, 0.2);
+  for (const x of [-0.93, 0.93])
+    for (const z of [-1.2, 1.2]) {
+      const o = add(new THREE.CylinderGeometry(0.4, 0.4, 0.23, 24), tyre, x, 0.4, z);
+      o.rotation.z = Math.PI / 2;
+    }
+  return new GLTFExporter().parseAsync(root, { binary: true });
+}

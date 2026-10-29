@@ -67,3 +67,32 @@ test('Scene presets retain studio selection, photo settings and independent ped 
   s.assets[0].offset[0] = 101;
   assert.throws(() => validateBoothScene(s), /Penempatan/);
 });
+test('Vehicle, matte and shadow options round-trip in validated photo presets', () => {
+  const s = scene();
+  s.assets[0].matte = true;
+  s.assets.push({
+    ...s.assets[0],
+    kind: 'vehicle',
+    category: 'vehicle',
+    oldId: 2,
+    ownerIndex: null,
+    yaw: 90,
+  });
+  s.studio = {
+    id: 'police',
+    background: '#242938',
+    light: 1,
+    transparent: false,
+    floor: true,
+    size: '4000x3000',
+    shadows: false,
+    shadowStrength: 0.4,
+    shadowAngle: 180,
+  };
+  assert.equal(validateBoothScene(s), s);
+  s.studio.shadowStrength = 2;
+  assert.throws(() => validateBoothScene(s), /studio/);
+  s.studio.shadowStrength = 0.4;
+  s.assets[0].matte = 'yes';
+  assert.throws(() => validateBoothScene(s), /Matte/);
+});

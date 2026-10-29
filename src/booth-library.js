@@ -22,7 +22,14 @@ export function validateBoothScene(record) {
       s.light > 3 ||
       typeof s.transparent !== 'boolean' ||
       typeof s.floor !== 'boolean' ||
-      !['1080x1350', '1920x1080', '2048x2048', '3000x4000'].includes(s.size)
+      !['1080x1350', '1920x1080', '2048x2048', '3000x4000', '4000x3000', '3000x3000'].includes(
+        s.size,
+      ) ||
+      (s.shadows !== undefined && typeof s.shadows !== 'boolean') ||
+      (s.shadowStrength !== undefined &&
+        (!Number.isFinite(s.shadowStrength) || s.shadowStrength < 0 || s.shadowStrength > 1)) ||
+      (s.shadowAngle !== undefined &&
+        (!Number.isFinite(s.shadowAngle) || s.shadowAngle < 0 || s.shadowAngle > 360))
     )
       throw Error('Pengaturan studio preset tidak valid.');
   }
@@ -43,7 +50,7 @@ export function validateBoothScene(record) {
     file(a.file, 64 * 1024 ** 2);
     if (
       !/\.(glb|ydd|ydr|yft)$/i.test(a.file.name) ||
-      !['ped', 'clothing', 'accessory'].includes(a.kind) ||
+      !['ped', 'vehicle', 'clothing', 'accessory'].includes(a.kind) ||
       !Array.isArray(a.offset) ||
       a.offset.length !== 3 ||
       !a.offset.every((n) => Number.isFinite(n) && Math.abs(n) <= 100) ||
@@ -57,6 +64,7 @@ export function validateBoothScene(record) {
     if (
       a.category !== undefined &&
       a.category !== 'ped' &&
+      a.category !== 'vehicle' &&
       !OUTFIT_CATEGORIES.some(([id]) => id === a.category)
     )
       throw Error('Kategori preset tidak valid.');
@@ -77,6 +85,8 @@ export function validateBoothScene(record) {
       (typeof a.textureOverride !== 'string' || a.textureOverride.length > 2048)
     )
       throw Error('Penggantian tekstur tidak valid.');
+    if (a.matte !== undefined && typeof a.matte !== 'boolean')
+      throw Error('Matte preset tidak valid.');
     validateActorMotion(a.motion);
     if (
       typeof a.motion.clip !== 'string' ||
