@@ -36,7 +36,7 @@ module.exports = async function checkEmoteReports(win, ped, fs, path) {
     if(text.length>180||!text.includes('221 peringatan')||$('pbStatus').getBoundingClientRect().height>75)throw Error('Emote warnings still flood viewport');
     if($('pbIssueList').children.length!==201||!$('pbIssueList').textContent.includes('peringatan lain'))throw Error('Emote details not bounded');
     if(![...$('pbClip').options].some(o=>o.textContent.includes('single-list.ycd')))throw Error('Single-source list missing');
-    $('pbMatte').checked=true;$('pbMatte').dispatchEvent(new Event('change'));
+    $('pbRigSource').value='auto';$('pbRigSource').dispatchEvent(new Event('change'));
     if($('pbIssues').hidden||$('pbIssueList').children.length<201)throw Error('Rebuild lost emote details');
     $('pbShowIssues').click();await pause(80);
     return{compactEmoteReport:true,boundedEmoteDetails:true,mixedImportKeepsValidClips:true,singleSourceListImport:true,emoteIssuesSurviveRebuild:true};
