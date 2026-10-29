@@ -64,7 +64,12 @@ module.exports = async function checkPhotoBooth(fixtures) {
     () => !$('pbImportClip').disabled && $('pbClip').options.length === 3,
     'YCD batch import',
   );
-  assert($('pbStatus').textContent.includes('broken.ycd'), 'Invalid YCD not diagnosed');
+  assert(
+    $('pbIssueList').textContent.includes('broken.ycd') &&
+      !$('pbShowIssues').hidden &&
+      $('pbStatus').textContent.includes('peringatan'),
+    'Invalid YCD not diagnosed in the compact report',
+  );
   const ycdStart = canvas().toDataURL();
   $('pbTime').value = '.75';
   $('pbTime').dispatchEvent(new Event('input'));
