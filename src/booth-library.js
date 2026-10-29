@@ -91,6 +91,10 @@ export function validateBoothScene(record) {
       throw Error('Nama grup tidak valid.');
     if (a.groupCollapsed !== undefined && typeof a.groupCollapsed !== 'boolean')
       throw Error('Status grup tidak valid.');
+    if (a.grip !== undefined && typeof a.grip !== 'boolean') throw Error('Grip prop tidak valid.');
+    for (const key of ['pitch', 'roll'])
+      if (a[key] !== undefined && (!Number.isFinite(a[key]) || Math.abs(a[key]) > 360))
+        throw Error('Rotasi prop tidak valid.');
     validateActorMotion(a.motion);
     if (
       typeof a.motion.clip !== 'string' ||
@@ -109,7 +113,7 @@ export function validateBoothScene(record) {
     )
       throw Error('Pemilik outfit tidak valid.');
   }
-  if (record.textureFiles.length > 1000 || record.clipFiles.length > 100)
+  if (record.textureFiles.length > 1000 || record.clipFiles.length > 2000)
     throw Error('Terlalu banyak file dalam preset.');
   if (
     record.textureOwners &&

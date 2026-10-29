@@ -107,3 +107,28 @@ test('Ped group labels and collapse states remain optional and validated', () =>
   s.assets[0].groupCollapsed = 'yes';
   assert.throws(() => validateBoothScene(s), /Status grup/);
 });
+
+test('Scene preserves prop grip and XYZ rotations and accepts more than 100 emote files', () => {
+  const s = scene();
+  s.assets.push({
+    ...s.assets[0],
+    oldId: 2,
+    kind: 'accessory',
+    category: 'prop',
+    ownerIndex: 0,
+    grip: true,
+    attach: 'SKEL_R_Hand',
+    pitch: 45,
+    roll: -90,
+  });
+  s.clipFiles = Array.from({ length: 101 }, (_, i) => ({
+    file: Object.assign(new Blob(['ycd']), { name: 'pose' + i + '.ycd' }),
+    prefix: 'external:' + i,
+  }));
+  assert.equal(validateBoothScene(s), s);
+  s.assets[1].pitch = Infinity;
+  assert.throws(() => validateBoothScene(s), /Rotasi/);
+  s.assets[1].pitch = 0;
+  s.clipFiles = Array.from({ length: 2001 }, () => s.clipFiles[0]);
+  assert.throws(() => validateBoothScene(s), /Terlalu banyak/);
+});

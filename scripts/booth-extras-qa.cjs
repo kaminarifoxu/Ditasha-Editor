@@ -22,7 +22,14 @@ module.exports = async function checkBoothExtras(win, fixtures, fs, path) {
     $('pbClear').click();document.querySelector('[data-library-load="'+preset+'"]').click();await ready(4);
     if($('pbStudio').value!=='living'||Number($('pbShadowStrength').value)!==.4||Number($('pbShadowAngle').value)!==120)throw Error('Shadow/studio preset lost');
     $('pbActor').value=$('pbActor').options[0].value;$('pbActor').dispatchEvent(new Event('change'));if(!$('pbMatte').checked||Number($('pbYaw').value)!==45)throw Error('Ped matte/yaw preset lost');
-    $('pbFullscreen').click();await pause(150);return {pedRotation:true,nativeVehicleImport:true,glbVehicleImport:true,matteControl:true,shadowControls:true,extraPresetPersistence:true};
+    $('pbProp').click();upload(${JSON.stringify(fixtures.yft)},'qa-hand-prop.yft');
+    await ready(4);
+    const card=[...$('pbAssets').querySelectorAll('[data-asset-card]')].find(c=>c.textContent.includes('qa-hand-prop.yft'));
+    if(!card)throw Error('Prop not imported');
+    card.querySelector('[data-grip=R]').click();
+    const prop=[...$('pbAssets').querySelectorAll('[data-asset-card]')].find(c=>c.textContent.includes('qa-hand-prop.yft'));
+    if(prop.querySelector('[data-bone]').value!=='SKEL_R_Hand')throw Error('Prop hand grip failed '+$('pbStatus').textContent);
+    $('pbFullscreen').click();await pause(150);return {handPropGrip:true,pedRotation:true,nativeVehicleImport:true,glbVehicleImport:true,matteControl:true,shadowControls:true,extraPresetPersistence:true};
   })()`);
   for (const id of ['hood', 'living', 'office', 'police', 'beach', 'bedroom', 'bathroom']) {
     await win.webContents.executeJavaScript(

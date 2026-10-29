@@ -31,6 +31,8 @@ module.exports = async function checkPhotoBooth(fixtures) {
   };
   document.querySelector('[data-page=photobooth]').click();
   await sleep(100);
+  assert($('pbSize').value === '1920x1080', 'Booth must default to landscape');
+  assert($('pbPropCatalog').options.length >= 10, 'Prop reference catalog missing');
   assert($('pbCapture').disabled, 'Empty booth allows capture');
   upload('pbInput', [['native-ped.ydd', fixtures.native]]);
   await wait(() => !$('pbPed').disabled && assetCards().length === 1, 'Native rig import');
@@ -106,6 +108,14 @@ module.exports = async function checkPhotoBooth(fixtures) {
     () => !$('pbLibraryList').querySelector(`[data-library-load="${ycdLibraryId}"]`),
     'YCD preset cleanup',
   );
+  upload(
+    'pbClipInput',
+    Array.from({ length: 101 }, (_, i) => ['bulk-' + i + '.ycd', fixtures.ycd]),
+  );
+  await wait(
+    () => !$('pbImportClip').disabled && $('pbStatus').textContent.includes('104 file emote'),
+    'More than 100 YCD files',
+  );
   console.log('DITASHA_SNAPSHOT:photo-booth-ycd-emote');
   await sleep(150);
   $('pbPose').value = 'rest';
@@ -159,8 +169,16 @@ module.exports = async function checkPhotoBooth(fixtures) {
   await sleep(200);
   $('pbTransparent').checked = true;
   $('pbTransparent').dispatchEvent(new Event('input'));
+  $('pbFullscreen').click();
+  await sleep(100);
+  canvas().dispatchEvent(
+    new WheelEvent('wheel', { deltaY: -120, bubbles: true, cancelable: true }),
+  );
   $('pbCapture').click();
   assert($('pbExportDialog').open, 'PNG orientation dialog missing');
+  $('pbExportOrientation').value = 'portrait';
+  $('pbExportOrientation').dispatchEvent(new Event('change'));
+  const previewBeforeExport = await createImageBitmap(canvas());
   $('pbExportConfirm').click();
   await wait(() => saved && !$('pbCapture').disabled, 'PNG export');
   const bytes = new Uint8Array(saved.data);
@@ -176,7 +194,35 @@ module.exports = async function checkPhotoBooth(fixtures) {
   const ctx = c.getContext('2d');
   ctx.drawImage(bitmap, 0, 0);
   assert(ctx.getImageData(0, 0, 1, 1).data[3] === 0, 'Transparent PNG lost alpha');
+  function alphaBounds(image) {
+    const c = document.createElement('canvas');
+    c.width = c.height = 128;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(image, 0, 0, 128, 128);
+    const data = ctx.getImageData(0, 0, 128, 128).data;
+    let minX = 128,
+      minY = 128,
+      maxX = -1,
+      maxY = -1;
+    for (let y = 0; y < 128; y++)
+      for (let x = 0; x < 128; x++)
+        if (data[(y * 128 + x) * 4 + 3] > 100) {
+          minX = Math.min(minX, x);
+          minY = Math.min(minY, y);
+          maxX = Math.max(maxX, x);
+          maxY = Math.max(maxY, y);
+        }
+    return [minX, minY, maxX, maxY];
+  }
+  const beforeBounds = alphaBounds(previewBeforeExport),
+    afterBounds = alphaBounds(bitmap);
+  assert(
+    beforeBounds.every((v, i) => Math.abs(v - afterBounds[i]) <= 2),
+    'PNG reframed the chosen preview camera',
+  );
+  previewBeforeExport.close();
   bitmap.close();
+  $('pbFullscreen').click();
   saved = null;
   $('pbCapture').click();
   $('pbExportOrientation').value = 'landscape';
@@ -624,6 +670,9 @@ module.exports = async function checkPhotoBooth(fixtures) {
     glbAnimation: true,
     externalClip: true,
     png: [1080, 1350],
+    captureKeepsPreviewFraming: true,
+    bulkYcdOver100: true,
+    landscapeDefault: true,
     pngAlpha: true,
     navigationRetainsSession: true,
   };

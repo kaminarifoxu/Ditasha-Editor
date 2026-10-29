@@ -109,3 +109,11 @@ Click a group heading to collapse/expand its file list. **Ciutkan semua / Buka s
 Selecting an actor opens and highlights its group; manually collapsed groups retain their state through other edits/rebuilds. Search/category changes reveal matching groups, preserving owner context. Group names are reflected in the actor picker, and group names/collapse states persist in saved scene presets. Per-file expansion is retained for the current session. Older presets without group metadata remain valid.
 
 Windows UI tests verify grouped outfit reassignment, group labels, collapse-all without canvas changes, collapsed state across edits, group selection, retained part controls and label/collapse restoration from presets. Previous asset-list regressions now query actual file cards rather than assuming a flat DOM list.
+
+## v1.59 — props and consistent landscape captures
+
+- Booth preview defaults to 1920 × 1080 landscape. Full-window mode keeps the selected photo aspect, so preview and PNG share the same composition.
+- Capture never auto-fits or moves the camera. Changing output orientation/resolution previews the new aspect before saving. Emotes pause when opening the export dialog. Use **Lihat semua ped** only when you want to refit explicitly.
+- **+ Prop tangan** imports your own YDR/YDD/YFT/GLB as an owned accessory. Open its card and choose **Pegang · kanan/kiri**. A matching hand bone is required; props snap to the hand origin and follow animation. Adjust local XYZ offsets, XYZ rotation and scale to fit the grip. Presets preserve these values. This is rigid attachment, not finger IK or automatic two-handed grip.
+- Searchable offline reference includes 12 GTA model identifiers with a link to the larger community list. Geometry and textures are not bundled or downloaded; export the desired YDR and companion YTD from your own game, then import them.
+- Emote source-file limit increases from 100 to **2000**, in both live import and saved presets. Existing budgets remain: 64 MB/file, 512 MB total source, 2048 decoded clips, 16 million animation values; these may be reached before the file count.

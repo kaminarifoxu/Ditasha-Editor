@@ -2,6 +2,7 @@ export const MAX_BOOTH_MODELS = 100;
 export const MAX_BOOTH_VERTICES = 5000000;
 export const MAX_BOOTH_MODEL_BYTES = 1024 * 1024 ** 2;
 export const OUTFIT_CATEGORIES = [
+  ['prop', 'Prop tangan', 'accessory'],
   ['tops', 'Baju / jaket', 'clothing'],
   ['undershirt', 'Kaos dalam', 'clothing'],
   ['pants', 'Celana / rok', 'clothing'],

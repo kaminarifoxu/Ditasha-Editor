@@ -36,8 +36,16 @@ export async function boothGlbFixture() {
   rightLeg.name = 'SKEL_R_Thigh';
   rightLeg.position.set(-0.12, 0.9, 0);
   root.add(rightLeg);
+  const leftHand = new THREE.Bone(),
+    rightHand = new THREE.Bone();
+  leftHand.name = 'SKEL_L_Hand';
+  rightHand.name = 'SKEL_R_Hand';
+  leftHand.position.x = 0.45;
+  rightHand.position.x = -0.45;
+  left.add(leftHand);
+  right.add(rightHand);
   scene.updateMatrixWorld(true);
-  const bones = [root, chest, head, left, right, leftLeg, rightLeg],
+  const bones = [root, chest, head, left, right, leftLeg, rightLeg, leftHand, rightHand],
     positions = [],
     normals = [],
     colors = [],
