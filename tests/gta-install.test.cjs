@@ -26,7 +26,7 @@ test('GTA installation validates, persists, scans lazily and refuses changed/uns
   assert.equal((await manager.state()).root, null);
   assert.equal((await manager.choose()).edition, 'Legacy');
   const restarted = createGtaInstall(deps);
-  assert.equal((await restarted.state()).root, game);
+  assert.equal((await restarted.state()).root, await fs.realpath(game));
   const catalog = await restarted.scan();
   assert.equal(catalog.maps, 1);
   assert.equal(catalog.archives, 1);
@@ -39,7 +39,7 @@ test('GTA installation validates, persists, scans lazily and refuses changed/uns
   await assert.rejects(restarted.read(entry.id, 0, 3), /berubah/);
   choice = base;
   await assert.rejects(restarted.choose(), /folder utama/);
-  assert.equal((await restarted.state()).root, game);
+  assert.equal((await restarted.state()).root, await fs.realpath(game));
   assert.equal(await fs.readFile(path.join(game, 'GTA5.exe'), 'utf8'), 'fake-not-run');
 });
 test('GTA installation read rejects symlinks and every IPC checks renderer trust', async (t) => {
