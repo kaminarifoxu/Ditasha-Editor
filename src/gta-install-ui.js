@@ -5,7 +5,8 @@ export function mountGtaSettings(dialog) {
   section.className = 'settings-section';
   section.innerHTML =
     '<h3>Instalasi GTA V</h3><p class="muted">Hubungkan folder game lokal sebagai sumber aset baca saja.</p><input id="gtaInstallPath" readonly aria-label="Folder instalasi GTA V" placeholder="Belum dipilih"><div class="settings-actions"><button id="gtaInstallChoose">Pilih folder</button><button id="gtaInstallReveal">Buka folder</button><button id="gtaInstallScan">Pindai aset</button></div><p id="gtaInstallStatus" role="status"></p><p class="muted">Photo Booth dapat menambahkan resource lepas atau RPF terbuka dari folder ini. RPF terenkripsi dan full-world streaming belum didukung. File game tidak diubah.</p>';
-  dialog.querySelector('.settings-layout').append(section);
+  const layout = dialog.querySelector('.settings-layout');
+  layout.insertBefore(section, layout.children[1] || null);
   const $ = (id) => section.querySelector('#' + id);
   async function act(method) {
     const api = window.ditashaGtaInstall;

@@ -20,7 +20,8 @@ export function mountEmotePicker(select) {
       ...options.slice(page * 90, page * 90 + 90).map((o) => {
         const b = document.createElement('button');
         b.type = 'button';
-        b.textContent = o.textContent;
+        b.textContent = o.textContent.split(' / ').at(-1);
+        b.setAttribute('aria-label', o.textContent);
         b.title = o.textContent;
         b.dataset.clip = o.value;
         b.setAttribute('role', 'radio');
