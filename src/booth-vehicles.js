@@ -115,7 +115,9 @@ export function groupBoothVehicles(pending, existing, manifest) {
   pending
     .filter((a) => a.kind === 'vehicle')
     .forEach(
-      (a, i) => (a.offset[0] = (existing.filter((b) => b.kind === 'vehicle').length + i) * 1.5),
+      (a, i) =>
+        (a.offset[0] =
+          (existing.filter((b) => ['ped', 'vehicle'].includes(b.kind)).length + i) * 1.5),
     );
   return pending;
 }

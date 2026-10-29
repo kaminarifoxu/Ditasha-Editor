@@ -74,3 +74,15 @@ test('Vehicle part ownership and source metadata survive preset validation', () 
   s.assets[1].ownerIndex = 0;
   assert.throws(() => validateBoothScene(s), /Pemilik/);
 });
+
+test('Vehicle resource placement leaves room for existing peds rather than overlapping them', () => {
+  const a = sources();
+  groupBoothVehicles(
+    a,
+    [{ id: 99, name: 'ped.glb', kind: 'ped' }],
+    vehicleModManifest([cols, vars]),
+  );
+  assert.equal(a[2].offset[0], 1.5);
+  assert.equal(a[3].offset[0], 3);
+  assert.deepEqual(a[1].offset, [0, 0, 0]);
+});
