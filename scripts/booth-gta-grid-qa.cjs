@@ -15,7 +15,18 @@ module.exports = async function checkGtaGrid(win, ped, fs, path) {
     bytes: [...new Uint8Array(b)],
   }));
   const { writeRpf } = await import('../src/archives.js');
-  const rpf = writeRpf(files.map((e) => ({ name: e.path, data: new Uint8Array(e.bytes) })));
+  // Synthetic standalone fixtures use placeholder page-version nibbles.
+  // RPF reconstructs the resource version from those nibbles, not header byte 4.
+  const rpf = writeRpf(
+    files.map((e) => {
+      const data = new Uint8Array(e.bytes),
+        view = new DataView(data.buffer);
+      const version = view.getUint32(4, true);
+      view.setUint32(8, (view.getUint32(8, true) & 0x0fffffff) | ((version >>> 4) << 28), true);
+      view.setUint32(12, (view.getUint32(12, true) & 0x0fffffff) | ((version & 15) << 28), true);
+      return { name: e.path, data };
+    }),
+  );
   const encrypted = rpf.slice();
   new DataView(encrypted.buffer).setUint32(12, 0x12345678, true);
   for (const [id, bytes] of [
@@ -40,7 +51,7 @@ module.exports = async function checkGtaGrid(win, ped, fs, path) {
  $('pbGtaStudio').click();await wait(()=>[...document.querySelectorAll('dialog[open]')].some(d=>d.querySelector('[data-open]')),'GTA studio dialog');const dialog=[...document.querySelectorAll('dialog[open]')].find(d=>d.querySelector('[data-open]'));dialog.querySelector('select').value='gta-qa-0';dialog.querySelector('[data-open]').click();await wait(()=>!$('pbPed').disabled&&$('pbStudio').selectedOptions[0].textContent.includes('room'),'Installed studio import');
  const beforeMaps=[...$('pbStudio').options].filter(o=>o.value.startsWith('custom:')).length;
  async function chooseArchive(id){$('pbGtaStudio').click();await wait(()=>[...document.querySelectorAll('dialog[open]')].some(d=>d.querySelector('[data-open]')),'GTA archive chooser');const d=[...document.querySelectorAll('dialog[open]')].find(d=>d.querySelector('[data-open]'));d.querySelector('select').value=id;d.querySelector('[data-open]').click();await wait(()=>!$('pbPed').disabled,'GTA archive read');}
- await chooseArchive('open-rpf');if([...$('pbStudio').options].filter(o=>o.value.startsWith('custom:')).length!==beforeMaps+1)throw Error('Installed OPEN RPF failed to import');
+ await chooseArchive('open-rpf');if([...$('pbStudio').options].filter(o=>o.value.startsWith('custom:')).length!==beforeMaps+1)throw Error('Installed OPEN RPF failed to import: '+$('pbStatus').textContent);
  await chooseArchive('encrypted-rpf');if(!$('pbStatus').textContent.includes('Encrypted RPF')||[...$('pbStudio').options].filter(o=>o.value.startsWith('custom:')).length!==beforeMaps+1)throw Error('Encrypted RPF did not fail safely');
  if(!$('pbViewCulling').checked||!$('pbCullStats').textContent.includes('mesh studio'))throw Error('Viewport culling missing');
  $('pbFullscreen').click();await pause(80);picker.open=true;await pause(40);if(!$('pbEmoteBody').contains(picker))throw Error('Grid did not move into fullscreen player');
