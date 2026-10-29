@@ -185,17 +185,51 @@ export function validateBoothScene(record) {
   if (bytes > 512 * 1024 ** 2) throw Error('Preset library maksimal 512 MB.');
   return record;
 }
+// Store typed binary chunks instead of Chromium disk-backed Blob references.
+const CHUNK_BYTES = 1024 * 1024;
+function mapSourceFiles(record, fn) {
+  return {
+    ...record,
+    assets: record.assets.map((a) => ({ ...a, file: fn(a.file) })),
+    textureFiles: record.textureFiles.map(fn),
+    clipFiles: record.clipFiles.map((c) => ({ ...c, file: fn(c.file) })),
+    ...(record.studio
+      ? {
+          studio: {
+            ...record.studio,
+            ...(record.studio.packs
+              ? { packs: record.studio.packs.map((p) => ({ ...p, files: p.files.map(fn) })) }
+              : {}),
+          },
+        }
+      : {}),
+  };
+}
 export function createBoothLibrary(provider = globalThis.indexedDB) {
   let dbPromise;
   async function db() {
     if (!provider) throw Error('Penyimpanan library tidak tersedia.');
     return (dbPromise ||= new Promise((resolve, reject) => {
-      const req = provider.open('ditasha-photo-booth-library', 1);
-      req.onupgradeneeded = () => req.result.createObjectStore('scenes', { keyPath: 'id' });
-      req.onsuccess = () => resolve(req.result);
+      const req = provider.open('ditasha-photo-booth-library', 2);
+      req.onupgradeneeded = () => {
+        const database = req.result;
+        if (!database.objectStoreNames.contains('scenes'))
+          database.createObjectStore('scenes', { keyPath: 'id' });
+        if (!database.objectStoreNames.contains('sourceChunks'))
+          database
+            .createObjectStore('sourceChunks', { keyPath: ['bundle', 'file', 'part'] })
+            .createIndex('bundle', 'bundle');
+      };
+      req.onsuccess = () => {
+        req.result.onversionchange = () => {
+          req.result.close();
+          dbPromise = null;
+        };
+        resolve(req.result);
+      };
       req.onerror = () => {
         dbPromise = null;
-        reject(Error(req.error?.message || 'Library tidak dapat dibuka.'));
+        reject(req.error || Error('Library tidak dapat dibuka.'));
       };
       req.onblocked = () => {
         dbPromise = null;
@@ -203,50 +237,171 @@ export function createBoothLibrary(provider = globalThis.indexedDB) {
       };
     }));
   }
-  async function transaction(mode, fn) {
+  async function transaction(store, mode, fn) {
     const database = await db();
     return new Promise((resolve, reject) => {
-      const tx = database.transaction('scenes', mode);
-      let req;
-      try {
-        req = fn(tx.objectStore('scenes'));
-      } catch (e) {
-        reject(e);
-        return;
-      }
-      tx.oncomplete = () => resolve(req.result);
+      const tx = database.transaction(store, mode);
+      let req, failure;
+      tx.oncomplete = () => resolve(req?.result);
       tx.onabort = tx.onerror = () =>
-        reject(
-          Error(tx.error?.message || 'Penyimpanan library gagal. Ruang penyimpanan mungkin penuh.'),
-        );
+        reject(failure || tx.error || req?.error || Error('Penyimpanan library gagal.'));
+      try {
+        req = fn(tx.objectStore(store));
+      } catch (e) {
+        failure = e;
+        try {
+          tx.abort();
+        } catch {
+          reject(e);
+        }
+      }
     });
+  }
+  async function discard(bundle) {
+    if (!bundle) return;
+    await transaction('sourceChunks', 'readwrite', (s) => {
+      const req = s.index('bundle').openCursor(bundle);
+      req.onsuccess = () => {
+        const cursor = req.result;
+        if (cursor) {
+          cursor.delete();
+          cursor.continue();
+        }
+      };
+      return req;
+    });
+  }
+  async function hydrate(record) {
+    if (!record?._binary) return validateBoothScene(record); // Existing v1 Blob presets.
+    const { version, bundle, files } = record._binary;
+    if (version !== 1 || typeof bundle !== 'string' || !Array.isArray(files) || files.length > 5100)
+      throw Error('Data sumber preset tidak valid.');
+    let total = 0;
+    for (const f of files) {
+      if (
+        !f ||
+        typeof f.name !== 'string' ||
+        typeof f.type !== 'string' ||
+        !Number.isSafeInteger(f.size) ||
+        f.size < 0 ||
+        f.size > 256 * 1024 ** 2 ||
+        f.parts !== Math.ceil(f.size / CHUNK_BYTES) ||
+        (total += f.size) > 512 * 1024 ** 2
+      )
+        throw Error('Data sumber preset tidak valid.');
+    }
+    const restored = [];
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i],
+        parts = [];
+      for (let part = 0; part < f.parts; part++) {
+        const chunk = await transaction('sourceChunks', 'readonly', (s) =>
+          s.get([bundle, i, part]),
+        );
+        if (
+          !(chunk?.bytes instanceof ArrayBuffer) ||
+          chunk.bytes.byteLength !== Math.min(CHUNK_BYTES, f.size - part * CHUNK_BYTES)
+        )
+          throw Error(f.name + ': data preset tidak lengkap. Preset tidak dihapus.');
+        parts.push(chunk.bytes);
+      }
+      restored.push(new File(parts, f.name, { type: f.type, lastModified: f.lastModified }));
+    }
+    const decoded = mapSourceFiles(record, (ref) => {
+      if (!Number.isInteger(ref?.$boothFile) || !restored[ref.$boothFile])
+        throw Error('Referensi sumber preset tidak valid.');
+      return restored[ref.$boothFile];
+    });
+    delete decoded._binary;
+    return validateBoothScene(decoded);
   }
   return {
     async list() {
-      const rows = await transaction('readonly', (s) => s.getAll());
+      const rows = await transaction('scenes', 'readonly', (s) => s.getAll());
       return rows
         .map(({ id, name, updated, thumbnail }) => ({ id, name, updated, thumbnail }))
         .sort((a, b) => b.updated - a.updated);
     },
-    async save(record) {
+    async save(record, onProgress = () => {}) {
       validateBoothScene(record);
-      const saved = {
-        ...record,
-        id: record.id || crypto.randomUUID(),
-        name: String(record.name || 'Sesi Photo Booth')
-          .trim()
-          .slice(0, 80),
-        updated: Date.now(),
-      };
-      await transaction('readwrite', (s) => s.put(saved));
-      return saved.id;
+      const bundle = crypto.randomUUID(),
+        sources = [],
+        indices = new Map();
+      const saved = mapSourceFiles(
+        {
+          ...record,
+          id: record.id || crypto.randomUUID(),
+          name: String(record.name || 'Sesi Photo Booth')
+            .trim()
+            .slice(0, 80),
+          updated: Date.now(),
+        },
+        (file) => {
+          if (!indices.has(file)) {
+            indices.set(file, sources.length);
+            sources.push(file);
+          }
+          return { $boothFile: indices.get(file) };
+        },
+      );
+      const files = [];
+      const totalBytes = sources.reduce((n, f) => n + f.size, 0);
+      let completedBytes = 0;
+      try {
+        for (let i = 0; i < sources.length; i++) {
+          const f = sources[i];
+          files.push({
+            name: f.name,
+            type: f.type || '',
+            size: f.size,
+            lastModified: f.lastModified || 0,
+            parts: Math.ceil(f.size / CHUNK_BYTES),
+          });
+          for (let part = 0; part < files[i].parts; part++) {
+            let bytes;
+            try {
+              bytes = await f.slice(part * CHUNK_BYTES, (part + 1) * CHUNK_BYTES).arrayBuffer();
+            } catch {
+              throw Error(
+                f.name +
+                  ': file sumber tidak dapat dibaca. Masukkan ulang file tersebut lalu simpan lagi.',
+              );
+            }
+            if (bytes.byteLength !== Math.min(CHUNK_BYTES, f.size - part * CHUNK_BYTES))
+              throw Error(f.name + ': pembacaan file sumber tidak lengkap.');
+            await transaction('sourceChunks', 'readwrite', (s) =>
+              s.put({ bundle, file: i, part, bytes }),
+            );
+            completedBytes += bytes.byteLength;
+            onProgress(completedBytes, totalBytes);
+          }
+        }
+        saved._binary = { version: 1, bundle, files };
+        const previous = await transaction('scenes', 'readonly', (s) => s.get(saved.id));
+        // Publish metadata only after every source chunk has committed. A failed save
+        // never replaces the previously visible preset.
+        await transaction('scenes', 'readwrite', (s) => s.put(saved));
+        if (previous?._binary?.bundle) await discard(previous._binary.bundle).catch(() => {});
+        return saved.id;
+      } catch (error) {
+        await discard(bundle).catch(() => {});
+        if (
+          error.name === 'QuotaExceededError' ||
+          /IOError|Failed to write|disk|quota/i.test(error.message)
+        )
+          throw Error(
+            'Preset belum tersimpan: penyimpanan lokal gagal. Periksa ruang kosong drive sistem dan izin folder data DITASHA, lalu coba lagi. Scene aktif dan preset sebelumnya tetap utuh.',
+          );
+        throw error;
+      }
     },
     async get(id) {
-      const record = await transaction('readonly', (s) => s.get(id));
-      return validateBoothScene(record);
+      return hydrate(await transaction('scenes', 'readonly', (s) => s.get(id)));
     },
     async remove(id) {
-      return transaction('readwrite', (s) => s.delete(id));
+      const previous = await transaction('scenes', 'readonly', (s) => s.get(id));
+      await transaction('scenes', 'readwrite', (s) => s.delete(id));
+      if (previous?._binary?.bundle) await discard(previous._binary.bundle).catch(() => {});
     },
   };
 }

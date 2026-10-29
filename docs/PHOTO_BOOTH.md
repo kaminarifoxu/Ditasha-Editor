@@ -162,3 +162,11 @@ Use **+ ZIP studio / MLO** (multiple ZIPs supported) or **+ Folder studio**, the
 - ZIP extraction uses existing bounded CRC/path validation. Only YMAP/YTYP/YDR/YDD/YTD files are read. Lua/fxmanifest and other executable content are ignored. Imported materials use the existing preview renderer, not the complete GTA lighting/render pipeline.
 
 Native META layout references: CodeWalker `Meta.cs`, `MetaTypes.cs`, `MetaNames.cs`, `YmapFile.cs`. Attribution and upstream permission notice are packaged in `CODEWALKER-META-LICENSE.txt`.
+
+## v1.65 — preset Blob I/O repair
+
+New library saves copy model, texture, animation and imported-studio sources into bounded 1 MB ArrayBuffer chunks instead of persisting disk-backed File/Blob references. Source bytes, names and ownership are reconstructed on load. The UI reports copy progress. The 512 MB preset limit remains unchanged.
+
+The database upgrades in place to version 2 without deleting the original scene store. Existing version-1 Blob presets remain readable. A save stages source chunks and publishes the scene record only after all writes commit; a failed save keeps the previous preset and current scene. Failed staging, successful replacements and preset removal clean up their associated chunks. An application/process crash during staging can leave unreferenced chunks; no automatic destructive database reset is performed. Disk-full/permission failures remain possible and now give an actionable message; unreadable input sources name the affected file. Old presets whose source blobs were already lost cannot be reconstructed automatically.
+
+Windows Chromium integration checks cover a real version-1 database upgrade, rejecting any Blob write while saving a multi-chunk source, exact source-byte recovery, simulated quota failure after a partial write, unreadable input recovery, replacement and deletion cleanup. Existing Photo Booth preset round trips also run through the new format.

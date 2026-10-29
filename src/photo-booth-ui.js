@@ -2545,7 +2545,10 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
   }
   $('pbLibrarySave').onclick = () =>
     guard(async () => {
-      await library.save(snapshotScene());
+      setStatus('Menyalin sumber preset ke library lokal…');
+      await library.save(snapshotScene(), (done, total) =>
+        setStatus('Menyimpan preset · ' + Math.round((100 * done) / Math.max(1, total)) + '%'),
+      );
       await refreshLibrary();
       setStatus('Scene, outfit dan emote tersimpan di library lokal.');
     });

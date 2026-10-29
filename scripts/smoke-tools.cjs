@@ -604,6 +604,10 @@ app.whenReady().then(async () => {
         path,
       ),
     );
+    Object.assign(
+      photoBoothReport,
+      await require('./booth-storage-qa.cjs')(win, await boothGlbFixture()),
+    );
     await win.loadFile(path.resolve('ui/index.html'));
     const fivemToolsReport = await win.webContents.executeJavaScript(
       '(' + require('./fivem-tools-ui-checks.cjs').toString() + ')()',
