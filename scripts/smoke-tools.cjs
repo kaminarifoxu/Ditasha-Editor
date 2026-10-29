@@ -588,7 +588,6 @@ app.whenReady().then(async () => {
       (await win.webContents.capturePage()).toPNG(),
     );
     const { studioMetaFixture } = await import('../tests/fixtures/studio-meta.mjs');
-    const { zipFiles } = await import('../src/asset-tools.js');
     const studioZip = zipFiles([
       { name: 'one.ymap', data: new Uint8Array(studioMetaFixture()) },
       { name: 'two.ymap', data: new Uint8Array(studioMetaFixture('ymap', { x: 1500 })) },
