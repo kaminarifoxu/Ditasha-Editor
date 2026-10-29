@@ -100,32 +100,49 @@ export function decodeTexture(r, p) {
   const out = new Uint8ClampedArray(w * h * 4),
     v = r.v;
   const name = r.str(r.ptr(p + 40)) || 'texture';
-  if (format === 0x31495441) {
-    const length = Math.ceil(w / 4) * Math.ceil(h / 4) * 8;
-    if (data + length > r.bytes.length) throw Error('Compressed BC4 texture buffer is truncated.');
+  if ([0x31495441, 0x32495441].includes(format)) {
+    const channels = format === 0x32495441 ? 2 : 1;
+    const length = Math.ceil(w / 4) * Math.ceil(h / 4) * 8 * channels;
+    if (data + length > r.bytes.length)
+      throw Error('Compressed BC' + (channels === 2 ? '5' : '4') + ' texture buffer is truncated.');
     let offset = data;
     for (let by = 0; by < h; by += 4)
       for (let bx = 0; bx < w; bx += 4) {
-        const a = [r.bytes[offset], r.bytes[offset + 1]];
-        if (a[0] > a[1])
-          for (let i = 1; i <= 6; i++) a.push(Math.round(((7 - i) * a[0] + i * a[1]) / 7));
-        else {
-          for (let i = 1; i <= 4; i++) a.push(Math.round(((5 - i) * a[0] + i * a[1]) / 5));
-          a.push(0, 255);
+        const values = [];
+        for (let channel = 0; channel < channels; channel++) {
+          const at = offset + channel * 8,
+            a = [r.bytes[at], r.bytes[at + 1]];
+          if (a[0] > a[1])
+            for (let i = 1; i <= 6; i++) a.push(Math.round(((7 - i) * a[0] + i * a[1]) / 7));
+          else {
+            for (let i = 1; i <= 4; i++) a.push(Math.round(((5 - i) * a[0] + i * a[1]) / 5));
+            a.push(0, 255);
+          }
+          let bits = 0n;
+          for (let i = 0; i < 6; i++) bits |= BigInt(r.bytes[at + 2 + i]) << BigInt(i * 8);
+          values.push(
+            Array.from({ length: 16 }, (_, i) => a[Number((bits >> BigInt(i * 3)) & 7n)]),
+          );
         }
-        let bits = 0n;
-        for (let i = 0; i < 6; i++) bits |= BigInt(r.bytes[offset + 2 + i]) << BigInt(i * 8);
         for (let i = 0; i < 16; i++) {
           const x = bx + (i % 4),
             y = by + (i >> 2);
           if (x >= w || y >= h) continue;
-          const value = a[Number((bits >> BigInt(i * 3)) & 7n)],
-            d = (y * w + x) * 4;
-          out.set([value, value, value, 255], d);
+          const red = values[0][i],
+            green = channels === 2 ? values[1][i] : red;
+          out.set([red, green, channels === 2 ? 0 : red, 255], (y * w + x) * 4);
         }
-        offset += 8;
+        offset += 8 * channels;
       }
-    return { name, w, h, p, out, format: 'BC4', mipLevels: r.bytes[p + 93] || 1 };
+    return {
+      name,
+      w,
+      h,
+      p,
+      out,
+      format: channels === 2 ? 'BC5' : 'BC4',
+      mipLevels: r.bytes[p + 93] || 1,
+    };
   }
   if ([28, 50, 51].includes(format)) {
     const channels = format === 51 ? 2 : 1;

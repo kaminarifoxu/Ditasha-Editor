@@ -2306,13 +2306,14 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       }
       const refs = modelTextureReferences(pending.flatMap((a) => a.drawables || []));
       let restoredTextures = [];
+      const restoreWarnings = [];
       for (const [i, file] of record.textureFiles.entries()) {
         const loaded = await loadVehicleTextures([file], refs, {
           decode: decodeResource,
           image: imageData,
           existing: restoredTextures,
         });
-        if (loaded.warnings.length) throw Error(loaded.warnings.join(' · '));
+        restoreWarnings.push(...loaded.warnings);
         const ownerIndex = record.textureOwners?.[i],
           ownerId = ownerIndex == null ? null : pending[ownerIndex].id;
         restoredTextures = [
@@ -2364,7 +2365,18 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       resize();
       fit();
       $('pbLibraryName').value = record.name;
-      setStatus('Preset dibuka. Pose tiap ped dipertahankan; playback dijeda.');
+      if (restoreWarnings.length) {
+        updateIssues([
+          ...new Set(
+            [...$('pbIssueList').children].map((n) => n.textContent).concat(restoreWarnings),
+          ),
+        ]);
+        setStatus(
+          'Preset dibuka · ' +
+            restoreWarnings.length +
+            ' peringatan tekstur. Klik Lihat masalah. File sumber tetap tersimpan.',
+        );
+      } else setStatus('Preset dibuka. Pose tiap ped dipertahankan; playback dijeda.');
     } catch (e) {
       pending.filter((a) => !assets.includes(a)).forEach(disposeGlb);
       throw e;

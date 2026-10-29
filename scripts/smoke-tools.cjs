@@ -534,6 +534,17 @@ app.whenReady().then(async () => {
           ')',
       ),
     );
+    const { bc5YtdFixture } = await import('../tests/fixtures/bc5-ytd.mjs');
+    Object.assign(
+      photoBoothReport,
+      await win.webContents.executeJavaScript(
+        '(' +
+          require('./booth-preset-codec-qa.cjs').toString() +
+          ')(' +
+          JSON.stringify({ mixed: [...new Uint8Array(bc5YtdFixture({ broken: true }))] }) +
+          ')',
+      ),
+    );
     Object.assign(
       photoBoothReport,
       await require('./booth-stage-qa.cjs')(win, await boothGlbFixture(), fs, path),

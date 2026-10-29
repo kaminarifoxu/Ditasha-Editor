@@ -141,3 +141,12 @@ Windows UI tests verify grouped outfit reassignment, group labels, collapse-all 
 Open a ped group, choose **Bagian untuk ganti YTD** (body/head, hair or clothing), then **Ganti YTD**. Each native model card also has **Ganti YTD bagian ini** and its current texture source names. This replaces texture sources owned by that model, preserving other model/ped scopes. Decoding and budget checks complete before committing; invalid YTDs retain the previous source and pixels. Camera framing and model placement remain unchanged. Presets retain the new source and owner.
 
 Native YDD/YDR/YFT models are supported. GLB material replacement is not included. Internal map names normally match shader references; if a variant uses different names, choose the preview texture from the model card. A model-local YTD has priority over shared ped dictionaries for diffuse, normal and specular references. Original source files are not overwritten.
+
+## v1.63 — BC5 textures and recoverable preset loading
+
+- The native YTD reader now decodes ATI2 (`0x32495441`, BC5 UNORM) with independent red/green interpolation tables and opaque alpha. Blue stays zero; normal-map Z reconstruction remains in the existing surface shader. BC4 grayscale behavior is retained. Bounds checks reject truncated blocks. Unchanged BC5 native blocks are preserved by YTD export.
+- Photo Booth preset loading no longer aborts for texture-loader warnings. Readable maps and all valid models restore; the issues panel lists skipped/corrupt entries, and the footer reports a partial load. Original texture source files remain in the preset, so future retries or **Ganti YTD** can recover them. Structural model/scene failures and memory limits still apply.
+- The previous strict/atomic behavior of **Ganti YTD** is unchanged: invalid replacement files do not replace working textures.
+- Validation includes known BC5 block values in both endpoint modes, clipped edge blocks, truncation rejection, unchanged YTD export, and a Windows preset round trip with a readable BC5 map plus an unsupported sibling map and another ped's YTD.
+
+Codec layout reference: https://learn.microsoft.com/en-us/windows/uwp/graphics-concepts/block-compression
