@@ -408,3 +408,82 @@ body[data-motion='reduced'] .photo-booth-workspace {
   font-size: 12px;
   line-height: 1.6;
 }
+.pb-group-actions {
+  margin: 12px 0;
+}
+.pb-group-actions button {
+  padding: 8px;
+  font-size: 10px;
+}
+.pb-actor-group {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin: 12px 0;
+  overflow: hidden;
+  background: var(--bg);
+}
+.pb-actor-group.pb-group-selected {
+  border-color: var(--accent, #e6be75);
+}
+.pb-actor-group > summary {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 12px;
+  cursor: pointer;
+  list-style: none;
+}
+.pb-actor-group > summary::before {
+  content: '›';
+  font-size: 18px;
+}
+.pb-actor-group[open] > summary::before {
+  transform: rotate(90deg);
+}
+.pb-actor-group > summary > span {
+  min-width: 0;
+  flex: 1;
+}
+.pb-actor-group > summary strong {
+  display: block;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.pb-actor-group > summary small {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--muted);
+  font-size: 10px;
+  margin-top: 5px;
+}
+.pb-actor-group > summary button {
+  font-size: 10px;
+  padding: 7px;
+}
+.pb-group-body {
+  padding: 0 9px 8px;
+  border-top: 1px solid var(--border);
+}
+.pb-group-body > label {
+  margin: 10px 3px;
+}
+.pb-part-card {
+  padding: 10px;
+  margin: 8px 0;
+}
+.pb-part-card > summary {
+  cursor: pointer;
+  font-size: 11px;
+}
+.pb-part-card > summary strong {
+  display: inline;
+  font-size: 11px;
+}
+.pb-part-card > summary small {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  margin: 5px 0 0 14px;
+}

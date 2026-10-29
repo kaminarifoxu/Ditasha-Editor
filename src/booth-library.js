@@ -87,6 +87,10 @@ export function validateBoothScene(record) {
       throw Error('Penggantian tekstur tidak valid.');
     if (a.matte !== undefined && typeof a.matte !== 'boolean')
       throw Error('Matte preset tidak valid.');
+    if (a.label !== undefined && (typeof a.label !== 'string' || a.label.length > 60))
+      throw Error('Nama grup tidak valid.');
+    if (a.groupCollapsed !== undefined && typeof a.groupCollapsed !== 'boolean')
+      throw Error('Status grup tidak valid.');
     validateActorMotion(a.motion);
     if (
       typeof a.motion.clip !== 'string' ||

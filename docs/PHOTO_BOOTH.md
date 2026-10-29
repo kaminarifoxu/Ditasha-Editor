@@ -99,3 +99,13 @@ Seven original stylised offline 3D locations join the existing Catalogue/Loft/Ne
 **Simpan PNG** now opens an orientation/resolution dialog: Portrait1080×1350 or3000×4000, Landscape1920×1080 or4000×3000, Square2048×2048 or3000×3000. Confirm to export or cancel without exporting. When orientation differs from the preview, the camera temporarily fits all visible objects; the preview camera is restored afterward. The dialog works in fullscreen, and Escape cancels the dialog before exiting fullscreen. PNG still excludes UI and gizmos and supports transparent background.
 
 Validation includes reversible Phong/physical matte with alpha unchanged; finite location geometry; independent vehicle actor ownership; vehicle/matte/shadow preset validation; Windows rendered ped/car heading changes, native YFT and GLB vehicle imports, shadow pixel changes, expanded scene preset restoration, portrait/landscape PNG dimensions and all seven location screenshots. CI vehicle geometry is a wholly synthetic box-body/wheel fixture; no user/game vehicle or ped assets are redistributed.
+
+## Collapsible ped/outfit groups (v1.58)
+
+The model list now groups each actor with its owned clothing, hair, accessories and reference skeleton files. Each group has a compact owner heading, source filename/file count, **Pilih** action and editable **Nama grup**. Vehicle objects and unattached parts keep independent groups. Changing an outfit's owner moves its card into the corresponding group; it does not infer ownership from ambiguous filenames.
+
+Click a group heading to collapse/expand its file list. **Ciutkan semua / Buka semua** acts on the groups. Every individual file also has a collapsible detail card, so transforms/texture/owner fields stay out of the way until requested. Collapsing affects only the UI: meshes remain visible, outfit ownership and per-ped emotes do not change. Visibility still uses each card's explicit checkbox.
+
+Selecting an actor opens and highlights its group; manually collapsed groups retain their state through other edits/rebuilds. Search/category changes reveal matching groups, preserving owner context. Group names are reflected in the actor picker, and group names/collapse states persist in saved scene presets. Per-file expansion is retained for the current session. Older presets without group metadata remain valid.
+
+Windows UI tests verify grouped outfit reassignment, group labels, collapse-all without canvas changes, collapsed state across edits, group selection, retained part controls and label/collapse restoration from presets. Previous asset-list regressions now query actual file cards rather than assuming a flat DOM list.

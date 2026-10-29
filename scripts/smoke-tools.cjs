@@ -514,6 +514,16 @@ app.whenReady().then(async () => {
         path,
       ),
     );
+    await win.webContents.executeJavaScript(`(() => {
+      const list=document.getElementById('pbAssets'),panel=document.querySelector('.pb-assets');
+      document.getElementById('pbCollapseGroups').click();list.querySelector('[data-select-actor]').click();
+      panel.scrollTop+=list.getBoundingClientRect().top-panel.getBoundingClientRect().top-20;
+    })()`);
+    await new Promise((r) => setTimeout(r, 250));
+    await fs.writeFile(
+      path.resolve('release/qa/photo-booth-asset-groups.png'),
+      (await win.webContents.capturePage()).toPNG(),
+    );
     await win.loadFile(path.resolve('ui/index.html'));
     const fivemToolsReport = await win.webContents.executeJavaScript(
       '(' + require('./fivem-tools-ui-checks.cjs').toString() + ')()',

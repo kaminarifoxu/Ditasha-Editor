@@ -96,3 +96,14 @@ test('Vehicle, matte and shadow options round-trip in validated photo presets', 
   s.assets[0].matte = 'yes';
   assert.throws(() => validateBoothScene(s), /Matte/);
 });
+test('Ped group labels and collapse states remain optional and validated', () => {
+  const s = scene();
+  s.assets[0].label = 'Ped A';
+  s.assets[0].groupCollapsed = true;
+  assert.equal(validateBoothScene(s), s);
+  s.assets[0].label = 'x'.repeat(61);
+  assert.throws(() => validateBoothScene(s), /Nama grup/);
+  s.assets[0].label = 'Ped A';
+  s.assets[0].groupCollapsed = 'yes';
+  assert.throws(() => validateBoothScene(s), /Status grup/);
+});

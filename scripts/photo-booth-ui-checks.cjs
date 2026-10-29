@@ -18,6 +18,10 @@ module.exports = async function checkPhotoBooth(fixtures) {
     $(id).files = dt.files;
     $(id).dispatchEvent(new Event('change'));
   };
+  const assetCards = () =>
+    [...$('pbAssets').querySelectorAll('[data-asset-card]')].sort(
+      (a, b) => Number(a.dataset.assetCard) - Number(b.dataset.assetCard),
+    );
   let saved = null;
   window.ditashaDesktop = {
     saveExport: async (req) => {
@@ -29,10 +33,7 @@ module.exports = async function checkPhotoBooth(fixtures) {
   await sleep(100);
   assert($('pbCapture').disabled, 'Empty booth allows capture');
   upload('pbInput', [['native-ped.ydd', fixtures.native]]);
-  await wait(
-    () => !$('pbPed').disabled && $('pbAssets').children.length === 1,
-    'Native rig import',
-  );
+  await wait(() => !$('pbPed').disabled && assetCards().length === 1, 'Native rig import');
   assert($('pbRigStatus').textContent.includes('1 mesh GTA skinned'), 'Native skin not bound');
   assert(!$('pbPlay').disabled, 'Pose controls disabled');
   const canvas = () => $('pbViewport').querySelector('canvas');
@@ -92,10 +93,7 @@ module.exports = async function checkPhotoBooth(fixtures) {
   $('pbClear').click();
   $('pbLibraryList').querySelector(`[data-library-load="${ycdLibraryId}"]`).click();
   await wait(
-    () =>
-      !$('pbPed').disabled &&
-      $('pbAssets').children.length === 1 &&
-      $('pbClip').options.length === 3,
+    () => !$('pbPed').disabled && assetCards().length === 1 && $('pbClip').options.length === 3,
     'YCD library restore',
   );
   assert($('pbPose').value === 'clip' && !$('pbPlay').disabled, 'YCD preset lost native binding');
@@ -114,15 +112,15 @@ module.exports = async function checkPhotoBooth(fixtures) {
   $('pbPose').dispatchEvent(new Event('change'));
   $('pbClothes').click();
   upload('pbInput', [['outfit.ydd', fixtures.native]]);
-  await wait(() => !$('pbPed').disabled && $('pbAssets').children.length === 2, 'Clothing import');
+  await wait(() => !$('pbPed').disabled && assetCards().length === 2, 'Clothing import');
   $('pbAccessory').click();
   upload('pbInput', [['accessory.ydd', fixtures.native]]);
-  await wait(() => !$('pbPed').disabled && $('pbAssets').children.length === 3, 'Accessory import');
-  const bone = $('pbAssets').lastElementChild.querySelector('[data-bone]');
+  await wait(() => !$('pbPed').disabled && assetCards().length === 3, 'Accessory import');
+  const bone = assetCards().at(-1).querySelector('[data-bone]');
   bone.value = 'SKEL_L_UpperArm';
   bone.dispatchEvent(new Event('change'));
   assert(
-    $('pbAssets').lastElementChild.querySelector('[data-bone]').value === 'SKEL_L_UpperArm',
+    assetCards().at(-1).querySelector('[data-bone]').value === 'SKEL_L_UpperArm',
     'Rigid bone target did not persist',
   );
   $('pbPose').value = 'walk';
@@ -140,10 +138,7 @@ module.exports = async function checkPhotoBooth(fixtures) {
   $('pbClear').click();
   $('pbPed').click();
   upload('pbInput', [['rigged-mannequin.glb', fixtures.glb]]);
-  await wait(
-    () => !$('pbPed').disabled && $('pbAssets').children.length === 1,
-    'Rigged GLB import',
-  );
+  await wait(() => !$('pbPed').disabled && assetCards().length === 1, 'Rigged GLB import');
   assert(!$('pbClipField').hidden, 'Embedded animation missing');
   $('pbPose').value = 'clip';
   $('pbPose').dispatchEvent(new Event('change'));
@@ -309,28 +304,62 @@ module.exports = async function checkPhotoBooth(fixtures) {
   assert($('pbPose').value === 'catalog', 'Changing ped B changed ped A pose');
   $('pbClothes').click();
   upload('pbInput', [['owned-shirt.ydd', fixtures.native]]);
-  await wait(
-    () => !$('pbPed').disabled && $('pbAssets').children.length === 3,
-    'Owned clothing import',
-  );
-  let owner = $('pbAssets').lastElementChild.querySelector('[data-owner]');
+  await wait(() => !$('pbPed').disabled && assetCards().length === 3, 'Owned clothing import');
+  let owner = assetCards().at(-1).querySelector('[data-owner]');
   assert(owner.value === actorIds[0], 'Clothing assigned to wrong ped');
   owner.value = actorIds[1];
   owner.dispatchEvent(new Event('change'));
   assert(
-    $('pbAssets').lastElementChild.querySelector('[data-owner]').value === actorIds[1],
+    assetCards().at(-1).querySelector('[data-owner]').value === actorIds[1],
     'Changing outfit owner failed',
   );
   selectActor(actorIds[1]);
   assert($('pbPose').value === 'dance', 'Outfit reassignment overwrote emote');
-  const category = $('pbAssets').lastElementChild.querySelector('[data-outfit-category]');
+  let groups = [...$('pbAssets').querySelectorAll('[data-actor-group]')];
+  assert(groups.length === 2, 'Expected one collapsible group per ped');
+  const groupFor = (id) => $('pbAssets').querySelector('[data-actor-group="' + id + '"]');
+  assert(
+    groupFor(actorIds[1]).querySelectorAll('[data-asset-card]').length === 2,
+    'Owned outfit not in ped group',
+  );
+  const alias = groupFor(actorIds[1]).querySelector('[data-actor-label]');
+  alias.value = 'Test Ped B';
+  alias.dispatchEvent(new Event('change'));
+  assert(
+    $('pbActor').selectedOptions[0].textContent.includes('Test Ped B'),
+    'Group name not reflected in actor picker',
+  );
+  const groupedPixels = canvas().toDataURL();
+  $('pbCollapseGroups').click();
+  await sleep(60);
+  assert(
+    [...$('pbAssets').querySelectorAll('[data-actor-group]')].every((g) => !g.open),
+    'Collapse all failed',
+  );
+  assert(canvas().toDataURL() === groupedPixels, 'Collapsing groups changed visible scene');
+  $('pbYaw').value = '0';
+  $('pbYaw').dispatchEvent(new Event('change'));
+  assert(!groupFor(actorIds[1]).open, 'Collapsed group reopened after editing ped');
+  groupFor(actorIds[1]).querySelector('[data-select-actor]').click();
+  assert(
+    groupFor(actorIds[1]).open && $('pbActor').value === actorIds[1],
+    'Group pick did not select/open owner',
+  );
+  const part = assetCards().at(-1);
+  part.open = true;
+  await sleep(40);
+  assert(part.querySelector('[data-owner]'), 'Grouped part lost edit controls');
+
+  const category = assetCards().at(-1).querySelector('[data-outfit-category]');
   category.value = 'vest';
   category.dispatchEvent(new Event('change'));
   $('pbCategoryFilter').value = 'vest';
   $('pbCategoryFilter').dispatchEvent(new Event('change'));
-  assert($('pbAssets').children.length === 1, 'Category filter missing outfit');
+  assert(assetCards().length === 1, 'Category filter missing outfit');
   $('pbCategoryFilter').value = 'all';
   $('pbCategoryFilter').dispatchEvent(new Event('change'));
+  groupFor(actorIds[1]).open = false;
+  await sleep(60);
   $('pbLibraryName').value = 'QA two-ped outfit';
   $('pbLibrarySave').click();
   await wait(
@@ -341,13 +370,15 @@ module.exports = async function checkPhotoBooth(fixtures) {
   $('pbClear').click();
   $('pbLibraryList').querySelector(`[data-library-load="${libraryId}"]`).click();
   await wait(
-    () =>
-      !$('pbPed').disabled &&
-      $('pbActor').options.length === 2 &&
-      $('pbAssets').children.length === 3,
+    () => !$('pbPed').disabled && $('pbActor').options.length === 2 && assetCards().length === 3,
     'Library restore',
   );
   const loadedIds = [...$('pbActor').options].map((o) => o.value);
+  assert(
+    groupFor(loadedIds[1]).querySelector('summary strong').textContent === 'Test Ped B',
+    'Preset lost group name',
+  );
+  assert(!groupFor(loadedIds[1]).open, 'Preset lost collapsed group state');
   selectActor(loadedIds[0]);
   assert($('pbPose').value === 'catalog', 'Library lost ped A pose');
   assert(
@@ -364,13 +395,10 @@ module.exports = async function checkPhotoBooth(fixtures) {
     'Library lost independent ped B pose/time',
   );
   assert(
-    $('pbAssets').lastElementChild.querySelector('[data-owner]').value === loadedIds[1],
+    assetCards().at(-1).querySelector('[data-owner]').value === loadedIds[1],
     'Library lost outfit owner',
   );
-  assert(
-    $('pbAssets').lastElementChild.dataset.category === 'vest',
-    'Library lost outfit category',
-  );
+  assert(assetCards().at(-1).dataset.category === 'vest', 'Library lost outfit category');
   $('pbFit').click();
   await sleep(150);
   console.log('DITASHA_SNAPSHOT:photo-booth-multiple-peds');
@@ -388,7 +416,7 @@ module.exports = async function checkPhotoBooth(fixtures) {
     ]),
   );
   await wait(
-    () => !$('pbPed').disabled && $('pbAssets').children.length === 25,
+    () => !$('pbPed').disabled && assetCards().length === 25,
     'Folder import above old 20-model limit',
   );
   assert(
@@ -397,7 +425,7 @@ module.exports = async function checkPhotoBooth(fixtures) {
   );
   $('pbAssetSearch').value = 'lowr_005';
   $('pbAssetSearch').dispatchEvent(new Event('input'));
-  assert($('pbAssets').children.length === 1, 'Model search failed');
+  assert(assetCards().length === 1, 'Model search failed');
   $('pbAssetSearch').value = '';
   $('pbAssetSearch').dispatchEvent(new Event('input'));
   upload(
@@ -408,7 +436,7 @@ module.exports = async function checkPhotoBooth(fixtures) {
     () => !$('pbPed').disabled && $('pbStatus').textContent.includes('100 model'),
     '100-model guard',
   );
-  assert($('pbAssets').children.length === 25, 'Over-limit import changed scene');
+  assert(assetCards().length === 25, 'Over-limit import changed scene');
   upload(
     'pbFolderInput',
     Array.from({ length: 75 }, (_, i) => [
@@ -416,24 +444,18 @@ module.exports = async function checkPhotoBooth(fixtures) {
       fixtures.native,
     ]),
   );
-  await wait(
-    () => !$('pbPed').disabled && $('pbAssets').children.length === 100,
-    '100 model import',
-  );
+  await wait(() => !$('pbPed').disabled && assetCards().length === 100, '100 model import');
   assert($('pbModelCount').textContent === '100 / 100 model', 'Model counter incorrect');
   $('pbCategoryFilter').value = 'shoes';
   $('pbCategoryFilter').dispatchEvent(new Event('change'));
-  assert($('pbAssets').children.length === 75, 'Shoe filter lost imports');
+  assert(assetCards().length === 75, 'Shoe filter lost imports');
   await sleep(150);
   console.log('DITASHA_SNAPSHOT:photo-booth-outfit-categories');
   await sleep(150);
   $('pbClear').click();
   $('pbPed').click();
   upload('pbInput', [['unknown-no-skeleton.ydd', fixtures.missingRig]]);
-  await wait(
-    () => !$('pbPed').disabled && $('pbAssets').children.length === 1,
-    'Missing skeleton import',
-  );
+  await wait(() => !$('pbPed').disabled && assetCards().length === 1, 'Missing skeleton import');
   assert(
     !$('pbIssues').hidden && $('pbIssueList').textContent.includes('41'),
     'Missing skeleton not diagnosed',
@@ -494,7 +516,7 @@ module.exports = async function checkPhotoBooth(fixtures) {
   $('pbPed').click();
   upload('pbInput', [['mp_m_freemode_01^head_002_r.ydd', fixtures.missingRig]]);
   await wait(
-    () => !$('pbPed').disabled && $('pbAssets').children.length === 1,
+    () => !$('pbPed').disabled && assetCards().length === 1,
     'Freemode no-skeleton import',
   );
   assert(
@@ -504,10 +526,7 @@ module.exports = async function checkPhotoBooth(fixtures) {
   $('pbClear').click();
   $('pbPed').click();
   upload('pbInput', [['height-test.glb', fixtures.glb]]);
-  await wait(
-    () => !$('pbPed').disabled && $('pbAssets').children.length === 1,
-    'Height regression model',
-  );
+  await wait(() => !$('pbPed').disabled && assetCards().length === 1, 'Height regression model');
   $('pbPose').value = 'rest';
   $('pbPose').dispatchEvent(new Event('change'));
   $('pbFit').click();
@@ -556,11 +575,11 @@ module.exports = async function checkPhotoBooth(fixtures) {
   $('pbReference').click();
   upload('pbReferenceInput', [['rig-source.ydd', fixtures.native]]);
   await wait(
-    () => !$('pbReference').disabled && $('pbAssets').children.length === 2,
+    () => !$('pbReference').disabled && assetCards().length === 2,
     'Reference skeleton import',
   );
   assert(
-    $('pbAssets').lastElementChild.querySelector('[data-reference-checkbox]'),
+    assetCards().at(-1).querySelector('[data-reference-checkbox]'),
     'Reference file checkbox not marked',
   );
   await sleep(150);
@@ -568,6 +587,10 @@ module.exports = async function checkPhotoBooth(fixtures) {
   await sleep(150);
   return {
     portraitLandscapeExport: true,
+    groupedPedAssets: true,
+    collapsiblePartCards: true,
+    groupAliasPersistence: true,
+    collapseWithoutHidingScene: true,
     pedPlacement: true,
     fullscreenAllPeds: true,
     offlineStudios: true,
