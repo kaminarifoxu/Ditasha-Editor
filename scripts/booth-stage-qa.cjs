@@ -21,6 +21,39 @@ module.exports = async function checkBoothStage(win, glb, fs, path) {
     $('pbMove').click();await pause(100);
   })()`);
   await new Promise((r) => setTimeout(r, 250));
+  const studioLandmarks = () => {
+    const c = document.querySelector('#pbViewport canvas'),
+      tmp = document.createElement('canvas');
+    tmp.width = c.width;
+    tmp.height = c.height;
+    const ctx = tmp.getContext('2d');
+    ctx.drawImage(c, 0, 0);
+    const pixels = ctx.getImageData(0, 0, c.width, c.height).data;
+    let minX = Infinity,
+      maxX = -Infinity,
+      minY = Infinity,
+      maxY = -Infinity,
+      count = 0;
+    for (let y = 0; y < c.height; y++)
+      for (let x = 0; x < c.width; x++) {
+        const i = (y * c.width + x) * 4,
+          r = pixels[i],
+          g = pixels[i + 1],
+          b = pixels[i + 2];
+        if ((r < 190 && g > 220 && b > 220) || (r > 220 && g < 210 && b > 220)) {
+          minX = Math.min(minX, x);
+          maxX = Math.max(maxX, x);
+          minY = Math.min(minY, y);
+          maxY = Math.max(maxY, y);
+          count++;
+        }
+      }
+    if (count < 50) throw Error('Studio neon landmarks unavailable');
+    return [minX, maxX, minY, maxY];
+  };
+  const landmarksBefore = await win.webContents.executeJavaScript(
+    '(' + studioLandmarks.toString() + ')()',
+  );
   const point = await win.webContents.executeJavaScript(`(() => {
     const c=document.querySelector('#pbViewport canvas'), tmp=document.createElement('canvas');
     tmp.width=c.width;tmp.height=c.height;const ctx=tmp.getContext('2d');ctx.drawImage(c,0,0);
@@ -56,6 +89,22 @@ module.exports = async function checkBoothStage(win, glb, fs, path) {
     `Number(document.getElementById('pbPositionX').value)`,
   );
   if (Math.abs(after - point.before) < 1) throw Error('Real mouse drag did not move selected ped');
+  const landmarksAfter = await win.webContents.executeJavaScript(
+    '(' + studioLandmarks.toString() + ')()',
+  );
+  if (landmarksAfter.some((v, i) => Math.abs(v - landmarksBefore[i]) > 1))
+    throw Error('Studio moved with ped during gizmo drag');
+  await win.webContents.executeJavaScript(`(() => {
+    const $=id=>document.getElementById(id);
+    $('pbPositionX').value='-40';$('pbPositionX').dispatchEvent(new Event('change'));
+    $('pbPositionZ').value='50';$('pbPositionZ').dispatchEvent(new Event('change'));
+  })()`);
+  const landmarksNumeric = await win.webContents.executeJavaScript(
+    '(' + studioLandmarks.toString() + ')()',
+  );
+  if (landmarksNumeric.some((v, i) => Math.abs(v - landmarksBefore[i]) > 1))
+    throw Error('Studio moved with numeric ped position');
+
   await win.webContents.executeJavaScript(
     `document.getElementById('pbMove').click();document.getElementById('pbFit').click();`,
   );
@@ -104,6 +153,8 @@ module.exports = async function checkBoothStage(win, glb, fs, path) {
     $('pbFullscreen').click();
   })()`);
   return {
+    stationaryStudio: true,
+    numericMovementKeepsStudio: true,
     realMouseGizmoDrag: true,
     windowOriginFullscreen: true,
     stableStudioScreenshots: true,

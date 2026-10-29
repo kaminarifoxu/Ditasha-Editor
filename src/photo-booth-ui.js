@@ -216,7 +216,6 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       a.root.scale.copy(a.previewBase.scale).multiplyScalar(a.scale);
     }
     stage?.updateMatrixWorld(true);
-    syncStudioPlacement();
     syncPedFields();
     render();
   }
@@ -366,42 +365,12 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     attachTransform();
     setControls();
   }
-  function syncStudioPlacement() {
-    if (!studio || !key) return;
-    const visible = actors().filter((a) => a.visible && !a.referenceOnly);
-    let minX = Infinity,
-      maxX = -Infinity,
-      minZ = Infinity,
-      maxZ = -Infinity;
-    for (const a of visible) {
-      minX = Math.min(minX, a.offset[0] - 1);
-      maxX = Math.max(maxX, a.offset[0] + 1);
-      minZ = Math.min(minZ, a.offset[2] - 1);
-      maxZ = Math.max(maxZ, a.offset[2] + 1);
-    }
-    const x = visible.length ? (minX + maxX) / 2 : 0,
-      z = visible.length ? (minZ + maxZ) / 2 : 0;
-    studio.position.set(x, 0, z);
-    studio.scale.set(
-      visible.length ? Math.max(1, (maxX - minX) / 7) : 1,
-      1,
-      visible.length ? Math.max(1, (maxZ - minZ) / 7) : 1,
-    );
-    key.position.set(x + 3, 5, z - 4);
-    key.target.position.set(x, 0, z);
-    key.target.updateMatrixWorld();
-    const radius = visible.length ? Math.max(8, (maxX - minX) / 2 + 3, (maxZ - minZ) / 2 + 3) : 8;
-    key.shadow.camera.left = key.shadow.camera.bottom = -radius;
-    key.shadow.camera.right = key.shadow.camera.top = radius;
-    key.shadow.camera.updateProjectionMatrix();
-  }
   function changeStudio() {
     if (!scene) return;
     $('pbStageStudio').value = $('pbStudio').value;
     disposeBoothStudio(studio);
     studio = createBoothStudio($('pbStudio').value);
     scene.add(studio);
-    syncStudioPlacement();
     render();
   }
   function setExpanded(value) {
@@ -509,7 +478,6 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       a.offset = transform.object.position.toArray().map((v) => Math.max(-100, Math.min(100, v)));
       transform.object.position.fromArray(a.offset);
       syncPedFields();
-      syncStudioPlacement();
       render();
     });
     transform.addEventListener('change', render);
@@ -818,7 +786,6 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     });
     rest = captureBoothRest(stage);
     const roles = new Set(rest.map((b) => b.role).filter(Boolean));
-    syncStudioPlacement();
     actorPicker();
     updateClips();
     applyPose();
@@ -1530,7 +1497,6 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     $('pbAssetSearch').value = '';
     updateIssues([]);
     actorPicker();
-    syncStudioPlacement();
     syncPedFields();
     assetList();
     setControls();
