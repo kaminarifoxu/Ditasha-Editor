@@ -149,9 +149,11 @@ export function disposeBoothStudio(root) {
     }
   });
   geometries.forEach((g) => g.dispose());
+  const textures = new Set();
   materials.forEach((m) => {
-    m.map?.dispose();
+    for (const value of Object.values(m)) if (value?.isTexture) textures.add(value);
     m.dispose();
   });
+  textures.forEach((t) => t.dispose());
   root?.removeFromParent();
 }

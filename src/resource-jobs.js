@@ -1,3 +1,4 @@
+import { readMapMeta } from './map-meta.js';
 import { MAX_YTD_INPUT_BYTES } from './texture-memory.js';
 import { analyzeDebadge, removeVehicleParts } from './vehicle-debadge.js';
 import {
@@ -24,6 +25,7 @@ export function performResourceJob(kind, buffer, options = {}) {
     : 64 * 1024 * 1024;
   if (!(buffer instanceof ArrayBuffer) || buffer.byteLength > maxInput)
     throw Error('Resource input maksimum ' + Math.round(maxInput / 1048576) + ' MB.');
+  if (kind === 'map-meta') return readMapMeta(buffer);
   if (kind === 'debadge-read') return analyzeDebadge(buffer);
   if (kind === 'optimize-ytd') return optimizeYtd(buffer, options);
   if (kind === 'debadge-write') return removeVehicleParts(buffer, options.selected);

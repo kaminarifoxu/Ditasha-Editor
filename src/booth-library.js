@@ -15,7 +15,8 @@ export function validateBoothScene(record) {
     const s = record.studio;
     if (
       !s ||
-      !BOOTH_STUDIOS.some(([id]) => id === s.id) ||
+      (!BOOTH_STUDIOS.some(([id]) => id === s.id) &&
+        !/^custom:[a-z0-9-]{1,80}:\d{1,4}$/.test(s.id)) ||
       !/^#[0-9a-f]{6}$/i.test(s.background) ||
       !Number.isFinite(s.light) ||
       s.light < 0.3 ||
@@ -46,6 +47,43 @@ export function validateBoothScene(record) {
       throw Error('File preset tidak valid / terlalu besar.');
     bytes += f.size;
   };
+  if (record.studio?.packs !== undefined) {
+    const packs = record.studio.packs;
+    if (!Array.isArray(packs) || packs.length > 16) throw Error('Paket studio tidak valid.');
+    let count = 0;
+    const ids = new Set();
+    for (const pack of packs) {
+      if (
+        !pack ||
+        !/^[-a-z0-9]{1,80}$/.test(pack.id) ||
+        ids.has(pack.id) ||
+        typeof pack.label !== 'string' ||
+        pack.label.length > 80 ||
+        !Array.isArray(pack.files) ||
+        !pack.files.length
+      )
+        throw Error('Paket studio tidak valid.');
+      ids.add(pack.id);
+      for (const f of pack.files) {
+        file(f, /\.ytd$/i.test(f?.name || '') ? 256 * 1024 ** 2 : 64 * 1024 ** 2);
+        if (!/\.(ymap|ytyp|ydr|ydd|ytd)$/i.test(f.name) || ++count > 2000)
+          throw Error('File studio tidak valid.');
+      }
+    }
+    if (record.studio.id.startsWith('custom:') && !ids.has(record.studio.id.split(':')[1]))
+      throw Error('Sumber studio preset hilang.');
+  } else if (record.studio?.id.startsWith('custom:')) throw Error('Sumber studio preset hilang.');
+  for (const [key, max] of [
+    ['studioY', 50],
+    ['studioYaw', 360],
+  ])
+    if (
+      record.studio?.[key] !== undefined &&
+      (!Number.isFinite(record.studio[key]) || Math.abs(record.studio[key]) > max)
+    )
+      throw Error('Penempatan studio tidak valid.');
+  if (record.studio?.cutaway !== undefined && typeof record.studio.cutaway !== 'boolean')
+    throw Error('Cutaway studio tidak valid.');
   for (const a of record.assets) {
     file(a.file, 64 * 1024 ** 2);
     if (

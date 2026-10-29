@@ -150,3 +150,15 @@ Native YDD/YDR/YFT models are supported. GLB material replacement is not include
 - Validation includes known BC5 block values in both endpoint modes, clipped edge blocks, truncation rejection, unchanged YTD export, and a Windows preset round trip with a readable BC5 map plus an unsupported sibling map and another ped's YTD.
 
 Codec layout reference: https://learn.microsoft.com/en-us/windows/uwp/graphics-concepts/block-compression
+
+## v1.64 — imported GTA map studios
+
+Use **+ ZIP studio / MLO** (multiple ZIPs supported) or **+ Folder studio**, then select a map in **Set photo studio** or the fullscreen studio selector. Every YMAP is a separate studio choice. The uploaded Sweetmaps resource contains eight maps; Gameroom contains one. Local audits assembled all nine maps with their supplied YDR/YTD dependencies and no missing-model/texture warnings. User map assets are imported locally, not bundled or published with the application.
+
+- Native Legacy YMAP/YTYP META readers resolve archetype/model/texture hashes and entity position, orientation and scale. Static MLO base entities are expanded; only HD/orphan-HD map entities are included. Entity-set variants, game portals/timecycle/collision and game scripts are not simulated. Missing external GTA dependencies are reported instead of substituted.
+- A selected map is rebased, centered on X/Z and grounded to its mesh bounds near the photo origin. It lives outside ped/vehicle actor frames and is excluded from Fit-all bounds, so moving actors does not move the studio. **Buka sisi kamera** clips the camera-facing side for interior photography; floor height and studio yaw are adjustable.
+- Original source packs, selected map, clipping, floor height and yaw are saved in scene presets. Only the selected studio's geometry and textures are decoded/rendered; switching releases the previous studio's GPU resources. Transparent PNG hides the studio as before.
+- Limits: 16 source packs, 2000 source files/512 MB total studio sources; the full preset bundle still has a 512 MB source limit including actors. Individual studio caps are 256 maps, 2048 rendered instances, four million vertices and 256 MB decoded textures. Large full-city maps should be split into photo-sized resources.
+- ZIP extraction uses existing bounded CRC/path validation. Only YMAP/YTYP/YDR/YDD/YTD files are read. Lua/fxmanifest and other executable content are ignored. Imported materials use the existing preview renderer, not the complete GTA lighting/render pipeline.
+
+Native META layout references: CodeWalker `Meta.cs`, `MetaTypes.cs`, `MetaNames.cs`, `YmapFile.cs`. Attribution and upstream permission notice are packaged in `CODEWALKER-META-LICENSE.txt`.

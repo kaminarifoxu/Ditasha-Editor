@@ -10,7 +10,7 @@ app.whenReady().then(async () => {
   let win;
   const captures = [];
   try {
-    const { testYdd, testYtd, testYft } = await import('../tests/format.test.mjs');
+    const { testYdd, testYtd, testYft, testYdr } = await import('../tests/format.test.mjs');
     const { createYtd } = await import('../src/asset-tools.js');
     const packYtd = createYtd([
       {
@@ -586,6 +586,24 @@ app.whenReady().then(async () => {
     await fs.writeFile(
       path.resolve('release/qa/photo-booth-vehicle-resource.png'),
       (await win.webContents.capturePage()).toPNG(),
+    );
+    const { studioMetaFixture } = await import('../tests/fixtures/studio-meta.mjs');
+    const { zipFiles } = await import('../src/asset-tools.js');
+    const studioZip = zipFiles([
+      { name: 'one.ymap', data: new Uint8Array(studioMetaFixture()) },
+      { name: 'two.ymap', data: new Uint8Array(studioMetaFixture('ymap', { x: 1500 })) },
+      { name: 'types.ytyp', data: new Uint8Array(studioMetaFixture('ytyp')) },
+      { name: 'qa-room.ydr', data: new Uint8Array(testYdr) },
+      { name: 'ignored.lua', data: 'not executed' },
+    ]);
+    Object.assign(
+      photoBoothReport,
+      await require('./booth-map-studio-qa.cjs')(
+        win,
+        { ped: [...new Uint8Array(await boothGlbFixture())], zip: [...studioZip] },
+        fs,
+        path,
+      ),
     );
     await win.loadFile(path.resolve('ui/index.html'));
     const fivemToolsReport = await win.webContents.executeJavaScript(
