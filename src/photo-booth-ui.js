@@ -1,3 +1,9 @@
+import {
+  isRigidBoothProp,
+  findBoothAttachmentBone,
+  createBoothGrip,
+  updateBoothGrip,
+} from './booth-attachments.js';
 import { GTA_HAND_PROPS } from './booth-props.js';
 import { applyBoothMatte } from './booth-look.js';
 import { BOOTH_STUDIOS, createBoothStudio, disposeBoothStudio } from './booth-studio.js';
@@ -252,6 +258,9 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     attachTransform();
     setControls();
   };
+  function syncGrips() {
+    for (const a of assets) if (a.liveGrip) updateBoothGrip(a.liveGrip);
+  }
   function updateTransform(a) {
     const owner = actorForAsset(assets, a),
       frame = actorFrames.get(owner.id);
@@ -268,6 +277,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       a.root.scale.copy(a.previewBase.scale).multiplyScalar(a.scale);
     }
     stage?.updateMatrixWorld(true);
+    syncGrips();
     syncPedFields();
     render();
   }
@@ -700,6 +710,8 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     let skinned = 0,
       staticMeshes = 0;
     for (const a of assets) {
+      a.liveGrip = null;
+      a.attachmentStatus = '';
       a.root = new THREE.Group();
       a.root.name = a.name;
       a.root.visible = a.visible;
@@ -707,7 +719,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       actorFrames.get(owner.id).add(a.root);
       const family = freemodeFamily(owner.name) || freemodeFamily(a.name);
       const candidates = assets
-        .filter((b) => actorForAsset(assets, b) === owner)
+        .filter((b) => actorForAsset(assets, b) === owner && !isRigidBoothProp(b))
         .flatMap((b) =>
           (b.drawables || [])
             .filter((d) => d.rig?.length)
@@ -731,10 +743,12 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         a.root.add(part);
         const rigCache = new Map();
         for (const g of (d.lods.find((l) => l.name === 'High') || d.lods[0]).geometries) {
-          const selection = selectBoothRig(d.rig, g.skin, candidates, {
-            family,
-            choice: owner.rigChoice || 'auto',
-          });
+          const selection = isRigidBoothProp(a)
+            ? { rig: [], indices: null }
+            : selectBoothRig(d.rig, g.skin, candidates, {
+                family,
+                choice: owner.rigChoice || 'auto',
+              });
           let rig = selection.rig.length ? rigCache.get(selection.rig) : null;
           if (!rig && selection.rig.length) {
             rig = nativeRig(selection.rig);
@@ -810,22 +824,26 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       }
     }
     stage.updateMatrixWorld(true);
-    // Bind each accessory to its own actor, never to another ped's skeleton.
+    // Resolve against ped/outfit skeletons, never the prop's own skeleton.
     for (const a of assets)
-      if (a.kind !== 'ped' && a.attach !== 'auto') {
+      if (!['ped', 'vehicle'].includes(a.kind) && a.attach !== 'auto') {
         const owner = actorForAsset(assets, a);
-        let bone;
-        owner.root.traverse((o) => {
-          if (!bone && o.isBone && o.name === a.attach) bone = o;
-        });
-        if (bone) {
-          if (a.grip) {
-            bone.add(a.root);
-            a.root.position.set(0, 0, 0);
-            a.root.quaternion.identity();
-            a.root.scale.setScalar(1);
-          } else bone.attach(a.root);
-        } else warnings.push(a.name + ': bone tujuan tidak ditemukan');
+        const roots = assets
+          .filter(
+            (b) =>
+              actorForAsset(assets, b) === owner && !isRigidBoothProp(b) && b !== a && b.visible,
+          )
+          .map((b) => b.root);
+        const bone = findBoothAttachmentBone(roots, a.attach);
+        if (bone && owner.kind === 'ped') {
+          if (a.grip) a.liveGrip = createBoothGrip(a.root, bone, actorFrames.get(owner.id));
+          else bone.attach(a.root);
+          a.attachmentStatus = 'Terikat · ' + bone.name;
+        } else {
+          a.attachmentStatus = 'Belum terikat: pilih pemilik ped / skeleton tangan yang cocok';
+          if (isRigidBoothProp(a)) a.root.visible = false;
+          warnings.push(a.name + ': ' + a.attachmentStatus);
+        }
       }
     for (const a of assets) {
       a.previewBase = {
@@ -851,6 +869,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       frame.rotation.set(0, ((a.yaw || 0) * Math.PI) / 180, 0);
       frame.scale.setScalar(a.scale);
     }
+    syncGrips();
     animatedMeshes = 0;
     stage.traverse((o) => {
       if (!o.isMesh) return;
@@ -861,7 +880,11 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       if (bound) animatedMeshes++;
     });
     applyPreviewLooks();
-    rest = captureBoothRest(stage);
+    rest = captureBoothRest(stage).filter(({ bone }) => {
+      for (let o = bone; o; o = o.parent)
+        if (assets.some((a) => isRigidBoothProp(a) && a.root === o)) return false;
+      return true;
+    });
     const roles = new Set(rest.map((b) => b.role).filter(Boolean));
     actorPicker();
     updateClips();
@@ -879,7 +902,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
   function clipsFor(actor) {
     return [
       ...assets
-        .filter((a) => actorForAsset(assets, a) === actor)
+        .filter((a) => actorForAsset(assets, a) === actor && !isRigidBoothProp(a))
         .flatMap((a) =>
           (a.gltf?.animations || []).map((clip, i) => ({
             clip,
@@ -921,12 +944,14 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     for (const owner of actors()) {
       const selected = clipsFor(owner).find((c) => c.id === owner.motion.clip);
       if (!selected) continue;
-      const roots = [];
-      for (const a of assets.filter((a) => actorForAsset(assets, a) === owner)) {
-        if (a.gltf) roots.push(a.gltf.scene);
+      const roots = new Set();
+      for (const a of assets.filter(
+        (a) => actorForAsset(assets, a) === owner && !isRigidBoothProp(a),
+      )) {
+        if (a.gltf) roots.add(a.gltf.scene);
         else
           a.root.traverse((o) => {
-            if (o.userData.boothRig) roots.push(o);
+            if (o.userData.boothRig) roots.add(o);
           });
       }
       for (const root of roots) {
@@ -980,6 +1005,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       }
     }
     stage.updateMatrixWorld(true);
+    syncGrips();
     loadMotion({ controls: false });
     const selected = currentActor(),
       report = selected?.rigReport;
@@ -1234,8 +1260,8 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         ownerSelect.onchange = () => {
           a.owner = Number(ownerSelect.value);
           groupOpen.set(a.owner, true);
-          a.attach = 'auto';
-          rebuild();
+          if (!a.grip) a.attach = 'auto';
+          rebuild({ fitCamera: false });
         };
         ownerLabel.append(ownerSelect);
         card.append(ownerLabel);
@@ -1250,15 +1276,18 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           button.dataset.grip = side;
           button.onclick = () => {
             const owner = actorForAsset(assets, a);
-            let target;
-            owner.root.traverse((o) => {
-              if (
-                o.isBone &&
-                (o.name === 'SKEL_' + side + '_Hand' ||
-                  new RegExp((side === 'R' ? 'right' : 'left') + 'hand$', 'i').test(o.name))
-              )
-                target ||= o;
-            });
+            const target = findBoothAttachmentBone(
+              assets
+                .filter(
+                  (b) =>
+                    actorForAsset(assets, b) === owner &&
+                    !isRigidBoothProp(b) &&
+                    b !== a &&
+                    b.visible,
+                )
+                .map((b) => b.root),
+              'SKEL_' + side + '_Hand',
+            );
             if (!target)
               return setStatus('Bone tangan tidak ditemukan. Tambahkan skeleton ped yang cocok.');
             a.attach = target.name;
@@ -1270,10 +1299,21 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           grips.append(button);
         }
         card.append(grips);
+        if (isRigidBoothProp(a)) {
+          const status = document.createElement('p');
+          status.className = 'muted';
+          status.dataset.propStatus = a.id;
+          status.textContent = a.attachmentStatus || 'Prop belum terikat · pilih tangan kanan/kiri';
+          card.append(status);
+        }
         const targets = [];
-        actorForAsset(assets, a).root.traverse((o) => {
-          if (o.isBone) targets.push(o);
-        });
+        const owner = actorForAsset(assets, a);
+        for (const source of assets.filter(
+          (b) => actorForAsset(assets, b) === owner && !isRigidBoothProp(b) && b !== a,
+        ))
+          source.root.traverse((o) => {
+            if (o.isBone) targets.push(o);
+          });
         const label = document.createElement('label');
         label.textContent = 'Ikuti bone (aksesori rigid)';
         const select = document.createElement('select');
@@ -1282,7 +1322,10 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         auto.value = 'auto';
         auto.textContent = 'Otomatis / rig sendiri';
         select.append(auto);
-        for (const name of new Set(targets.map((b) => b.name))) {
+        for (const name of new Set([
+          ...targets.map((b) => b.name),
+          ...(a.attach !== 'auto' ? [a.attach] : []),
+        ])) {
           const o = document.createElement('option');
           o.value = name;
           o.textContent = name;
@@ -1291,7 +1334,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         select.value = a.attach;
         select.onchange = () => {
           a.attach = select.value;
-          a.grip = false;
+          a.grip = isRigidBoothProp(a) && select.value !== 'auto';
           rebuild({ fitCamera: false });
         };
         label.append(select);
@@ -1481,6 +1524,10 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           attach: 'auto',
           hiddenSlots: new Set(),
         };
+        if (a.category === 'prop') {
+          a.grip = true;
+          a.attach = 'SKEL_R_Hand';
+        }
         if (/\.glb$/i.test(file.name)) a.gltf = await parseGlb(file);
         else {
           a.drawables = await decodeResource(
@@ -2047,6 +2094,10 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           hiddenSlots: new Set(source.hiddenSlots || []),
           motion: { ...source.motion, playing: false },
         };
+        if (a.category === 'prop' && a.attach === 'auto' && !a.grip) {
+          a.grip = true;
+          a.attach = 'SKEL_R_Hand';
+        }
         if (/\.glb$/i.test(a.name)) a.gltf = await parseGlb(a.file);
         else
           a.drawables = await decodeResource(

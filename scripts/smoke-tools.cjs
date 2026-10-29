@@ -508,6 +508,7 @@ app.whenReady().then(async () => {
         win,
         {
           yft: [...new Uint8Array(testYft)],
+          nativeProp: [...new Uint8Array(boothPedFixture({ missingRig: true, paletteBone: 124 }))],
           vehicle: [...new Uint8Array(await boothVehicleFixture())],
         },
         fs,

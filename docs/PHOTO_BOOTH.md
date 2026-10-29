@@ -117,3 +117,12 @@ Windows UI tests verify grouped outfit reassignment, group labels, collapse-all 
 - **+ Prop tangan** imports your own YDR/YDD/YFT/GLB as an owned accessory. Open its card and choose **Pegang · kanan/kiri**. A matching hand bone is required; props snap to the hand origin and follow animation. Adjust local XYZ offsets, XYZ rotation and scale to fit the grip. Presets preserve these values. This is rigid attachment, not finger IK or automatic two-handed grip.
 - Searchable offline reference includes 12 GTA model identifiers with a link to the larger community list. Geometry and textures are not bundled or downloaded; export the desired YDR and companion YTD from your own game, then import them.
 - Emote source-file limit increases from 100 to **2000**, in both live import and saved presets. Existing budgets remain: 64 MB/file, 512 MB total source, 2048 decoded clips, 16 million animation values; these may be reached before the file count.
+
+## v1.60 — rigid prop attachment repair
+
+- **+ Prop tangan** now snaps newly imported props to the selected ped's right hand automatically. GTA weapon/prop names beginning `w_`/`prop_` imported as accessories are recognized as props too. Pick left/right to reset the local grip offsets.
+- Native prop skin weights never receive freemode recovery, ped poses or YCD tracks. Prop meshes stay rigid. GLB prop skeletons retain their own bind pose and are excluded from the ped emote library and mixers.
+- A separate grip anchor follows the chosen hand's world matrix after every animation update, expressed in the actor frame once. Ped translation, yaw and scale are not applied twice. The prop skeleton cannot enter the ped mixer's subtree.
+- Hand lookup checks all visible body/outfit skeleton sources belonging to the selected owner and supports GTA bone tags plus Mixamo hand aliases. Changing owner retains the chosen hand and local grip adjustments.
+- Each prop card shows attachment status. Missing hands or missing owner are reported and the unbound prop is withheld from the photo rather than appearing as a successful floating attachment. Original source files are not changed.
+- v1.59 presets containing an untouched prop (`auto`, no grip) migrate to right-hand attachment on load. Existing explicit grip position/rotation/scale is preserved. Imported props still require suitable model pivots and manual grip alignment; no finger IK is added.

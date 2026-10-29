@@ -45,6 +45,8 @@ export function outfitCategory(name, requested = 'auto', kind = 'clothing') {
       throw Error('Kategori outfit tidak valid.');
     return requested;
   }
+  if (kind === 'accessory' && /^(?:w_|prop_)/i.test(String(name).split(/[\\/]/).at(-1)))
+    return 'prop';
   const match = String(name)
     .toLowerCase()
     .match(/(?:^|[\/\\^])((?:p_)?[a-z]+)_\d+/);

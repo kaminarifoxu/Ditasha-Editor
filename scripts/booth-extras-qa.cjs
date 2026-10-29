@@ -22,14 +22,24 @@ module.exports = async function checkBoothExtras(win, fixtures, fs, path) {
     $('pbClear').click();document.querySelector('[data-library-load="'+preset+'"]').click();await ready(4);
     if($('pbStudio').value!=='living'||Number($('pbShadowStrength').value)!==.4||Number($('pbShadowAngle').value)!==120)throw Error('Shadow/studio preset lost');
     $('pbActor').value=$('pbActor').options[0].value;$('pbActor').dispatchEvent(new Event('change'));if(!$('pbMatte').checked||Number($('pbYaw').value)!==45)throw Error('Ped matte/yaw preset lost');
-    $('pbProp').click();upload(${JSON.stringify(fixtures.yft)},'qa-hand-prop.yft');
+    $('pbRigSource').value='freemode-male';$('pbRigSource').dispatchEvent(new Event('change'));
+    $('pbProp').click();upload(${JSON.stringify(fixtures.nativeProp)},'qa-hand-prop.ydd');
     await ready(4);
-    const card=[...$('pbAssets').querySelectorAll('[data-asset-card]')].find(c=>c.textContent.includes('qa-hand-prop.yft'));
+    const card=[...$('pbAssets').querySelectorAll('[data-asset-card]')].find(c=>c.textContent.includes('qa-hand-prop.ydd'));
     if(!card)throw Error('Prop not imported');
-    card.querySelector('[data-grip=R]').click();
-    const prop=[...$('pbAssets').querySelectorAll('[data-asset-card]')].find(c=>c.textContent.includes('qa-hand-prop.yft'));
+    if(!$('pbRigStatus').textContent.includes('0 mesh GTA skinned · 1 mesh statis/rigid'))throw Error('Native prop received ped skin recovery '+$('pbRigStatus').textContent);
+    if([...$('pbIssueList').children].some(n=>n.textContent.includes('qa-hand-prop.ydd')&&/skeleton|indeks bone/.test(n.textContent)))throw Error('Rigid prop incorrectly warned about missing ped rig');
+    if(card.querySelector('[data-bone]').value!=='SKEL_R_Hand'||!card.querySelector('[data-prop-status]').textContent.includes('Terikat'))throw Error('Prop did not attach automatically');
+    card.querySelector('[data-grip=L]').click();
+    const left=[...$('pbAssets').querySelectorAll('[data-asset-card]')].find(c=>c.textContent.includes('qa-hand-prop.ydd'));
+    if(left.querySelector('[data-bone]').value!=='SKEL_L_Hand')throw Error('Left hand grip failed');
+    left.querySelector('[data-grip=R]').click();
+    const prop=[...$('pbAssets').querySelectorAll('[data-asset-card]')].find(c=>c.textContent.includes('qa-hand-prop.ydd'));
     if(prop.querySelector('[data-bone]').value!=='SKEL_R_Hand')throw Error('Prop hand grip failed '+$('pbStatus').textContent);
-    $('pbFullscreen').click();await pause(150);return {handPropGrip:true,pedRotation:true,nativeVehicleImport:true,glbVehicleImport:true,matteControl:true,shadowControls:true,extraPresetPersistence:true};
+    const propOwner=prop.querySelector('[data-owner]');propOwner.value=$('pbActor').options[1].value;propOwner.dispatchEvent(new Event('change'));
+    const moved=[...$('pbAssets').querySelectorAll('[data-asset-card]')].find(c=>c.textContent.includes('qa-hand-prop.ydd'));
+    if(moved.querySelector('[data-bone]').value!=='SKEL_R_Hand'||!moved.querySelector('[data-prop-status]').textContent.includes('Terikat'))throw Error('Owner change lost hand attachment');
+    $('pbFullscreen').click();await pause(150);return {nativePropStaysRigid:true,automaticPropGrip:true,propOwnerRebind:true,handPropGrip:true,pedRotation:true,nativeVehicleImport:true,glbVehicleImport:true,matteControl:true,shadowControls:true,extraPresetPersistence:true};
   })()`);
   for (const id of ['hood', 'living', 'office', 'police', 'beach', 'bedroom', 'bathroom']) {
     await win.webContents.executeJavaScript(
