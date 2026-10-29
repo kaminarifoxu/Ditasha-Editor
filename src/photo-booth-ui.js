@@ -1,3 +1,4 @@
+import { resolveBoothTexture, replaceBoothTextureScope } from './booth-textures.js';
 import { vehicleModManifest, groupBoothVehicles, vehiclePreviewIndices } from './booth-vehicles.js';
 import {
   isRigidBoothProp,
@@ -31,7 +32,12 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { decodeResource } from './resource-client.js';
 import { defaultDrawableSelection } from './drawable-selection.js';
-import { createModelMaterial, resolveSurfaceMaps, setSurfaceMaps } from './vehicle-surface.js';
+import {
+  createModelMaterial,
+  resolveSurfaceMaps,
+  surfaceReferences,
+  setSurfaceMaps,
+} from './vehicle-surface.js';
 import { resolveModelTexture, modelPreviewAlpha, modelAlphaMode } from './model-material.js';
 import {
   loadVehicleTextures,
@@ -57,7 +63,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
   root.className = 'photo-booth-workspace';
   root.hidden = true;
   root.innerHTML = `<div class="pb-heading"><div><span class="eyebrow">DITASHA / OFFLINE PHOTO BOOTH</span><h1>Photo Booth</h1><p class="muted">Ped, outfit dan aksesori · pose, atur kamera, ambil foto.</p></div><button id="pbCapture" class="primary" disabled>▣ Simpan PNG</button></div>
-  <div class="pb-layout"><aside class="pb-panel pb-assets"><h2>Model & outfit</h2><div class="pb-buttons"><button id="pbPed">+ Ped / tubuh</button><button id="pbClothes">+ Outfit / batch</button><button id="pbVehicle">+ Kendaraan</button><button id="pbVehicleFolder">+ Folder kendaraan</button><button id="pbVehiclePart">+ Part kendaraan</button><input id="pbVehicleFolderInput" type="file" webkitdirectory multiple hidden><button id="pbAccessory">+ Aksesori</button><button id="pbProp">+ Prop tangan</button><button id="pbTextures">+ Tekstur</button></div><details><summary>Referensi prop GTA V</summary><input id="pbPropSearch" placeholder="Cari nama prop…"><select id="pbPropCatalog" size="6"></select><p class="muted">Daftar nama, bukan model bawaan. Ekspor YDR + YTD dari GTA V milikmu, lalu + Prop tangan. Pilih tangan pada kartu file.</p><a href="https://github.com/haarperr/Full-GTA-V-Props-List" target="_blank" rel="noreferrer">Sumber daftar prop</a></details><input id="pbInput" type="file" accept=".ydd,.ydr,.yft,.ytd,.glb,.meta" multiple hidden><input id="pbTextureInput" type="file" accept=".ytd,.dds,.png,.jpg,.jpeg,.webp" multiple hidden><p class="muted">Masukkan YDD + YTD. YFT skeleton pendamping dapat ditambahkan. GLB rigged juga didukung.</p><details class="pb-outfit-import" open><summary>Kategori outfit & impor folder</summary><div id="pbOutfitButtons" class="pb-outfit-grid"></div><label>Kategori folder / drag & drop<select id="pbImportCategory"><option value="auto">Otomatis dari nama GTA</option>${OUTFIT_CATEGORIES.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}</select></label><button id="pbFolder">+ Folder outfit</button><input id="pbFolderInput" type="file" webkitdirectory multiple hidden></details><p id="pbModelCount" class="muted" role="status">0 / ${MAX_BOOTH_MODELS} model</p><p class="muted">100 model · 64 MB per model · 1 GB file model per scene. Batas tekstur decoded 1 GB.</p><label>Filter bagian<select id="pbCategoryFilter"><option value="all">Semua bagian</option><option value="ped">Ped / tubuh</option><option value="vehicle">Kendaraan</option>${OUTFIT_CATEGORIES.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}</select></label><input id="pbAssetSearch" placeholder="Cari model / outfit…" aria-label="Cari model Photo Booth"><div class="pb-buttons pb-group-actions"><button id="pbCollapseGroups">Ciutkan semua</button><button id="pbExpandGroups">Buka semua</button></div><div id="pbAssets"></div><p id="pbEmpty">Belum ada model. Mulai dari ped / tubuh milikmu.</p><button id="pbClear">Kosongkan booth</button><h2 class="pb-library-heading">Library lokal</h2><p class="muted">Preset maksimal 512 MB, termasuk file sumber dan tekstur.</p><label>Nama preset<input id="pbLibraryName" maxlength="80" placeholder="Foto grup / outfit favorit"></label><button id="pbLibrarySave">Simpan scene & outfit</button><button id="pbLibraryRefresh">Muat daftar library</button><input id="pbLibrarySearch" placeholder="Cari preset ped / outfit…" aria-label="Cari library"><div id="pbLibraryList"></div></aside>
+  <div class="pb-layout"><aside class="pb-panel pb-assets"><h2>Model & outfit</h2><div class="pb-buttons"><button id="pbPed">+ Ped / tubuh</button><button id="pbClothes">+ Outfit / batch</button><button id="pbVehicle">+ Kendaraan</button><button id="pbVehicleFolder">+ Folder kendaraan</button><button id="pbVehiclePart">+ Part kendaraan</button><input id="pbVehicleFolderInput" type="file" webkitdirectory multiple hidden><button id="pbAccessory">+ Aksesori</button><button id="pbProp">+ Prop tangan</button><button id="pbTextures">+ Tekstur</button></div><details><summary>Referensi prop GTA V</summary><input id="pbPropSearch" placeholder="Cari nama prop…"><select id="pbPropCatalog" size="6"></select><p class="muted">Daftar nama, bukan model bawaan. Ekspor YDR + YTD dari GTA V milikmu, lalu + Prop tangan. Pilih tangan pada kartu file.</p><a href="https://github.com/haarperr/Full-GTA-V-Props-List" target="_blank" rel="noreferrer">Sumber daftar prop</a></details><input id="pbInput" type="file" accept=".ydd,.ydr,.yft,.ytd,.glb,.meta" multiple hidden><input id="pbReplaceYtdInput" type="file" accept=".ytd" hidden><input id="pbTextureInput" type="file" accept=".ytd,.dds,.png,.jpg,.jpeg,.webp" multiple hidden><p class="muted">Masukkan YDD + YTD. YFT skeleton pendamping dapat ditambahkan. GLB rigged juga didukung.</p><details class="pb-outfit-import" open><summary>Kategori outfit & impor folder</summary><div id="pbOutfitButtons" class="pb-outfit-grid"></div><label>Kategori folder / drag & drop<select id="pbImportCategory"><option value="auto">Otomatis dari nama GTA</option>${OUTFIT_CATEGORIES.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}</select></label><button id="pbFolder">+ Folder outfit</button><input id="pbFolderInput" type="file" webkitdirectory multiple hidden></details><p id="pbModelCount" class="muted" role="status">0 / ${MAX_BOOTH_MODELS} model</p><p class="muted">100 model · 64 MB per model · 1 GB file model per scene. Batas tekstur decoded 1 GB.</p><label>Filter bagian<select id="pbCategoryFilter"><option value="all">Semua bagian</option><option value="ped">Ped / tubuh</option><option value="vehicle">Kendaraan</option>${OUTFIT_CATEGORIES.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}</select></label><input id="pbAssetSearch" placeholder="Cari model / outfit…" aria-label="Cari model Photo Booth"><div class="pb-buttons pb-group-actions"><button id="pbCollapseGroups">Ciutkan semua</button><button id="pbExpandGroups">Buka semua</button></div><div id="pbAssets"></div><p id="pbEmpty">Belum ada model. Mulai dari ped / tubuh milikmu.</p><button id="pbClear">Kosongkan booth</button><h2 class="pb-library-heading">Library lokal</h2><p class="muted">Preset maksimal 512 MB, termasuk file sumber dan tekstur.</p><label>Nama preset<input id="pbLibraryName" maxlength="80" placeholder="Foto grup / outfit favorit"></label><button id="pbLibrarySave">Simpan scene & outfit</button><button id="pbLibraryRefresh">Muat daftar library</button><input id="pbLibrarySearch" placeholder="Cari preset ped / outfit…" aria-label="Cari library"><div id="pbLibraryList"></div></aside>
   <section class="pb-stage"><div class="pb-stage-toolbar"><button id="pbFit">Lihat semua ped</button><button id="pbMove" aria-pressed="false">Atur posisi</button><label class="pb-stage-picker">Alat<select id="pbTransformMode" aria-label="Mode transform"><option value="translate">Geser</option><option value="rotate">Putar</option></select></label><label class="pb-stage-picker">Objek<select id="pbStageActor" aria-label="Ped di viewport"></select></label><label class="check"><input id="pbSnap" type="checkbox">Snap 10 cm</label><button id="pbFullscreen" aria-pressed="false">Layar penuh</button><button id="pbStageCapture">Simpan PNG</button><button id="pbEmoteToggle" hidden aria-controls="pbEmotePlayer" aria-expanded="true">Emote player</button><label class="pb-stage-picker">Set<select id="pbStageStudio" aria-label="Set studio di viewport">${BOOTH_STUDIOS.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}</select></label><button id="pbFront">Depan</button><button id="pbBack">Belakang</button><label class="check"><input id="pbFloor" type="checkbox" checked>Grid (polos)</label><span>Orbit: drag · pindah: panah X/Y/Z · scroll: zoom</span></div><div id="pbViewport"></div><section id="pbEmotePlayer" class="pb-emote-player" role="region" aria-label="Emote player fullscreen" hidden><div class="pb-emote-header"><div><strong>Emote player</strong><span id="pbEmoteSummary"></span></div><button id="pbEmotePlay" aria-label="Putar emote ped terpilih">▶</button><button id="pbEmoteMinimize" aria-controls="pbEmoteBody" aria-expanded="true" title="Minimalkan emote player">Minimalkan</button></div><div id="pbEmoteBody" class="pb-panel pb-emote-body"></div></section><p id="pbStatus" role="status">Siap untuk sesi foto offline.</p><button id="pbShowIssues" hidden>Lihat masalah</button></section>
   <aside class="pb-panel pb-settings"><h2>Pose & emote per ped</h2><label>Ped / kendaraan yang diatur<select id="pbActor"></select></label><p class="muted">Pose, tinggi dan outfit mengikuti ped yang dipilih.</p><fieldset class="pb-ped-sizing"><legend>Posisi & ukuran objek terpilih</legend><label>Rotasi Y · derajat<input id="pbYaw" type="number" min="-360" max="360" step="5"></label><label class="check"><input id="pbMatte" type="checkbox">Matte tubuh / wajah</label><label>Kiri / kanan · cm<input id="pbPositionX" type="number" min="-10000" max="10000" step="1"></label><label>Depan / belakang · cm<input id="pbPositionZ" type="number" min="-10000" max="10000" step="1"></label><label>Tinggi grup ped · cm<input id="pbHeightCm" type="number" min="1" max="1000" step="1"></label><label>Naik / turun · cm<input id="pbElevationCm" type="number" min="-10000" max="10000" step="1" value="0"></label><p class="muted">Seluruh outfit ikut berubah. Kamera tetap; gunakan Fit tubuh bila perlu.</p></fieldset><details class="pb-rig-settings"><summary>Skeleton / acuan (opsional)</summary><label>Skeleton acuan<select id="pbRigSource"><option value="auto">Otomatis · model / freemode</option><option value="freemode-male">Freemode laki-laki</option><option value="freemode-female">Freemode perempuan</option><option value="reference">Dari file skeleton acuan</option></select></label><button id="pbReference">+ Skeleton YFT / YDD</button><input id="pbReferenceInput" type="file" accept=".yft,.ydd,.ydr" multiple hidden></details><label>Pose<select id="pbPose">${BOOTH_POSES.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}<option value="clip">Custom emote · YCD / GLB</option></select></label><div id="pbQuickPose" class="pb-buttons pb-quick-pose"><button data-quick-pose="walk">Berjalan</button><button data-quick-pose="dance">Dance</button><button data-quick-pose="wave">Lambaikan</button></div><div class="pb-buttons"><button id="pbPlay" disabled>▶ Putar</button><button id="pbResetPose">Reset pose</button><button id="pbPlayAll">Putar semua</button><button id="pbPauseAll">Jeda semua</button></div><label>Kecepatan<input id="pbSpeed" type="number" min="0.1" max="3" step="0.1" value="1"></label><label>Frame / waktu <output id="pbTimeLabel">0.00 s</output><input id="pbTime" type="range" min="0" max="4" step="0.01" value="0"></label><button id="pbImportClip">+ Emote YCD / GLB</button><input id="pbClipInput" type="file" accept=".ycd,.glb" multiple hidden><label id="pbClipField" hidden>Cari emote<input id="pbClipSearch" type="search" placeholder="Nama file / emote…">Clip<select id="pbClip"></select></label><p id="pbRigStatus" class="muted" role="status">Pose memerlukan skeleton dan skin weights yang cocok.</p><details id="pbIssues" hidden><summary id="pbIssueSummary">Periksa masalah</summary><p class="muted">Skeleton: pilih acuan atau impor YFT/YDD yang cocok. Tekstur: tambahkan YTD atau pilih penggantian preview di kartu model.</p><ul id="pbIssueList"></ul></details><h2>Studio</h2><label>Set photo studio<select id="pbStudio">${BOOTH_STUDIOS.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}</select></label><p class="muted">Studio 3D offline. PNG transparan menyembunyikan set dan lantai.</p><label>Background · mode polos<input id="pbBackground" type="color" value="#242938"></label><label class="check"><input id="pbTransparent" type="checkbox">PNG transparan</label><details class="pb-rig-settings" open><summary>Bayangan</summary><label class="check"><input id="pbShadows" type="checkbox" checked>Aktifkan bayangan</label><label>Kekuatan bayangan<input id="pbShadowStrength" type="range" min="0" max="1" step="0.05" value="1"></label><label>Arah cahaya / bayangan · derajat<input id="pbShadowAngle" type="range" min="0" max="360" step="1" value="37"></label></details><label>Cahaya<input id="pbLight" type="range" min="0.3" max="3" value="1" step="0.05"></label><label>Resolusi foto<select id="pbSize"><option value="1080x1350">1080 × 1350 · katalog</option><option value="1920x1080" selected>1920 × 1080 · landscape</option><option value="2048x2048">2048 × 2048 · square</option><option value="3000x4000">3000 × 4000 · portrait</option><option value="4000x3000">4000 × 3000 · landscape</option><option value="3000x3000">3000 × 3000 · square</option></select></label><p class="muted">Pose/emote bawaan dibuat untuk preview. YCD Legacy: clip skeletal tunggal, dipetakan melalui bone tag GTA. GLB memakai nama bone yang cocok. Blend dan efek game belum didukung. Prop rigid dapat diikat ke bone tangan.</p></aside></div>`;
   const exportDialog = document.createElement('dialog');
@@ -151,6 +157,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     actorFrames = new Map(),
     textureFiles = [],
     textureOwners = [],
+    replaceYtdTarget = null,
     clipFiles = [],
     clipSerial = 0,
     emoteValues = 0;
@@ -789,7 +796,10 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
               (t) => JSON.stringify([t.dictionary || '', t.name]) === a.textureOverride,
             );
           const t =
-            override || resolveModelTexture(g.diffuseTexture, ownTextures, embedded, a.name);
+            override ||
+            (owner.kind === 'ped'
+              ? resolveBoothTexture(g.diffuseTexture, textures, embedded, a.id, owner.id, a.name)
+              : resolveModelTexture(g.diffuseTexture, ownTextures, embedded, a.name));
           if (g.diffuseTexture && !t)
             warnings.push(a.name + ': tekstur ' + g.diffuseTexture + ' belum ditemukan');
           const alpha = modelPreviewAlpha(g) || {
@@ -808,7 +818,14 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           });
           setSurfaceMaps(
             material,
-            resolveSurfaceMaps(g, ownTextures, embedded, a.name),
+            owner.kind === 'ped'
+              ? Object.fromEntries(
+                  Object.entries(surfaceReferences(g)).map(([role, name]) => [
+                    role,
+                    resolveBoothTexture(name, textures, embedded, a.id, owner.id, a.name),
+                  ]),
+                )
+              : resolveSurfaceMaps(g, ownTextures, embedded, a.name),
             textureMap,
           );
           let mesh;
@@ -1120,6 +1137,29 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       };
       label.append(nickname);
       body.append(label);
+      if (owner.kind === 'ped') {
+        const candidates = members.filter((a) => a.drawables && !a.referenceOnly);
+        if (candidates.length) {
+          const label = document.createElement('label');
+          label.textContent = 'Bagian untuk ganti YTD';
+          const select = document.createElement('select');
+          select.dataset.pedYtdTarget = owner.id;
+          for (const a of candidates) {
+            const o = document.createElement('option');
+            o.value = a.id;
+            o.textContent = a.name;
+            select.append(o);
+          }
+          label.append(select);
+          body.append(label);
+          const button = document.createElement('button');
+          button.textContent = 'Ganti YTD';
+          button.dataset.replacePedYtd = owner.id;
+          button.disabled = busy;
+          button.onclick = () => chooseReplacementYtd(Number(select.value));
+          body.append(button);
+        }
+      }
       group.append(body);
       $('pbAssets').append(group);
       containers.set(owner.id, body);
@@ -1224,6 +1264,21 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         };
         label.append(select);
         card.append(label);
+      }
+      if (!a.referenceOnly && a.drawables && owner.kind === 'ped') {
+        const replace = document.createElement('button');
+        replace.textContent = 'Ganti YTD bagian ini';
+        replace.dataset.replaceYtd = a.id;
+        replace.onclick = () => chooseReplacementYtd(a.id);
+        card.append(replace);
+        const current = textureFiles.filter((f, i) => textureOwners[i] === a.id).map((f) => f.name);
+        if (current.length) {
+          const info = document.createElement('p');
+          info.className = 'muted';
+          info.dataset.ytdSource = a.id;
+          info.textContent = 'Tekstur: ' + current.join(', ');
+          card.append(info);
+        }
       }
       if (!a.referenceOnly) {
         const owner = actorForAsset(assets, a),
@@ -1753,6 +1808,54 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     const files = [...e.target.files];
     e.target.value = '';
     guard(() => importFiles(files, kind, importCategory));
+  };
+  function chooseReplacementYtd(id) {
+    if (busy) return;
+    replaceYtdTarget = id;
+    $('pbReplaceYtdInput').click();
+  }
+  $('pbReplaceYtdInput').onchange = (e) => {
+    const file = e.target.files[0],
+      id = replaceYtdTarget;
+    e.target.value = '';
+    replaceYtdTarget = null;
+    if (!file) return;
+    guard(async () => {
+      const target = assets.find((a) => a.id === id);
+      if (
+        !target?.drawables ||
+        target.referenceOnly ||
+        actorForAsset(assets, target).kind !== 'ped'
+      )
+        throw Error('Bagian ped tidak tersedia. Pilih ulang modelnya.');
+      if (!/\.ytd$/i.test(file.name)) throw Error('Pilih file YTD.');
+      const retained = textures.filter((t) => t.boothOwner !== id);
+      const loaded = await loadVehicleTextures([file], modelTextureReferences(target.drawables), {
+        decode: decodeResource,
+        image: imageData,
+        existing: retained,
+      });
+      if (loaded.warnings.length) throw Error(loaded.warnings.join(' · '));
+      const next = replaceBoothTextureScope(
+        { textures, textureFiles, textureOwners },
+        id,
+        file,
+        loaded.textures,
+      );
+      if (next.textures.reduce((n, t) => n + t.out.length, 0) > MAX_DECODED_TEXTURE_BYTES)
+        throw Error('Tekstur booth melebihi 1024 MB.');
+      if (next.textureFiles.length > 1000) throw Error('Maksimal 1000 file tekstur.');
+      ({ textures, textureFiles, textureOwners } = next);
+      target.textureOverride = '';
+      rebuild({ fitCamera: false });
+      setStatus(
+        'YTD ' +
+          target.name +
+          ' diganti: ' +
+          file.name +
+          '. Jika nama map berbeda, pilih tekstur preview pada kartu bagian.',
+      );
+    });
   };
   $('pbTextures').onclick = () => $('pbTextureInput').click();
   $('pbTextureInput').onchange = (e) => {

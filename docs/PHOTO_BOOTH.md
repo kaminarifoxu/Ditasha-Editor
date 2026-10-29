@@ -135,3 +135,9 @@ Windows UI tests verify grouped outfit reassignment, group labels, collapse-all 
 - **+ Part kendaraan** attaches manually selected models to the current vehicle when metadata is unavailable. Toggle parts and adjust local offsets/rotation/scale on their cards. Such manual additions do not guess native mod placement or stock-removal metadata.
 - Vehicle groups/parts, visibility, mod slot and stock-bone metadata survive preset save/load. Model decode errors name the failed source file.
 - Local audit of the uploaded GS resource: all five Legacy YFT files parse successfully through the current worker-job decoder. `gs.yft` and `gs_hi.yft` are identical; metadata explicitly associates frame, seat and tank parts with the GS mod kit. The prior index-buffer error did not reproduce with these exact bytes, so malformed-index validation is retained.
+
+## v1.62 — replace ped YTD per model
+
+Open a ped group, choose **Bagian untuk ganti YTD** (body/head, hair or clothing), then **Ganti YTD**. Each native model card also has **Ganti YTD bagian ini** and its current texture source names. This replaces texture sources owned by that model, preserving other model/ped scopes. Decoding and budget checks complete before committing; invalid YTDs retain the previous source and pixels. Camera framing and model placement remain unchanged. Presets retain the new source and owner.
+
+Native YDD/YDR/YFT models are supported. GLB material replacement is not included. Internal map names normally match shader references; if a variant uses different names, choose the preview texture from the model card. A model-local YTD has priority over shared ped dictionaries for diffuse, normal and specular references. Original source files are not overwritten.

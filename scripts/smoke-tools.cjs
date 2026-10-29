@@ -500,6 +500,42 @@ app.whenReady().then(async () => {
     );
     Object.assign(
       photoBoothReport,
+      await win.webContents.executeJavaScript(
+        '(' +
+          require('./booth-textures-qa.cjs').toString() +
+          ')(' +
+          JSON.stringify({
+            native: [...new Uint8Array(boothPedFixture())],
+            red: [
+              ...createYtd([
+                {
+                  name: 'preview_repair',
+                  w: 2,
+                  h: 2,
+                  out: new Uint8Array([
+                    230, 35, 35, 255, 230, 35, 35, 255, 230, 35, 35, 255, 230, 35, 35, 255,
+                  ]),
+                },
+              ]),
+            ],
+            blue: [
+              ...createYtd([
+                {
+                  name: 'preview_repair',
+                  w: 2,
+                  h: 2,
+                  out: new Uint8Array([
+                    35, 35, 230, 255, 35, 35, 230, 255, 35, 35, 230, 255, 35, 35, 230, 255,
+                  ]),
+                },
+              ]),
+            ],
+          }) +
+          ')',
+      ),
+    );
+    Object.assign(
+      photoBoothReport,
       await require('./booth-stage-qa.cjs')(win, await boothGlbFixture(), fs, path),
     );
     Object.assign(
