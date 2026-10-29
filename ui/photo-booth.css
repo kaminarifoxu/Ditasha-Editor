@@ -264,6 +264,8 @@ body[data-motion='reduced'] .photo-booth-workspace {
   font-weight: 600;
 }
 #pbIssueList {
+  max-height: 260px;
+  overflow: auto;
   padding-left: 16px;
   overflow-wrap: anywhere;
   font-size: 11px;

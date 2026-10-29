@@ -191,18 +191,24 @@ function sequence(r, at, boneCount, budget) {
 }
 export function readYcd(buffer) {
   if (buffer.byteLength > 64 * 1024 ** 2 || buffer.byteLength < 16) fail('file maksimal 64 MB.');
+  if (new DataView(buffer).getUint32(0, true) !== 0x37435352)
+    fail(
+      'header bukan RSC7 Legacy. File mungkin berbeda format, terpotong, atau terlindungi; gunakan YCD Legacy asli yang dapat dibuka di CodeWalker.',
+    );
   const r = new Resource(buffer, 46, 128 * 1024 ** 2),
     animations = new Map(),
     clips = [],
+    listClips = [],
     warnings = [],
     budget = { values: 0 };
   function animation(at) {
     if (at === null) fail('animation pointer kosong.');
     if (animations.has(at)) return animations.get(at);
     if (animations.size >= 256) fail('maksimal 256 animation.');
-    const frames = bounded(r.u16(at + 20), 2, 16384),
+    const frames = bounded(r.u16(at + 20), 1, 16384),
       limit = bounded(r.u16(at + 22), 1, 16384),
-      duration = finite(r.f32(at + 24));
+      nativeDuration = finite(r.f32(at + 24)),
+      duration = nativeDuration === 0 && frames === 1 ? 1 / 30 : nativeDuration;
     if (duration <= 0 || duration > 600) fail('durasi animation di luar 0–600 detik.');
     const count = bounded(r.u16(at + 88), 1, 2048),
       ids = r.ptr(at + 80);
@@ -236,34 +242,76 @@ export function readYcd(buffer) {
       const name =
         r.str(r.ptr(p + 24)).replace(/^.*[/:\\]/, '') || 'clip_' + r.u32(entry).toString(16);
       const type = r.u32(p + 16);
-      if (type !== 1) {
-        warnings.push(name + ': animation-list/blend belum didukung.');
-        continue;
+      try {
+        let anim,
+          start,
+          end,
+          rate,
+          duration,
+          loopRange = false;
+        if (type === 1) {
+          anim = animation(r.ptr(p + 80));
+          start = finite(r.f32(p + 88));
+          end = finite(r.f32(p + 92));
+          rate = finite(r.f32(p + 96));
+        } else if (type === 2) {
+          const count = bounded(r.u16(p + 88), 1, 256),
+            entries = r.ptr(p + 80);
+          if (entries === null || entries + count * 24 > r.bytes.length)
+            fail('daftar animation terpotong.');
+          if (count !== 1) {
+            warnings.push(name + ': blend beberapa sumber/facial belum didukung; clip dilewati.');
+            continue;
+          }
+          start = finite(r.f32(entries));
+          end = finite(r.f32(entries + 4));
+          rate = finite(r.f32(entries + 8));
+          anim = animation(r.ptr(entries + 16));
+          duration = finite(r.f32(p + 96));
+          loopRange = true;
+        } else {
+          warnings.push(name + ': tipe clip ' + type + ' belum didukung; clip dilewati.');
+          continue;
+        }
+        if (start < 0 || start > 3600 || end < start || end > 3600 || rate < 0 || rate > 16)
+          fail(
+            'rentang waktu/rate clip tidak valid (' + start + '–' + end + ', rate ' + rate + ').',
+          );
+        const held = end === start || rate === 0 || anim.frames === 1;
+        duration ??= held ? 1 / 30 : (end - start) / rate;
+        if (duration <= 0 || duration > 3600) fail('durasi clip di luar 0–3600 detik.');
+        const clip = { name, duration, animation: anim, start, end, rate, held, loopRange };
+        const sampleCount = held
+          ? 2
+          : Math.min(
+              16384,
+              Math.max(2, Math.ceil((duration * rate * (anim.frames - 1)) / anim.duration) + 1),
+            );
+        if (sampleCount * anim.bones.filter((b) => [0, 1].includes(b.track)).length > 2e6)
+          fail('clip terlalu besar untuk preview skeletal.');
+        (type === 1 ? clips : listClips).push(clip);
+      } catch (error) {
+        warnings.push(name + ': ' + error.message + ' Clip dilewati.');
       }
-      const anim = animation(r.ptr(p + 80)),
-        start = finite(r.f32(p + 88)),
-        end = finite(r.f32(p + 92)),
-        rate = finite(r.f32(p + 96));
-      if (start < 0 || end <= start || end > anim.duration + 1 || rate <= 0 || rate > 16)
-        fail('rentang waktu/rate clip tidak valid.');
-      const clip = { name, duration: (end - start) / rate, animation: anim, start, end, rate };
-      const sampleCount = Math.max(
-        2,
-        Math.ceil(((end - start) * (anim.frames - 1)) / anim.duration) + 1,
-      );
-      if (sampleCount * anim.bones.filter((b) => [0, 1].includes(b.track)).length > 2e6)
-        fail('clip terlalu besar untuk preview skeletal.');
-      clips.push(clip);
     }
   }
-  if (!clips.length) fail(warnings.join(' · ') || 'tidak ada clip skeletal yang didukung.');
+  // Append newly supported list clips so numeric IDs of existing single clips stay stable.
+  clips.push(...listClips);
+  if (!clips.length) {
+    const error = Error(
+      'YCD: tidak ada clip yang dapat diputar (' + warnings.length + ' clip dilewati).',
+    );
+    error.details = warnings;
+    throw error;
+  }
   return { clips, warnings, animations: animations.size, values: budget.values };
 }
 function evaluate(anim, index, time, quaternion) {
-  const f = Math.max(0, Math.min(anim.frames - 1, (time / anim.duration) * (anim.frames - 1)));
-  const f0 = Math.floor(f),
-    f1 = Math.min(anim.frames - 1, f0 + 1),
-    alpha = f - f0;
+  // Native clip windows may extend beyond one animation cycle (CW GetFramePosition).
+  const f = (Math.max(0, time) / anim.duration) * (anim.frames - 1);
+  const f0 = Math.floor(f) % anim.frames,
+    f1 = (f0 + 1) % anim.frames,
+    alpha = f - Math.floor(f);
   const sample = (frame) =>
     anim.blocks[Math.floor(frame / anim.limit)].evaluate(index, frame % anim.limit);
   const a = sample(f0),
@@ -289,13 +337,15 @@ export function ycdAnimationClip(source, root) {
     tracks = [],
     times = [];
   // Preserve native frame cadence and clip start/rate; cap the total import budget.
-  const samples = Math.min(
-    16384,
-    Math.max(
-      2,
-      Math.ceil(((source.duration * (anim.frames - 1)) / anim.duration) * source.rate) + 1,
-    ),
-  );
+  const samples = source.held
+    ? 2
+    : Math.min(
+        16384,
+        Math.max(
+          2,
+          Math.ceil(((source.duration * (anim.frames - 1)) / anim.duration) * source.rate) + 1,
+        ),
+      );
   for (let i = 0; i < samples; i++) times.push((i * source.duration) / (samples - 1));
   for (const [index, id] of anim.bones.entries()) {
     const bone = boneByTag.get(id.tag);
@@ -307,7 +357,11 @@ export function ycdAnimationClip(source, root) {
       const value = evaluate(
         anim,
         index,
-        Math.min(source.end, source.start + time * source.rate),
+        source.held
+          ? source.start
+          : source.loopRange
+            ? source.start + ((time * source.rate) % (source.end - source.start))
+            : Math.min(source.end, source.start + time * source.rate),
         id.track === 1,
       );
       if (!value.length || !value.every(Number.isFinite)) fail('track kosong/tidak valid.');
