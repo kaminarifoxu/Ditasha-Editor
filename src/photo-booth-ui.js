@@ -2171,6 +2171,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       };
     });
   $('pbClip').onchange = () => {
+    $('pbPose').value = 'clip';
     time = 0;
     playing = false;
     saveMotion();

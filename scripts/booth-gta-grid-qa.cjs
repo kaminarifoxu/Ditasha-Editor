@@ -46,7 +46,7 @@ module.exports = async function checkGtaGrid(win, ped, fs, path) {
  const picker=$('pbClipPicker');picker.open=true;await pause(40);const grid=picker.querySelector('.pb-emote-grid');
  if(getComputedStyle(grid).gridTemplateColumns.split(' ').length!==3||!$('pbClip').hidden)throw Error('Emote picker must have three button columns');
  grid.children[1].click();const first=$('pbClip').value;
- $('pbActor').value=actorIds[1];$('pbActor').dispatchEvent(new Event('change'));picker.open=true;await pause(40);grid.children[2].click();
+ $('pbActor').value=actorIds[1];$('pbActor').dispatchEvent(new Event('change'));picker.open=true;await pause(40);grid.children[2].click();if($('pbPose').value!=='clip')throw Error('Emote button did not enable clip pose');
  $('pbActor').value=actorIds[0];$('pbActor').dispatchEvent(new Event('change'));if($('pbClip').value!==first)throw Error('Grid selection leaked between peds');
  $('pbGtaStudio').click();await wait(()=>[...document.querySelectorAll('dialog[open]')].some(d=>d.querySelector('[data-open]')),'GTA studio dialog');const dialog=[...document.querySelectorAll('dialog[open]')].find(d=>d.querySelector('[data-open]'));dialog.querySelector('select').value='gta-qa-0';dialog.querySelector('[data-open]').click();await wait(()=>!$('pbPed').disabled&&$('pbStudio').selectedOptions[0].textContent.includes('room'),'Installed studio import');
  const beforeMaps=[...$('pbStudio').options].filter(o=>o.value.startsWith('custom:')).length;
