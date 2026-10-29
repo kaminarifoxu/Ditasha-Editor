@@ -489,3 +489,41 @@ body[data-motion='reduced'] .photo-booth-workspace {
   font-size: 10px;
   margin: 5px 0 0 14px;
 }
+.pb-emote-picker {
+  margin: 8px 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.pb-emote-picker summary {
+  padding: 10px;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.pb-emote-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  max-height: 320px;
+  overflow: auto;
+  padding: 8px;
+}
+.pb-emote-grid button {
+  min-width: 0;
+  padding: 9px 5px;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+.pb-emote-grid button[aria-checked='true'] {
+  border-color: var(--accent, #e9bf72);
+  background: #514430;
+  color: #fff0cf;
+}
+.pb-emote-pages {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+}
+.pb-emote-pages[hidden] {
+  display: none;
+}

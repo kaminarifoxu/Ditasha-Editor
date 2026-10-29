@@ -180,6 +180,7 @@ else {
       shell,
       app,
     });
+    require('./gta-install.cjs').registerGtaInstall({ app, ipcMain, trusted, win, dialog, shell });
     require('./asset-compressor.cjs').registerAssetCompressor({
       ipcMain,
       trusted,

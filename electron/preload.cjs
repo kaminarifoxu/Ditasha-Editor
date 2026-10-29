@@ -1,4 +1,11 @@
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
+contextBridge.exposeInMainWorld('ditashaGtaInstall', {
+  state: () => ipcRenderer.invoke('ditasha:gta-install-state'),
+  choose: () => ipcRenderer.invoke('ditasha:gta-install-choose'),
+  scan: () => ipcRenderer.invoke('ditasha:gta-install-scan'),
+  read: (id, start, length) => ipcRenderer.invoke('ditasha:gta-install-read', id, start, length),
+  reveal: () => ipcRenderer.invoke('ditasha:gta-install-reveal'),
+});
 contextBridge.exposeInMainWorld('ditashaCraft', {
   state: () => ipcRenderer.invoke('ditasha:craft-state'),
   start: (id) => ipcRenderer.invoke('ditasha:craft-start', id),
