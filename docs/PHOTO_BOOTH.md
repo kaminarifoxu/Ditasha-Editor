@@ -126,3 +126,12 @@ Windows UI tests verify grouped outfit reassignment, group labels, collapse-all 
 - Hand lookup checks all visible body/outfit skeleton sources belonging to the selected owner and supports GTA bone tags plus Mixamo hand aliases. Changing owner retains the chosen hand and local grip adjustments.
 - Each prop card shows attachment status. Missing hands or missing owner are reported and the unbound prop is withheld from the photo rather than appearing as a successful floating attachment. Original source files are not changed.
 - v1.59 presets containing an untouched prop (`auto`, no grip) migrate to right-hand attachment on load. Existing explicit grip position/rotation/scale is preserved. Imported props still require suitable model pivots and manual grip alignment; no finger IK is added.
+
+## v1.61 — multi-file vehicle resources
+
+- **+ Folder kendaraan** reads YFT/YDR/YDD/GLB models, YTD textures, `carcols.meta` and `carvariations.meta` from one extracted resource folder. Duplicate nested metadata copies are deduplicated. Explicit kit/model relationships group mod YFTs under their vehicle; ambiguous/unidentified models remain independent.
+- A paired `_hi.yft` stays in the same group as an alternative, initially hidden. Enabling it disables the base model; enabling the base disables its HI alternative. They do not render on top of each other by default.
+- Mod parts share the vehicle transform and texture owner. Unique imported mod slots are enabled; alternatives within one slot begin disabled and visibility choices are exclusive per slot. Stock faces fully weighted to a mod's `turnOffBones` are omitted in the preview; mixed-weight triangles are conservatively retained. Source geometry is never rewritten.
+- **+ Part kendaraan** attaches manually selected models to the current vehicle when metadata is unavailable. Toggle parts and adjust local offsets/rotation/scale on their cards. Such manual additions do not guess native mod placement or stock-removal metadata.
+- Vehicle groups/parts, visibility, mod slot and stock-bone metadata survive preset save/load. Model decode errors name the failed source file.
+- Local audit of the uploaded GS resource: all five Legacy YFT files parse successfully through the current worker-job decoder. `gs.yft` and `gs_hi.yft` are identical; metadata explicitly associates frame, seat and tank parts with the GS mod kit. The prior index-buffer error did not reproduce with these exact bytes, so malformed-index validation is retained.

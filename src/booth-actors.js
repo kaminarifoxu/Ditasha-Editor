@@ -4,6 +4,8 @@ export function createActorMotion() {
 }
 export function actorForAsset(assets, asset) {
   if (['ped', 'vehicle'].includes(asset.kind)) return asset;
+  if (asset.kind === 'vehicle-part')
+    return assets.find((a) => a.id === asset.owner && a.kind === 'vehicle') || asset;
   return assets.find((a) => a.id === asset.owner && a.kind === 'ped') || asset;
 }
 export function advanceActorMotion(motion, delta, duration = 4) {

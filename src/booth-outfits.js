@@ -54,6 +54,7 @@ export function outfitCategory(name, requested = 'auto', kind = 'clothing') {
 }
 export function outfitLabel(id) {
   if (id === 'vehicle') return 'Kendaraan';
+  if (id === 'vehicle-part') return 'Part kendaraan';
   return id === 'ped'
     ? 'Ped / tubuh'
     : OUTFIT_CATEGORIES.find(([key]) => key === id)?.[1] || 'Lainnya';

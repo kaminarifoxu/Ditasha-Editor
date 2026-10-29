@@ -50,7 +50,7 @@ export function validateBoothScene(record) {
     file(a.file, 64 * 1024 ** 2);
     if (
       !/\.(glb|ydd|ydr|yft)$/i.test(a.file.name) ||
-      !['ped', 'vehicle', 'clothing', 'accessory'].includes(a.kind) ||
+      !['ped', 'vehicle', 'vehicle-part', 'clothing', 'accessory'].includes(a.kind) ||
       !Array.isArray(a.offset) ||
       a.offset.length !== 3 ||
       !a.offset.every((n) => Number.isFinite(n) && Math.abs(n) <= 100) ||
@@ -65,6 +65,7 @@ export function validateBoothScene(record) {
       a.category !== undefined &&
       a.category !== 'ped' &&
       a.category !== 'vehicle' &&
+      a.category !== 'vehicle-part' &&
       !OUTFIT_CATEGORIES.some(([id]) => id === a.category)
     )
       throw Error('Kategori preset tidak valid.');
@@ -95,6 +96,18 @@ export function validateBoothScene(record) {
     for (const key of ['pitch', 'roll'])
       if (a[key] !== undefined && (!Number.isFinite(a[key]) || Math.abs(a[key]) > 360))
         throw Error('Rotasi prop tidak valid.');
+    if (
+      a.vehicleOffBones !== undefined &&
+      (!Array.isArray(a.vehicleOffBones) ||
+        a.vehicleOffBones.length > 64 ||
+        !a.vehicleOffBones.every((n) => typeof n === 'string' && n.length <= 128))
+    )
+      throw Error('Bone part kendaraan tidak valid.');
+    for (const k of ['vehicleModel', 'vehicleSlot', 'vehicleBone'])
+      if (a[k] !== undefined && (typeof a[k] !== 'string' || a[k].length > 128))
+        throw Error('Metadata part kendaraan tidak valid.');
+    if (a.vehicleAlt !== undefined && typeof a.vehicleAlt !== 'boolean')
+      throw Error('LOD kendaraan tidak valid.');
     validateActorMotion(a.motion);
     if (
       typeof a.motion.clip !== 'string' ||
@@ -108,7 +121,7 @@ export function validateBoothScene(record) {
     if (
       a.ownerIndex !== null &&
       (!Number.isInteger(a.ownerIndex) ||
-        record.assets[a.ownerIndex]?.kind !== 'ped' ||
+        record.assets[a.ownerIndex]?.kind !== (a.kind === 'vehicle-part' ? 'vehicle' : 'ped') ||
         a.ownerIndex === record.assets.indexOf(a))
     )
       throw Error('Pemilik outfit tidak valid.');

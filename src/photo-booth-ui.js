@@ -1,3 +1,4 @@
+import { vehicleModManifest, groupBoothVehicles, vehiclePreviewIndices } from './booth-vehicles.js';
 import {
   isRigidBoothProp,
   findBoothAttachmentBone,
@@ -56,7 +57,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
   root.className = 'photo-booth-workspace';
   root.hidden = true;
   root.innerHTML = `<div class="pb-heading"><div><span class="eyebrow">DITASHA / OFFLINE PHOTO BOOTH</span><h1>Photo Booth</h1><p class="muted">Ped, outfit dan aksesori · pose, atur kamera, ambil foto.</p></div><button id="pbCapture" class="primary" disabled>▣ Simpan PNG</button></div>
-  <div class="pb-layout"><aside class="pb-panel pb-assets"><h2>Model & outfit</h2><div class="pb-buttons"><button id="pbPed">+ Ped / tubuh</button><button id="pbClothes">+ Outfit / batch</button><button id="pbVehicle">+ Kendaraan</button><button id="pbAccessory">+ Aksesori</button><button id="pbProp">+ Prop tangan</button><button id="pbTextures">+ Tekstur</button></div><details><summary>Referensi prop GTA V</summary><input id="pbPropSearch" placeholder="Cari nama prop…"><select id="pbPropCatalog" size="6"></select><p class="muted">Daftar nama, bukan model bawaan. Ekspor YDR + YTD dari GTA V milikmu, lalu + Prop tangan. Pilih tangan pada kartu file.</p><a href="https://github.com/haarperr/Full-GTA-V-Props-List" target="_blank" rel="noreferrer">Sumber daftar prop</a></details><input id="pbInput" type="file" accept=".ydd,.ydr,.yft,.ytd,.glb" multiple hidden><input id="pbTextureInput" type="file" accept=".ytd,.dds,.png,.jpg,.jpeg,.webp" multiple hidden><p class="muted">Masukkan YDD + YTD. YFT skeleton pendamping dapat ditambahkan. GLB rigged juga didukung.</p><details class="pb-outfit-import" open><summary>Kategori outfit & impor folder</summary><div id="pbOutfitButtons" class="pb-outfit-grid"></div><label>Kategori folder / drag & drop<select id="pbImportCategory"><option value="auto">Otomatis dari nama GTA</option>${OUTFIT_CATEGORIES.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}</select></label><button id="pbFolder">+ Folder outfit</button><input id="pbFolderInput" type="file" webkitdirectory multiple hidden></details><p id="pbModelCount" class="muted" role="status">0 / ${MAX_BOOTH_MODELS} model</p><p class="muted">100 model · 64 MB per model · 1 GB file model per scene. Batas tekstur decoded 1 GB.</p><label>Filter bagian<select id="pbCategoryFilter"><option value="all">Semua bagian</option><option value="ped">Ped / tubuh</option><option value="vehicle">Kendaraan</option>${OUTFIT_CATEGORIES.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}</select></label><input id="pbAssetSearch" placeholder="Cari model / outfit…" aria-label="Cari model Photo Booth"><div class="pb-buttons pb-group-actions"><button id="pbCollapseGroups">Ciutkan semua</button><button id="pbExpandGroups">Buka semua</button></div><div id="pbAssets"></div><p id="pbEmpty">Belum ada model. Mulai dari ped / tubuh milikmu.</p><button id="pbClear">Kosongkan booth</button><h2 class="pb-library-heading">Library lokal</h2><p class="muted">Preset maksimal 512 MB, termasuk file sumber dan tekstur.</p><label>Nama preset<input id="pbLibraryName" maxlength="80" placeholder="Foto grup / outfit favorit"></label><button id="pbLibrarySave">Simpan scene & outfit</button><button id="pbLibraryRefresh">Muat daftar library</button><input id="pbLibrarySearch" placeholder="Cari preset ped / outfit…" aria-label="Cari library"><div id="pbLibraryList"></div></aside>
+  <div class="pb-layout"><aside class="pb-panel pb-assets"><h2>Model & outfit</h2><div class="pb-buttons"><button id="pbPed">+ Ped / tubuh</button><button id="pbClothes">+ Outfit / batch</button><button id="pbVehicle">+ Kendaraan</button><button id="pbVehicleFolder">+ Folder kendaraan</button><button id="pbVehiclePart">+ Part kendaraan</button><input id="pbVehicleFolderInput" type="file" webkitdirectory multiple hidden><button id="pbAccessory">+ Aksesori</button><button id="pbProp">+ Prop tangan</button><button id="pbTextures">+ Tekstur</button></div><details><summary>Referensi prop GTA V</summary><input id="pbPropSearch" placeholder="Cari nama prop…"><select id="pbPropCatalog" size="6"></select><p class="muted">Daftar nama, bukan model bawaan. Ekspor YDR + YTD dari GTA V milikmu, lalu + Prop tangan. Pilih tangan pada kartu file.</p><a href="https://github.com/haarperr/Full-GTA-V-Props-List" target="_blank" rel="noreferrer">Sumber daftar prop</a></details><input id="pbInput" type="file" accept=".ydd,.ydr,.yft,.ytd,.glb,.meta" multiple hidden><input id="pbTextureInput" type="file" accept=".ytd,.dds,.png,.jpg,.jpeg,.webp" multiple hidden><p class="muted">Masukkan YDD + YTD. YFT skeleton pendamping dapat ditambahkan. GLB rigged juga didukung.</p><details class="pb-outfit-import" open><summary>Kategori outfit & impor folder</summary><div id="pbOutfitButtons" class="pb-outfit-grid"></div><label>Kategori folder / drag & drop<select id="pbImportCategory"><option value="auto">Otomatis dari nama GTA</option>${OUTFIT_CATEGORIES.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}</select></label><button id="pbFolder">+ Folder outfit</button><input id="pbFolderInput" type="file" webkitdirectory multiple hidden></details><p id="pbModelCount" class="muted" role="status">0 / ${MAX_BOOTH_MODELS} model</p><p class="muted">100 model · 64 MB per model · 1 GB file model per scene. Batas tekstur decoded 1 GB.</p><label>Filter bagian<select id="pbCategoryFilter"><option value="all">Semua bagian</option><option value="ped">Ped / tubuh</option><option value="vehicle">Kendaraan</option>${OUTFIT_CATEGORIES.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}</select></label><input id="pbAssetSearch" placeholder="Cari model / outfit…" aria-label="Cari model Photo Booth"><div class="pb-buttons pb-group-actions"><button id="pbCollapseGroups">Ciutkan semua</button><button id="pbExpandGroups">Buka semua</button></div><div id="pbAssets"></div><p id="pbEmpty">Belum ada model. Mulai dari ped / tubuh milikmu.</p><button id="pbClear">Kosongkan booth</button><h2 class="pb-library-heading">Library lokal</h2><p class="muted">Preset maksimal 512 MB, termasuk file sumber dan tekstur.</p><label>Nama preset<input id="pbLibraryName" maxlength="80" placeholder="Foto grup / outfit favorit"></label><button id="pbLibrarySave">Simpan scene & outfit</button><button id="pbLibraryRefresh">Muat daftar library</button><input id="pbLibrarySearch" placeholder="Cari preset ped / outfit…" aria-label="Cari library"><div id="pbLibraryList"></div></aside>
   <section class="pb-stage"><div class="pb-stage-toolbar"><button id="pbFit">Lihat semua ped</button><button id="pbMove" aria-pressed="false">Atur posisi</button><label class="pb-stage-picker">Alat<select id="pbTransformMode" aria-label="Mode transform"><option value="translate">Geser</option><option value="rotate">Putar</option></select></label><label class="pb-stage-picker">Objek<select id="pbStageActor" aria-label="Ped di viewport"></select></label><label class="check"><input id="pbSnap" type="checkbox">Snap 10 cm</label><button id="pbFullscreen" aria-pressed="false">Layar penuh</button><button id="pbStageCapture">Simpan PNG</button><button id="pbEmoteToggle" hidden aria-controls="pbEmotePlayer" aria-expanded="true">Emote player</button><label class="pb-stage-picker">Set<select id="pbStageStudio" aria-label="Set studio di viewport">${BOOTH_STUDIOS.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}</select></label><button id="pbFront">Depan</button><button id="pbBack">Belakang</button><label class="check"><input id="pbFloor" type="checkbox" checked>Grid (polos)</label><span>Orbit: drag · pindah: panah X/Y/Z · scroll: zoom</span></div><div id="pbViewport"></div><section id="pbEmotePlayer" class="pb-emote-player" role="region" aria-label="Emote player fullscreen" hidden><div class="pb-emote-header"><div><strong>Emote player</strong><span id="pbEmoteSummary"></span></div><button id="pbEmotePlay" aria-label="Putar emote ped terpilih">▶</button><button id="pbEmoteMinimize" aria-controls="pbEmoteBody" aria-expanded="true" title="Minimalkan emote player">Minimalkan</button></div><div id="pbEmoteBody" class="pb-panel pb-emote-body"></div></section><p id="pbStatus" role="status">Siap untuk sesi foto offline.</p><button id="pbShowIssues" hidden>Lihat masalah</button></section>
   <aside class="pb-panel pb-settings"><h2>Pose & emote per ped</h2><label>Ped / kendaraan yang diatur<select id="pbActor"></select></label><p class="muted">Pose, tinggi dan outfit mengikuti ped yang dipilih.</p><fieldset class="pb-ped-sizing"><legend>Posisi & ukuran objek terpilih</legend><label>Rotasi Y · derajat<input id="pbYaw" type="number" min="-360" max="360" step="5"></label><label class="check"><input id="pbMatte" type="checkbox">Matte tubuh / wajah</label><label>Kiri / kanan · cm<input id="pbPositionX" type="number" min="-10000" max="10000" step="1"></label><label>Depan / belakang · cm<input id="pbPositionZ" type="number" min="-10000" max="10000" step="1"></label><label>Tinggi grup ped · cm<input id="pbHeightCm" type="number" min="1" max="1000" step="1"></label><label>Naik / turun · cm<input id="pbElevationCm" type="number" min="-10000" max="10000" step="1" value="0"></label><p class="muted">Seluruh outfit ikut berubah. Kamera tetap; gunakan Fit tubuh bila perlu.</p></fieldset><details class="pb-rig-settings"><summary>Skeleton / acuan (opsional)</summary><label>Skeleton acuan<select id="pbRigSource"><option value="auto">Otomatis · model / freemode</option><option value="freemode-male">Freemode laki-laki</option><option value="freemode-female">Freemode perempuan</option><option value="reference">Dari file skeleton acuan</option></select></label><button id="pbReference">+ Skeleton YFT / YDD</button><input id="pbReferenceInput" type="file" accept=".yft,.ydd,.ydr" multiple hidden></details><label>Pose<select id="pbPose">${BOOTH_POSES.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}<option value="clip">Custom emote · YCD / GLB</option></select></label><div id="pbQuickPose" class="pb-buttons pb-quick-pose"><button data-quick-pose="walk">Berjalan</button><button data-quick-pose="dance">Dance</button><button data-quick-pose="wave">Lambaikan</button></div><div class="pb-buttons"><button id="pbPlay" disabled>▶ Putar</button><button id="pbResetPose">Reset pose</button><button id="pbPlayAll">Putar semua</button><button id="pbPauseAll">Jeda semua</button></div><label>Kecepatan<input id="pbSpeed" type="number" min="0.1" max="3" step="0.1" value="1"></label><label>Frame / waktu <output id="pbTimeLabel">0.00 s</output><input id="pbTime" type="range" min="0" max="4" step="0.01" value="0"></label><button id="pbImportClip">+ Emote YCD / GLB</button><input id="pbClipInput" type="file" accept=".ycd,.glb" multiple hidden><label id="pbClipField" hidden>Cari emote<input id="pbClipSearch" type="search" placeholder="Nama file / emote…">Clip<select id="pbClip"></select></label><p id="pbRigStatus" class="muted" role="status">Pose memerlukan skeleton dan skin weights yang cocok.</p><details id="pbIssues" hidden><summary id="pbIssueSummary">Periksa masalah</summary><p class="muted">Skeleton: pilih acuan atau impor YFT/YDD yang cocok. Tekstur: tambahkan YTD atau pilih penggantian preview di kartu model.</p><ul id="pbIssueList"></ul></details><h2>Studio</h2><label>Set photo studio<select id="pbStudio">${BOOTH_STUDIOS.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}</select></label><p class="muted">Studio 3D offline. PNG transparan menyembunyikan set dan lantai.</p><label>Background · mode polos<input id="pbBackground" type="color" value="#242938"></label><label class="check"><input id="pbTransparent" type="checkbox">PNG transparan</label><details class="pb-rig-settings" open><summary>Bayangan</summary><label class="check"><input id="pbShadows" type="checkbox" checked>Aktifkan bayangan</label><label>Kekuatan bayangan<input id="pbShadowStrength" type="range" min="0" max="1" step="0.05" value="1"></label><label>Arah cahaya / bayangan · derajat<input id="pbShadowAngle" type="range" min="0" max="360" step="1" value="37"></label></details><label>Cahaya<input id="pbLight" type="range" min="0.3" max="3" value="1" step="0.05"></label><label>Resolusi foto<select id="pbSize"><option value="1080x1350">1080 × 1350 · katalog</option><option value="1920x1080" selected>1920 × 1080 · landscape</option><option value="2048x2048">2048 × 2048 · square</option><option value="3000x4000">3000 × 4000 · portrait</option><option value="4000x3000">4000 × 3000 · landscape</option><option value="3000x3000">3000 × 3000 · square</option></select></label><p class="muted">Pose/emote bawaan dibuat untuk preview. YCD Legacy: clip skeletal tunggal, dipetakan melalui bone tag GTA. GLB memakai nama bone yang cocok. Blend dan efek game belum didukung. Prop rigid dapat diikat ke bone tangan.</p></aside></div>`;
   const exportDialog = document.createElement('dialog');
@@ -354,6 +355,8 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     for (const id of [
       'pbPed',
       'pbVehicle',
+      'pbVehicleFolder',
+      'pbVehiclePart',
       'pbYaw',
       'pbTransformMode',
       'pbClothes',
@@ -382,6 +385,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       .querySelectorAll('button,input,select')
       .forEach((e) => (e.disabled = busy || e.dataset.referenceCheckbox === 'true'));
     $('pbLibrarySave').disabled = busy || !assets.length;
+    $('pbVehiclePart').disabled = busy || currentActor()?.kind !== 'vehicle';
     $('pbReference').disabled = busy || !currentActor() || currentActor().kind === 'vehicle';
     $('pbMatte').disabled = busy || !currentActor() || currentActor().kind === 'vehicle';
     $('pbRigSource').disabled = busy || !currentActor();
@@ -717,6 +721,13 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       a.root.visible = a.visible;
       const owner = actorForAsset(assets, a);
       actorFrames.get(owner.id).add(a.root);
+      const vehicleHidden = new Set(
+        assets
+          .filter(
+            (b) => b.kind === 'vehicle-part' && b.owner === owner.id && b.visible && !b.vehicleAlt,
+          )
+          .flatMap((b) => b.vehicleOffBones || []),
+      );
       const family = freemodeFamily(owner.name) || freemodeFamily(a.name);
       const candidates = assets
         .filter((b) => actorForAsset(assets, b) === owner && !isRigidBoothProp(b))
@@ -757,10 +768,15 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           }
           if (selection.warning) warnings.push(a.name + ': ' + selection.warning);
           if (selection.source && rig) owner.rigReport.sources.add(selection.source);
+          const previewIndices =
+            a.kind === 'vehicle' || a.vehicleAlt
+              ? vehiclePreviewIndices(g, d.rig || [], vehicleHidden)
+              : g.indices;
+          if (!previewIndices.length) continue;
           const geom = new THREE.BufferGeometry();
           geom.setAttribute('position', new THREE.BufferAttribute(g.positions, 3));
           if (g.uvs) geom.setAttribute('uv', new THREE.BufferAttribute(g.uvs, 2));
-          geom.setIndex(new THREE.BufferAttribute(g.indices, 1));
+          geom.setIndex(new THREE.BufferAttribute(previewIndices, 1));
           if (g.normals) geom.setAttribute('normal', new THREE.BufferAttribute(g.normals, 3));
           else geom.computeVertexNormals();
           const ownTextures = textures.filter(
@@ -826,7 +842,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     stage.updateMatrixWorld(true);
     // Resolve against ped/outfit skeletons, never the prop's own skeleton.
     for (const a of assets)
-      if (!['ped', 'vehicle'].includes(a.kind) && a.attach !== 'auto') {
+      if (!['ped', 'vehicle', 'vehicle-part'].includes(a.kind) && a.attach !== 'auto') {
         const owner = actorForAsset(assets, a);
         const roots = assets
           .filter(
@@ -1112,7 +1128,12 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     for (const a of assets) {
       const category = a.category || outfitCategory(a.name, 'auto', a.kind),
         owner = actorForAsset(assets, a);
-      if (filter !== 'all' && filter !== category) continue;
+      if (
+        filter !== 'all' &&
+        filter !== category &&
+        !(filter === 'vehicle' && category === 'vehicle-part')
+      )
+        continue;
       if (
         query &&
         ![a.name, owner.label || '', owner.name].some((n) => n.toLowerCase().includes(query))
@@ -1131,7 +1152,11 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         name = document.createElement('strong'),
         type = document.createElement('small');
       name.textContent = a.name;
-      type.textContent = a.referenceOnly ? 'Skeleton acuan' : outfitLabel(category);
+      type.textContent = a.referenceOnly
+        ? 'Skeleton acuan'
+        : a.vehicleAlt
+          ? 'LOD _hi alternatif'
+          : outfitLabel(category);
       summary.append(name, type);
       card.append(summary);
       const label = document.createElement('label');
@@ -1141,7 +1166,21 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       visible.checked = a.visible;
       visible.onchange = () => {
         a.visible = visible.checked;
-        rebuild();
+        if (a.visible && a.kind === 'vehicle-part') {
+          for (const b of assets.filter(
+            (b) =>
+              b.kind === 'vehicle-part' &&
+              b.owner === a.owner &&
+              b !== a &&
+              a.vehicleSlot &&
+              b.vehicleSlot === a.vehicleSlot,
+          ))
+            b.visible = false;
+          if (a.vehicleAlt) owner.visible = false;
+        }
+        if (a.visible && a.kind === 'vehicle')
+          for (const b of assets.filter((b) => b.owner === a.id && b.vehicleAlt)) b.visible = false;
+        rebuild({ fitCamera: false });
       };
       label.append(
         visible,
@@ -1156,7 +1195,18 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         visible.dataset.referenceCheckbox = 'true';
       }
       card.append(label);
-      if (!['ped', 'vehicle'].includes(a.kind)) {
+      if (a.kind === 'vehicle-part') {
+        const info = document.createElement('p');
+        info.className = 'muted';
+        info.textContent = a.vehicleAlt
+          ? 'LOD _hi alternatif · aktifkan untuk mengganti model dasar'
+          : 'Part kendaraan · ' +
+            (a.vehicleSlot || 'manual') +
+            ' · ' +
+            (a.vehicleBone || 'chassis');
+        card.append(info);
+      }
+      if (!['ped', 'vehicle', 'vehicle-part'].includes(a.kind)) {
         const label = document.createElement('label');
         label.textContent = 'Jenis outfit';
         const select = document.createElement('select');
@@ -1244,7 +1294,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         l.append(c, document.createTextNode(slot));
         card.append(l);
       }
-      if (!['ped', 'vehicle'].includes(a.kind)) {
+      if (!['ped', 'vehicle', 'vehicle-part'].includes(a.kind)) {
         const ownerLabel = document.createElement('label');
         ownerLabel.textContent = 'Pemilik outfit / aksesori';
         const ownerSelect = document.createElement('select');
@@ -1489,6 +1539,19 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       MAX_BOOTH_MODEL_BYTES
     )
       throw Error('Total file model maksimal 1 GB per scene.');
+    const metadata =
+      assetKind === 'vehicle'
+        ? vehicleModManifest(
+            await Promise.all(
+              files
+                .filter((f) => /\.meta$/i.test(f.name))
+                .map(async (f) => {
+                  if (f.size > 2 * 1024 ** 2) throw Error(f.name + ': metadata maksimal 2 MB.');
+                  return f.text();
+                }),
+            ),
+          )
+        : [];
     const pending = [];
     try {
       for (const file of models) {
@@ -1498,7 +1561,10 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           id: ++token,
           name: file.name,
           kind: assetKind,
-          category: outfitCategory(file.name, category, assetKind),
+          category:
+            assetKind === 'vehicle-part'
+              ? 'vehicle-part'
+              : outfitCategory(file.name, category, assetKind),
           matte: false,
           visible: !options.referenceOnly,
           referenceOnly: !!options.referenceOnly,
@@ -1516,9 +1582,11 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           yaw: 0,
           owner: ['ped', 'vehicle'].includes(assetKind)
             ? null
-            : currentActor()?.kind === 'ped'
+            : assetKind === 'vehicle-part' && currentActor()?.kind === 'vehicle'
               ? currentActor().id
-              : null,
+              : currentActor()?.kind === 'ped'
+                ? currentActor().id
+                : null,
           motion: createActorMotion(),
           scale: 1,
           attach: 'auto',
@@ -1530,10 +1598,14 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         }
         if (/\.glb$/i.test(file.name)) a.gltf = await parseGlb(file);
         else {
-          a.drawables = await decodeResource(
-            file.name.split('.').pop().toLowerCase(),
-            await file.arrayBuffer(),
-          );
+          try {
+            a.drawables = await decodeResource(
+              file.name.split('.').pop().toLowerCase(),
+              await file.arrayBuffer(),
+            );
+          } catch (e) {
+            throw Error(file.name + ': ' + e.message);
+          }
           a.drawable = defaultDrawableSelection(a.drawables);
         }
         if (options.referenceOnly && !(a.drawables || []).some((d) => d.rig?.length))
@@ -1542,6 +1614,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           );
         pending.push(a);
       }
+      if (assetKind === 'vehicle') groupBoothVehicles(pending, assets, metadata);
       if (assetKind === 'ped') {
         const primaries = pending.filter((a) => !/\.yft$/i.test(a.name));
         for (const a of pending.filter((a) => /\.yft$/i.test(a.name))) {
@@ -1613,6 +1686,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
   for (const [id, value] of [
     ['pbPed', 'ped'],
     ['pbVehicle', 'vehicle'],
+    ['pbVehiclePart', 'vehicle-part'],
     ['pbClothes', 'clothing'],
     ['pbAccessory', 'accessory'],
     ['pbProp', 'accessory'],
@@ -1657,6 +1731,12 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
   }
   $('pbPropSearch').oninput = propCatalog;
   propCatalog();
+  $('pbVehicleFolder').onclick = () => $('pbVehicleFolderInput').click();
+  $('pbVehicleFolderInput').onchange = (e) => {
+    const files = [...e.target.files].filter((f) => /\.(yft|ydr|ydd|ytd|glb|meta)$/i.test(f.name));
+    e.target.value = '';
+    guard(() => importFiles(files, 'vehicle'));
+  };
   $('pbCategoryFilter').onchange = () => assetList(true);
   $('pbAssetSearch').oninput = () => assetList(true);
   $('pbFolder').onclick = () => {
@@ -2058,6 +2138,11 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         drawable: a.drawable,
         hiddenSlots: [...a.hiddenSlots],
         attach: a.attach,
+        vehicleModel: a.vehicleModel || '',
+        vehicleAlt: !!a.vehicleAlt,
+        vehicleSlot: a.vehicleSlot || '',
+        vehicleBone: a.vehicleBone || '',
+        vehicleOffBones: a.vehicleOffBones || [],
         grip: !!a.grip,
         pitch: a.pitch || 0,
         roll: a.roll || 0,

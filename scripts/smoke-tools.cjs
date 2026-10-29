@@ -525,6 +525,21 @@ app.whenReady().then(async () => {
       path.resolve('release/qa/photo-booth-asset-groups.png'),
       (await win.webContents.capturePage()).toPNG(),
     );
+    Object.assign(
+      photoBoothReport,
+      await win.webContents.executeJavaScript(
+        '(' +
+          require('./booth-vehicles-qa.cjs').toString() +
+          ')(' +
+          JSON.stringify({ yft: [...new Uint8Array(testYft)], ytd: [...new Uint8Array(testYtd)] }) +
+          ')',
+      ),
+    );
+    await new Promise((r) => setTimeout(r, 150));
+    await fs.writeFile(
+      path.resolve('release/qa/photo-booth-vehicle-resource.png'),
+      (await win.webContents.capturePage()).toPNG(),
+    );
     await win.loadFile(path.resolve('ui/index.html'));
     const fivemToolsReport = await win.webContents.executeJavaScript(
       '(' + require('./fivem-tools-ui-checks.cjs').toString() + ')()',
