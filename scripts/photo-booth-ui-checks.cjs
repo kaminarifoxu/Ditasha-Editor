@@ -311,8 +311,15 @@ module.exports = async function checkPhotoBooth(fixtures) {
   const viewportRect = $('pbViewport').getBoundingClientRect(),
     canvasRect = canvas().getBoundingClientRect();
   assert(
-    canvasRect.width >= viewportRect.width - 2 && canvasRect.height >= viewportRect.height - 2,
-    'Fullscreen preview did not use available width/height',
+    canvasRect.width <= viewportRect.width + 2 &&
+      canvasRect.height <= viewportRect.height + 2 &&
+      (canvasRect.width >= viewportRect.width - 2 ||
+        canvasRect.height >= viewportRect.height - 2) &&
+      Math.abs(
+        canvasRect.width / canvasRect.height -
+          Number($('pbSize').value.split('x')[0]) / Number($('pbSize').value.split('x')[1]),
+      ) < 0.01,
+    'Fullscreen preview must maximize available space while keeping PNG aspect',
   );
   $('pbFit').click();
   console.log('DITASHA_SNAPSHOT:photo-booth-fullscreen-neon');
