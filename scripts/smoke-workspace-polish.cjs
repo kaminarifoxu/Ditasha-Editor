@@ -26,8 +26,9 @@ app.whenReady().then(async () => {
         ['layout.ydd', [...new Uint8Array(testYdd)]],
         ['layout.ytd', [...new Uint8Array(testYtd)]],
       ])})dt.items.add(new File([new Uint8Array(data)],name));
+      const image=document.createElement('canvas');image.width=1536;image.height=1024;const paint=image.getContext('2d'),gradient=paint.createLinearGradient(0,0,1536,1024);gradient.addColorStop(0,'#e6bc69');gradient.addColorStop(1,'#25495e');paint.fillStyle=gradient;paint.fillRect(0,0,1536,1024);paint.strokeStyle='#fff';paint.lineWidth=24;paint.strokeRect(24,24,1488,976);paint.fillStyle='#fff';paint.font='bold 92px sans-serif';paint.fillText('DITASHA WORKSHOP',110,530);dt.items.add(new File([await new Promise(r=>image.toBlob(r))],'layout-texture.png',{type:'image/png'}));
       const input=document.getElementById('fileInput');input.files=dt.files;input.dispatchEvent(new Event('change'));
-      const end=Date.now()+15000;while(!document.getElementById('canvasStack').offsetWidth){if(Date.now()>end)throw Error('Layout files not ready');await new Promise(r=>setTimeout(r,40));}
+      const end=Date.now()+15000;while(!document.getElementById('canvasStack').offsetWidth||!document.getElementById('textureTitle').textContent.includes('layout-texture')){if(Date.now()>end)throw Error('Layout files not ready');await new Promise(r=>setTimeout(r,40));}
     })()`);
     const report = [];
     for (const width of [1500, 1100, 1000]) {
