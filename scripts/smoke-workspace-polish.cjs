@@ -66,7 +66,7 @@ app.whenReady().then(async () => {
         await settle();
         const center=root.querySelector('.archive-center'),initial=center.getBoundingClientRect().width;
         toggle(right).click();await settle();
-        if(${width}>880){check(right.getBoundingClientRect().width<=50,'Archive details track did not collapse');check(center.getBoundingClientRect().width>initial+100,'Archive details did not release space');}
+        if(${width}>880){check(right.getBoundingClientRect().width<=50,'Archive details track did not collapse '+JSON.stringify({width:right.getBoundingClientRect().width,viewport:innerWidth,classes:right.className,grid:getComputedStyle(root).gridTemplateColumns,track:getComputedStyle(root).getPropertyValue('--archive-details-track'),display:getComputedStyle(right).display}));check(center.getBoundingClientRect().width>initial+100,'Archive details did not release space');}
         else check(right.getBoundingClientRect().height<70,'Stacked archive details did not collapse');
         toggle(left).click();await settle();
         check(left.getBoundingClientRect().width<=50,'Archive files track did not collapse');
