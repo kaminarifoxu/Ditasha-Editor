@@ -253,6 +253,10 @@ else {
       if (!trustedClothingEvent(event)) throw new Error('Untrusted caller');
       return clothingLibrary.readAsset(packId, relativePath);
     });
+    ipcMain.handle('ditasha:clothing-rename', (event, id, label) => {
+      if (!trustedClothingEvent(event)) throw new Error('Untrusted caller');
+      return clothingLibrary.rename(id, label);
+    });
     ipcMain.handle('ditasha:clothing-remove', (event, id) => {
       if (!trustedClothingEvent(event)) throw new Error('Untrusted caller');
       return clothingLibrary.remove(id);
