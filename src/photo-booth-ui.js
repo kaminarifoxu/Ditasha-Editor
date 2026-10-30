@@ -215,7 +215,9 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
   const studioClipPlane = new THREE.Plane();
   const library = createBoothLibrary();
   const emoteVault = createEmoteVault();
-  let vaultStarted = false;
+  let vaultStarted = false,
+    vaultRestoring = null,
+    initialImportQueue = Promise.resolve();
   const vaultControls = document.createElement('details');
   vaultControls.className = 'pb-emote-vault';
   vaultControls.innerHTML = `<summary>Emote tersimpan · antar sesi</summary><label class="check"><input id="pbEmoteAutoSave" type="checkbox" checked>Simpan otomatis saat impor</label><p id="pbEmoteVaultStatus" class="muted" role="status">YCD/GLB disimpan di komputer ini dan dimuat saat Photo Booth dibuka kembali.</p><div class="pb-buttons"><button id="pbEmoteSaveAll">Simpan semua emote aktif</button><button id="pbEmoteLoadSaved">Muat emote tersimpan</button><button id="pbEmoteFolder">+ Folder emote</button><button id="pbEmoteClearSaved">Hapus library emote tersimpan</button></div><input id="pbEmoteFolderInput" type="file" webkitdirectory multiple hidden><p class="muted">Impor YCD, GLB, ZIP RPEmotes atau folder. Lua hanya daftar nama, tidak dijalankan. Maksimal 2000 file / 512 MB sumber; Kosongkan booth tidak menghapus library ini.</p>`;
@@ -617,6 +619,15 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     $('pbStatus').textContent = s;
   };
   const guard = async (fn) => {
+    if (busy && vaultRestoring) {
+      const restore = vaultRestoring;
+      return (initialImportQueue = initialImportQueue
+        .catch(() => {})
+        .then(async () => {
+          await restore;
+          return guard(fn);
+        }));
+    }
     if (busy) return;
     busy = true;
     setControls();
@@ -3134,7 +3145,9 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         ensure();
         if (!vaultStarted) {
           vaultStarted = true;
-          guard(loadSavedEmotes);
+          vaultRestoring = guard(loadSavedEmotes).finally(() => {
+            vaultRestoring = null;
+          });
         }
         attachTransform();
         setControls();

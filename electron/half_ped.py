@@ -16,7 +16,27 @@ def reference_from_engine(bpy, gender):
     vertices,faces,indices,weights=data['V'],data['F'],data['WI'],data['WV']
     if len(vertices)>50000 or len(faces)>100000 or not np.isfinite(vertices).all() or not np.isfinite(weights).all():
         raise ValueError('Acuan engine tidak valid.')
-    names=json.loads((Path(io.DATA)/'template_mp_m.json').read_text())['bones']
+    names=json.loads((Path(io.DATA)/('template_'+gender+'.json')).read_text())['bones']
+    if gender=='mp_f':
+        # Muto's Blender template is male. Female facial names/rest rotations
+        # differ even though the numeric GTA bone tags and body bones match.
+        from mathutils import Matrix
+        male=json.loads((Path(io.DATA)/'template_mp_m.json').read_text())['bones']
+        pairs=[(arm.data.bones[old['name']],new) for old,new in zip(male,names)]
+        if len(pairs)!=128 or any(old['tag']!=new['tag'] for old,new in zip(male,names)):
+            raise ValueError('Acuan skeleton female tidak cocok dengan template engine.')
+        for index,(bone,_) in enumerate(pairs):bone.name='DITASHA_TMP_'+str(index)
+        for bone,spec in pairs:bone.name=spec['name']
+        bpy.ops.object.select_all(action='DESELECT');arm.hide_set(False);arm.hide_viewport=False;arm.select_set(True);bpy.context.view_layer.objects.active=arm
+        bpy.ops.object.mode_set(mode='EDIT')
+        try:
+            for bone in arm.data.edit_bones:bone.use_connect=False
+            for spec in names:
+                bone=arm.data.edit_bones[spec['name']]
+                bone.parent=arm.data.edit_bones.get(spec['parent']) if spec['parent'] else None
+                bone.matrix=Matrix(spec['matrix_local'])
+        finally:bpy.ops.object.mode_set(mode='OBJECT')
+        bpy.context.view_layer.update()
     objects=[]
     for part,label in enumerate(data['part_names']):
         mask=data['PART']==part

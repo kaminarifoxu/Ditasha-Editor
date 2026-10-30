@@ -28,6 +28,7 @@ app.whenReady().then(async () => {
       height: 950,
       show: true,
       webPreferences: {
+        partition: 'persist:tools-regression-' + Date.now(),
         contextIsolation: true,
         sandbox: true,
         nodeIntegration: false,
@@ -50,6 +51,12 @@ app.whenReady().then(async () => {
       }
     });
     await win.loadFile(path.resolve('ui/index.html'));
+    // These scenarios exercise transient catalogs. The separate character suite
+    // verifies the default auto-save/reopen behavior in its own persistent profile.
+    await win.webContents.executeJavaScript(`(() => {
+      const option=document.getElementById('pbEmoteAutoSave');
+      option.checked=false;option.dispatchEvent(new Event('change'));
+    })()`);
     const homeReports = [];
     for (const [width, height] of [
       [1500, 950],

@@ -24,9 +24,7 @@ module.exports = async function checkCharacterWorkshops({
     input.dispatchEvent(new Event('change'));
   };
   document.querySelector('.workspace-nav [data-page=photobooth]').click();
-  await wait(() => !$('pbPed').disabled, 'Photo Booth initial restore');
   if (restoreOnly) {
-    $('pbPed').click();
     files($('pbInput'), [['reopened-ped.glb', ped]]);
     await wait(() => !$('pbPed').disabled && $('pbActor').options.length === 1, 'Restore actor');
     assert(
@@ -39,6 +37,7 @@ module.exports = async function checkCharacterWorkshops({
     );
     return { restoredAfterReopen: true };
   }
+  await wait(() => !$('pbPed').disabled, 'Photo Booth initial restore');
   // Exercise chunk storage using the actual IndexedDB implementation, then leave only a valid YCD fixture.
   const { createEmoteVault } = await import(new URL('../src/emote-vault.js', location.href).href),
     vault = createEmoteVault();

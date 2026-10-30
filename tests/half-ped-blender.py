@@ -65,7 +65,20 @@ with tempfile.TemporaryDirectory() as directory:
         for vertex in obj.data.vertices:
             weights=[g.weight for g in vertex.groups if g.weight>1e-6]
             assert weights and len(weights)<=4 and abs(sum(weights)-1)<.02
-    second=temp/'female';second.mkdir();job.pop('reference');job.pop('hair');options.update({'native':False,'fit':True,'gender':'mp_f','weights':'rigid'})
+    second=temp/'female';second.mkdir();job.pop('reference');job.pop('hair');options.update({'native':True,'fit':True,'gender':'mp_f','weights':'surface'})
     female=half_ped.run(bpy,job,second,ped_review,bridge.preview_scene)
     assert female['halfPed'] and not female['referenceUvAvailable'] and (second/'ditasha-halfped.glb').is_file()
+    assert len(female['nativeHead'])==1 and 'mp_f_freemode_01^' in female['nativeHead'][0]['file']
+    arm=next(a for a in bpy.data.objects if a.type=='ARMATURE' and a.name=='DITASHA_Freemode')
+    assert arm.data.bones.get('FB_Jaw_000') and not arm.data.bones.get('FB_Jaw_045')
+    import importlib,numpy as np
+    module=bridge.engine_info(bpy)['muto'];io=importlib.import_module(module+'.bl.io')
+    specs=json.loads((Path(io.DATA)/'template_mp_f.json').read_text())['bones']
+    for spec in specs:
+        assert np.abs(np.array(arm.data.bones[spec['name']].matrix_local)-np.array(spec['matrix_local'])).max()<1e-5,spec['name']
+    before=set(bpy.data.objects)
+    target=second/female['nativeHead'][0]['file']
+    status=bpy.ops.sollumz.import_assets(directory=str(target.parent),files=[{'name':target.name}],use_custom_settings=True,textures_mode='PACK')
+    imported_arms=[o for o in bpy.data.objects if o not in before and o.type=='ARMATURE']
+    assert 'FINISHED' in status and any(any(b.bone_properties.tag==46240 for b in a.data.bones) for a in imported_arms),'Female jaw bone tag missing'
     print('PASS_HALF_PED_NATIVE_HEAD_HAIR_UV_WEIGHTS_POSE_AND_FEMALE_REFERENCE')
