@@ -48,7 +48,7 @@ export function mountClothingCatalog({ openPreview } = {}) {
           button.disabled = true;
           try {
             const matching = pack.files.filter(entry => entry.component === file.component &&
-              entry.drawable === file.drawable && /\\.ytd$/i.test(entry.name));
+              entry.drawable === file.drawable && /\.ytd$/i.test(entry.name));
             const selected = [file, ...matching];
             const modelFiles = [];
             for (const entry of selected) {
