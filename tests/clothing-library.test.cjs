@@ -22,3 +22,24 @@ test('persists custom imported clothing and removes it', async () => {
     assert.equal((await second.list()).length, 0);
   } finally { await fs.rm(root, { recursive: true, force: true }); }
 });
+
+
+test('rejects a texture-only pack without saving a library record', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'ditasha-invalid-pack-'));
+  try {
+    const source = path.join(root, 'mp_m_freemode_01^jbib_diff_001_a_uni.ytd');
+    await fs.writeFile(source, Buffer.from('test-texture'));
+    const library = new ClothingLibrary(path.join(root, 'library'));
+    await assert.rejects(library.importFiles({ files: [source] }), /at least one YDD/);
+    assert.deepEqual(await library.list(), []);
+  } finally { await fs.rm(root, { recursive: true, force: true }); }
+});
+test('rejects duplicate source paths', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'ditasha-dupes-'));
+  try {
+    const source = path.join(root, 'mp_m_freemode_01^jbib_001_u.ydd');
+    await fs.writeFile(source, Buffer.from('test'));
+    const library = new ClothingLibrary(path.join(root, 'library'));
+    await assert.rejects(library.importFiles({ files: [source, source] }), /Duplicate source/);
+  } finally { await fs.rm(root, { recursive: true, force: true }); }
+});
