@@ -20,7 +20,8 @@ module.exports = async function checkHome({ ytd, size, interactions }) {
     'Homepage does not replace the editor',
   );
   assert(
-    document.querySelectorAll('.home-workspace-card').length === 12 &&
+    document.querySelectorAll('.home-workspace-card').length === 13 &&
+      home.querySelector('[data-home-page=logoprop]') &&
       home.querySelector('[data-home-page=fivemtools]') &&
       home.querySelector('[data-home-page=moddrop]') &&
       home.querySelector('[data-home-page=weapons]') &&
@@ -118,7 +119,7 @@ module.exports = async function checkHome({ ytd, size, interactions }) {
     'Search did not navigate to the selected workspace',
   );
   document.getElementById('openHome').click();
-  for (const page of ['files', 'editor', 'archives', 'vehicles', 'converter', 'pack']) {
+  for (const page of ['logoprop', 'files', 'editor', 'archives', 'vehicles', 'converter', 'pack']) {
     home.querySelector(`[data-home-page="${page}"]`).click();
     assert(
       document.body.dataset.workspace === page && home.hidden,
