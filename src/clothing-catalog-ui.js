@@ -41,6 +41,13 @@ export function mountClothingCatalog({ openPreview } = {}) {
       const textures=pack.files.filter(entry => /\.ytd$/i.test(entry.name) && entry.component===file.component && entry.drawable===file.drawable);
       const foot=document.createElement('small');foot.textContent=pack.pack+' · '+file.gender+' · '+textures.length+' texture files';
       card.append(preview,name,desc,foot);
+      const variants = [...new Set(textures.map(t => t.textureVariant).filter(Boolean))].sort();
+      const picker = document.createElement('select');
+      picker.setAttribute('aria-label', 'Pilih variasi tekstur');
+      if (variants.length) {
+        for (const variant of variants) picker.add(new Option('Texture ' + variant.toUpperCase(), variant));
+        card.append(picker);
+      }
       if (typeof openPreview === 'function') {
         const button = document.createElement('button');
         button.textContent = 'Buka di 3D Editor';
@@ -49,7 +56,7 @@ export function mountClothingCatalog({ openPreview } = {}) {
           try {
             const matching = pack.files.filter(entry => entry.component === file.component &&
               entry.drawable === file.drawable && /\.ytd$/i.test(entry.name));
-            const selected = [file, ...matching];
+            const selected = [file, ...matching.filter(entry => !variants.length || entry.textureVariant === picker.value)];
             const modelFiles = [];
             for (const entry of selected) {
               const data = await window.ditashaClothing.previewRead(id, entry.relativePath);
