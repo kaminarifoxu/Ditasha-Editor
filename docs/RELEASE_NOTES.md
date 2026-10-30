@@ -1,3 +1,9 @@
+# v1.71.1 — Grouped Photo Booth object selection
+
+- Group both object pickers by Ped / tubuh, Kendaraan, Outfit mandiri and Prop / bagian mandiri, showing counts only for populated groups. Attached outfit and vehicle parts continue to follow their owner rather than duplicating scene objects.
+- Shorten fallback filenames in the picker while retaining full filenames as tooltips. Preserve stable object IDs, independent poses and selection synchronization.
+- The installed updater still downloads the full Setup; differential updates are not implemented.
+
 # v1.71.0 — Vehicle materials, emote libraries and workspace controls
 
 - Bind vehicle YTDs to the matching vehicle/base-high family, source folder or explicit dictionary parent instead of falling back to a selected ped. Shared and ambiguous maps remain global. Add Folder tekstur kendaraan for bulk YTD/relationship imports and a per-model automatic diffuse report/reset action.
