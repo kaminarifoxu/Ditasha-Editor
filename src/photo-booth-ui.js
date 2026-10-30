@@ -2368,9 +2368,9 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       const outfits = await library.listOutfits();
       if (!outfits.length) { setStatus('Belum ada outfit tersimpan di Clothing Library.'); return; }
       const answer = window.prompt(
-        'Pilih nomor outfit untuk Photo Booth:\\n' +
+        'Pilih nomor outfit untuk Photo Booth:\n' +
           outfits.map((outfit, i) => (i + 1) + '. ' + outfit.name +
-            ' (' + outfit.gender + ', ' + outfit.slots.length + ' item)').join('\\n'), '1');
+            ' (' + outfit.gender + ', ' + outfit.slots.length + ' item)').join('\n'), '1');
       if (answer === null) return;
       const index = Number(answer) - 1;
       if (!Number.isInteger(index) || !outfits[index]) throw Error('Nomor outfit tidak valid.');
@@ -2382,7 +2382,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         const model = pack?.files.find(f => f.relativePath === slot.relativePath);
         if (!model) throw Error('Model outfit hilang dari library: ' + slot.component);
         selected.push({ packId: pack.id, entry: model });
-        const textures = pack.files.filter(f => /\\.ytd$/i.test(f.name) &&
+        const textures = pack.files.filter(f => /\.ytd$/i.test(f.name) &&
           f.component === model.component && f.drawable === model.drawable &&
           (slot.textureVariant == null || f.textureVariant === slot.textureVariant));
         for (const entry of textures) selected.push({ packId: pack.id, entry });
