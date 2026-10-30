@@ -40,11 +40,20 @@ export function mountNativeBuild({
   dialog.querySelector('#nbPed').append(clipSettings);
   const workflowTabs = document.createElement('div');
   workflowTabs.className = 'viewer-button-row';
+  let halfMode = false;
   workflowTabs.innerHTML =
-    '<button id="nbWorkflowPed">Full ped rig</button><button id="nbWorkflowGarment">Skin clothing</button>';
+    '<button id="nbWorkflowPed">Full ped rig</button><button id="nbWorkflowHead">Kepala / halfped & rambut</button><button id="nbWorkflowGarment">Skin clothing</button>';
   dialog.querySelector('.studio-dialog-head').after(workflowTabs);
   workflowTabs.querySelector('#nbWorkflowPed').onclick = () => open('ped');
   workflowTabs.querySelector('#nbWorkflowGarment').onclick = () => open('garment');
+  workflowTabs.querySelector('#nbWorkflowHead').onclick = () => open('head');
+  const headSettings = document.createElement('section');
+  headSettings.id = 'nbHalfped';
+  headSettings.hidden = true;
+  headSettings.innerHTML = `<h3>Kepala / halfped · The Sims 4 → freemode</h3><p class="muted">Pilih kepala saja, hasil ekspor GLB/FBX/OBJ/Blender dari Sims 4 Studio atau software 3D. .package Sims tidak diimpor langsung. Mata/gigi dapat menyertai model kepala.</p><label>Acuan<select id="nbHeadGender"><option value="mp_m">Freemode laki-laki</option><option value="mp_f">Freemode perempuan</option></select></label><label>Weights wajah<select id="nbHeadWeights"><option value="surface">Transfer dari permukaan kepala acuan</option><option value="rigid">Rigid · ikat ke SKEL_Head</option></select></label><label class="check"><input id="nbHeadFit" type="checkbox" checked>Fit ukuran dan pusat kepala ke acuan</label><label>Skala kepala<input id="nbHeadScale" type="number" min=".1" max="5" step=".01" value="1"></label><div class="studio-fields">${['X', 'Y', 'Z'].map((axis) => `<label>Geser ${axis} · m<input id="nbHead${axis}" type="number" min="-2" max="2" step=".005" value="0"></label><label>Putar ${axis}°<input id="nbHeadRot${axis}" type="number" min="-360" max="360" step="5" value="0"></label>`).join('')}</div><label>Jarak transfer wajah · m<input id="nbHeadDistance" type="number" min=".005" max=".5" step=".005" value=".12"></label><details><summary>Rambut terpisah · opsional</summary><button data-pick="hair">Pilih model rambut</button><p data-file="hair" class="muted">Gunakan posisi asal yang sama dengan kepala, lalu koreksi skala/offset.</p><label>Skala rambut<input id="nbHairScale" type="number" min=".1" max="3" step=".01" value="1"></label>${['X', 'Y', 'Z'].map((axis) => `<label>Geser rambut ${axis} · m<input id="nbHair${axis}" type="number" min="-2" max="2" step=".005" value="0"></label>`).join('')}<p class="muted">Rambut rigid mengikuti kepala; squash topi dan physics tidak dibuat otomatis.</p></details><details><summary>Template & UV freemode asli · opsional</summary><button data-head-reference>Pilih template freemode .blend</button><p class="muted">Default: acuan weights dari engine Muto. Untuk UV freemode asli, gunakan .blend berisi skeleton GTA dan mesh kepala bernama head dengan UV. UV sumber kepala selalu dipertahankan, dan SVG UV diekspor bila tersedia.</p></details><label class="check"><input id="nbHeadNative" type="checkbox">Sertakan YDD pengganti slot freemode</label><label>Slot kepala<input id="nbHeadSlot" value="head_046_r" maxlength="32"></label><label>Slot rambut<input id="nbHairSlot" value="hair_000_u" maxlength="32"></label><p class="muted">Slot harus sesuai collection/YMT dan konfigurasi halfped server milikmu. Periksa mata, rahang dan sambungan leher; transfer permukaan bukan rekonstruksi ekspresi otomatis.</p>`;
+  garmentSettings.after(headSettings);
+  headSettings.querySelector('[data-head-reference]').onclick = () =>
+    dialog.querySelector('[data-pick="reference"]').click();
 
   const partSettings = document.createElement('section');
   partSettings.id = 'nbParts';
@@ -84,6 +93,27 @@ export function mountNativeBuild({
   previewRoot.className = 'native-preview';
   previewRoot.hidden = true;
   $('nbVehicle').after(previewRoot);
+  const layout = dialog.querySelector('.native-build-layout'),
+    leftPanel = layout.querySelector(':scope > aside'),
+    centerPanel = layout.querySelector(':scope > section'),
+    rightPanel = layout.querySelector(':scope > aside:last-child');
+  layout.classList.add('native-prop-layout');
+  const engineDetails = document.createElement('details');
+  engineDetails.className = 'nb-engine-details';
+  engineDetails.innerHTML = '<summary>Engine Blender & Muto</summary>';
+  while (leftPanel.firstChild) engineDetails.append(leftPanel.firstChild);
+  leftPanel.append(engineDetails, $('nbPed'));
+  leftPanel.id = 'nbSourcePanel';
+  const sourceHeading = document.createElement('h2');
+  sourceHeading.textContent = 'Model & rig';
+  leftPanel.prepend(sourceHeading);
+  centerPanel.prepend(previewRoot);
+  rightPanel.prepend(dialog.querySelector('.native-actions'));
+  const exportHeading = document.createElement('h2');
+  exportHeading.textContent = 'Ekspor & validasi';
+  rightPanel.prepend(exportHeading);
+  previewRoot.querySelector('#nbViewport p').textContent =
+    'Pilih model di panel kiri, lalu buat preview rig. Periksa ukuran dan deformasi sebelum menyimpan hasil.';
   const selectedNames = () =>
     [
       ...$($('nbMode').value === 'parts' ? 'nbPartCandidates' : 'nbCandidates').querySelectorAll(
@@ -180,11 +210,20 @@ export function mountNativeBuild({
       displayedMode = value;
     }
     const pedMode = ['ped', 'garment'].includes(value);
+    $('nbPed').querySelector('h3').textContent = halfMode
+      ? '2 · Kepala sumber'
+      : '2 · Pilih model humanoid';
+    dialog.querySelector('[data-pick=ped]').textContent = halfMode
+      ? 'Pilih kepala GLB / FBX / OBJ / Blender'
+      : 'Pilih GLB / FBX / OBJ humanoid';
     workflowTabs.hidden = !pedMode;
     rigSettings.hidden = value === 'garment';
-    garmentSettings.hidden = value !== 'garment';
+    garmentSettings.hidden = value !== 'garment' || halfMode;
+    headSettings.hidden = !halfMode;
+    dialog.dataset.halfped = String(halfMode);
     $('nbPedName').closest('label').hidden = value === 'garment';
-    const generated = value === 'garment' && $('nbClothingSource').value === 'generate';
+    const generated =
+      value === 'garment' && !halfMode && $('nbClothingSource').value === 'generate';
     dialog.querySelector('[data-pick="ped"]').hidden = generated;
     dialog.querySelector('[data-file="ped"]').hidden = generated;
     sourceButton.hidden = generated;
@@ -195,10 +234,12 @@ export function mountNativeBuild({
     $('nbParts').hidden = value !== 'parts';
     (value === 'parts' ? partTransformHome : $('nbStrobo')).append(transformFields);
     for (const id of ['nbSirenId', 'nbDonorId']) $(id).closest('label').hidden = value === 'parts';
-    previewRoot.hidden = dialog.hidden || (pedMode && (!state.previewId || !matchesPreview()));
+    previewRoot.hidden = dialog.hidden;
     $('nbTitle').textContent =
       value === 'garment'
-        ? 'Skin clothing · reference weights'
+        ? halfMode
+          ? 'Kepala / halfped & rambut'
+          : 'Skin clothing · reference weights'
         : value === 'ped'
           ? 'Auto rig ped'
           : value === 'debadge'
@@ -208,21 +249,31 @@ export function mountNativeBuild({
               : 'Strobo dari donor';
     $('nbRun').textContent =
       value === 'garment'
-        ? 'Buat clothing & preview'
+        ? halfMode
+          ? 'Fit kepala & buat preview rig'
+          : 'Buat clothing & preview'
         : value === 'ped'
           ? 'Buat preview rig'
           : 'Build native';
-    $('nbSave').textContent = value === 'garment' ? 'Simpan clothing skinned' : 'Simpan hasil ped';
+    $('nbSave').textContent =
+      value === 'garment'
+        ? halfMode
+          ? 'Simpan hasil halfped'
+          : 'Simpan clothing skinned'
+        : 'Simpan hasil ped';
     $('nbSave').hidden = $('nbDiscard').hidden = !pedMode;
     dialog.querySelector('[data-pick=output]').hidden = pedMode;
     $('nbOutput').hidden = pedMode;
     preview.loadButton.hidden = pedMode;
     preview.setMode(pedMode ? 'ped' : value);
-    if (pedMode && state.previewId && matchesPreview()) $('nbPed').before(previewRoot);
+    if (pedMode && state.previewId && matchesPreview()) centerPanel.prepend(previewRoot);
     else $('nbVehicle').after(previewRoot);
     syncTransform();
   }
   function draw() {
+    headSettings.querySelectorAll('input,select,button').forEach((control) => {
+      control.disabled = requesting || state.running || !!state.stagedId;
+    });
     $('nbStatus').textContent = (state.message || 'Siap.').split(/Traceback|\r?\n/)[0];
     $('nbLog').textContent = state.log || '';
     $('nbSetupProgress').hidden = !state.progress;
@@ -232,7 +283,7 @@ export function mountNativeBuild({
     $('nbEngine').textContent = state.engine || $('nbEngine').textContent;
     dialog
       .querySelectorAll(
-        '[data-pick],#nbMode,#nbRun,#nbAnalyze,#nbProbe,#nbPreviewLoad,#nbSetup,#nbPartsAnalyze,#nbPartsDonor,#nbWorkflowPed,#nbWorkflowGarment',
+        '[data-pick],#nbMode,#nbRun,#nbAnalyze,#nbProbe,#nbPreviewLoad,#nbSetup,#nbPartsAnalyze,#nbPartsDonor,#nbWorkflowPed,#nbWorkflowGarment,#nbWorkflowHead',
       )
       .forEach((e) => (e.disabled = state.running || requesting));
     rigSettings
@@ -244,6 +295,9 @@ export function mountNativeBuild({
     clipSettings
       .querySelectorAll('input,button')
       .forEach((e) => (e.disabled = state.running || requesting || !!state.stagedId));
+    headSettings.querySelectorAll('input,select,button').forEach((control) => {
+      control.disabled = requesting || state.running || !!state.stagedId;
+    });
     $('nbPartCandidates')
       .querySelectorAll('input')
       .forEach((e) => (e.disabled = state.running || requesting || e.dataset.eligible === 'false'));
@@ -273,7 +327,10 @@ export function mountNativeBuild({
     if (report.transferQuality) {
       const q = report.transferQuality;
       const p = document.createElement('p');
-      p.textContent = `${q.meshes} clothing mesh · ${q.vertices} vertex · maksimum ${q.influences} weights · jarak terjauh ${q.maxDistanceMeters} m. ${report.nativeClothing ? 'GLB + Blender + YDD pengganti slot: ' + report.nativeClothing.slot : 'Hasil GLB + Blender; YDD native tidak dipilih.'}`;
+      if (report.halfPed)
+        p.textContent = `${q.vertices} vertex kepala · maksimum ${q.influences} weights. ${report.nativeHead?.length ? report.nativeHead.map((n) => n.slot).join(', ') : 'GLB skinned + Blender'}. UV acuan ${report.referenceUvAvailable ? 'tersedia' : 'memerlukan template dengan UV asli'}.`;
+      else
+        p.textContent = `${q.meshes} clothing mesh · ${q.vertices} vertex · maksimum ${q.influences} weights · jarak terjauh ${q.maxDistanceMeters} m. ${report.nativeClothing ? 'GLB + Blender + YDD pengganti slot: ' + report.nativeClothing.slot : 'Hasil GLB + Blender; YDD native tidak dipilih.'}`;
       $('nbReport').append(p);
     }
     if (report.pedOptions) {
@@ -502,10 +559,10 @@ export function mountNativeBuild({
       loadedPreviewId = id;
       if (['ped', 'garment'].includes($('nbMode').value)) {
         rigSettings.open = false;
-        $('nbPed').before(previewRoot);
+        centerPanel.prepend(previewRoot);
       }
       const poses = (report.preview?.poses || [{ id: 'rest', label: 'Pose awal' }]).filter((p) =>
-        ['rest', 'arms', 'legs'].includes(p.id),
+        ['rest', 'arms', 'legs', 'head'].includes(p.id),
       );
       poseSelect.replaceChildren(
         ...poses.map((p) => {
@@ -557,13 +614,27 @@ export function mountNativeBuild({
           faceTemplate: $('nbFaceTemplate').checked,
           headParts: $('nbHeadParts').checked,
         },
+        headOptions: {
+          enabled: halfMode,
+          gender: $('nbHeadGender').value,
+          fit: $('nbHeadFit').checked,
+          weights: $('nbHeadWeights').value,
+          scale: Number($('nbHeadScale').value),
+          offset: ['X', 'Y', 'Z'].map((a) => Number($('nbHead' + a).value)),
+          rotation: ['X', 'Y', 'Z'].map((a) => Number($('nbHeadRot' + a).value)),
+          hairScale: Number($('nbHairScale').value),
+          hairOffset: ['X', 'Y', 'Z'].map((a) => Number($('nbHair' + a).value)),
+          native: $('nbHeadNative').checked,
+          headSlot: $('nbHeadSlot').value.trim(),
+          hairSlot: $('nbHairSlot').value.trim(),
+        },
         inputs: { ...inputs },
         selected,
         offset: ['nbX', 'nbY', 'nbZ'].map((id) => Number($(id).value)),
         scale: Number($('nbScale').value),
         rotation: ['X', 'Y', 'Z'].map((axis) => Number($('nbRot' + axis).value)),
         targetBone: $('nbPartBone').value,
-        maxDistance: Number($('nbMaxDistance').value),
+        maxDistance: Number($(halfMode ? 'nbHeadDistance' : 'nbMaxDistance').value),
         clothing: {
           source: $('nbClothingSource').value,
           body: $('nbBodyMesh').value.trim(),
@@ -723,6 +794,10 @@ export function mountNativeBuild({
     }
   };
   function open(value = 'ped') {
+    const nextHalf = value === 'head';
+    if (nextHalf) value = 'garment';
+    if (state.stagedId && nextHalf !== halfMode)
+      return toast('Simpan atau buang hasil preview sebelum mengganti workflow.');
     if (value === 'debadge') {
       if (state.running || state.stagedId) return toast('Finish or save the native build first.');
       attach(debadge.root, 'debadge');
@@ -732,7 +807,10 @@ export function mountNativeBuild({
     }
     if ((state.running || state.stagedId) && value !== $('nbMode').value)
       return toast('Selesaikan proses atau simpan hasil preview sebelum mengganti operasi.');
-    if (!state.running && !requesting) $('nbMode').value = value;
+    if (!state.running && !requesting) {
+      halfMode = nextHalf;
+      $('nbMode').value = value;
+    }
     attach(dialog, ['ped', 'garment'].includes(value) ? 'ped' : value);
     activate(['ped', 'garment'].includes(value) ? 'rig' : 'vehicles');
     mode();

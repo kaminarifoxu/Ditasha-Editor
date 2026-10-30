@@ -66,9 +66,11 @@ app.whenReady().then(async () => {
       'tests/texture-allocation-blender.py',
       'tests/logo-native-blender.py',
     ];
-    for (const script of process.argv.includes('--logo-only')
-      ? ['tests/logo-native-blender.py']
-      : checks) {
+    for (const script of process.argv.includes('--character-only')
+      ? ['tests/half-ped-blender.py']
+      : process.argv.includes('--logo-only')
+        ? ['tests/logo-native-blender.py']
+        : checks) {
       try {
         const check = await promisify(execFile)(
           settings.engine,
@@ -82,7 +84,9 @@ app.whenReady().then(async () => {
           ],
           {
             env: require('../electron/native-setup.cjs').managedEnv(settings.managedRoot),
-            timeout: script === 'tests/logo-native-blender.py' ? 300000 : 120000,
+            timeout: ['tests/logo-native-blender.py', 'tests/half-ped-blender.py'].includes(script)
+              ? 300000
+              : 120000,
             maxBuffer: 4 * 1024 * 1024,
           },
         );

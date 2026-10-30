@@ -1,5 +1,6 @@
+import { mountWeaponStudio } from './weapon-studio.js';
 import { ICON_CODES } from './ui-icons.js';
-export function mountGtaTool({ nav, activate, viewers, toast, tool }) {
+export function mountGtaTool({ nav, activate, viewers, toast, tool, download, confirmDiscard }) {
   const icon = (name) =>
     `<i class="di-icon" aria-hidden="true" data-icon="${name}" data-glyph="${String.fromCodePoint(parseInt(ICON_CODES[name] || ICON_CODES.cube, 16))}"></i>`;
   const button = document.createElement('button');
@@ -22,6 +23,8 @@ export function mountGtaTool({ nav, activate, viewers, toast, tool }) {
   root.dataset.tool = tool;
   root.querySelectorAll('[id]').forEach((el) => (el.id = tool + '-' + el.id));
   nav.after(root);
+  const weaponStudio =
+    tool === 'weapons' ? mountWeaponStudio({ root, download, toast, confirmDiscard }) : null;
   const $ = (id) => root.querySelector('#' + tool + '-' + id),
     api = () => window.ditashaGtaTools;
   let records = [],
@@ -248,5 +251,10 @@ export function mountGtaTool({ nav, activate, viewers, toast, tool }) {
   $('gtTool').value = tool;
   operations();
   cards();
-  return { root, refresh };
+  return {
+    root,
+    refresh,
+    setActive: (value) => weaponStudio?.setActive(value),
+    unsavedItems: () => weaponStudio?.unsavedItems() || [],
+  };
 }

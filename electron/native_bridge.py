@@ -381,7 +381,7 @@ def source_color(material):
     return [max(0, min(1, v)) if math.isfinite(v) else .7 for v in values]
 
 
-def preview_scene(bpy, fragment, output, donor=None, filename='preview.json', evaluated=False, texture_cache=None, source=False, donor_parts=None):
+def preview_scene(bpy, fragment, output, donor=None, filename='preview.json', evaluated=False, texture_cache=None, source=False, donor_parts=None, source_materials=False):
     """Bounded world-space geometry from the exact imported native objects/LOD materials."""
     import base64
     from array import array
@@ -392,7 +392,7 @@ def preview_scene(bpy, fragment, output, donor=None, filename='preview.json', ev
     def texture(material):
         if not material or not material.node_tree:
             return None
-        node = (source_image_node(material) if source else None) or next((material.node_tree.nodes.get(n) for n in ('DiffuseSampler', 'TextureSampler', 'DiffuseSampler2') if material.node_tree.nodes.get(n)), None)
+        node = (source_image_node(material) if source or source_materials else None) or next((material.node_tree.nodes.get(n) for n in ('DiffuseSampler', 'TextureSampler', 'DiffuseSampler2') if material.node_tree.nodes.get(n)), None)
         image = getattr(node, 'image', None)
         if not image or not image.has_data:
             return None
@@ -446,12 +446,12 @@ def preview_scene(bpy, fragment, output, donor=None, filename='preview.json', ev
             if key not in groups:
                 alpha = 'blend' if any(n in shader.lower() for n in ('glass', 'badge', 'decal', 'lightsemissive', 'alpha')) else 'opaque'
                 groups[key] = {'name': obj.name, 'kind': kind, 'candidate': obj.name if badge else None, 'positions': [], 'uvs': [], 'texture': texture(material), 'alpha': alpha}
-                if source:
+                if source or source_materials:
                     groups[key]['color'] = source_color(material)
             item = groups[key]
             uv_layer = mesh.uv_layers.active
             if material and material.node_tree:
-                image_node = (source_image_node(material) if source else None) or next((material.node_tree.nodes.get(n) for n in ('DiffuseSampler', 'TextureSampler', 'DiffuseSampler2') if material.node_tree.nodes.get(n)), None)
+                image_node = (source_image_node(material) if source or source_materials else None) or next((material.node_tree.nodes.get(n) for n in ('DiffuseSampler', 'TextureSampler', 'DiffuseSampler2') if material.node_tree.nodes.get(n)), None)
                 vector = image_node.inputs.get('Vector') if image_node else None
                 if vector and vector.links:
                     uv_node = vector.links[0].from_node
@@ -547,6 +547,11 @@ def run(job):
         if job['mode'] == 'garment':
             import ped_review as review
             import garment_skin
+            if job.get('headOptions', {}).get('enabled'):
+                import half_ped
+                report.update(half_ped.run(bpy, job, output, review, preview_scene))
+                report['ok'] = True
+                return report
             result = garment_skin.run(bpy, job, output, review, preview_scene)
             report.update(result)
             report['ok'] = True

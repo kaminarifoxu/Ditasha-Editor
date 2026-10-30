@@ -18,10 +18,17 @@ def import_source(bpy, filename):
         result = bpy.ops.import_scene.gltf(filepath=str(file))
     elif file.suffix.lower() == '.fbx':
         result = bpy.ops.import_scene.fbx(filepath=str(file))
+    elif file.suffix.lower() == '.blend':
+        with bpy.data.libraries.load(str(file),link=False) as (source,target):
+            if len(source.objects)>2000: raise ValueError('Proyek sumber maksimal 2000 objek.')
+            target.objects=list(source.objects)
+        for obj in target.objects:
+            if obj is not None and obj.name not in bpy.context.scene.objects: bpy.context.collection.objects.link(obj)
+        result={'FINISHED'}
     elif file.suffix.lower() == '.obj':
         result = bpy.ops.wm.obj_import(filepath=str(file))
     else:
-        raise ValueError('Pilih GLB, FBX atau OBJ.')
+        raise ValueError('Pilih GLB, FBX, OBJ atau proyek Blender.')
     if 'FINISHED' not in result:
         raise ValueError('Blender gagal mengimpor model sumber.')
     bpy.context.view_layer.update()

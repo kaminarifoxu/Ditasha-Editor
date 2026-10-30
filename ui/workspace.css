@@ -1035,3 +1035,73 @@ body.workspace-shell {
   overflow: auto;
   overflow-wrap: anywhere;
 }
+
+/* Native rigging follows the same settings / viewport / export layout as Prop 3D. */
+.workspace-shell .native-prop-layout {
+  grid-template-columns: minmax(235px, 290px) minmax(320px, 1fr) minmax(220px, 260px);
+  gap: 18px;
+  align-items: start;
+}
+.workspace-shell .native-prop-layout > aside,
+.workspace-shell .native-prop-layout > section {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  padding: 16px;
+}
+.workspace-shell .native-prop-layout > aside {
+  max-height: calc(100dvh - var(--header-height) - 175px);
+  overflow: auto;
+}
+.workspace-shell .native-prop-layout > section {
+  padding: 0;
+}
+.workspace-shell .native-prop-layout .native-preview {
+  margin: 0;
+}
+.workspace-shell .native-prop-layout #nbViewport {
+  height: clamp(400px, 62vh, 800px);
+  border-radius: 0;
+}
+.workspace-shell .native-prop-layout .native-preview > .viewer-button-row,
+.workspace-shell .native-prop-layout .rig-pose-controls,
+.workspace-shell .native-prop-layout #nbPreviewStatus {
+  padding: 12px;
+  margin: 0;
+}
+.workspace-shell .native-prop-layout .native-actions {
+  position: static;
+  margin-bottom: 20px;
+}
+.nb-engine-details {
+  margin-bottom: 18px;
+}
+.pb-freemode-character label,
+.pb-freemode-character select {
+  display: block;
+  width: 100%;
+}
+.pb-freemode-character {
+  margin: 14px 0;
+}
+@media (max-width: 1200px) {
+  .workspace-shell .native-prop-layout {
+    grid-template-columns: minmax(220px, 270px) minmax(300px, 1fr);
+  }
+  .workspace-shell .native-prop-layout > aside:last-child {
+    grid-column: 1 / -1;
+    max-height: none;
+  }
+}
+@media (max-width: 800px) {
+  .workspace-shell .native-prop-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .workspace-shell .native-prop-layout > aside {
+    max-height: 55vh;
+  }
+  .workspace-shell .native-prop-layout > section {
+    grid-row: 1;
+  }
+}
