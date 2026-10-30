@@ -52,6 +52,32 @@ app.whenReady().then(async () => {
         report.push(result);
       }
     }
+    // Each archive sidebar and both together must release space without adding a phantom column.
+    for (const width of [1500, 1000, 800]) {
+      win.setSize(width, 900);
+      report.push(
+        await win.webContents.executeJavaScript(`(async()=>{
+        document.querySelector('[data-page=archives]').click();
+        const root=document.querySelector('.archive-workspace'),left=root.querySelector('.tool-sidebar'),right=root.querySelector('.tool-details');
+        const toggle=p=>p.querySelector('.workspace-panel-toggle');
+        const settle=()=>new Promise(r=>setTimeout(r,120));
+        const check=(v,m)=>{if(!v)throw Error(m+' at archive/${width}');};
+        for(const p of [left,right])if(p.classList.contains('workspace-panel-collapsed'))toggle(p).click();
+        await settle();
+        const center=root.querySelector('.archive-center'),initial=center.getBoundingClientRect().width;
+        toggle(right).click();await settle();
+        if(${width}>880){check(right.getBoundingClientRect().width<=50,'Archive details track did not collapse');check(center.getBoundingClientRect().width>initial+100,'Archive details did not release space');}
+        else check(right.getBoundingClientRect().height<70,'Stacked archive details did not collapse');
+        toggle(left).click();await settle();
+        check(left.getBoundingClientRect().width<=50,'Archive files track did not collapse');
+        check(center.getBoundingClientRect().right<=innerWidth+1,'Archive center outside window');
+        if(${width}<=880)check(getComputedStyle(root).gridTemplateColumns.split(' ').length===2,'Stacked archive gained a phantom column');
+        toggle(left).click();toggle(right).click();
+        document.querySelector('[data-page=editor]').click();
+        return {width:${width},archiveCollapse:true};
+      })()`),
+      );
+    }
     win.setSize(1500, 950);
     await win.webContents.executeJavaScript("document.getElementById('editTexture3d').click()");
     await new Promise((r) => setTimeout(r, 150));
