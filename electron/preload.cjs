@@ -108,5 +108,6 @@ contextBridge.exposeInMainWorld('ditashaClothing', Object.freeze({
   import: (pack) => ipcRenderer.invoke('ditasha:clothing-import', pack),
   remove: (id) => ipcRenderer.invoke('ditasha:clothing-remove', id),
   rename: (id, label) => ipcRenderer.invoke('ditasha:clothing-rename', id, label),
+  importFolder: (pack) => ipcRenderer.invoke('ditasha:clothing-import-folder', pack),
   previewRead: (id, relativePath) => ipcRenderer.invoke('ditasha:clothing-preview-read', id, relativePath),
 }));
