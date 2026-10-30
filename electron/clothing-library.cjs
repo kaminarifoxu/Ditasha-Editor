@@ -74,6 +74,26 @@ class ClothingLibrary {
     await fs.writeFile(temp, JSON.stringify({ version: 1, items }, null, 2), 'utf8');
     await fs.rename(temp, target);
   }
+  async importDirectory({ pack = 'My Custom Pack', directory }) {
+    if (typeof directory !== 'string' || !directory.trim()) throw new Error('Invalid directory');
+    const root = path.resolve(directory);
+    const sources = [];
+    const pending = [root];
+    let scanned = 0;
+    while (pending.length) {
+      const dir = pending.pop();
+      const entries = await fs.readdir(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (++scanned > MAX_IMPORT_FILES * 4) throw new Error('Too many files in directory');
+        if (entry.isSymbolicLink()) continue;
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) pending.push(full);
+        else if (entry.isFile() && EXTENSIONS.has(path.extname(entry.name).toLowerCase())) sources.push(full);
+        if (sources.length > MAX_IMPORT_FILES) throw new Error('Too many clothing files');
+      }
+    }
+    return this.importFiles({ pack, files: sources });
+  }
   async readAsset(packId, relativePath) {
     if (!/^[0-9a-f-]{36}$/i.test(packId)) throw new Error('Invalid pack ID');
     const packs = await this.list();
