@@ -39,6 +39,8 @@ class ClothingLibrary {
   async importFiles({ pack = 'My Custom Pack', files }) {
     if (!Array.isArray(files) || !files.length || files.length > MAX_IMPORT_FILES) throw new Error('Invalid number of files');
     const index = await this.list();
+    const uniqueSources = [...new Set(files.map(file => path.resolve(file)))];
+    if (uniqueSources.length !== files.length) throw new Error('Duplicate source files');
     const id = crypto.randomUUID();
     const dir = path.join(this.root, 'packs', id);
     await fs.mkdir(dir, { recursive: true });
@@ -56,6 +58,7 @@ class ClothingLibrary {
         records.push({ name, relativePath: path.posix.join('packs', id, destName), bytes: stat.size, ...metadataFor(source) });
       }
       const item = { id, pack: safeLabel(pack, 'My Custom Pack'), createdAt: new Date().toISOString(), files: records };
+      if (!records.some(file => /\.ydd$/i.test(file.name))) throw new Error('Import requires at least one YDD model');
       index.push(item);
       await this.writeIndex(index);
       return item;
