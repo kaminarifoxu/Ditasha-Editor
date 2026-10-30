@@ -586,6 +586,11 @@ def run(job):
                 report['stage'] = stage
                 (output / 'progress.json').write_text(json.dumps({'stage': stage}), encoding='utf-8')
                 print('DITASHA_PED_STAGE ' + stage, flush=True)
+                if stage == 'export':
+                    # The native writer can terminate Blender without a Python
+                    # exception. Preserve the finished rig before entering it.
+                    bpy.ops.file.pack_all()
+                    bpy.ops.wm.save_as_mainfile(filepath=str(output / 'ditasha-result.blend'), copy=True)
             result = review.run_muto(worker, bpy, {'src': job['source'], 'out': str(output), 'ped': job['name'], 'mode': 'ADDON', 'tex': 'YTD', 'rig': 'mp_m'}, options, progress)
             report['pedOptions'] = options
             report['rigging'] = result

@@ -152,7 +152,8 @@ test('Ped builds stage a preview before exporting; canceled/invalid saves preser
     cancelSave = true,
     chosenFolders = 0,
     specPath,
-    failBuild = false;
+    failBuild = false,
+    crashBuild = false;
   require('../electron/native-build.cjs').registerNativeBuild({
     app: { getPath: () => root, on: () => {} },
     ipcMain: { handle: (name, fn) => handlers.set(name, fn) },
@@ -179,6 +180,16 @@ test('Ped builds stage a preview before exporting; canceled/invalid saves preser
       process.stderr = new EventEmitter();
       setImmediate(async () => {
         const job = JSON.parse(await fs.readFile(specPath, 'utf8'));
+        if (crashBuild) {
+          await fs.writeFile(path.join(job.output, 'ditasha-result.blend'), 'recovered rig');
+          await fs.writeFile(
+            path.join(job.output, 'progress.json'),
+            JSON.stringify({ stage: 'export' }),
+          );
+          process.emit('close', 1);
+          return;
+        }
+
         await fs.writeFile(
           path.join(job.output, 'report.json'),
           JSON.stringify({
@@ -301,6 +312,20 @@ test('Ped builds stage a preview before exporting; canceled/invalid saves preser
     /kedaluwarsa/,
   );
   assert.equal(await call('save-review', failed.reviewId), true);
+  crashBuild = true;
+  await call('start', { mode: 'ped', name: 'crashed_ped', inputs: { ped: input.id } });
+  let crashed;
+  for (let i = 0; i < 200; i++) {
+    crashed = await call('state');
+    if (!crashed.running) break;
+    await new Promise((r) => setTimeout(r, 5));
+  }
+  assert.equal(crashed.status, 'error');
+  assert.match(crashed.message, /export/);
+  assert(crashed.reviewId && !crashed.stagedId && !crashed.previewId);
+  assert.equal(crashed.report.recovery, true);
+  assert.equal(await call('save-review', crashed.reviewId), true);
+  assert.equal(await fs.readFile(path.join(root, 'review-copy.blend'), 'utf8'), 'recovered rig');
 });
 
 test('Rig review audits weights, UV/material/LOD coverage and maps supported Muto options', () => {

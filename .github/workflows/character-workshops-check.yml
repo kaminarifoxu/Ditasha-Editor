@@ -1,7 +1,7 @@
 name: Verify Character Workshops
 on:
   push:
-    branches: [codex/full-ped-fix]
+    branches: [codex/full-ped-fix, codex/full-ped-export-fix]
   workflow_dispatch:
 permissions:
   contents: read
@@ -17,6 +17,13 @@ jobs:
       - run: npm ci
       - run: npm run format:check
       - run: npm test
+      - name: Check Windows diagnostic launcher syntax
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD 'scripts/Run-Rig-Diagnostic.ps1'), [ref]$tokens, [ref]$errors) | Out-Null
+          if ($errors.Count) { throw ($errors | Out-String) }
       - run: npm run build:ui
       - run: npx electron scripts/smoke-tools.cjs
         timeout-minutes: 6

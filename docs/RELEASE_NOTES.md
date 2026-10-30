@@ -1,3 +1,9 @@
+# v1.75.2 — Preserve full-ped rigs when native export stops
+
+- Save a packed correction project before entering full-ped export. If Blender terminates without a structured report, recover that checkpoint and offer the existing copy-to-Blender action while retaining an error status; incomplete native output is never presented as a successful game resource.
+- Record separate hierarchy, texture, LOD, native-write and resource stages in the in-app diagnostic log. The recovery and diagnostic improvements work directly from the updated application; the separate offline diagnostic launcher remains optional.
+- Verify normal full-ped and halfped native export on Windows and simulated recovery from exit code 1 without report.json. The uploaded model passed rigging and export preparation locally, but its specific Windows native-writer termination remains unconfirmed. This release does not claim that failure is resolved, and it does not include the uploaded model.
+
 # v1.75.1 — Full ped import and rig diagnostics
 
 - Exclude mesh objects used only as imported bone control shapes before Muto joins a skinned GLB character. The helper Icosphere was treated as part of the body, changing bounds and causing incorrect automatic joint placement. A real six-part skinned GLB that previously failed native export now completes all eight Muto steps and produces YFT/YDD/YTD/YMT, pose previews and a correction project.
