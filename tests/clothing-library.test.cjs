@@ -58,3 +58,17 @@ test('reads persisted model bytes for preview after app reload', async () => {
     await assert.rejects(reopened.readAsset(pack.id, '../index.json'), /Asset not found/);
   } finally { await fs.rm(root, { recursive: true, force: true }); }
 });
+
+test('renames saved pack and preserves name after restart', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'ditasha-rename-'));
+  try {
+    const source = path.join(root, 'mp_m_freemode_01^jbib_001_u.ydd');
+    await fs.writeFile(source, Buffer.from('model'));
+    const library = new ClothingLibrary(path.join(root, 'library'));
+    const pack = await library.importFiles({ files: [source] });
+    await library.rename(pack.id, 'Custom Outfit');
+    const reopened = new ClothingLibrary(path.join(root, 'library'));
+    assert.equal((await reopened.list())[0].pack, 'Custom Outfit');
+    await assert.rejects(reopened.rename(pack.id, '  '), /Invalid pack name/);
+  } finally { await fs.rm(root, { recursive: true, force: true }); }
+});
