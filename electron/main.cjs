@@ -249,6 +249,10 @@ else {
       if (selection.canceled || !selection.filePaths.length) return null;
       return clothingLibrary.importFiles({ pack, files: selection.filePaths });
     });
+    ipcMain.handle('ditasha:clothing-preview-read', (event, packId, relativePath) => {
+      if (!trustedClothingEvent(event)) throw new Error('Untrusted caller');
+      return clothingLibrary.readAsset(packId, relativePath);
+    });
     ipcMain.handle('ditasha:clothing-remove', (event, id) => {
       if (!trustedClothingEvent(event)) throw new Error('Untrusted caller');
       return clothingLibrary.remove(id);
