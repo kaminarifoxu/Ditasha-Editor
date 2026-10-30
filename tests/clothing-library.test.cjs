@@ -6,7 +6,7 @@ const path = require('node:path');
 const { ClothingLibrary, metadataFor } = require('../electron/clothing-library.cjs');
 
 test('identifies male freemode upper clothing', () => {
-  assert.deepEqual(metadataFor('mp_m_freemode_01^jbib_012_u.ydd'), { gender: 'male', component: 'jbib', drawable: 12 });
+  assert.deepEqual(metadataFor('mp_m_freemode_01^jbib_012_u.ydd'), { gender: 'male', component: 'jbib', drawable: 12, textureVariant: null });
 });
 test('persists custom imported clothing and removes it', async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'ditasha-clothing-'));
@@ -86,6 +86,18 @@ test('imports a nested clothing resource folder and persists textures', async ()
     const pack = await library.importDirectory({ pack: 'Nested Pack', directory: folder });
     assert.equal(pack.files.length, 2);
     assert.equal((await new ClothingLibrary(path.join(root, 'library')).list())[0].files.length, 2);
-    assert.equal(pack.files.find(x => /\\.ytd$/i.test(x.name)).component, 'jbib');
+    assert.equal(pack.files.find(x => /\.ytd$/i.test(x.name)).component, 'jbib');
   } finally { await fs.rm(root, { recursive: true, force: true }); }
+});
+
+test('pairs drawable and multiple texture variations from GTA naming', () => {
+  const model = metadataFor('mp_f_freemode_01^jbib_003_u.ydd');
+  const textureA = metadataFor('mp_f_freemode_01^jbib_diff_003_a_uni.ytd');
+  const textureB = metadataFor('mp_f_freemode_01^jbib_diff_003_b_uni.ytd');
+  assert.equal(model.drawable, 3);
+  assert.equal(textureA.component, 'jbib');
+  assert.equal(textureA.drawable, 3);
+  assert.equal(textureA.textureVariant, 'a');
+  assert.equal(textureB.textureVariant, 'b');
+  assert.equal(textureA.gender, 'female');
 });
