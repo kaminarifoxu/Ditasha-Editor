@@ -57,7 +57,7 @@ module.exports = async function checkPhotoBooth(fixtures) {
   );
   upload('pbClipInput', [
     ['batch-one.ycd', fixtures.ycd],
-    ['batch-two.ycd', fixtures.ycd],
+    ['batch-two.ycd', fixtures.ycdAlt],
     ['broken.ycd', [1, 2, 3]],
   ]);
   await wait(
@@ -115,7 +115,7 @@ module.exports = async function checkPhotoBooth(fixtures) {
   );
   upload(
     'pbClipInput',
-    Array.from({ length: 101 }, (_, i) => ['bulk-' + i + '.ycd', fixtures.ycd]),
+    fixtures.ycdBulk.map((bytes, i) => ['bulk-' + i + '.ycd', bytes]),
   );
   await wait(
     () => !$('pbImportClip').disabled && $('pbStatus').textContent.includes('104 file emote'),

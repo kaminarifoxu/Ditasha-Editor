@@ -102,9 +102,22 @@ export function createEmoteCatalog({
     }
     return loaded;
   }
+  function peek(selected) {
+    const prefixes = new Set(selected.map((c) => c.lazyPrefix).filter(Boolean));
+    if ([...prefixes].some((prefix) => !cache.has(prefix))) return null;
+    const loaded = new Map();
+    for (const prefix of prefixes) {
+      const decoded = cache.get(prefix);
+      cache.delete(prefix);
+      cache.set(prefix, decoded);
+      for (const entry of decoded.entries) loaded.set(entry.id, entry);
+    }
+    return loaded;
+  }
   return {
     add,
     load,
+    peek,
     sources,
     entries,
     stats: () => ({

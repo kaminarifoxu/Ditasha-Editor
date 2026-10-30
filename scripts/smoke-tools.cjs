@@ -481,6 +481,10 @@ app.whenReady().then(async () => {
         JSON.stringify({
           native: [...new Uint8Array(boothPedFixture())],
           ycd: [...new Uint8Array(boothYcdFixture())],
+          ycdAlt: [...new Uint8Array(boothYcdFixture({ encoding: 'raw' }))],
+          ycdBulk: Array.from({ length: 101 }, (_, i) => [
+            ...new Uint8Array(boothYcdFixture({ variant: i + 1 })),
+          ]),
           missingRig: [...new Uint8Array(boothPedFixture({ missingRig: true, paletteBone: 40 }))],
           replacementYtd: [
             ...createYtd([

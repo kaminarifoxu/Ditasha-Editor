@@ -522,6 +522,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       'pbStudio',
       'pbStageStudio',
       'pbVehicleFolder',
+      'pbVehicleTextureFolder',
       'pbVehiclePart',
       'pbYaw',
       'pbTransformMode',
@@ -1335,21 +1336,31 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     $('pbClipField').hidden = !clips.length;
     const generation = ++emoteGeneration;
     emoteBindingError = null;
-    emoteBinding = bindClips(clips, actor, generation).catch((error) => {
+    const reportError = (error) => {
       if (generation !== emoteGeneration) return;
       emoteBindingError = error;
       emoteIssues = [...new Set([...emoteIssues, error.message])].slice(0, 200);
       updateIssues([]);
       setStatus(error.message);
-    });
+    };
+    try {
+      emoteBinding = Promise.resolve(bindClips(clips, actor, generation)).catch(reportError);
+    } catch (error) {
+      reportError(error);
+      emoteBinding = Promise.resolve();
+    }
     return emoteBinding;
   }
-  async function bindClips(clips, actor, generation) {
+  function bindClips(clips, actor, generation, hydrated, refresh = false) {
     const selected = actors()
       .filter((a) => a.motion.pose === 'clip')
       .map((a) => clipsFor(a).find((c) => c.id === a.motion.clip))
       .filter(Boolean);
-    const hydrated = await emoteCatalog.load(selected);
+    hydrated ||= emoteCatalog.peek(selected);
+    if (!hydrated)
+      return emoteCatalog
+        .load(selected)
+        .then((loaded) => bindClips(clips, actor, generation, loaded, true));
     if (generation !== emoteGeneration) return;
     mixers.forEach((m) => {
       m.stopAllAction();
@@ -1400,8 +1411,10 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     $('pbTime').max = String(
       actor?.motion.pose === 'clip' && current ? Math.max(0.01, current.clip.duration) : 4,
     );
-    applyPose();
-    setControls();
+    if (refresh) {
+      applyPose();
+      setControls();
+    }
   }
   async function settleEmotes() {
     let current;
@@ -2408,7 +2421,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           playing = false;
           saveMotion();
           if (currentActor()) currentActor().motion.clip = first;
-          updateClips();
+          await updateClips();
           applyPose();
           setControls();
         }
@@ -2906,6 +2919,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           view: getMovieFrame(true),
         },
       );
+      await settleEmotes();
       $('pbLibraryName').value = record.name;
       if (restoreWarnings.length) {
         updateIssues([

@@ -1,6 +1,11 @@
 import { deflateRaw } from 'pako';
 // Entirely synthetic two-bone clip. No uploaded animation data is redistributed.
-export function boothYcdFixture({ encoding = 'quantized', cached = 7, segments = 1 } = {}) {
+export function boothYcdFixture({
+  encoding = 'quantized',
+  cached = 7,
+  segments = 1,
+  variant = 0,
+} = {}) {
   const data = new Uint8Array(8192),
     v = new DataView(data.buffer);
   const ptr = (p, n) => v.setBigUint64(p, BigInt(0x50000000 + n), true),
@@ -124,6 +129,7 @@ export function boothYcdFixture({ encoding = 'quantized', cached = 7, segments =
   hv.setUint32(0, 0x37435352, true);
   hv.setUint32(4, 46, true);
   hv.setUint32(8, 0x08000004, true);
+  if (variant) data[data.length - 1] = variant;
   const compressed = deflateRaw(data),
     out = new Uint8Array(16 + compressed.length);
   out.set(h);
