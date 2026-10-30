@@ -8,7 +8,7 @@ export function mountClothingCatalog({ openPreview } = {}) {
   const root = document.createElement('section');
   root.className = 'clothing-catalog'; root.hidden = true;
   root.setAttribute('aria-label','DITASHA Clothing Catalog');
-  root.innerHTML = `<header class="cl-head"><strong>◈ DITASHA <span>Clothing</span></strong><div class="cl-actions"><button data-import>+ Import pakaian</button><button data-close aria-label="Tutup katalog">✕</button></div></header>
+  root.innerHTML = `<header class="cl-head"><strong>◈ DITASHA <span>Clothing</span></strong><div class="cl-actions"><button data-import>+ Import file</button><button data-import-folder>+ Import folder</button><button data-close aria-label="Tutup katalog">✕</button></div></header>
   <div class="cl-toolbar"><div class="cl-genders"><button class="active" data-gender="all">Semua</button><button data-gender="male">Cowok</button><button data-gender="female">Cewek</button></div><input data-search placeholder="Cari pakaian, nama file atau pack..." aria-label="Cari pakaian"/><select data-pack aria-label="Pilih pack"><option value="all">Semua pack</option></select></div>
   <div class="cl-pack-actions"><button data-rename-pack>Ubah nama pack</button><button data-delete-pack>Hapus pack</button></div><div class="cl-cats" data-cats></div><p class="cl-count" data-count></p><div class="cl-grid" data-grid></div><p class="cl-feedback" data-feedback role="status"></p>`;
   document.body.append(root);
@@ -90,6 +90,14 @@ export function mountClothingCatalog({ openPreview } = {}) {
       const result=await window.ditashaClothing.import(name);
       if(result){$('[data-feedback]').textContent='Berhasil menyimpan '+result.files.length+' file ke '+result.pack;await refresh();}
     }catch(e){$('[data-feedback]').textContent='Import gagal: '+e.message;}
+  };
+  $('[data-import-folder]').onclick=async()=>{
+    const name=window.prompt('Nama pack dari folder:', 'My Custom Pack');
+    if(name===null)return;
+    try{
+      const result=await window.ditashaClothing.importFolder(name);
+      if(result){await refresh();$('[data-feedback]').textContent='Folder disimpan: '+result.files.length+' file';}
+    }catch(e){$('[data-feedback]').textContent='Import folder gagal: '+e.message;}
   };
   $('[data-rename-pack]').onclick=async()=>{
     if(selectedPack==='all'){ $('[data-feedback]').textContent='Pilih satu pack terlebih dahulu.'; return; }
