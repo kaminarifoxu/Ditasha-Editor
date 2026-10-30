@@ -160,7 +160,7 @@ test('YCD header diagnostics distinguish archives, Enhanced, escrow, truncated a
     return bytes.buffer;
   };
   assert.throws(() => readYcd(input('FXAP')), /Asset Escrow/);
-  assert.throws(() => readYcd(input('RSC8')), /Enhanced/);
+  assert.throws(() => readYcd(input('RSC8')), /RSC8/);
   assert.throws(() => readYcd(input('PK\u0003\u0004')), /arsip/);
   assert.throws(() => readYcd(input('????')), /signature 3f 3f 3f 3f/);
   assert.throws(() => readYcd(new ArrayBuffer(4)), /terpotong/);

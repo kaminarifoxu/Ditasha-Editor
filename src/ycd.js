@@ -197,7 +197,7 @@ export function readYcd(buffer) {
     const signature = [...bytes.slice(0, 4)].map((b) => b.toString(16).padStart(2, '0')).join(' ');
     const ascii = String.fromCharCode(...bytes.slice(0, 4));
     if (ascii === 'RSC8')
-      fail('resource Enhanced/RSC8 belum didukung. Gunakan ekspor GTA V Legacy.');
+      fail('resource RSC8 bukan YCD RSC7 Legacy yang didukung. Gunakan ekspor YCD GTA V Legacy.');
     if (ascii === 'FXAP')
       fail(
         'file FiveM Asset Escrow (FXAP) tidak dapat dibaca sebagai YCD sumber. Gunakan file sumber tidak dilindungi dari pembuat aset.',
