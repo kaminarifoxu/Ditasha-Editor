@@ -67,7 +67,7 @@ app.whenReady().then(async () => {
       'tests/logo-native-blender.py',
     ];
     for (const script of process.argv.includes('--character-only')
-      ? ['tests/clothing-native-blender.py', 'tests/half-ped-blender.py']
+      ? ['tests/full-ped-blender.py']
       : process.argv.includes('--logo-only')
         ? ['tests/logo-native-blender.py']
         : checks) {
@@ -84,7 +84,11 @@ app.whenReady().then(async () => {
           ],
           {
             env: require('../electron/native-setup.cjs').managedEnv(settings.managedRoot),
-            timeout: ['tests/logo-native-blender.py', 'tests/half-ped-blender.py'].includes(script)
+            timeout: [
+              'tests/logo-native-blender.py',
+              'tests/half-ped-blender.py',
+              'tests/full-ped-blender.py',
+            ].includes(script)
               ? 300000
               : 120000,
             maxBuffer: 4 * 1024 * 1024,

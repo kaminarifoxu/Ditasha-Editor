@@ -1,7 +1,7 @@
 name: Verify Character Workshops
 on:
   push:
-    branches: [codex/character-workshops]
+    branches: [codex/full-ped-fix]
   workflow_dispatch:
 permissions:
   contents: read
@@ -37,5 +37,5 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
-      - name: Verify head hair fitting, weights, UV and native YDD with real Blender
+      - name: Verify full ped rig with real Blender and Muto
         run: npx electron scripts/smoke-native-setup.cjs --character-only
