@@ -7,7 +7,7 @@ from pathlib import Path
 
 def reference_from_engine(bpy, gender):
     import numpy as np
-    module=next((n for n in bpy.context.preferences.addons if 'muto_ped_rig' in n.lower()),None)
+    module=next((n for n in bpy.context.preferences.addons.keys() if 'muto_ped_rig' in n.lower()),None)
     if not module: raise ValueError('Siapkan engine Muto dahulu atau pilih template freemode .blend.')
     io=importlib.import_module(module+'.bl.io')
     arm=io.append_template('mp_m','DITASHA_Freemode')

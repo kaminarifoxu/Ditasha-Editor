@@ -112,8 +112,6 @@ export function mountNativeBuild({
   const exportHeading = document.createElement('h2');
   exportHeading.textContent = 'Ekspor & validasi';
   rightPanel.prepend(exportHeading);
-  previewRoot.querySelector('#nbViewport p').textContent =
-    'Pilih model di panel kiri, lalu buat preview rig. Periksa ukuran dan deformasi sebelum menyimpan hasil.';
   const selectedNames = () =>
     [
       ...$($('nbMode').value === 'parts' ? 'nbPartCandidates' : 'nbCandidates').querySelectorAll(
@@ -135,6 +133,8 @@ export function mountNativeBuild({
     },
     onTransform: (offset) => ['nbX', 'nbY', 'nbZ'].forEach((id, i) => ($(id).value = offset[i])),
   });
+  $('nbViewport').querySelector('p').textContent =
+    'Pilih model di panel kiri, lalu buat preview rig. Periksa ukuran dan deformasi sebelum menyimpan hasil.';
   const poseControls = document.createElement('div');
   poseControls.className = 'rig-pose-controls';
   poseControls.hidden = true;
@@ -615,7 +615,7 @@ export function mountNativeBuild({
           headParts: $('nbHeadParts').checked,
         },
         headOptions: {
-          enabled: halfMode,
+          enabled: halfMode && task === 'garment',
           gender: $('nbHeadGender').value,
           fit: $('nbHeadFit').checked,
           weights: $('nbHeadWeights').value,
