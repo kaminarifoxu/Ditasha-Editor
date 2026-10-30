@@ -33,12 +33,16 @@ export function selectBoothRig(ownRig, skin, candidates = [], { family, choice =
       valid = true;
     const byTag = new Map(rig.map((b, i) => [b.tag, i])),
       byName = new Map(rig.map((b, i) => [normalized(b.name), i]));
+    // An unrelated skeleton with enough bones is not proof that numeric indices match.
+    // Without original bone names/tags only the mesh's own rig is safe to bind.
+    if (own !== rig && !own.length) continue;
     for (let i = 0; i < skin.indices.length; i++) {
       if (skin.weights[i] <= 0) continue;
       const old = skin.indices[i],
         source = own[old];
       let index = old;
-      if (own !== rig && source) {
+      if (own !== rig) {
+        if (!source) { valid = false; break; }
         index = byName.get(normalized(source.name));
         if (index === undefined && source.tag !== 0) index = byTag.get(source.tag);
         if (index === undefined) {
@@ -61,9 +65,7 @@ export function selectBoothRig(ownRig, skin, candidates = [], { family, choice =
         indices: mapped || skin.indices,
         source: option.label || 'Skeleton acuan',
         required,
-        warning: !own.length && rig !== own
-          ? 'Bone indices cocok secara jumlah, tetapi sumber bone asli tidak ada; posisi skin belum bisa diverifikasi.'
-          : null,
+        warning: null,
       };
   }
   return {
@@ -72,7 +74,9 @@ export function selectBoothRig(ownRig, skin, candidates = [], { family, choice =
     required,
     source: '',
     warning: required
-      ? `memerlukan skeleton yang mencakup ${required} indeks bone. Impor YFT/YDD acuan untuk ped ini.`
+      ? !own.length
+        ? 'Skin memiliki bobot tetapi skeleton asli tidak tersedia. Impor YDD/YFT yang memuat bone names/tags; auto-rig berdasarkan indeks saja tidak aman.'
+        : `Pemetaan bone gagal untuk ${required} indeks. Impor skeleton yang cocok dengan nama/tag bone model.`
       : 'Skin weights tidak tersedia.',
   };
 }
