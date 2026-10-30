@@ -42,7 +42,7 @@ export function createEmoteCatalog({
       nativeYcd: !!entry.ycd,
       clip: { name: entry.clip.name, duration: entry.clip.duration, tracks: [] },
     }));
-    const source = { file, prefix };
+    const source = { file, prefix, key };
     sources.push(source);
     entries.push(...metadata);
     signatures.set(key, source);

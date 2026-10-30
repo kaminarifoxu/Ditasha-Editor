@@ -64,13 +64,13 @@ def generate_shell(bpy, reference, options):
     return [clone]
 
 
-def export_native(bpy, arm, garments, output, slot, image_node):
+def export_native(bpy, arm, garments, output, slot, image_node, shader_name='ped_default.sps'):
     """Export a replacement YDD. Never invent collection YMT slot registrations."""
     from mathutils import Matrix
     module = next((n for n in bpy.context.preferences.addons.keys() if n.lower().split('.')[-1] in ('sollumz', 'sollumz_dev')), None)
     if not module:
         raise ValueError('Ekspor YDD memerlukan Sollumz aktif.')
-    if not re.fullmatch(r'(?:[a-z0-9_]+\^)?(?:jbib|uppr|lowr|feet|hand|accs|task|decl|hair|berd|teef)_\d{3}_[ur]', slot):
+    if not re.fullmatch(r'(?:[a-z0-9_]+\^)?(?:head|jbib|uppr|lowr|feet|hand|accs|task|decl|hair|berd|teef)_\d{3}_[ur]', slot):
         raise ValueError('Nama slot pengganti tidak valid, contoh mp_m_freemode_01^jbib_000_u.')
     create_shader = importlib.import_module(module + '.ydr.shader_materials').create_shader
     helper = importlib.import_module(module + '.tools.drawablehelper')
@@ -111,11 +111,16 @@ def export_native(bpy, arm, garments, output, slot, image_node):
                     native = material.copy()
                 else:
                     # Simple diffuse only. Never guess a normal/specular channel conversion.
-                    native = create_shader('ped_default.sps')
+                    native = create_shader(shader_name)
                     node = image_node(material) if material else None
                     if node and (not node.image or not node.image.has_data):
                         raise ValueError('Diffuse image hilang pada ' + source.name)
                     image = node.image.copy() if node else None
+                    if image is not None:
+                        # Generated padding/painted pixels are not copied by Image.copy().
+                        import numpy as np
+                        values=np.empty(node.image.size[0]*node.image.size[1]*4,dtype=np.float32)
+                        node.image.pixels.foreach_get(values);image.pixels.foreach_set(values);image.update()
                     if image is None:
                         image = bpy.data.images.new(f'ditasha_fabric_{len(clones)}_{index}', width=4, height=4)
                         bsdf = material.node_tree.nodes.get('Principled BSDF') if material and material.node_tree else None

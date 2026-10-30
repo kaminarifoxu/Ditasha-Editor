@@ -48,6 +48,9 @@ jobs:
       - name: Test Logo Prop Studio preview and exports
         run: npx electron scripts/smoke-logo-prop.cjs
         timeout-minutes: 4
+      - name: Test character workshops, persistent emotes and weapon design
+        run: npx electron scripts/smoke-character-workshops.cjs
+        timeout-minutes: 5
       - name: Install and reinstall Windows Setup with preserved user data
         run: node scripts/smoke-setup.cjs
         timeout-minutes: 8

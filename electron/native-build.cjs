@@ -5,10 +5,16 @@ const fs = require('node:fs/promises'),
 const { spawn } = require('node:child_process');
 const { randomUUID } = require('node:crypto');
 const { setupNative, managedEnv } = require('./native-setup.cjs');
-const PED_POSES = { rest: 'preview.json', arms: 'preview-arms.json', legs: 'preview-legs.json' };
+const PED_POSES = {
+  rest: 'preview.json',
+  arms: 'preview-arms.json',
+  legs: 'preview-legs.json',
+  head: 'preview-head.json',
+};
 const PICK_TYPES = {
   engine: { name: 'Blender', extensions: process.platform === 'win32' ? ['exe'] : ['*'] },
-  ped: { name: 'Humanoid model', extensions: ['glb', 'fbx', 'obj'] },
+  ped: { name: 'Humanoid model', extensions: ['glb', 'fbx', 'obj', 'blend'] },
+  hair: { name: 'Separate hair model', extensions: ['glb', 'fbx', 'obj', 'blend'] },
   reference: { name: 'Rigged body template', extensions: ['blend'] },
   clip: { name: 'CodeWalker YCD XML', extensions: ['xml'] },
   vehicle: { name: 'Vehicle YFT', extensions: ['yft', 'xml'] },
@@ -109,6 +115,7 @@ function validateJob(payload) {
   };
   if (
     payload.mode === 'garment' &&
+    !payload.headOptions?.enabled &&
     ((payload.clothing !== undefined &&
       (!payload.clothing ||
         typeof payload.clothing !== 'object' ||
@@ -136,6 +143,58 @@ function validateJob(payload) {
         )))
   )
     throw Error('Pengaturan generator/slot clothing tidak valid.');
+  const headOptions = {
+    enabled: false,
+    gender: 'mp_m',
+    fit: true,
+    weights: 'surface',
+    scale: 1,
+    offset: [0, 0, 0],
+    rotation: [0, 0, 0],
+    hairScale: 1,
+    hairOffset: [0, 0, 0],
+    native: false,
+    collection: '',
+    headSlot: 'head_046_r',
+    hairSlot: 'hair_000_u',
+    ...payload.headOptions,
+  };
+  if (
+    typeof headOptions.enabled !== 'boolean' ||
+    (headOptions.enabled && payload.mode !== 'garment')
+  )
+    throw Error('Mode halfped tidak valid.');
+  if (headOptions.enabled) {
+    if (
+      !['mp_m', 'mp_f'].includes(headOptions.gender) ||
+      !['surface', 'rigid'].includes(headOptions.weights) ||
+      typeof headOptions.fit !== 'boolean' ||
+      typeof headOptions.native !== 'boolean' ||
+      !Number.isFinite(headOptions.scale) ||
+      headOptions.scale < 0.1 ||
+      headOptions.scale > 5 ||
+      !Number.isFinite(headOptions.hairScale) ||
+      headOptions.hairScale < 0.1 ||
+      headOptions.hairScale > 3 ||
+      !/^head_\d{3}_[ur]$/.test(headOptions.headSlot) ||
+      !/^hair_\d{3}_[ur]$/.test(headOptions.hairSlot)
+    )
+      throw Error('Pengaturan kepala/rambut tidak valid.');
+    if (
+      typeof headOptions.collection !== 'string' ||
+      (headOptions.collection && !/^[a-z][a-z0-9_]{2,63}$/.test(headOptions.collection))
+    )
+      throw Error('Nama collection halfped tidak valid.');
+    for (const key of ['offset', 'rotation', 'hairOffset'])
+      if (
+        !Array.isArray(headOptions[key]) ||
+        headOptions[key].length !== 3 ||
+        headOptions[key].some(
+          (v) => !Number.isFinite(v) || Math.abs(v) > (key === 'rotation' ? 360 : 2),
+        )
+      )
+        throw Error('Transform halfped di luar batas.');
+  }
   const useClip = payload.useClip ?? false,
     clipIndex = payload.clipIndex ?? 0;
   if (
@@ -162,6 +221,7 @@ function validateJob(payload) {
       ? { logo: require('./logo-prop.cjs').validateLogo(payload.logo) }
       : {}),
     clothing,
+    headOptions,
     useClip,
     clipIndex,
     maxDistance,
@@ -524,10 +584,14 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
           throw Error('Input berubah. Pilih ulang file ' + kind + '.');
         return v.path;
       };
-    if (job.mode === 'garment' && job.clothing.source === 'generate') job.source = null;
+    if (job.mode === 'garment' && !job.headOptions.enabled && job.clothing.source === 'generate')
+      job.source = null;
     else if (['ped', 'ped_preview', 'garment'].includes(job.mode)) job.source = await get('ped');
     else if (!['probe', 'logo'].includes(job.mode)) job.source = await get('vehicle');
-    if (job.mode === 'garment') job.reference = await get('reference');
+    if (job.mode === 'garment' && (!job.headOptions.enabled || payload.inputs?.reference))
+      job.reference = await get('reference');
+    if (job.mode === 'garment' && job.headOptions.enabled && payload.inputs?.hair)
+      job.hair = await get('hair');
     if (job.useClip && ['ped', 'garment'].includes(job.mode)) job.clip = await get('clip');
     if (['strobo_preview', 'parts_preview', 'parts'].includes(job.mode))
       job.donor = await get('donor');
@@ -561,7 +625,13 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
       await fs.readFile(path.join(__dirname, 'ped_review.py')),
     );
     await fs.copyFile(path.join(__dirname, 'garment_skin.py'), path.join(root, 'garment_skin.py'));
-    for (const name of ['clothing_workflow.py', 'clip_review.py', 'native_dds.py', 'logo_prop.py'])
+    for (const name of [
+      'clothing_workflow.py',
+      'clip_review.py',
+      'native_dds.py',
+      'logo_prop.py',
+      'half_ped.py',
+    ])
       await fs.copyFile(path.join(__dirname, name), path.join(root, name));
     await fs.writeFile(spec, JSON.stringify(job));
     preview = null;

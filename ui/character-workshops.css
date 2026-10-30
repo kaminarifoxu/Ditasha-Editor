@@ -1,0 +1,271 @@
+.workspace-shell .native-build-layout.native-prop-layout {
+  --native-files: 270px;
+  --native-status: 240px;
+}
+.workspace-shell .native-prop-layout:has(> aside:first-child.workspace-panel-collapsed) {
+  --native-files: 48px;
+}
+.workspace-shell .native-prop-layout:has(> aside:last-child.workspace-panel-collapsed) {
+  --native-status: 48px;
+}
+.wd-layout {
+  --wd-settings: 270px;
+  --wd-export: 270px;
+  display: grid;
+  grid-template-columns: var(--wd-settings) minmax(300px, 1fr) var(--wd-export);
+  gap: 18px;
+  align-items: start;
+}
+.wd-layout:has(.wd-settings.workspace-panel-collapsed) {
+  --wd-settings: 48px;
+}
+.wd-layout:has(.wd-export.workspace-panel-collapsed) {
+  --wd-export: 48px;
+}
+.wd-settings,
+.wd-export,
+.wd-stage {
+  min-width: 0;
+  background: var(--panel, #1b202c);
+  border: 1px solid var(--line, #353c50);
+  border-radius: 14px;
+}
+.wd-settings,
+.wd-export {
+  padding: 18px;
+  max-height: calc(100dvh - var(--header-height) - 180px);
+  overflow: auto;
+}
+.wd-layout h2 {
+  font-size: 15px;
+  margin: 0 0 16px;
+}
+.wd-layout label:not(.check) {
+  display: block;
+  margin: 12px 0;
+}
+.wd-layout input:not([type='checkbox']),
+.wd-layout select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  margin-top: 6px;
+}
+.wd-settings > button,
+.wd-export > button {
+  width: 100%;
+  margin: 5px 0;
+}
+.wd-layout p {
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.wd-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.wd-toolbar .check {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+}
+#wdViewport {
+  height: clamp(380px, 58vh, 760px);
+  min-width: 0;
+  overflow: hidden;
+  position: relative;
+}
+#wdViewport > p {
+  text-align: center;
+  padding: 100px 30px;
+}
+#wdViewport canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+#wdStatus {
+  margin: 14px;
+}
+.wd-stage > details {
+  margin: 14px;
+}
+#wdUv {
+  width: 100%;
+  max-width: 512px;
+  display: block;
+  margin: 12px 0;
+}
+.wd-engine {
+  margin-top: 22px;
+}
+.wd-engine .gt-cards {
+  margin: 16px 0;
+}
+.wd-engine .gt-layout {
+  display: block;
+}
+.wd-engine .gt-panel,
+.wd-engine .gt-tool-card {
+  padding: 10px;
+  margin-bottom: 12px;
+}
+.wd-engine .gt-fields {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+.wd-engine .gt-heading {
+  margin: 10px 0;
+}
+.wd-engine .gt-heading h2 {
+  font-size: 13px;
+}
+.wd-engine pre {
+  max-height: 260px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.wd-engine .gt-path {
+  flex-wrap: wrap;
+}
+.wd-engine .gt-note {
+  font-size: 11px;
+}
+.pb-emote-vault {
+  margin: 12px 0;
+}
+@media (max-width: 1200px) {
+  .wd-layout {
+    grid-template-columns: var(--wd-settings) minmax(300px, 1fr);
+  }
+  .wd-export {
+    grid-column: 1 / -1;
+    max-height: none;
+  }
+}
+@media (max-width: 950px) {
+  .wd-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .wd-stage {
+    grid-row: 1;
+  }
+  .wd-settings {
+    max-height: 55vh;
+  }
+  .wd-export {
+    grid-column: auto;
+  }
+}
+
+/* Native rigging follows the same settings / viewport / export layout as Prop 3D. */
+.workspace-shell .native-prop-layout {
+  grid-template-columns: var(--native-files) minmax(0, 1fr) var(--native-status);
+  gap: 18px;
+  align-items: start;
+}
+.workspace-shell .native-prop-layout > aside,
+.workspace-shell .native-prop-layout > section {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  padding: 16px;
+}
+.workspace-shell .native-prop-layout > aside {
+  max-height: calc(100dvh - var(--header-height) - 175px);
+  overflow: auto;
+}
+.workspace-shell .native-prop-layout > section {
+  padding: 0;
+}
+.workspace-shell .native-prop-layout .native-preview {
+  margin: 0;
+}
+.workspace-shell .native-prop-layout #nbViewport {
+  height: clamp(320px, calc(100dvh - var(--header-height) - 350px), 680px);
+  border-radius: 0;
+}
+.workspace-shell .native-prop-layout .native-preview > .viewer-button-row,
+.workspace-shell .native-prop-layout .rig-pose-controls,
+.workspace-shell .native-prop-layout #nbPreviewStatus {
+  padding: 12px;
+  margin: 0;
+}
+.workspace-shell .native-prop-layout .native-actions {
+  position: static;
+  margin-bottom: 20px;
+}
+.nb-engine-details {
+  margin-bottom: 18px;
+}
+.pb-freemode-character label,
+.pb-freemode-character select {
+  display: block;
+  width: 100%;
+}
+.pb-freemode-character {
+  margin: 14px 0;
+}
+@media (max-width: 1200px) {
+  .workspace-shell .native-prop-layout {
+    grid-template-columns: minmax(220px, 270px) minmax(300px, 1fr);
+  }
+  .workspace-shell .native-prop-layout > aside:last-child {
+    grid-column: 1 / -1;
+    max-height: none;
+  }
+}
+@media (max-width: 950px) {
+  .workspace-shell .native-prop-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .workspace-shell .native-prop-layout > aside {
+    max-height: 55vh;
+  }
+  .workspace-shell .native-prop-layout > section {
+    grid-row: 1;
+  }
+}
+
+.workspace-shell .native-prop-layout > aside > h2,
+.wd-settings > h2,
+.wd-export > h2 {
+  display: none;
+}
+.workspace-shell .native-prop-layout > section {
+  padding: 0;
+}
+.workspace-shell .native-prop-layout .rig-pose-controls {
+  padding: 12px;
+  gap: 12px;
+}
+.workspace-shell .native-prop-layout .rig-pose-controls label {
+  margin: 0;
+}
+.workspace-shell .native-prop-layout .rig-pose-controls label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.workspace-shell .native-prop-layout .rig-pose-controls select {
+  width: 200px;
+  max-width: 100%;
+  margin: 0;
+}
+.workspace-shell .native-prop-layout #nbViewport {
+  margin-top: 0;
+  height: clamp(300px, calc(100dvh - var(--header-height) - 380px), 680px);
+}
+
+.workspace-shell .native-prop-layout .rig-pose-controls,
+.workspace-shell .native-prop-layout .native-preview > .viewer-button-row {
+  padding: 8px 12px;
+}

@@ -141,7 +141,7 @@ export function mountTools({
     viewers,
   });
   const gtaTools = ['moddrop', 'weapons'].map((tool) =>
-    mountGtaTool({ nav, activate, viewers, toast, tool }),
+    mountGtaTool({ nav, activate, viewers, toast, tool, download, confirmDiscard }),
   );
   const photoBooth = mountPhotoBooth({ nav, activate, download, toast });
   const logoProp = mountLogoProp({ nav, activate, download, toast, confirmDiscard });
@@ -214,6 +214,7 @@ export function mountTools({
     compressor.root.hidden = next !== 'compressor';
     for (const [i, tool] of ['moddrop', 'weapons'].entries()) {
       gtaTools[i].root.hidden = next !== tool;
+      gtaTools[i].setActive?.(next === tool);
       if (next === tool) gtaTools[i].refresh();
     }
     photoBooth.root.hidden = next !== 'photobooth';
@@ -803,6 +804,7 @@ export function mountTools({
       ...(dirty() ? [{ name: 'Clothing pack · ' + $('packName').value }] : []),
       ...fivemTools.unsavedItems(),
       ...logoProp.unsavedItems(),
+      ...gtaTools.flatMap((tool) => tool.unsavedItems()),
       ...compressor.unsavedItems(),
       ...archives.unsavedItems(),
       ...viewers.unsavedItems(),

@@ -494,11 +494,20 @@ module.exports = async function checkOfflineStudio(fixtures) {
   );
   const rigViewport = $('nbViewport').getBoundingClientRect();
   assert(
-    $('nbViewport').closest('.native-preview').nextElementSibling === $('nbPed') &&
+    $('nbViewport').closest('.native-preview').parentElement ===
+      document.querySelector('.native-build-layout > section') &&
+      $('nbPed').closest('aside') === document.querySelector('.native-build-layout > aside') &&
       rigViewport.top > 150 &&
       rigViewport.top < innerHeight / 2 &&
       rigViewport.bottom > 200,
-    'Completed rig preview must lead the visible workspace',
+    'Completed rig preview must lead the visible workspace ' +
+      JSON.stringify({
+        top: rigViewport.top,
+        bottom: rigViewport.bottom,
+        height: innerHeight,
+        center: $('nbViewport').closest('.native-preview').parentElement.className,
+        left: $('nbPed').closest('aside')?.id,
+      }),
   );
   assert(
     document.querySelector('.rig-quality') && $('nbPedPose').options.length === 3,
