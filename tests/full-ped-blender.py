@@ -1,5 +1,5 @@
 """Exercise the actual full Muto chain with a multi-part, already skinned GLB."""
-import bpy, json, sys, tempfile
+import bpy, json, sys, tempfile, importlib
 from pathlib import Path
 root=Path(__file__).resolve().parents[1];sys.path.insert(0,str(root/'electron'))
 import half_ped, native_bridge as bridge
@@ -25,9 +25,22 @@ with tempfile.TemporaryDirectory() as directory:
     bpy.ops.export_scene.gltf(filepath=str(source),export_format='GLB',use_selection=True,export_animations=False)
     original=source.read_bytes()
     output=temp/'output';output.mkdir()
-    report=bridge.run({'mode':'ped','source':str(source),'output':str(output),'name':'ditasha_full_test','pedOptions':{'reference':'mp_m','height':1.8}})
+    worker=importlib.import_module(bridge.engine_info(bpy)['muto']+'.bl.batch_worker')
+    original_import=worker._import
+    def import_with_missing_optional_image(filename):
+        original_import(filename)
+        image=bpy.data.images.new('Missing optional texture',width=16,height=16)
+        image.source='FILE';image.filepath=str(temp/'missing-optional-texture.png')
+        unused=bpy.data.materials.new('Unused source material');unused.use_nodes=True
+        unused.node_tree.nodes.new('ShaderNodeTexImage').image=image
+    worker._import=import_with_missing_optional_image
+    try:
+        report=bridge.run({'mode':'ped','source':str(source),'output':str(output),'name':'ditasha_full_test','pedOptions':{'reference':'mp_m','height':1.8}})
+    finally:
+        worker._import=original_import
     print('FULL_PED_REPORT',json.dumps(report,ensure_ascii=True),flush=True)
     assert report['ok'],report
+    assert any('missing-optional-texture.png' in warning for warning in report['warnings']),report
     assert report['rigging']['mesh']['parts']==len(objects),'Bone control helper was joined into the body'
     assert source.read_bytes()==original
     assert {'.yft','.ydd','.ytd','.ymt'}.issubset({f.suffix for f in output.rglob('*') if f.is_file()})

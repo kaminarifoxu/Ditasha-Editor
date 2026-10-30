@@ -589,7 +589,10 @@ def run(job):
                 if stage == 'export':
                     # The native writer can terminate Blender without a Python
                     # exception. Preserve the finished rig before entering it.
-                    bpy.ops.file.pack_all()
+                    try:
+                        bpy.ops.file.pack_all()
+                    except RuntimeError as exc:
+                        report.setdefault('warnings', []).append('Sebagian file belum dapat di-pack ke cadangan rig: ' + str(exc))
                     bpy.ops.wm.save_as_mainfile(filepath=str(output / 'ditasha-result.blend'), copy=True)
             result = review.run_muto(worker, bpy, {'src': job['source'], 'out': str(output), 'ped': job['name'], 'mode': 'ADDON', 'tex': 'YTD', 'rig': 'mp_m'}, options, progress)
             report['pedOptions'] = options
