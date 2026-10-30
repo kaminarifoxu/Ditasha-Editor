@@ -105,6 +105,9 @@ contextBridge.exposeInMainWorld('ditashaGtaTools', {
 
 contextBridge.exposeInMainWorld('ditashaClothing', Object.freeze({
   list: () => ipcRenderer.invoke('ditasha:clothing-list'),
+  listOutfits: () => ipcRenderer.invoke('ditasha:outfits-list'),
+  saveOutfit: (outfit) => ipcRenderer.invoke('ditasha:outfits-save', outfit),
+  removeOutfit: (id) => ipcRenderer.invoke('ditasha:outfits-remove', id),
   import: (pack) => ipcRenderer.invoke('ditasha:clothing-import', pack),
   remove: (id) => ipcRenderer.invoke('ditasha:clothing-remove', id),
   rename: (id, label) => ipcRenderer.invoke('ditasha:clothing-rename', id, label),
