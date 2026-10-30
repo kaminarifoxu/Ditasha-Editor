@@ -1,5 +1,5 @@
 # Run with Blender and an enabled Sollumz add-on; no user assets are required.
-import bpy,importlib,importlib.util
+import bpy,importlib,importlib.util,math
 from pathlib import Path
 spec=importlib.util.spec_from_file_location('native_bridge',Path(__file__).resolve().parents[1]/'electron/native_bridge.py')
 m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
@@ -40,6 +40,12 @@ with tempfile.TemporaryDirectory() as output:
     assert sum(len(e['positions'])//9 for e in data['meshes'] if e['candidate']=='body')==1, 'Preview must highlight badge faces only, not the paint face'
     assert sum(len(e['positions'])//9 for e in data['meshes'] if not e['candidate'])==2
     assert len(badge.data.polygons)==2, 'Preview must not edit source geometry'
+from types import SimpleNamespace
+with tempfile.TemporaryDirectory() as output:
+    stats = m.preview_scene(bpy, SimpleNamespace(children_recursive=[badge, shared]), output)
+    assert stats['triangles'] == 4
+    assert (Path(output) / 'preview.json').is_file()
+print('PASS_PED_PREVIEW_GEOMETRY')
 print('PASS_BADGE_PREVIEW_GEOMETRY')
 assert len(m.badge_candidates(target))==2
 assert m.debadge(target,['body'])==1
@@ -71,3 +77,52 @@ try:m.transfer_sirens(bpy,target,donor,{'offset':[0,0,0],'scale':1})
 except ValueError:pass
 else:raise AssertionError('Existing siren must be rejected')
 print('PASS_SIREN_TRANSFER',result)
+
+# Test a real native rigid-part export and reimport, including coordinate agreement.
+for old_object in list(bpy.data.objects):
+    bpy.data.objects.remove(old_object, do_unlink=True)
+target, draw = arm('parts_target')
+donor, ddraw = arm('parts_donor')
+body = mesh('target_body', draw)
+part = mesh('spoiler', ddraw)
+shader = importlib.import_module(engine['sollumz'] + '.ydr.shader_materials').create_shader('default.sps')
+shader.name = 'DITASHA_native_part_test'
+for obj in [body, part]:
+    obj.data.uv_layers.new(name='UVMap')
+    obj.data.materials.append(shader)
+helper.add_child_of_bone_constraint(body, target, 'chassis')
+helper.add_child_of_bone_constraint(part, donor, 'chassis')
+# Give the part an offset local to its donor; lower and hi LODs are independent.
+part.data.vertices[0].co.z = .2
+part.sz_lods.high.mesh = part.data
+part.sz_lods.very_high.mesh = part.data.copy()
+part.sz_lods.very_high.mesh.vertices[0].co.z = .3
+body.sz_lods.high.mesh = body.data
+bpy.context.view_layer.update()
+assert m.rigid_part_candidates(donor)[0]['eligible'], m.rigid_part_candidates(donor)
+job = {'selected':[part.name], 'offset':[.25, .5, 1], 'scale':1.3, 'rotation':[20,30,35], 'targetBone':'chassis'}
+from mathutils import Euler
+transform = Matrix.Translation(Vector(job['offset'])) @ (Matrix.Rotation(math.radians(20),4,'X') @ Matrix.Rotation(math.radians(30),4,'Y') @ Matrix.Rotation(math.radians(35),4,'Z')) @ Matrix.Scale(1.3,4)
+expected = [transform @ part.matrix_world @ v.co for v in part.data.vertices]
+source_copy = [v.co.copy() for v in part.data.vertices]
+result = m.transfer_rigid_parts(bpy,target,donor,job)
+clone = next(o for o in draw.children if o.name in result['names'])
+for p, v in zip(expected,clone.data.vertices):
+    assert (p - clone.matrix_world @ v.co).length < 1e-4
+assert all((a-b.co).length < 1e-6 for a,b in zip(source_copy,part.data.vertices)), 'Donor was edited'
+assert clone.sz_lods.very_high.mesh != part.sz_lods.very_high.mesh
+with tempfile.TemporaryDirectory() as output:
+    files = m.export_vehicle(bpy,target,Path(output))
+    assert any(name.endswith('_hi.yft') for name in files), files
+    main = next(name for name in files if not name.endswith('_hi.yft'))
+    imported = m.import_vehicle(bpy, str(Path(output)/'stream'/main))
+    assert any(o.type == 'MESH' for o in imported.children_recursive)
+    # The re-imported native output must contain the added faces, not just an RSC header.
+    faces = sum(len(o.data.polygons) for o in imported.children_recursive if o.type == 'MESH' and getattr(o,'sollum_type','') == 'sollumz_drawable_model')
+    assert faces >= 4, faces
+part.modifiers.new('UnsafeSkin','ARMATURE').object=donor
+assert not m.rigid_part_candidates(donor)[0]['eligible']
+try: m.transfer_rigid_parts(bpy,target,donor,job)
+except ValueError: pass
+else: raise AssertionError('Skinned donor accepted')
+print('PASS_RIGID_PART_NATIVE_ROUNDTRIP')

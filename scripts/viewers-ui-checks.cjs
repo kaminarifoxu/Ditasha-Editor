@@ -30,6 +30,9 @@ module.exports = async function checkViewers(fixtures) {
     $(id).dispatchEvent(new Event('change'));
   };
   async function checkSticker3d() {
+    // Small-atlas editing remains available; a separate check below exercises 2K.
+    $('stickerResolution').value = '0';
+    $('stickerProjection').value = 'plane';
     $('canvasW').value = $('canvasH').value = '128';
     $('confirmSize').click();
     const original2d = $('textureCanvas').toDataURL();
@@ -188,7 +191,64 @@ module.exports = async function checkViewers(fixtures) {
       $('textureCanvas').toDataURL() === original2d,
       'Removing tattoo retained projected pixels',
     );
+    $('stickerResolution').value = '2048';
+    $('stickerPlace').click();
+    $('viewport').dispatchEvent(
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        button: 0,
+        clientX: rect.left + (xsum / count / sample.width) * rect.width,
+        clientY: rect.top + (ysum / count / sample.height) * rect.height,
+      }),
+    );
+    assert(
+      $('textureCanvas').width === 2048 && $('textureCanvas').height === 2048,
+      'High quality tattoo was baked into the low-resolution source atlas',
+    );
+    assert($('stickerStatus').textContent.includes('2048 × 2048'), 'Baking resolution missing');
+    $('undo').click();
+    assert(
+      $('textureCanvas').toDataURL() === original2d,
+      '2K placement undo failed to restore original pixels and size',
+    );
     $('stickerClear').click();
+    $('stickerResolution').value = '0';
+    $('stampType').value = 'text';
+    $('stampType').dispatchEvent(new Event('change'));
+    $('stampText').value = 'DITASHA';
+    $('stampColor').value = '#00ff00';
+    $('addPng3d').click();
+    await wait(
+      () => $('stickerPlace').getAttribute('aria-pressed') === 'true',
+      'Text stamp failed to rasterize',
+    );
+    const placeText = () =>
+      $('viewport').dispatchEvent(
+        new PointerEvent('pointerdown', {
+          bubbles: true,
+          button: 0,
+          clientX: rect.left + (xsum / count / sample.width) * rect.width,
+          clientY: rect.top + (ysum / count / sample.height) * rect.height,
+        }),
+      );
+    placeText();
+    assert(
+      $('stickerList').children.length === 1 && $('stickerList').textContent.includes('DITASHA'),
+      'Text stamp did not become a UV layer',
+    );
+    const firstText = $('textureCanvas').toDataURL();
+    $('stampText').value = 'WORKSHOP';
+    $('stampUpdateText').click();
+    await wait(() => $('stickerList').textContent.includes('WORKSHOP'), 'Editing text failed');
+    assert(
+      $('stickerList').children.length === 1 && $('textureCanvas').toDataURL() !== firstText,
+      'Text edit duplicated layer or did not rebake',
+    );
+    console.log('DITASHA_SNAPSHOT:text-stamp');
+    $('stickerRemove').click();
+    assert($('textureCanvas').toDataURL() === original2d, 'Removing text stamp left pixels behind');
+    $('stampType').value = 'image';
+    $('stampType').dispatchEvent(new Event('change'));
     $('editTexture3d').click();
     await sleep(100);
     assert(
@@ -242,6 +302,21 @@ module.exports = async function checkViewers(fixtures) {
       'Three-angle photoshoot lost face/hair textures: ' + JSON.stringify(panels),
     );
     assert(pixels[3] === 0, 'Transparent background became opaque');
+    const threeImage = canvas.toDataURL();
+    $('psLayout').value = 'single';
+    $('psLayout').dispatchEvent(new Event('input'));
+    await sleep(150);
+    assert(canvas.toDataURL() !== threeImage, 'Single-view layout did not render');
+    const singleImage = canvas.toDataURL();
+    $('psZoom').value = '200';
+    $('psZoom').dispatchEvent(new Event('input'));
+    await sleep(150);
+    assert(
+      $('psZoomValue').textContent === '200%' && canvas.toDataURL() !== singleImage,
+      'Expanded photoshoot zoom did not render',
+    );
+    $('psLayout').value = 'three';
+    $('psLayout').dispatchEvent(new Event('input'));
     $('psPreset').value = 'clothing';
     $('psPreset').dispatchEvent(new Event('change'));
     await sleep(150);
@@ -437,7 +512,9 @@ module.exports = async function checkViewers(fixtures) {
       'Dynamic hair actions lost icons or tooltips',
     );
     assert(
-      list.querySelector('[data-control="Tekstur rambut"]').textContent.includes('hair-top.ytd'),
+      list
+        .querySelector('[data-control="Tekstur attachment"]')
+        .textContent.includes('hair-top.ytd'),
       'YTD-only or top texture input failed',
     );
     assert(
@@ -510,7 +587,7 @@ module.exports = async function checkViewers(fixtures) {
       [new File([new Uint8Array(fixtures.hairYtd)], 'hair-restored.ytd')],
       () => !$(prefix + 'AddHair').disabled,
     );
-    const mode = list.querySelector('[data-control="Transparansi rambut"]');
+    const mode = list.querySelector('[data-control="Transparansi attachment"]');
     assert(mode.value === 'cutout', 'Hair did not default to alpha cutout');
     const black = list.querySelector('[data-control="remove-black"]');
     assert(!black.checked, 'Black hair removed by default');
@@ -571,6 +648,25 @@ module.exports = async function checkViewers(fixtures) {
       [new File([new Uint8Array(fixtures.hairYtd)], 'hair-restored.ytd')],
       () => !$(prefix + 'AddHair').disabled,
     );
+    const beforeAttachmentExport = saves.length;
+    $(prefix + 'AttachmentGlb').click();
+    await wait(() => saves.length > beforeAttachmentExport, 'Attachment GLB export failed');
+    const attachmentSave = saves.at(-1);
+    assert(
+      attachmentSave.name === 'ditasha-attachments.glb' &&
+        attachmentSave.magic.join(',') === '103,108,84,70',
+      'Attachment export was not a real GLB',
+    );
+    if (prefix === 'mvPed') {
+      const beforeRigExport = saves.length;
+      document.querySelector('.ped-files [data-rig-source]').click();
+      await wait(() => saves.length > beforeRigExport, 'Combined ped rig source export failed');
+      assert(
+        saves.at(-1).name === 'ditasha-ped-rig-source.glb' &&
+          saves.at(-1).magic.join(',') === '103,108,84,70',
+        'Rig source was not a real GLB',
+      );
+    }
     if (prefix === 'ped') await checkSticker3d();
     await checkPhotoshoot(prefix);
     console.log('DITASHA_SNAPSHOT:' + prefix + '-hair-preview');
@@ -599,7 +695,7 @@ module.exports = async function checkViewers(fixtures) {
     await wait(() => !$(prefix + 'AddHair').disabled, 'Hair texture operation did not finish');
     pixels = await colors();
     if (pixels) assert(pixels.green > 10, 'Bad YTD erased hair material');
-    const manual = list.querySelector('[data-control="Tekstur rambut"]');
+    const manual = list.querySelector('[data-control="Tekstur attachment"]');
     manual.value = '0';
     manual.dispatchEvent(new Event('change'));
     const reset = [...list.querySelectorAll('button')].find(
@@ -646,49 +742,10 @@ module.exports = async function checkViewers(fixtures) {
       () => $('fileLoading').hidden && $('textureTitle').textContent === 'cloth_diffuse',
     ),
   );
-  document.querySelector('[data-page="textureviewer"]').click();
-  await input(
-    'tvInput',
-    [new File([new Uint8Array(fixtures.ytd)], 'test.ytd')],
-    () => !$('tvOpen').disabled,
-  );
   assert(
-    $('tvGallery').children.length === 1 && $('tvInfo').textContent.includes('4 × 4'),
-    'Texture gallery or metadata missing',
+    !document.querySelector('[data-page=textureviewer]'),
+    'Texture viewer navigation was not removed',
   );
-  assert(!$('tvCanvas').hidden, 'Selected texture missing');
-  $('tvOriginal').click();
-  assert($('tvCanvas').style.width === '4px', 'Original-size preview not exact');
-  $('tvZoomIn').click();
-  assert($('tvCanvas').style.width === '5px', 'Texture zoom failed');
-  change('tvLayout', 'list');
-  assert($('tvGallery').classList.contains('is-list'), 'List view not active');
-  change('tvBackground', 'white');
-  assert($('tvPreview').classList.contains('white'), 'Alpha background failed');
-  $('tvSearch').value = 'no match';
-  $('tvSearch').dispatchEvent(new Event('input'));
-  assert(!$('tvGallery').children.length, 'Texture search failed');
-  $('tvSearch').value = '';
-  $('tvSearch').dispatchEvent(new Event('input'));
-  change('tvLayout', 'grid');
-  change('tvBackground', 'checker');
-  $('tvFit').click();
-  console.log('DITASHA_SNAPSHOT:texture-viewer');
-  canceled = true;
-  $('tvExport').click();
-  await wait(() => !$('tvOpen').disabled, 'Canceled texture save failed');
-  assert($('tvStatus').textContent === 'Save canceled.', 'Canceled texture save reported success');
-  assert(saves.at(-1).magic.join(',') === '137,80,78,71', 'Invalid viewer PNG');
-  canceled = false;
-  change('tvFormat', 'dds');
-  $('tvExport').click();
-  await wait(() => !$('tvOpen').disabled, 'DDS export failed');
-  assert(saves.at(-1).magic.join(',') === '68,68,83,32', 'Invalid viewer DDS');
-  $('tvExportAll').click();
-  await wait(() => !$('tvOpen').disabled, 'Bulk texture export failed');
-  assert(saves.at(-1).name === 'ditasha-textures.zip', 'Bulk texture export missing');
-  await input('tvInput', [new File(['broken'], 'bad.ytd')], () => !$('tvOpen').disabled);
-  assert($('tvGallery').children.length === 1, 'Invalid texture erased previous gallery');
   document.querySelector('[data-page="modelviewer"]').click();
   await input(
     'mvInput',
@@ -864,11 +921,11 @@ module.exports = async function checkViewers(fixtures) {
   assert($('mvTextures').textContent.includes('test_texture'), 'Paired folder YTD missing');
   document.querySelector('[data-page="archives"]').click();
   select('assets/test.ytd');
-  $('archiveTextureViewer').click();
+  $('archivePreview').click();
   await wait(
     () =>
-      !document.querySelector('.texture-viewer').hidden && $('tvTitle').textContent === 'test.ytd',
-    'Explorer did not open texture viewer',
+      !document.querySelector('main').hidden && $('textureTitle').textContent === 'test_texture',
+    'Explorer texture did not open in the editor',
   );
   document.querySelector('[data-page="archives"]').click();
   $('archiveNew').click();
@@ -979,8 +1036,80 @@ module.exports = async function checkViewers(fixtures) {
     $('mvModels').querySelectorAll('input[type=checkbox]').length === 1,
     'Extra YFT not removable',
   );
+  await input(
+    'mvInput',
+    [new File([new Uint8Array(fixtures.opaqueVehicleModel)], 'solid-paint.ydd')],
+    () => !$('mvOpen').disabled,
+  );
+  $('mvPhotoshoot').click();
+  $('psTitle').value = $('psCaption').value = '';
+  $('psTransparent').checked = true;
+  $('psTransparent').dispatchEvent(new Event('input'));
+  await sleep(200);
+  const solidCanvas = $('psCanvas');
+  const solidPixels = solidCanvas
+    .getContext('2d')
+    .getImageData(0, 0, solidCanvas.width, solidCanvas.height).data;
+  let solidGreen = 0;
+  for (let i = 0; i < solidPixels.length; i += 4)
+    if (
+      solidPixels[i + 3] > 200 &&
+      solidPixels[i + 1] > 60 &&
+      solidPixels[i + 1] > solidPixels[i] * 2
+    )
+      solidGreen++;
+  console.log('DITASHA_SNAPSHOT:photoshoot-solid-vehicle');
+  await sleep(200);
+  assert(
+    solidGreen > 1000,
+    'Opaque vehicle paint disappeared: ' +
+      JSON.stringify({
+        solidGreen,
+        mode: $('mvPedMaterialMode').value,
+        status: $('psStatus').textContent,
+        source: $('psSource').textContent,
+        warnings: $('psWarnings').textContent,
+      }),
+  );
+  $('psClose').click();
+  document.querySelector('[data-page="modelviewer"]').click();
+  const pedFilesRoot = document.querySelector('.ped-files');
+  const pedInput = pedFilesRoot.querySelector('[data-input]');
+  const pedData = new DataTransfer();
+  for (const [name, bytes] of [
+    ['body.ydd', fixtures.model],
+    ['top.ydd', fixtures.model],
+    ['ped.ymt', [1, 2, 3]],
+    ['ped.yft', [4, 5, 6]],
+    ['body.ytd', fixtures.faceYtd],
+  ])
+    pedData.items.add(new File([new Uint8Array(bytes)], name));
+  pedInput.files = pedData.files;
+  pedInput.dispatchEvent(new Event('change'));
+  await wait(
+    () => pedFilesRoot.querySelectorAll('[data-files] li').length === 5,
+    'Ped source bundle import failed',
+  );
+  assert(
+    $('mvModels').querySelector('input[type="checkbox"]').checked,
+    'Ped component was not made visible automatically',
+  );
+  const beforePedSave = saves.length;
+  pedFilesRoot.querySelector('[data-export]').click();
+  await wait(() => saves.length > beforePedSave, 'Ped source bundle export failed');
+  assert(
+    saves.at(-1).name === 'ditasha-ped-sources.zip' && saves.at(-1).magic.join(',') === '80,75,3,4',
+    'Ped source bundle is not a ZIP',
+  );
+  console.log('DITASHA_SNAPSHOT:ped-files-bundle');
   return {
     saves,
+    photoshoot: {
+      perAngleFit: true,
+      singleView: true,
+      extendedZoom: true,
+      opaqueVehicleAlpha: true,
+    },
     checks:
       'Vehicle A8 YTD, separate YFT livery/fragment choices, individual meshes, manual texture assignment and invalid extra retention; PNG decals render and enter Photoshoot without touching 2D; Photoshoot three views with face/hair, background/logo, transparent PNG and canceled/successful saves in both workspaces; texture gallery, exact size/zoom, grid/list, search/background, PNG/DDS/bulk export and canceled save; model LOD/parts, external/embedded textures and invalid-file retention; ped hair YDD/YTD, independent rendered face/hair materials, transforms, visibility, invalid imports and reset/removal; folder sort, text/hex inspection, paired viewers and new RPF',
   };

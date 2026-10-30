@@ -1,30 +1,146 @@
 import { hashName } from './asset-tools.js';
 const normalize = (name = '') =>
-  name.replace(/\.(yft|ydd|ydr|ytd|dds|png|jpe?g|webp)$/i, '').toLowerCase();
-// External replacements belong to a dictionary; embedded maps belong to one drawable.
-export function resolveModelTexture(name, external, embedded, sourceName) {
-  if (!name) return null;
-  const matches = external.filter((t) => normalize(t.name) === normalize(name));
-  const source = normalize((sourceName || '').split(' · ')[0]).replace(/_hi$/, '');
-  const owned = matches.filter((t) => normalize(t.dictionary).replace(/_hi$/, '') === source);
-  if (owned.length) return owned.at(-1);
-  const local = embedded.find((t) => normalize(t.name) === normalize(name));
-  if (matches.length === 1) return matches[0];
-  return local || null;
+  name
+    .split(/[\\/]/)
+    .at(-1)
+    .replace(/\.(yft|ydd|ydr|ytd|dds|png|jpe?g|webp)$/i, '')
+    .toLowerCase();
+// Preserve copy suffixes: car_hi(1).yft belongs to car(1).ytd, not car(2).ytd.
+export const textureDictionaryFamily = (name = '') =>
+  normalize(name.split(' · ')[0]).replace(/_hi(?=(?:\s*\(\d+\))?$)/i, '');
+export function textureDependency(name = '') {
+  if (/^script_rt_/i.test(normalize(name))) return 'runtime';
+  return /^(vehicle_generic_|vehiclelights|plate\d)/i.test(normalize(name)) ? 'shared' : 'asset';
 }
+export const isSharedDictionary = (name) => textureDictionaryFamily(name) === 'vehshare';
+// Only follow explicitly supplied relationships. Stop at conflicts/cycles.
+export function textureParentChain(source, parents = []) {
+  const chain = [],
+    seen = new Set([textureDictionaryFamily(source)]);
+  let child = textureDictionaryFamily(source);
+  for (let i = 0; i < 32; i++) {
+    const choices = [
+      ...new Set(
+        parents
+          .filter((p) => textureDictionaryFamily(p.child) === child)
+          .map((p) => textureDictionaryFamily(p.parent)),
+      ),
+    ];
+    if (choices.length !== 1 || seen.has(choices[0])) break;
+    child = choices[0];
+    seen.add(child);
+    chain.push(child);
+  }
+  return chain;
+}
+export const textureNameAliasMatches = (name, candidate) => {
+  const alias = (value) => normalize(value).replace(/[ _.-]+/g, '');
+  return (
+    !!name &&
+    alias(name) === alias(typeof candidate === 'string' ? candidate : candidate?.name || '')
+  );
+};
+export function textureNameMatches(name, candidate) {
+  const texture = typeof candidate === 'string' ? { name: candidate } : candidate;
+  const key = normalize(name),
+    candidateName = normalize(texture.name);
+  const hash = /^hash_[0-9a-f]{8}$/i.test(key) ? parseInt(key.slice(5), 16) : hashName(key);
+  return (
+    candidateName === key ||
+    (!!key && Number.isInteger(texture.nameHash) && texture.nameHash === hash) ||
+    (/^hash_[0-9a-f]{8}$/i.test(key) && hashName(candidateName) === hash)
+  );
+}
+// External replacements belong to a dictionary; embedded maps belong to one drawable.
+export function resolveModelTexture(name, external, embedded, sourceName, parents = []) {
+  if (!name) return null;
+  // Export tools sometimes turn separators in a display name into spaces. Use this
+  // only when the exact name/hash has no match, and the relevant scope is unique.
+  const alias = (value) => normalize(value).replace(/[ _.-]+/g, '');
+  const exactLocal = embedded.some((t) => textureNameMatches(name, t));
+  if (!external.some((t) => textureNameMatches(name, t)) && !exactLocal) {
+    const candidates = external.filter((t) => alias(t.name) === alias(name));
+    const ownedAlias = candidates.filter(
+      (t) => textureDictionaryFamily(t.dictionary) === textureDictionaryFamily(sourceName),
+    );
+    if (ownedAlias.length === 1) return ownedAlias[0];
+    if (ownedAlias.length > 1) return null;
+    for (const dictionary of textureParentChain(sourceName, parents)) {
+      const inherited = candidates.filter(
+        (t) => textureDictionaryFamily(t.dictionary) === dictionary,
+      );
+      if (inherited.length) return inherited.length === 1 ? inherited[0] : null;
+    }
+    const localAlias = embedded.filter((t) => alias(t.name) === alias(name));
+    if (localAlias.length) return localAlias.length === 1 ? localAlias[0] : null;
+    return candidates.length === 1 ? candidates[0] : null;
+  }
+  const matches = external.filter((texture) => textureNameMatches(name, texture));
+  const source = textureDictionaryFamily(sourceName);
+  const owned = matches.filter((t) => textureDictionaryFamily(t.dictionary) === source);
+  if (owned.length) return owned.at(-1);
+  // An explicit +Textures choice can replace an unowned/embedded reference.
+  // Folder search results never receive this priority and remain ambiguity-safe.
+  const manual = matches.filter((t) => Number.isFinite(t.manualPriority) && t.manualPriority > 0);
+  if (manual.length) return manual.reduce((a, b) => (b.manualPriority >= a.manualPriority ? b : a));
+  for (const dictionary of textureParentChain(sourceName, parents)) {
+    const candidates = matches.filter((t) => textureDictionaryFamily(t.dictionary) === dictionary);
+    if (candidates.length === 1) return candidates[0];
+    if (candidates.length > 1) return null;
+  }
+  const local = embedded.find((texture) => textureNameMatches(name, texture));
+  if (matches.length === 1) return matches[0];
+  const shared =
+    textureDependency(name) === 'shared'
+      ? matches.filter((t) => isSharedDictionary(t.dictionary))
+      : [];
+  return local || (shared.length === 1 ? shared[0] : null);
+}
+// Opaque vehicle presets (bucket 0), checked against szio/gta5/Shaders.xml.
+// Their diffuse alpha is shader data, not surface transparency.
 const opaqueVehicle = new Set(
   [
     'vehicle_mesh',
-    'vehicle_mesh_enveff',
-    'vehicle_mesh_enveff_reflect',
-    'vehicle_paint1',
-    'vehicle_paint2',
-    'vehicle_paint3',
-    'vehicle_paint4',
     'vehicle_tire',
-    'vehicle_dash',
-    'vehicle_interior',
+    'vehicle_tire_emissive',
+    'vehicle_paint4',
+    'vehicle_paint1',
+    'vehicle_mesh2_enveff',
+    'vehicle_interior2',
+    'vehicle_detail2',
+    'vehicle_shuts',
+    'vehicle_paint3',
     'vehicle_licenseplate',
+    'vehicle_emissive_opaque',
+    'vehicle_dash_emissive_opaque',
+    'vehicle_paint2',
+    'vehicle_paint8',
+    'vehicle_interior',
+    'vehicle_paint6_enveff',
+    'vehicle_track2',
+    'vehicle_detail',
+    'vehicle_paint4_enveff',
+    'vehicle_paint9',
+    'vehicle_cloth',
+    'vehicle_basic',
+    'vehicle_track',
+    'vehicle_generic',
+    'vehicle_track_ammo',
+    'vehicle_track_emissive',
+    'vehicle_paint5_enveff',
+    'vehicle_paint6',
+    'vehicle_paint1_enveff',
+    'vehicle_mesh_enveff',
+    'vehicle_track2_emissive',
+    'vehicle_paint3_enveff',
+    'vehicle_paint2_enveff',
+    'vehicle_paint7_enveff',
+    'vehicle_paint7',
+    'vehicle_paint4_emissive',
+    'vehicle_paint3_lvr',
+    'vehicle_cloth2',
+    'vehicle_mesh_enveff_reflect',
+    'vehicle_dash',
   ].flatMap((n) => [hashName(n), hashName(n + '.sps')]),
 );
 export function modelAlphaMode(geometry, override = 'auto') {
@@ -32,4 +148,40 @@ export function modelAlphaMode(geometry, override = 'auto') {
   return opaqueVehicle.has(geometry.shaderHash) || opaqueVehicle.has(geometry.shaderFileHash)
     ? 'opaque'
     : 'blend';
+}
+
+// Vehicle bucket-1 materials need continuous texture alpha. Ped cutout defaults
+// must never turn a 45%-opaque window into an opaque surface.
+const blendedVehicle = new Set(
+  [
+    'vehicle_vehglass',
+    'vehicle_vehglass_inner',
+    'vehicle_lights',
+    'vehicle_lightsemissive',
+    'vehicle_badges',
+    'vehicle_decal',
+    'vehicle_emissive_alpha',
+    'vehicle_dash_emissive',
+    'vehicle_blurredrotor',
+    'vehicle_track_siren',
+    'vehicle_blurredrotor_emissive',
+    'vehicle_lightsemissive_siren',
+  ].flatMap((name) => [hashName(name), hashName(name + '.sps')]),
+);
+// Native ped hair cards use diffuse alpha even when they share a head/body atlas.
+const cutoutPed = new Set(
+  ['ped_hair_cutout_alpha', 'ped_default_cutout'].flatMap((name) => [
+    hashName(name),
+    hashName(name + '.sps'),
+  ]),
+);
+export function modelPreviewAlpha(geometry, override = 'auto') {
+  if (override !== 'auto') return { mode: override, cutoff: override === 'opaque' ? 0 : 0.02 };
+  if (cutoutPed.has(geometry.shaderHash) || cutoutPed.has(geometry.shaderFileHash))
+    return { mode: 'cutout', cutoff: 0.25 };
+  if (opaqueVehicle.has(geometry.shaderHash) || opaqueVehicle.has(geometry.shaderFileHash))
+    return { mode: 'opaque', cutoff: 0 };
+  if (blendedVehicle.has(geometry.shaderHash) || blendedVehicle.has(geometry.shaderFileHash))
+    return { mode: 'blend', cutoff: 0.001 };
+  return null;
 }

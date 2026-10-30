@@ -6,12 +6,17 @@
     <link rel="stylesheet" href="style.css" />
     <style>
       body {
+        --bg: #181a1b;
+        --text: #edf0ec;
+        --muted: #a0a8a4;
+        --line: #363a3b;
+        --accent: #c4e88d;
         height: 100vh;
         display: flex;
         align-items: center;
         justify-content: center;
         user-select: none;
-        background: radial-gradient(ellipse at top right, #302b48, #11151d 70%);
+        background: var(--bg);
       }
       .splash {
         width: 100%;
@@ -38,7 +43,7 @@
         margin: 0;
       }
       .splash-line {
-        height: 3px;
+        height: 2px;
         background: var(--line);
         margin: 32px 0 18px;
         overflow: hidden;

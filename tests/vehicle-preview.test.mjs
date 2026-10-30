@@ -95,6 +95,14 @@ export function fragmentYft() {
   r.v.setUint16(3392 + 18, 1234, true);
   return pack(r, 162);
 }
+export function opaqueVehicleModel() {
+  const r = new Resource(viewerModel, 165);
+  r.v.setUint32(2176 + 8, hashName('vehicle_paint6_enveff'), true);
+  r.v.setUint32(2176 + 24, hashName('vehicle_paint6_enveff.sps'), true);
+  // Solid paint with zero diffuse alpha: this is data, not a hole.
+  r.bytes.set([0, 255, 0, 0], 4096 + 512);
+  return pack(r);
+}
 test('YFT physics child drawables are inspectable and inherit parent shader bindings', () => {
   const d = readYft(fragmentYft());
   assert.equal(d.length, 2);
@@ -198,6 +206,12 @@ test('Material lookup isolates embedded drawable textures and resolves dictionar
   const r = new Resource(viewerModel, 165);
   r.v.setUint32(2176 + 24, hashName('vehicle_paint1.sps'), true);
   assert.equal(readYdd(pack(r))[0].geometries[0].shaderFileHash, hashName('vehicle_paint1.sps'));
+  r.bytes[2176 + 16] = 0;
+  assert.equal(
+    readYdd(pack(r))[0].geometries[0].shaderFileHash,
+    hashName('vehicle_paint1.sps'),
+    'Untextured shaders must retain their render mode',
+  );
 });
 
 test('Native 3D translation preserves GTA axis directions and bounded build offsets', async () => {

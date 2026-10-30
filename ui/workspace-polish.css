@@ -1,0 +1,713 @@
+/* DITASHA desktop workbench: content first, stable controls, bounded panels. */
+.workspace-shell {
+  --work-radius: 12px;
+  --work-gap: 12px;
+}
+.workspace-shell button {
+  cursor: pointer;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
+}
+.workspace-shell button:disabled {
+  cursor: default;
+}
+.workspace-shell :is(button, input, select, textarea):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.workspace-shell :is(h1, h2, h3, .sectiontitle, summary, label) {
+  overflow-wrap: anywhere;
+}
+.workspace-shell
+  :is(.pb-panel, .tool-sidebar, .tool-details, .fm-sidebar, .fm-inspector, .inspector) {
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+}
+.workspace-shell
+  :is(.pb-panel, .tool-sidebar, .tool-details, .fm-sidebar, .fm-inspector)
+  > :is(button, label, details, section, div) {
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.workspace-shell :is(.pb-panel, .tool-sidebar, .tool-details) button {
+  white-space: normal;
+  line-height: 1.45;
+  min-height: 36px;
+}
+.workspace-shell :is(.pb-panel, .tool-sidebar, .tool-details) select {
+  text-overflow: ellipsis;
+}
+.workspace-shell details > summary {
+  min-height: 32px;
+  align-content: center;
+  line-height: 1.5;
+  cursor: pointer;
+}
+.workspace-shell details[open] > summary {
+  color: var(--accent);
+}
+.workspace-shell .workspace-panel-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  margin: 0 0 18px;
+  padding: 10px 12px;
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 650;
+  text-align: left;
+}
+.workspace-shell .workspace-panel-toggle > span:last-child {
+  color: var(--accent);
+  font-size: 18px;
+}
+.workspace-shell .workspace-panel-collapsed {
+  padding: 10px 5px !important;
+  overflow: hidden !important;
+}
+.workspace-shell .workspace-panel-collapsed > :not(.workspace-panel-toggle) {
+  display: none !important;
+}
+.workspace-shell .workspace-panel-collapsed > .workspace-panel-toggle {
+  padding: 8px;
+  margin: 0;
+  flex-direction: column-reverse;
+  width: 100%;
+}
+.workspace-shell .workspace-panel-collapsed > .workspace-panel-toggle > span:first-child {
+  writing-mode: vertical-rl;
+  white-space: nowrap;
+  max-height: 240px;
+  overflow: hidden;
+}
+.workspace-shell .workspace-group-toggle {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  padding: 3px 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+.workspace-group-toggle::after {
+  content: '−';
+  color: var(--accent);
+}
+.workspace-group-toggle[aria-expanded='false']::after {
+  content: '+';
+}
+.workspace-shell .workspace-group-collapsed > :not(h3, .sectiontitle) {
+  display: none !important;
+}
+.workspace-shell .workspace-group-collapsed > :is(h3, .sectiontitle) {
+  margin: 0;
+}
+.workspace-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+  width: 100%;
+}
+.workspace-choice-grid > button {
+  min-width: 0;
+  padding: 9px 8px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+}
+.workspace-choice-grid > button[aria-pressed='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--text);
+}
+.workspace-choice-source {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  clip-path: inset(50%);
+  overflow: hidden;
+}
+/* Both modes use the same two-row preview: title, then viewport. No obsolete empty grid tracks. */
+.workspace-shell > main {
+  --files-track: 190px;
+  --detail-track: 310px;
+  grid-template-columns: var(--files-track) minmax(0, 1fr) var(--detail-track);
+}
+.workspace-shell > main.texture-mode-3d {
+  grid-template-columns: var(--files-track) minmax(0, 1fr) var(--detail-track);
+}
+.workspace-shell > main:has(> .files.workspace-panel-collapsed) {
+  --files-track: 48px;
+}
+.workspace-shell main > .editor {
+  grid-column: 2;
+  grid-row: 3;
+  min-height: 0;
+  min-width: 0;
+}
+.workspace-shell main.texture-mode-3d > .editor {
+  grid-column: 3;
+  grid-row: 3;
+}
+.workspace-shell main > .right:not(.expanded-3d),
+.workspace-shell main.texture-mode-3d > .right:not(.expanded-3d) {
+  display: flex;
+  flex-direction: column;
+  grid-column: 3;
+  grid-row: 3;
+  gap: 0;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 12px 12px;
+}
+.workspace-shell main.texture-mode-3d > .right:not(.expanded-3d) {
+  grid-column: 2;
+}
+.workspace-shell main > .right:not(.expanded-3d) > .panelhead {
+  flex: 0 0 auto;
+  min-height: 46px;
+  height: auto;
+  padding: 12px 0;
+}
+.workspace-shell main > .right:not(.expanded-3d) #viewport {
+  width: 100%;
+  flex: 1 0 230px;
+  height: auto;
+  min-height: 230px;
+  overflow: hidden;
+}
+.workspace-shell main.texture-mode-3d > .right:not(.expanded-3d) #viewport {
+  flex-basis: 320px;
+  min-height: 320px;
+}
+.workspace-shell main > .right:not(.expanded-3d) .inspector {
+  flex: 0 0 auto;
+  max-height: 42vh;
+  overflow: auto;
+  min-width: 0;
+}
+.workspace-shell main.texture-mode-3d > .right:not(.expanded-3d) .inspector {
+  max-height: 28vh;
+}
+.workspace-shell .canvasarea {
+  min-width: 0;
+  min-height: 100px;
+  overflow: auto;
+  align-content: safe center;
+  justify-content: safe center;
+}
+.workspace-shell #canvasStack {
+  flex: 0 0 auto;
+  margin: auto;
+}
+.workspace-shell .texturestrip {
+  flex: 0 0 auto;
+  max-height: 120px;
+  overflow: auto;
+}
+.workspace-shell .editor footer {
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.workspace-shell main > .editor-commandbar {
+  min-height: 82px;
+  max-height: 180px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  gap: 8px;
+}
+.workspace-shell .editor-commandbar .workshop-tool-cluster {
+  padding: 0 12px 0 0;
+  height: auto;
+  min-height: 36px;
+  flex-wrap: wrap;
+  width: auto;
+  gap: 7px;
+}
+.workspace-shell .editor-commandbar button.workspace-explicit-action {
+  width: auto;
+  font-size: 11px !important;
+  gap: 6px;
+}
+.workspace-shell .editor-commandbar button.workspace-explicit-action::after {
+  content: attr(data-action-label);
+}
+.workspace-shell .editor-commandbar button.workspace-explicit-action .control-label {
+  display: none;
+}
+.workspace-shell .tool-workspace:has(> .tool-sidebar.workspace-panel-collapsed) {
+  grid-template-columns: 48px minmax(0, 1fr) 260px;
+}
+.workspace-shell .tool-workspace:has(> .tool-details.workspace-panel-collapsed) {
+  grid-template-columns: 240px minmax(0, 1fr) 48px;
+}
+.workspace-shell
+  .tool-workspace:has(> .tool-sidebar.workspace-panel-collapsed):has(
+    > .tool-details.workspace-panel-collapsed
+  ) {
+  grid-template-columns: 48px minmax(0, 1fr) 48px;
+}
+.workspace-shell .asset-viewer.model-viewer:has(> .tool-sidebar.workspace-panel-collapsed) {
+  grid-template-columns: 48px minmax(0, 1fr);
+}
+/* Explorer details live below the file list; only the directory panel owns a grid track. */
+.workspace-shell .archive-workspace {
+  --archive-files-track: 190px;
+  grid-template-columns: var(--archive-files-track) minmax(0, 1fr);
+}
+.workspace-shell .archive-workspace.has-preview {
+  grid-template-columns: var(--archive-files-track) minmax(0, 0.85fr) minmax(0, 1.3fr);
+}
+.workspace-shell .archive-workspace:has(> .tool-sidebar.workspace-panel-collapsed) {
+  --archive-files-track: 48px;
+}
+.workspace-shell .archive-selection-details .tool-details.workspace-panel-collapsed {
+  min-height: 0;
+}
+.workspace-shell
+  .archive-selection-details
+  .tool-details.workspace-panel-collapsed
+  > .workspace-panel-toggle {
+  flex-direction: row;
+}
+.workspace-shell
+  .archive-selection-details
+  .tool-details.workspace-panel-collapsed
+  > .workspace-panel-toggle
+  > span:first-child {
+  writing-mode: horizontal-tb;
+}
+@media (max-width: 1000px) {
+  .workspace-shell .archive-workspace.has-preview {
+    grid-template-columns: var(--archive-files-track) minmax(0, 1fr);
+    overflow: auto;
+  }
+  .workspace-shell .archive-workspace.has-preview > .tool-sidebar {
+    grid-row: 1 / 3;
+  }
+  .workspace-shell .archive-workspace.has-preview > .explorer-preview {
+    grid-column: 2;
+    min-height: 320px;
+  }
+}
+@media (max-width: 1250px) {
+  .workspace-shell > main {
+    --files-track: 160px;
+    --detail-track: 270px;
+  }
+  .workspace-shell .pb-layout {
+    grid-template-columns: 215px minmax(0, 1fr) 225px;
+    gap: 12px;
+  }
+  .workspace-shell .photo-booth-workspace {
+    padding: 16px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-shell button {
+    transition: none;
+  }
+}
+.workspace-shell[data-motion='reduced'] button {
+  transition: none;
+}
+
+.workspace-shell .editor-commandbar .modeltools #photoshoot {
+  width: auto;
+  min-width: 110px;
+  gap: 6px;
+  padding: 8px 10px;
+}
+
+/* Shared workbench controls. Content and camera stay primary; settings can step aside. */
+.workspace-shell
+  :is(
+    .ac-files,
+    .ac-settings,
+    .debadge-sidebar,
+    .debadge-inspector,
+    .ft-grid > aside,
+    .gt-panel,
+    .native-build-layout > aside
+  ) {
+  min-width: 0;
+  scrollbar-gutter: stable;
+  overflow-wrap: anywhere;
+}
+.workspace-shell
+  :is(
+    .ac-files,
+    .ac-settings,
+    .debadge-sidebar,
+    .debadge-inspector,
+    .ft-card,
+    .gt-panel,
+    .native-build-layout > aside
+  )
+  :is(button, input, select, textarea) {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.workspace-shell .workspace-panel-inline.workspace-panel-collapsed > .workspace-panel-toggle {
+  flex-direction: row;
+}
+.workspace-shell
+  .workspace-panel-inline.workspace-panel-collapsed
+  > .workspace-panel-toggle
+  > span:first-child {
+  writing-mode: horizontal-tb;
+}
+.workspace-shell .workspace-settings-section {
+  border-bottom: 1px solid var(--line);
+  padding: 0 0 12px;
+  margin: 0 0 18px;
+}
+.workspace-shell .workspace-settings-section > summary {
+  font-size: 13px;
+  font-weight: 650;
+  padding: 6px 0;
+}
+.workspace-shell .workspace-settings-section[open] > summary {
+  margin-bottom: 12px;
+}
+.workspace-shell .workspace-choice-grid > button {
+  font-size: 12px;
+  min-height: 36px;
+}
+.workspace-shell .workspace-choice-grid[hidden] {
+  display: none;
+}
+.workspace-shell .workspace-panels-dialog {
+  width: min(440px, 90vw);
+  padding: 24px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.workspace-panel-menu-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.workspace-panel-menu-head h2 {
+  margin: 0;
+  font-size: 20px;
+}
+.workspace-panels-dialog p {
+  color: var(--muted);
+  line-height: 1.6;
+}
+.workspace-panel-menu-list {
+  display: grid;
+  gap: 8px;
+  margin: 18px 0;
+}
+.workspace-panel-menu-list label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.workspace-panel-menu-list input {
+  accent-color: var(--accent);
+}
+.workspace-shell #openWorkspacePanels {
+  min-height: 34px;
+  padding: 6px 12px;
+}
+.workspace-shell .workspace-panels-dialog::backdrop {
+  background: #0009;
+}
+
+.workspace-shell .ac-layout {
+  --ac-files: 240px;
+  --ac-settings: 270px;
+}
+.workspace-shell .ac-layout:has(> .ac-files.workspace-panel-collapsed) {
+  --ac-files: 48px;
+}
+.workspace-shell .ac-layout:has(> .ac-settings.workspace-panel-collapsed) {
+  --ac-settings: 48px;
+}
+.workspace-shell .debadge-layout {
+  --db-files: 245px;
+  --db-settings: 235px;
+}
+.workspace-shell .debadge-layout:has(> .debadge-sidebar.workspace-panel-collapsed) {
+  --db-files: 48px;
+}
+.workspace-shell .debadge-layout:has(> .debadge-inspector.workspace-panel-collapsed) {
+  --db-settings: 48px;
+}
+@media (min-width: 1251px) {
+  .workspace-shell .ac-layout {
+    grid-template-columns: var(--ac-files) minmax(0, 1fr) var(--ac-settings);
+  }
+  .workspace-shell .debadge-layout {
+    grid-template-columns: var(--db-files) minmax(0, 1fr) var(--db-settings);
+  }
+}
+@media (max-width: 1250px) {
+  .workspace-shell .ac-layout {
+    grid-template-columns: var(--ac-files) minmax(0, 1fr);
+  }
+  .workspace-shell .debadge-layout {
+    grid-template-columns: var(--db-files) minmax(0, 1fr);
+  }
+  .workspace-shell :is(.ac-settings, .debadge-inspector).workspace-panel-collapsed {
+    min-height: 0;
+    max-height: none;
+    display: block;
+  }
+  .workspace-shell
+    :is(.ac-settings, .debadge-inspector).workspace-panel-collapsed
+    > .workspace-panel-toggle {
+    flex-direction: row;
+  }
+  .workspace-shell
+    :is(.ac-settings, .debadge-inspector).workspace-panel-collapsed
+    > .workspace-panel-toggle
+    > span:first-child {
+    writing-mode: horizontal-tb;
+  }
+}
+.workspace-shell .native-build-layout {
+  --native-files: 200px;
+  --native-status: 220px;
+}
+.workspace-shell .native-build-layout:has(> aside:first-child.workspace-panel-collapsed) {
+  --native-files: 48px;
+}
+.workspace-shell .native-build-layout:has(> aside:last-child.workspace-panel-collapsed) {
+  --native-status: 48px;
+}
+@media (min-width: 1151px) {
+  .workspace-shell .native-build-layout {
+    grid-template-columns: var(--native-files) minmax(0, 1fr) var(--native-status);
+  }
+  .workspace-shell .native-build-layout > aside:last-child {
+    grid-column: auto;
+  }
+}
+@media (max-width: 1150px) {
+  .workspace-shell .native-build-layout {
+    grid-template-columns: var(--native-files) minmax(0, 1fr);
+  }
+  .workspace-shell .native-build-layout > aside:last-child {
+    grid-column: 1 / -1;
+  }
+  .workspace-shell
+    .native-build-layout
+    > aside:last-child.workspace-panel-collapsed
+    > .workspace-panel-toggle {
+    flex-direction: row;
+  }
+  .workspace-shell
+    .native-build-layout
+    > aside:last-child.workspace-panel-collapsed
+    > .workspace-panel-toggle
+    > span:first-child {
+    writing-mode: horizontal-tb;
+  }
+}
+.workspace-shell .ft-grid:has(> aside.workspace-panel-collapsed) {
+  grid-template-columns: 48px minmax(0, 1fr);
+}
+.workspace-shell .gt-layout > .gt-panel.workspace-panel-collapsed {
+  align-self: start;
+}
+
+/* Photo Booth uses three columns only when the preview has room. */
+.workspace-shell .pb-layout {
+  --pb-assets: 245px;
+  --pb-settings: 255px;
+}
+.workspace-shell .pb-layout:has(> .pb-assets.workspace-panel-collapsed) {
+  --pb-assets: 48px;
+}
+.workspace-shell .pb-layout:has(> .pb-settings.workspace-panel-collapsed) {
+  --pb-settings: 48px;
+}
+@media (min-width: 1351px) {
+  .workspace-shell .pb-layout {
+    grid-template-columns: var(--pb-assets) minmax(0, 1fr) var(--pb-settings);
+  }
+  .workspace-shell .pb-settings {
+    grid-column: auto;
+  }
+}
+@media (min-width: 901px) and (max-width: 1350px) {
+  .workspace-shell .pb-layout {
+    grid-template-columns: var(--pb-assets) minmax(0, 1fr);
+    height: auto;
+  }
+  .workspace-shell .pb-settings {
+    grid-column: 1 / -1;
+    max-height: 440px;
+  }
+  .workspace-shell .pb-settings.workspace-panel-collapsed > .workspace-panel-toggle {
+    flex-direction: row;
+  }
+  .workspace-shell
+    .pb-settings.workspace-panel-collapsed
+    > .workspace-panel-toggle
+    > span:first-child {
+    writing-mode: horizontal-tb;
+  }
+}
+@media (max-width: 900px) {
+  .workspace-shell .pb-layout {
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+  }
+  .workspace-shell .pb-stage {
+    grid-row: 1;
+    min-height: 500px;
+  }
+  .workspace-shell .pb-settings {
+    grid-column: auto;
+  }
+  .workspace-shell .pb-panel {
+    max-height: 440px;
+  }
+  .workspace-shell .pb-panel.workspace-panel-collapsed > .workspace-panel-toggle {
+    flex-direction: row;
+  }
+  .workspace-shell
+    .pb-panel.workspace-panel-collapsed
+    > .workspace-panel-toggle
+    > span:first-child {
+    writing-mode: horizontal-tb;
+  }
+  .workspace-shell .ft-grid:has(> aside.workspace-panel-collapsed) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .workspace-shell .ft-grid > aside.workspace-panel-collapsed > .workspace-panel-toggle {
+    flex-direction: row;
+  }
+  .workspace-shell
+    .ft-grid
+    > aside.workspace-panel-collapsed
+    > .workspace-panel-toggle
+    > span:first-child {
+    writing-mode: horizontal-tb;
+  }
+  .workspace-shell header .workspace-search {
+    width: 36px;
+    min-width: 36px;
+    padding: 8px;
+  }
+  .workspace-shell header .workspace-search :is(span, kbd) {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .workspace-shell:not([data-motion='reduced']) .workspace-panels-dialog[open] {
+    animation: workspace-panel-appear 150ms ease-out;
+  }
+  @keyframes workspace-panel-appear {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+/* File Manager keeps its narrow-screen details drawer instead of adding a grid column. */
+.workspace-shell .fm-modern.fm-explorer {
+  --fm-files: 190px;
+}
+.workspace-shell .fm-modern.fm-explorer:has(> .fm-sidebar.workspace-panel-collapsed) {
+  --fm-files: 48px;
+}
+@media (min-width: 1201px) {
+  .workspace-shell .fm-modern.fm-explorer:has(> .fm-sidebar.workspace-panel-collapsed) {
+    grid-template-columns: var(--fm-files) minmax(0, 1fr) 290px;
+  }
+  .workspace-shell .fm-modern.fm-explorer:has(> .fm-inspector.workspace-panel-collapsed) {
+    grid-template-columns: var(--fm-files) minmax(0, 1fr) 48px;
+  }
+  .workspace-shell .fm-modern.fm-explorer.fm-hide-details {
+    grid-template-columns: var(--fm-files) minmax(0, 1fr);
+  }
+}
+@media (max-width: 1200px) {
+  .workspace-shell .fm-modern.fm-explorer,
+  .workspace-shell .fm-modern.fm-explorer.fm-hide-details {
+    grid-template-columns: var(--fm-files) minmax(0, 1fr);
+  }
+  .workspace-shell .fm-explorer .fm-inspector.workspace-panel-collapsed {
+    width: 48px;
+    bottom: auto;
+    max-height: 300px;
+  }
+}
+.workspace-shell
+  :is(.viewer-toolbar, .vehicle-workspace-head, .pb-stage-toolbar)
+  button.workspace-explicit-action {
+  width: auto;
+  gap: 6px;
+}
+.workspace-shell
+  :is(.viewer-toolbar, .vehicle-workspace-head, .pb-stage-toolbar)
+  button.workspace-explicit-action
+  .control-label {
+  display: inline;
+}
+
+@media (max-width: 1050px) {
+  .workspace-shell .ft-grid:has(> aside.workspace-panel-collapsed) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .workspace-shell .ft-grid > aside.workspace-panel-collapsed > .workspace-panel-toggle {
+    flex-direction: row;
+  }
+  .workspace-shell
+    .ft-grid
+    > aside.workspace-panel-collapsed
+    > .workspace-panel-toggle
+    > span:first-child {
+    writing-mode: horizontal-tb;
+  }
+}
+/* Short toolbar labels stay together beside choice buttons. */
+.workspace-shell .pb-stage-picker {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+.workspace-shell .pb-stage-picker > .workspace-choice-grid {
+  width: auto;
+  grid-template-columns: repeat(2, max-content);
+  margin: 0;
+}
+.workspace-shell .pb-ped-sizing > label.check {
+  grid-column: 1 / -1;
+}

@@ -1,4 +1,24 @@
-import { mountStudioMotion } from './studio-motion.js';
+import { mountWorkspacePolish } from './workspace-polish.js';
+import { defaultDrawableSelection, drawableView } from './drawable-selection.js';
+import { resolveModelTexture, modelAlphaMode, modelPreviewAlpha } from './model-material.js';
+import { resolveEditorDiffuse, editorTextureMatches } from './editor-material.js';
+import { liveryReference, setVehicleLivery } from './vehicle-livery.js';
+import {
+  createModelMaterial,
+  resolveSurfaceMaps,
+  setSurfaceMaps,
+  surfaceReferences,
+} from './vehicle-surface.js';
+import { composeProjectionLayers } from './projection-composite.js';
+import {
+  MAX_DECODED_TEXTURE_BYTES,
+  MAX_YTD_INPUT_BYTES,
+  textureThumbnail,
+} from './texture-memory.js';
+import { setProject } from './project-context.js';
+import { mountCanvasStudio } from './canvas-studio.js';
+import { mountSceneStudio } from './scene-studio.js';
+import { mountAssetWorkshopUi } from './asset-workshop-ui.js';
 import { mountWorkspaceShell } from './workspace-shell.js';
 import { mountNativeBuild } from './native-build-ui.js';
 import { decodeResource } from './resource-client.js';
@@ -30,6 +50,7 @@ import {
   eraseAt,
   resizeHandles,
   resizeFromHandle,
+  maskAt,
 } from './editor.js';
 const $ = (id) => document.getElementById(id),
   canvas = $('textureCanvas'),
@@ -44,7 +65,10 @@ let current = null,
   dirty = false,
   mapped = null,
   projectionPreview = null;
-let toastTimer, livery, nativeBuild;
+let toastTimer, livery, nativeBuild, canvasStudio, sceneStudio;
+const materialMaps = [];
+const previewMapSources = new WeakMap();
+const modelEmbeddedSources = new WeakMap();
 let mode = 'move',
   gesture = null,
   cropRect = null,
@@ -71,6 +95,7 @@ document
   .insertBefore(sidebarInspector, document.querySelector('.sidebarbottom'));
 sidebarInspector.append(document.querySelector('.layerinspector'));
 const pedAttachments = mountPedAttachments({
+  download,
   scene,
   container: sidebarInspector,
   prefix: 'ped',
@@ -121,9 +146,29 @@ function applyArtwork(source, name, binding) {
     throw Error('Pilih kembali tekstur tempat artwork ini dipasang.');
   if (!current || current.isUV) throw Error('Pilih tekstur yang dapat diedit terlebih dahulu.');
   initLayers(current);
-  remember();
+  if (!validSize(source.width, source.height)) throw Error('Ukuran artwork tidak valid.');
+  remember(true);
+  if (source.width !== current.w || source.height !== current.h) {
+    const sx = source.width / current.w,
+      sy = source.height / current.h;
+    for (const layer of current.layers) {
+      layer.x *= sx;
+      layer.y *= sy;
+      layer.w *= sx;
+      layer.h *= sy;
+    }
+    current.w = source.width;
+    current.h = source.height;
+    cropRect = null;
+    $('dimensions').textContent = `${current.w} × ${current.h}`;
+  }
   const id = binding?.id || crypto.randomUUID();
-  const layer = { ...makeLayer(source, name), projectionId: id };
+  const layer = {
+    ...makeLayer(source, name),
+    projectionId: id,
+    projectionPixels: source.projectionPixels,
+    preserveSourceAlpha: source.preserveSourceAlpha,
+  };
   const index = current.layers.findIndex((l) => l.projectionId === id);
   if (index < 0) current.layers.push(layer);
   else current.layers[index] = layer;
@@ -135,36 +180,55 @@ function applyArtwork(source, name, binding) {
   renderTextures();
   drawGuide();
   applyTexture();
+  fitCanvas();
   return { texture: current, id };
 }
 const stickers3d = mountStickers3D({
   getTextureSize: () =>
-    current && !current.isUV ? { w: current.w, h: current.h, texture: current } : null,
+    current && !current.isUV
+      ? {
+          w: current.w,
+          h: current.h,
+          texture: current,
+          skin: /^(sbase|head_diff|uppr_diff|lowr_diff|body_diff)/i.test(current.name),
+        }
+      : null,
   addTextureLayer: (source, name, binding) => applyArtwork(source, 'PNG 3D · ' + name, binding),
-  previewTextureLayer: (binding) => {
-    if (!binding) {
+  previewTextureLayer: (binding, preview) => {
+    if (!binding && !preview) {
       if (!projectionPreview) return;
       projectionPreview = null;
       applyTexture();
       return;
     }
-    if (binding.texture !== current) return;
-    if (projectionPreview?.id === binding.id && projectionPreview.revision === current.revision)
-      return;
+    if (binding && binding.texture !== current) return;
     const source = document.createElement('canvas');
     source.width = current.w;
     source.height = current.h;
-    drawLayers(
-      source.getContext('2d'),
-      current.layers.filter((l) => l.projectionId !== binding.id),
-      current.w,
-      current.h,
-    );
+    const layers = current.layers.filter((l) => !binding || l.projectionId !== binding.id);
+    if (preview) {
+      const projected = document.createElement('canvas');
+      projected.width = current.w;
+      projected.height = current.h;
+      projected
+        .getContext('2d')
+        .putImageData(new ImageData(preview.pixels, current.w, current.h), 0, 0);
+      layers.push({
+        ...makeLayer(projected, 'Preview'),
+        projectionPixels: preview.pixels,
+        preserveSourceAlpha: preview.skin,
+      });
+    }
+    const pixels = composeProjectionLayers(layers, current.w, current.h);
+    if (pixels)
+      source.getContext('2d').putImageData(new ImageData(pixels, current.w, current.h), 0, 0);
+    else drawLayers(source.getContext('2d'), layers, current.w, current.h);
     projectionPreview = {
-      id: binding.id,
+      id: binding?.id,
       texture: current,
       revision: current.revision,
       canvas: source,
+      pixels,
     };
     applyTexture();
   },
@@ -172,7 +236,7 @@ const stickers3d = mountStickers3D({
     if (binding.texture !== current) return;
     const index = current.layers.findIndex((l) => l.projectionId === binding.id);
     if (index < 0) return;
-    remember();
+    remember(true);
     current.layers.splice(index, 1);
     current.selected = Math.min(current.selected, current.layers.length - 1);
     renderComposite(true);
@@ -195,6 +259,7 @@ const stickers3d = mountStickers3D({
   toast,
 });
 function clearModel() {
+  sceneStudio?.detach();
   stickers3d.clear();
   pedMaterials.clear();
   model.traverse((o) => {
@@ -224,33 +289,128 @@ function frame() {
   renderer?.render(scene, camera);
 }
 function applyTexture() {
+  materialMaps.splice(0).forEach((map) => map.dispose());
   if (mapped) {
     mapped.dispose();
     mapped = null;
   }
   if (current && $('apply').checked && (!current.isUV || current.layers?.some((l) => l.visible))) {
-    mapped = new THREE.CanvasTexture(
-      projectionPreview?.texture === current ? projectionPreview.canvas : canvas,
-    );
+    const pixels =
+      projectionPreview?.texture === current ? projectionPreview.pixels : current.previewPixels;
+    mapped = pixels
+      ? new THREE.DataTexture(new Uint8Array(pixels), current.w, current.h, THREE.RGBAFormat)
+      : new THREE.CanvasTexture(
+          projectionPreview?.texture === current ? projectionPreview.canvas : canvas,
+        );
+    mapped.needsUpdate = true;
     if (mapped) {
       mapped.flipY = false;
-      mapped.generateMipmaps = false;
-      mapped.minFilter = THREE.LinearFilter;
-      mapped.anisotropy = Math.min(8, renderer?.capabilities.getMaxAnisotropy() || 1);
+      mapped.wrapS = mapped.wrapT = THREE.RepeatWrapping;
+      mapped.generateMipmaps = true;
+      mapped.minFilter = THREE.LinearMipmapLinearFilter;
+      mapped.anisotropy = Math.min(16, renderer?.capabilities.getMaxAnisotropy() || 1);
       mapped.colorSpace = THREE.SRGBColorSpace;
     }
   }
+  const available = workspaceTextures().filter((t) => !t.isUV && t.out?.length === t.w * t.h * 4);
+  const embedded = drawableView(modelFile?.drawables || [], drawableIndex)?.embeddedTextures || [];
+  const meshes = [];
   model.traverse((o) => {
-    if (o.isMesh) {
-      for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
-        m.map = mapped || m.userData.originalMap || null;
-        m.color?.set(mapped ? 0xffffff : 0xb3bbc8);
-        m.wireframe = wire;
-        m.needsUpdate = true;
-      }
-    }
+    if (o.isMesh) meshes.push(o);
   });
+  const matching =
+    current &&
+    meshes.some(
+      (o) =>
+        editorTextureMatches(o.userData, current, displayedModel?.name) ||
+        [
+          o.userData.liveryTexture,
+          ...Object.values(surfaceReferences(o.userData.surfaceBinding || {})),
+        ].some(
+          (name) => resolveModelTexture(name, [current], [], displayedModel?.name) === current,
+        ),
+    );
+  const cache = new Map();
+  const textureMap = (texture, role = 'color') => {
+    if (!texture) return null;
+    if (role === 'color' && mapped && texture === current) return mapped;
+    if (cache.get(texture)?.has(role)) return cache.get(texture).get(role);
+    const map = new THREE.DataTexture(
+      new Uint8Array(texture.previewPixels || texture.out),
+      texture.w,
+      texture.h,
+      THREE.RGBAFormat,
+    );
+    map.flipY = false;
+    map.wrapS = map.wrapT = THREE.RepeatWrapping;
+    map.colorSpace = role === 'data' ? THREE.NoColorSpace : THREE.SRGBColorSpace;
+    map.generateMipmaps = true;
+    map.minFilter = THREE.LinearMipmapLinearFilter;
+    map.anisotropy = Math.min(16, renderer?.capabilities.getMaxAnisotropy() || 1);
+    map.needsUpdate = true;
+    if (!cache.has(texture)) cache.set(texture, new Map());
+    cache.get(texture).set(role, map);
+    previewMapSources.set(map, texture);
+    materialMaps.push(map);
+    return map;
+  };
+  for (const o of meshes) {
+    const localEmbedded = modelEmbeddedSources.get(o) || embedded;
+    const texture =
+      $('apply').checked &&
+      resolveEditorDiffuse(o.userData, available, localEmbedded, displayedModel?.name);
+    const useCurrent =
+      mapped &&
+      (editorTextureMatches(o.userData, current, displayedModel?.name) ||
+        (!matching && !o.userData.previewDiffuseOverride && !texture));
+    let map = useCurrent ? mapped : null;
+    if (!map && texture) map = textureMap(texture);
+    const livery =
+      $('apply').checked &&
+      resolveModelTexture(o.userData.liveryTexture, available, localEmbedded, displayedModel?.name);
+    const liveryMap = o.geometry.getAttribute('ditashaLiveryUv') ? textureMap(livery) : null;
+    for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+      m.map = map || m.userData.originalMap || null;
+      setVehicleLivery(m, liveryMap);
+      setSurfaceMaps(
+        m,
+        o.geometry.getAttribute('uv')
+          ? resolveSurfaceMaps(
+              o.userData.surfaceBinding || {},
+              available,
+              localEmbedded,
+              displayedModel?.name,
+            )
+          : {},
+        textureMap,
+      );
+      m.color?.set(m.map ? 0xffffff : 0xb3bbc8);
+      m.wireframe = wire;
+      m.needsUpdate = true;
+    }
+  }
   pedMaterials.apply();
+  const missing = [
+    ...new Set(
+      meshes
+        .filter(
+          (o) =>
+            o.userData.diffuseTexture &&
+            !resolveEditorDiffuse(
+              o.userData,
+              available,
+              modelEmbeddedSources.get(o) || embedded,
+              displayedModel?.name,
+            ),
+        )
+        .map((o) => o.userData.diffuseTexture),
+    ),
+  ];
+  $('materialBindingStatus').textContent = missing.length
+    ? 'Tekstur belum ditemukan: ' +
+      missing.join(', ') +
+      '. Pilih objek di Scene Studio, lalu pasang tekstur preview.'
+    : 'Tekstur memakai nama sampler model. Pemasangan manual hanya mengubah preview.';
   renderer?.render(scene, camera);
 }
 function showDrawable(index) {
@@ -258,23 +418,42 @@ function showDrawable(index) {
   drawableIndex = index;
   displayedModel = modelFile;
   clearModel();
-  const d = modelFile.drawables[index];
+  const d = drawableView(modelFile.drawables, index);
+  if (!d) return;
   for (const [index, g] of d.geometries.entries()) {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(g.positions, 3));
     if (g.uvs) geo.setAttribute('uv', new THREE.BufferAttribute(g.uvs, 2));
+    if (g.uvs2) geo.setAttribute('ditashaLiveryUv', new THREE.BufferAttribute(g.uvs2, 2));
     geo.setIndex(new THREE.BufferAttribute(g.indices, 1));
-    geo.computeVertexNormals();
+    if (g.normals) geo.setAttribute('normal', new THREE.BufferAttribute(g.normals, 3));
+    else geo.computeVertexNormals();
     const mesh = new THREE.Mesh(
       geo,
-      new THREE.MeshStandardMaterial({
+      createModelMaterial(g, {
         color: 0xb3bbc8,
         roughness: 0.75,
         metalness: 0,
         side: THREE.DoubleSide,
       }),
     );
+    modelEmbeddedSources.set(mesh, g.sourceEmbeddedTextures || d.embeddedTextures || []);
+    mesh.userData.diffuseTexture = g.diffuseTexture || null;
+    mesh.userData.liveryTexture = liveryReference(g);
+    mesh.userData.surfaceBinding = {
+      textureSamplers: g.textureSamplers || [],
+      shaderParameters: g.shaderParameters || [],
+    };
+    const alphaDefault = modelPreviewAlpha(g);
+    if (alphaDefault) mesh.material.userData.previewAlphaDefault = alphaDefault;
+    if (
+      !alphaDefault &&
+      (modelAlphaMode(g) === 'opaque' ||
+        /^(sbase|head_diff|uppr_diff|lowr_diff|body_diff)/i.test(g.diffuseTexture || ''))
+    )
+      mesh.material.userData.previewAlphaDefault = { mode: 'opaque', cutoff: 0 };
     mesh.name =
+      (g.drawableLabel ? g.drawableLabel + ' · ' : '') +
       'Part ' +
       ((g.part ?? 0) + 1) +
       ' · mesh ' +
@@ -308,15 +487,36 @@ function modelReady() {
     if (o.isMesh) meshes.push(o);
   });
   pedMaterials.setMeshes(meshes);
+  sceneStudio?.refresh(
+    (displayedModel?.name || modelFile?.name || 'model') +
+      '|' +
+      (displayedModel?.size || modelFile?.size || 0),
+  );
   frame();
 }
 function makeCanvas(t) {
+  if (t.canvas) return t;
   const c = document.createElement('canvas');
   c.width = t.w;
   c.height = t.h;
   c.getContext('2d').putImageData(new ImageData(t.out, t.w, t.h), 0, 0);
   t.canvas = c;
   return t;
+}
+function thumbnailURL(t) {
+  const c = document.createElement('canvas');
+  if (t.canvas) {
+    const ratio = Math.min(1, 96 / t.w, 96 / t.h);
+    c.width = Math.max(1, Math.round(t.w * ratio));
+    c.height = Math.max(1, Math.round(t.h * ratio));
+    c.getContext('2d').drawImage(t.canvas, 0, 0, c.width, c.height);
+  } else {
+    const thumb = textureThumbnail(t);
+    c.width = thumb.w;
+    c.height = thumb.h;
+    c.getContext('2d').putImageData(new ImageData(thumb.out, thumb.w, thumb.h), 0, 0);
+  }
+  return c.toDataURL();
 }
 function refreshFiles() {
   renderTabs();
@@ -361,6 +561,7 @@ function options(el, items) {
 }
 function selectFile(f) {
   activeFile = f;
+  setProject('editor', f.name);
   refreshFiles();
   if (f.resource || f.textures) {
     textures.splice(0, textures.length, ...(f.resource?.textures || f.textures));
@@ -371,11 +572,16 @@ function selectFile(f) {
   if (f.drawables) {
     if (displayedModel !== f) pedAttachments.clear();
     modelFile = f;
-    f.uvTextures ??= f.drawables.map((d, i) => {
+    const initial = defaultDrawableSelection(f.drawables);
+    f.uvTextures ??= [
+      ...f.drawables,
+      ...(f.ext === 'ydd' && f.drawables.length > 1 ? [drawableView(f.drawables, -1)] : []),
+    ].map((d, i) => {
       const c = document.createElement('canvas');
       c.width = c.height = 1;
       return {
         name: 'UV · ' + d.name,
+        drawableIndex: i === f.drawables.length ? -1 : i,
         w: 2048,
         h: 2048,
         canvas: c,
@@ -386,13 +592,20 @@ function selectFile(f) {
     });
     textures.splice(0, textures.length, ...f.uvTextures);
     renderTextures();
-    selectTexture(0);
     $('modelTitle').textContent = f.name;
     options(
       $('drawable'),
       f.drawables.map((d) => d.name),
     );
-    showDrawable(0);
+    if (f.ext === 'ydd' && f.drawables.length > 1) {
+      const all = document.createElement('option');
+      all.value = -1;
+      all.textContent = 'Semua drawable';
+      $('drawable').append(all);
+    }
+    $('drawable').value = initial;
+    showDrawable(initial);
+    selectTexture(initial === -1 ? f.drawables.length : initial);
   }
   if (f.gltf) {
     if (displayedModel !== f) pedAttachments.clear();
@@ -416,7 +629,7 @@ function renderTextures() {
     const b = document.createElement('button');
     b.className = 'texcard' + (t === current ? ' active' : '');
     const im = document.createElement('img');
-    im.src = t.canvas.toDataURL();
+    im.src = thumbnailURL(t);
     if (t.isUV) im.style.background = '#3948f0';
     const s = document.createElement('span');
     s.textContent = t.name;
@@ -430,7 +643,10 @@ function renderTextures() {
 }
 function initLayers(t) {
   if (t.layers) return;
+  if (!t.isUV) makeCanvas(t);
   t.layers = t.isUV ? [] : [makeLayer(copyCanvas(t.canvas), t.name, t.w, t.h)];
+  if (!t.isUV && t.out?.length === t.w * t.h * 4)
+    t.layers[0].originalPixels = { w: t.w, h: t.h, data: new Uint8ClampedArray(t.out) };
   t.selected = t.layers.length - 1;
   t.history = [];
   t.future = [];
@@ -441,6 +657,14 @@ function selectTexture(i) {
   gesture = null;
   hideContext();
   current = textures[i];
+  if (
+    current.isUV &&
+    Number.isInteger(current.drawableIndex) &&
+    drawableIndex !== current.drawableIndex
+  ) {
+    $('drawable').value = current.drawableIndex;
+    showDrawable(current.drawableIndex);
+  }
   initLayers(current);
   canvas.width = current.w;
   canvas.height = current.h;
@@ -468,7 +692,10 @@ function fitCanvas() {
   if (!current) return;
   let area = $('canvasarea');
   let ratio =
-    Math.min((area.clientWidth - 40) / current.w, (area.clientHeight - 40) / current.h, 1) * zoom;
+    Math.max(
+      0.001,
+      Math.min((area.clientWidth - 40) / current.w, (area.clientHeight - 40) / current.h, 1),
+    ) * zoom;
   for (const c of [canvas, $('uvCanvas'), $('selectionCanvas')]) {
     c.style.width = current.w * ratio + 'px';
     c.style.height = current.h * ratio + 'px';
@@ -485,7 +712,7 @@ function commit() {
   current.canvas.width = current.w;
   current.canvas.height = current.h;
   current.canvas.getContext('2d').drawImage(canvas, 0, 0);
-  current.out = ctx.getImageData(0, 0, current.w, current.h).data;
+  current.out = current.previewPixels?.slice() || ctx.getImageData(0, 0, current.w, current.h).data;
   dirty = true;
   $('editState').textContent = 'Tekstur diubah · belum diekspor';
   if (mapped) mapped.needsUpdate = true;
@@ -498,9 +725,10 @@ function snapshotState() {
     layers: current.layers.map((l) => ({ ...l })),
   };
 }
-function remember() {
+function remember(preservePixels = false) {
   if (!current) return;
   current.history.push(snapshotState());
+  if (!preservePixels && current.layers[0]) current.layers[0].originalPixels = null;
   current.future = [];
   if (current.history.length > 8) current.history.shift();
 }
@@ -576,20 +804,32 @@ async function imageTexture(file) {
     format: 'IMAGE',
   };
 }
-async function loadFiles(list) {
-  if (list.length && tools.isHome()) tools.activate('editor');
+const reusablePreviews = new WeakMap();
+async function loadFiles(list, { reuse = false } = {}) {
   for (const file of list) {
+    const cached = reuse && reusablePreviews.get(file);
+    if (cached && files.includes(cached)) {
+      selectFile(cached);
+      continue;
+    }
     $('fileLoading').hidden = false;
     $('fileLoadingName').textContent = 'Membuka ' + file.name + '…';
     await new Promise((resolve) => setTimeout(resolve, 20));
     try {
-      if (file.size > 64 * 1024 * 1024) throw Error('File terlalu besar (maksimum 64 MB).');
+      if (file.size > (/\.ytd$/i.test(file.name) ? MAX_YTD_INPUT_BYTES : 64 * 1024 ** 2))
+        throw Error('File terlalu besar: YTD maksimum 256 MB; format lain 64 MB.');
       const ext = file.name.split('.').pop().toLowerCase(),
         f = { name: file.name, ext, size: file.size };
       toast('Membuka ' + file.name + '…');
       if (ext === 'ytd') {
-        f.resource = await decodeResource('ytd', await file.arrayBuffer());
-        f.resource.textures.forEach(makeCanvas);
+        f.resource = await decodeResource('ytd', await file.arrayBuffer(), {
+          maxDecodedBytes:
+            MAX_DECODED_TEXTURE_BYTES -
+            workspaceTextures().reduce((n, t) => n + t.out.byteLength, 0),
+        });
+        f.resource.textures.forEach((t) => {
+          t.dictionary = f.name;
+        });
       } else if (['ydd', 'ydr', 'yft'].includes(ext)) {
         f.drawables = await decodeResource(ext, await file.arrayBuffer());
       } else if (['png', 'jpg', 'jpeg', 'webp'].includes(ext)) {
@@ -600,6 +840,7 @@ async function loadFiles(list) {
         f.textures = [makeCanvas(readDds(await file.arrayBuffer(), file.name))];
       } else throw Error('Pilih YFT, YDD, YDR, YTD, GLB, PNG, JPG atau WebP.');
       files.push(f);
+      if (reuse) reusablePreviews.set(file, f);
       if (f.textures && current) {
         addTextureLayer(f.textures[0]);
         refreshFiles();
@@ -686,11 +927,28 @@ $('drawable').onchange = (e) => {
   if (current?.isUV && modelFile.uvTextures?.includes(current)) {
     textures.splice(0, textures.length, ...modelFile.uvTextures);
     renderTextures();
-    selectTexture(i);
+    selectTexture(i === -1 ? modelFile.drawables.length : i);
   }
-  showDrawable(i);
+  if (drawableIndex !== i) showDrawable(i);
 };
 $('apply').onchange = applyTexture;
+$('bindPreviewTexture').onclick = () => {
+  const object = sceneStudio?.selectedObject();
+  if (!object?.isMesh || !model.children.includes(object))
+    return toast('Pilih mesh model di Scene Studio terlebih dahulu.');
+  if (!current || current.isUV) return toast('Pilih tekstur YTD atau gambar terlebih dahulu.');
+  object.userData.previewDiffuseOverride = { name: current.name, dictionary: current.dictionary };
+  $('apply').checked = true;
+  applyTexture();
+  toast('Tekstur dipasang ke objek untuk preview. Nama sampler YDD tidak diubah.');
+};
+$('resetPreviewTexture').onclick = () => {
+  const object = sceneStudio?.selectedObject();
+  if (!object?.isMesh || !model.children.includes(object))
+    return toast('Pilih mesh model di Scene Studio terlebih dahulu.');
+  delete object.userData.previewDiffuseOverride;
+  applyTexture();
+};
 $('reset').onclick = frame;
 $('wire').onclick = () => {
   wire = !wire;
@@ -703,8 +961,7 @@ $('wire').onclick = () => {
 };
 $('snapshot').onclick = () => {
   if (renderer) {
-    renderer.render(scene, camera);
-    png(renderer.domElement, 'ditasha-model-preview.png');
+    sceneStudio.cleanCapture(() => png(renderer.domElement, 'ditasha-model-preview.png'));
   }
 };
 $('help').onclick = () => $('helpDialog').showModal();
@@ -785,13 +1042,36 @@ function renderComposite(mark = false) {
     canvas.width = current.w;
     canvas.height = current.h;
   }
-  drawLayers(ctx, current.layers, current.w, current.h);
+  current.previewPixels = composeProjectionLayers(current.layers, current.w, current.h);
+  if (current.previewPixels)
+    ctx.putImageData(new ImageData(current.previewPixels, current.w, current.h), 0, 0);
+  else drawLayers(ctx, current.layers, current.w, current.h);
+  if (mapped?.isDataTexture) {
+    mapped.image = {
+      data: new Uint8Array(
+        current.previewPixels || ctx.getImageData(0, 0, current.w, current.h).data,
+      ),
+      width: current.w,
+      height: current.h,
+    };
+  }
   if (mapped) mapped.needsUpdate = true;
+  // Native data-role maps are separate linear textures, so refresh them too.
+  let surfacePixels;
+  for (const map of materialMaps)
+    if (previewMapSources.get(map) === current) {
+      surfacePixels ||= new Uint8Array(
+        current.previewPixels || ctx.getImageData(0, 0, current.w, current.h).data,
+      );
+      map.image = { data: surfacePixels, width: current.w, height: current.h };
+      map.needsUpdate = true;
+    }
   drawSelection();
   syncTransform();
   if (mark) commit();
 }
 function syncTransform() {
+  canvasStudio?.sync();
   const l = selectedLayer();
   $('layerName').disabled = !l;
   $('layerName').value = l?.name || '';
@@ -870,7 +1150,11 @@ function renderLayers() {
       const name = document.createElement('strong');
       name.textContent = l.name;
       const type = document.createElement('small');
-      type.textContent = (l.kind || 'Gambar') + (l.locked ? ' · Terkunci' : '');
+      type.textContent =
+        (l.kind || 'Gambar') +
+        (l.locked ? ' · Terkunci' : '') +
+        (l.mask ? ' · Mask' : '') +
+        (l.blend && l.blend !== 'source-over' ? ' · ' + l.blend : '');
       row.oncontextmenu = (e) => {
         e.preventDefault();
         current.selected = i;
@@ -903,7 +1187,7 @@ function drawGuide() {
   if (!current) return;
   uv.width = current.w;
   uv.height = current.h;
-  const d = modelFile?.drawables?.[drawableIndex];
+  const d = drawableView(modelFile?.drawables || [], drawableIndex);
   if (d) {
     const n = drawUV(uv.getContext('2d'), d.geometries, current.w, current.h);
     $('uvToggle').disabled = !n;
@@ -960,18 +1244,26 @@ function drawSelection() {
 function setMode(m) {
   mode = m;
   brush = m === 'brush';
-  for (const id of ['move', 'crop', 'brush', 'eraser']) $(id).classList.toggle('active', id === m);
+  for (const id of ['move', 'crop', 'brush', 'eraser', 'eyedropper'])
+    $(id)?.classList.toggle('active', id === m);
   canvas.style.cursor = m === 'move' ? 'move' : 'crosshair';
-  document.querySelector('.toolbar').classList.toggle('paintmode', m === 'brush' || m === 'eraser');
+  document
+    .querySelector('.toolbar')
+    .classList.toggle('paintmode', m === 'brush' || m === 'eraser' || m.startsWith('mask-'));
+  $('csMaskHide')?.classList.toggle('active', m === 'mask-hide');
+  $('csMaskReveal')?.classList.toggle('active', m === 'mask-reveal');
   document.querySelector('.toolbar').classList.toggle('erasemode', m === 'eraser');
-  $('toolHint').textContent =
-    m === 'crop'
-      ? 'Tarik area crop, lalu pilih Terapkan crop.'
-      : m === 'eraser'
-        ? 'Hapus bagian layer terpilih.'
-        : m === 'brush'
-          ? 'Lukis di kanvas dengan warna dan ukuran kuas.'
-          : 'Resize dari 8 titik · klik kanan untuk aksi layer.';
+  $('toolHint').textContent = m.startsWith('mask-')
+    ? 'Lukis mask untuk menyembunyikan atau memulihkan gambar sumber. Undo tersedia.'
+    : m === 'eyedropper'
+      ? 'Klik kanvas untuk mengambil warna komposit (tanpa garis UV).'
+      : m === 'crop'
+        ? 'Tarik area crop, lalu pilih Terapkan crop.'
+        : m === 'eraser'
+          ? 'Hapus bagian layer terpilih.'
+          : m === 'brush'
+            ? 'Lukis di kanvas dengan warna dan ukuran kuas.'
+            : 'Resize dari 8 titik · klik kanan untuk aksi layer.';
   drawSelection();
 }
 function point(e) {
@@ -993,13 +1285,46 @@ function brushAt(p) {
 canvas.onpointerdown = (e) => {
   if (!current || e.button !== 0) return;
   hideContext();
-  const p = point(e),
-    l = selectedLayer();
+  const p = point(e);
+  if (mode === 'move' && canvasStudio?.autoSelect()) {
+    for (let i = current.layers.length - 1; i >= 0; i--) {
+      const layer = current.layers[i],
+        q = localPoint(layer, p);
+      if (
+        layer.visible &&
+        !layer.locked &&
+        q.x >= 0 &&
+        q.y >= 0 &&
+        q.x <= layer.w &&
+        q.y <= layer.h
+      ) {
+        current.selected = i;
+        renderLayers();
+        break;
+      }
+    }
+  }
+  const l = selectedLayer();
   if (l?.locked && mode !== 'brush') {
     toast('Layer terkunci. Buka kunci lewat klik kanan.');
     return;
   }
-  if (mode === 'eraser') {
+  if (mode.startsWith('mask-')) {
+    if (!l) return toast('Pilih layer terlebih dahulu.');
+    remember();
+    if (l.mask) l.mask = copyCanvas(l.mask);
+    else {
+      l.mask = document.createElement('canvas');
+      l.mask.width = l.source.width;
+      l.mask.height = l.source.height;
+      const c = l.mask.getContext('2d');
+      c.fillStyle = '#fff';
+      c.fillRect(0, 0, l.mask.width, l.mask.height);
+    }
+    gesture = { type: 'mask', reveal: mode === 'mask-reveal', last: p };
+    maskAt(l, p, Number($('size').value) / 2, gesture.reveal);
+    renderComposite();
+  } else if (mode === 'eraser') {
     if (!l) {
       toast('Pilih layer yang ingin dihapus bagiannya.');
       return;
@@ -1077,6 +1402,12 @@ canvas.onpointerdown = (e) => {
 canvas.onpointermove = (e) => {
   if (!gesture || !current) return;
   const p = point(e);
+  if (gesture.type === 'mask') {
+    maskAt(selectedLayer(), p, Number($('size').value) / 2, gesture.reveal, gesture.last);
+    gesture.last = p;
+    renderComposite();
+    return;
+  }
   if (gesture.type === 'eraser') {
     eraseAt(selectedLayer(), p, Number($('size').value) / 2);
     renderComposite();
@@ -1097,8 +1428,9 @@ canvas.onpointermove = (e) => {
     dx = p.x - gesture.start.x,
     dy = p.y - gesture.start.y;
   if (gesture.type === 'move') {
-    l.x = Math.round(origin.x + dx);
-    l.y = Math.round(origin.y + dy);
+    const snap = canvasStudio?.snap() && !e.altKey ? 8 : 1;
+    l.x = Math.round((origin.x + dx) / snap) * snap;
+    l.y = Math.round((origin.y + dy) / snap) * snap;
   } else if (gesture.type === 'rotate') {
     let angle = normalizedAngle(
       (origin.angle || 0) +
@@ -1217,6 +1549,7 @@ $('cancelCrop').onclick = () => {
 $('deleteLayer').onclick = () => current && deleteLayerAt(current.selected);
 function addTextureLayer(t) {
   if (!current) return;
+  makeCanvas(t);
   initLayers(current);
   remember();
   const l = makeLayer(copyCanvas(t.canvas), t.name),
@@ -1239,11 +1572,15 @@ $('addImage').onclick = $('addImageSidebar').onclick = () => $('addInput').click
 $('addInput').onchange = async (e) => {
   for (const f of e.target.files) {
     try {
-      if (f.size > 64 * 1024 * 1024) throw Error('File terlalu besar.');
+      if (f.size > (/\.ytd$/i.test(f.name) ? MAX_YTD_INPUT_BYTES : 64 * 1024 ** 2))
+        throw Error('File terlalu besar: YTD maksimum 256 MB; format lain 64 MB.');
       if (f.name.toLowerCase().endsWith('.ytd')) {
         if (pendingYtd) throw Error('Pilih tekstur dari satu YTD terlebih dahulu.');
-        const resource = await decodeResource('ytd', await f.arrayBuffer());
-        resource.textures.forEach(makeCanvas);
+        const resource = await decodeResource('ytd', await f.arrayBuffer(), {
+          maxDecodedBytes:
+            MAX_DECODED_TEXTURE_BYTES -
+            workspaceTextures().reduce((n, t) => n + t.out.byteLength, 0),
+        });
         openYtdLayers({ name: f.name, ext: 'ytd', size: f.size, resource });
         continue;
       }
@@ -1288,6 +1625,15 @@ $('replaceInput').onchange = async (e) => {
       sy: 0,
       sw: t.w,
       sh: t.h,
+      mask: l.mask
+        ? (() => {
+            const c = document.createElement('canvas');
+            c.width = t.w;
+            c.height = t.h;
+            c.getContext('2d').drawImage(l.mask, 0, 0, t.w, t.h);
+            return c;
+          })()
+        : null,
     };
     renderComposite(true);
     renderLayers();
@@ -1354,12 +1700,47 @@ function bakeRotation(l) {
   c.height = bounds.h;
   drawLayers(
     c.getContext('2d'),
-    [{ ...l, x: l.x - bounds.x, y: l.y - bounds.y, visible: true, opacity: 1 }],
+    [
+      {
+        ...l,
+        mask: null,
+        blend: 'source-over',
+        x: l.x - bounds.x,
+        y: l.y - bounds.y,
+        visible: true,
+        opacity: 1,
+      },
+    ],
     bounds.w,
     bounds.h,
   );
+  let mask = null;
+  if (l.mask) {
+    mask = document.createElement('canvas');
+    mask.width = bounds.w;
+    mask.height = bounds.h;
+    drawLayers(
+      mask.getContext('2d'),
+      [
+        {
+          ...l,
+          source: l.mask,
+          mask: null,
+          blend: 'source-over',
+          x: l.x - bounds.x,
+          y: l.y - bounds.y,
+          visible: true,
+          opacity: 1,
+        },
+      ],
+      bounds.w,
+      bounds.h,
+    );
+  }
   return {
     ...makeLayer(c, l.name),
+    mask,
+    blend: l.blend || 'source-over',
     x: bounds.x,
     y: bounds.y,
     visible: l.visible,
@@ -1483,7 +1864,7 @@ function openYtdLayers(f) {
     input.value = i;
     input.checked = i === 0;
     const image = document.createElement('img');
-    image.src = t.canvas.toDataURL();
+    image.src = thumbnailURL(t);
     const text = document.createElement('span'),
       name = document.createElement('strong'),
       info = document.createElement('small');
@@ -1749,6 +2130,7 @@ function saveTab() {
   finishGesture();
   activeTab.name = activeFile?.name || activeTab.name;
   activeTab.state = {
+    sceneStudio: sceneStudio?.captureSession(),
     files: [...files],
     textures: [...textures],
     current,
@@ -1778,6 +2160,7 @@ function resetWorkspace() {
   textures.splice(0);
   pedAttachments.clear();
   clearModel();
+  sceneStudio?.resetSession();
   $('canvasStack').hidden = true;
   $('emptyTexture').hidden = false;
   $('emptyModel').hidden = false;
@@ -1834,6 +2217,7 @@ function switchTab(tab) {
     dirty = state.dirty;
     applyTexture();
   }
+  if (state?.sceneStudio) sceneStudio?.restoreSession(state.sceneStudio);
   refreshFiles();
   renderTabs();
 }
@@ -1849,10 +2233,17 @@ renderTabs();
 let discardPending = null;
 function unsavedItems() {
   finishGesture();
-  return tabs.flatMap((tab) =>
-    workspaceTextures(tab === activeTab ? null : tab.state || { files: [] })
-      .filter(textureUnsaved)
-      .map((t) => ({ name: t.name, tab: tab.name })),
+  return (sceneStudio?.unsavedItems() || []).concat(
+    tabs
+      .filter((tab) => tab !== activeTab && tab.state?.sceneStudio?.dirty)
+      .map((tab) => ({ name: 'Scene Studio · scene belum disimpan', tab: tab.name }))
+      .concat(
+        tabs.flatMap((tab) =>
+          workspaceTextures(tab === activeTab ? null : tab.state || { files: [] })
+            .filter(textureUnsaved)
+            .map((t) => ({ name: t.name, tab: tab.name })),
+        ),
+      ),
   );
 }
 function confirmDiscard(reason = 'close', items = unsavedItems()) {
@@ -1915,7 +2306,15 @@ const tools = mountTools({
   preview: loadFiles,
   confirmDiscard,
   onVehicleBuild: (mode) => nativeBuild?.open(mode),
+  getSessionFiles: () => files.map(({ name, ext, size }) => ({ name, ext, size })),
+  selectSessionFile: (index) => {
+    if (files[index]) selectFile(files[index]);
+  },
 });
+$('open').onclick = () => {
+  tools.activate('editor');
+  $('fileInput').click();
+};
 mountPhotoshoot({
   container: document.querySelector('.modeltools'),
   id: 'photoshoot',
@@ -2028,10 +2427,155 @@ livery = mountLivery({
     return { identity: current, w: current.w, h: current.h, name: current.name, canvas: base };
   },
 });
-nativeBuild = mountNativeBuild({ toast });
+// All editing and viewing actions share a stable toolbar in both 2D and 3D.
+const commandbar = document.createElement('section');
+commandbar.className = 'editor-commandbar';
+commandbar.setAttribute('aria-label', 'Alat tekstur dan model');
+const toolbar = document.querySelector('.toolbar');
+commandbar.append(
+  toolbar,
+  document.querySelector('.modeltools'),
+  document.querySelector('.canvasoptions'),
+);
+document.querySelector('main').insertBefore(commandbar, document.querySelector('main').children[1]);
+const extraTools = document.createElement('div');
+extraTools.className = 'editor-layer-actions';
+extraTools.innerHTML =
+  '<button id="eyedropper" title="Ambil warna (I)" aria-label="Ambil warna (I)">Ambil warna</button><button id="fillLayer" title="Isi warna layer terpilih" aria-label="Isi warna layer terpilih">Isi warna</button><button id="centerLayer" title="Tengahkan layer" aria-label="Tengahkan layer">Tengah</button><button data-editor-action="fitImage" title="Pas layer ke kanvas" aria-label="Pas layer ke kanvas">Pas kanvas</button><button data-editor-action="rotateLeft" title="Putar kiri" aria-label="Putar kiri">Putar kiri</button><button data-editor-action="rotateRight" title="Putar kanan" aria-label="Putar kanan">Putar kanan</button><button data-editor-action="mirrorX" title="Cermin horizontal" aria-label="Cermin horizontal">Cermin</button><button data-editor-action="duplicateLayer" title="Duplikat layer (Ctrl D)" aria-label="Duplikat layer (Ctrl D)">Duplikat</button>';
+toolbar.querySelector('.spacer').before(extraTools);
+extraTools
+  .querySelectorAll('[data-editor-action]')
+  .forEach((b) => (b.onclick = () => $(b.dataset.editorAction).click()));
+$('eyedropper').onclick = () => setMode('eyedropper');
+canvas.addEventListener(
+  'pointerdown',
+  (event) => {
+    if (mode !== 'eyedropper' || !current || event.button !== 0) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const sample = document.createElement('canvas');
+    sample.width = current.w;
+    sample.height = current.h;
+    drawLayers(sample.getContext('2d'), current.layers, current.w, current.h);
+    const p = point(event);
+    const rgba = sample
+      .getContext('2d')
+      .getImageData(
+        Math.max(0, Math.min(current.w - 1, Math.floor(p.x))),
+        Math.max(0, Math.min(current.h - 1, Math.floor(p.y))),
+        1,
+        1,
+      ).data;
+    $('color').value =
+      '#' +
+      [...rgba]
+        .slice(0, 3)
+        .map((v) => v.toString(16).padStart(2, '0'))
+        .join('');
+    toast('Warna dipilih: ' + $('color').value);
+  },
+  true,
+);
+$('fillLayer').onclick = () => {
+  const layer = selectedLayer();
+  if (!layer || layer.locked) return toast('Pilih layer yang tidak terkunci.');
+  remember();
+  layer.source = copyCanvas(layer.source);
+  const ctx = layer.source.getContext('2d');
+  ctx.fillStyle = $('color').value;
+  ctx.fillRect(0, 0, layer.source.width, layer.source.height);
+  refreshEdit();
+};
+$('centerLayer').onclick = () => {
+  const layer = selectedLayer();
+  if (!layer || layer.locked) return toast('Pilih layer yang tidak terkunci.');
+  remember();
+  layer.x = (current.w - layer.w) / 2;
+  layer.y = (current.h - layer.h) / 2;
+  syncTransform();
+  refreshEdit();
+};
+document.addEventListener('keydown', (event) => {
+  if (
+    event.ctrlKey ||
+    event.metaKey ||
+    event.altKey ||
+    event.target.closest('input,select,textarea,[contenteditable=true]') ||
+    tools.isActive() ||
+    document.querySelector('dialog[open]')
+  )
+    return;
+  const action = { v: 'move', b: 'brush', e: 'eraser', i: 'eyedropper', c: 'crop' }[
+    event.key.toLowerCase()
+  ];
+  if (action) {
+    event.preventDefault();
+    $(action).click();
+  }
+});
+sceneStudio = mountSceneStudio({
+  container: document.querySelector('.inspector'),
+  viewport,
+  prefix: 'ssEditor',
+  scene,
+  camera,
+  getRenderer: () => renderer,
+  getControls: () => controls,
+  getObjects: () => {
+    const objects = [];
+    model.traverse((o) => {
+      if (o.isMesh) objects.push({ key: 'mesh:' + objects.length, object: o, label: o.name });
+    });
+    return objects;
+  },
+  download,
+  toast,
+});
+canvasStudio = mountCanvasStudio({
+  container: sidebarInspector,
+  getTexture: () => current,
+  remember,
+  refresh: refreshEdit,
+  setMode,
+  download,
+  markSaved,
+  toast,
+  onOpen: async (project) => {
+    const flattened = document.createElement('canvas');
+    flattened.width = project.w;
+    flattened.height = project.h;
+    drawLayers(flattened.getContext('2d'), project.layers, project.w, project.h);
+    const blob = await new Promise((resolve) => flattened.toBlob(resolve, 'image/png'));
+    if (!blob) throw Error('Proyek tidak dapat dirender.');
+    tools.activate('editor');
+    createTab();
+    await loadFiles([
+      new File([blob], project.name.replace(/\.[^.]+$/, '') + '.png', { type: 'image/png' }),
+    ]);
+    current.layers = project.layers;
+    current.selected = project.layers.length - 1;
+    current.history = [];
+    current.future = [];
+    refreshEdit();
+    markSaved(current, current.revision || 0);
+  },
+});
+nativeBuild = mountNativeBuild({
+  getVehicleSource: tools.getVehicleSource,
+  download,
+  toast,
+  activate: tools.activate,
+  attach: tools.attachNative,
+  confirmDiscard,
+});
 mountPerformance();
 mountMinimalUi();
 mountWorkspaceShell({ toast });
-mountStudioMotion();
-tools.activate('home');
+mountAssetWorkshopUi();
+mountWorkspacePolish();
+let canvasFitFrame;
+new ResizeObserver(() => {
+  cancelAnimationFrame(canvasFitFrame);
+  canvasFitFrame = requestAnimationFrame(fitCanvas);
+}).observe($('canvasarea'));
 window.ditashaDesktop?.ready?.();

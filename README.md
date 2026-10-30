@@ -3,10 +3,20 @@
 © 2026 Ditasha-Workshop
 
 Editor YTD dan preview YFT/YDD/YDR GTA V Legacy untuk Windows 10/11 64-bit.
-Unduh DITASHA-Editor.exe dari Releases dan buka langsung tanpa instalasi.
+Pilih DITASHA-Setup.exe untuk instalasi, atau DITASHA-Editor.exe untuk versi portable.
+Preview build tersedia sebagai artifact workflow; updater stable memakai GitHub Releases.
+
+Audit permintaan, implementasi, tes dan batas fitur: [TASK_AUDIT.md](docs/TASK_AUDIT.md).
+Menu **Panel** di header mengatur sidebar workspace; pengaturan panjang Photo Booth dapat dilipat.
 Logo, tema sakura, font, dan editor disertakan untuk penggunaan offline.
 
 ## Fitur
+
+**Home** menjadi halaman awal, berisi enam pintasan workspace dan file yang dimuat
+di tab aktif. Klik logo untuk kembali ke Home tanpa me-reload aplikasi.
+Gunakan **Cari alat** / **Ctrl K** untuk berpindah workspace. Alat tambahan bisa
+dibuka dari **Alat lainnya**; pengaturan performa preview tersedia di Pengaturan.
+Tema Midnight/Terang dan kepadatan tampilan tetap tersimpan.
 
 YFT/YDD/YDR: preview geometri statis, UV, wireframe dan foto 3D.
 YTD: DXT1/3/5, BGRA/RGBA; ekspor BGRA tanpa kompresi, satu mipmap.
@@ -22,13 +32,22 @@ YTD dengan nama yang sama dipasangkan otomatis. Untuk YTD lain, pilih di toolbar
 lalu klik Reload selected model. Model GTA V Legacy dan batas viewer yang ada tetap berlaku.
 
 Klik dua kali Lua/JS/TS/JSON/XML/meta/teks untuk membuka Monaco secara offline.
-Atau pilih **Code editor** di sidebar, lalu **Open code file** / **New Lua file** tanpa perlu membuka arsip.
+Pilih **Code editor** di sidebar untuk workspace IDE Code - OSS yang tertanam di jendela DITASHA.
+Build Windows menyertakan engine VSCodium/Code - OSS lokal; panduan dan batas dukungannya ada di
+[EMBEDDED_IDE.md](docs/EMBEDDED_IDE.md). Tombol **Quick edit file** tetap membuka Monaco
+secara offline untuk **Open code file** / **New Lua file**, tanpa perlu membuka arsip.
 Tab dokumen dan tombol Edit 2D/3D tetap di bar atas saat berganti mode.
 Pilih **Apply to archive**, lalu **Save archive copy** untuk menyimpan perubahan ke RPF/ZIP/OIV baru.
 File dari Open folder tidak ditimpa; gunakan **Save file copy**. Batas teks 2 MB, UTF-8 saja.
 Monaco adalah komponen editor dari VS Code, bukan VS Code lengkap; tidak ada terminal,
 extension VS Code, atau eksekusi skrip. Lisensi Microsoft dan pemberitahuan pihak ketiga
 disertakan di assets aplikasi.
+
+## Auto rig ped
+
+Buka **Auto rig ped → Download & set up** untuk memasang engine dan add-on secara otomatis.
+Setelah selesai, pilih model humanoid GLB/FBX/OBJ dalam A/T-pose dan nama ped, lalu klik
+**Buat preview rig**. Periksa model 3D, kemudian **Simpan hasil ped** untuk memilih folder hasil. Panduan lengkap: [NATIVE_BUILD.md](docs/NATIVE_BUILD.md).
 
 ## Update aplikasi
 
@@ -130,10 +149,7 @@ This feature is implemented in DITASHA; OpenIV itself is not bundled.
 
 ## GTA V viewers and Explorer (1.7.0)
 
-**Texture viewer** opens YTD dictionaries, DDS or images. Search textures, choose
-Grid/List and thumbnail sizes, inspect dimensions/format/mip count, change the alpha
-background, and view at original size or zoom. Export one texture as PNG/DDS or all
-textures in a ZIP. DDS exports use uncompressed RGBA and one mip level.
+Textures open directly in **Texture & Model**. The separate Texture Viewer navigation has been removed. GTA V Explorer keeps the file browser on the left and model preview on the right.
 
 **Model viewer** opens Legacy YFT/YDD/YDR models and available High/Medium/Low/Very-low
 LODs. Select drawables, show/hide individual model parts, toggle grid/wireframe/points/
@@ -258,6 +274,8 @@ The workspace navigation is now on the left. Auto rig ped, GPU and Settings are 
 
 Discord Activity uses the installed Discord desktop client. Create an application named DITASHA Editor in [Discord Developer Portal](https://discord.com/developers/applications), copy its public Application ID, and enter it in Settings. No bot token or client secret is needed. Activity becomes available after configuration and follows Discord Activity Privacy. See [Discord setup](docs/DISCORD_ACTIVITY.md).
 
-### Animated studio home
+## Creative Suite preview
 
-Versi 1.19.0 menambahkan Home studio dengan shortcut workspace, pencarian, filter dan animasi yang dapat dimatikan. Navigasi kembali ke editor mempertahankan tab dan edit yang sedang terbuka. [Detail UI dan sumber desain](docs/STUDIO_UI.md).
+The v1.23 preview embeds nine verified offline Craft web editors for images, vectors, photos, video, motion, PDF, documents, spreadsheets and slides. The DITASHA interface uses the new graphite / sage design. [Workspace guide, texture interchange and integration boundaries](docs/CREATIVE_SUITE.md).
+
+YMT Creator dan utilitas FiveM offline: baca [panduan](docs/YMT_CREATOR.md). Output YMT berupa XML yang perlu dikonversi ke binary sebelum dipasang.

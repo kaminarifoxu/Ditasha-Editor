@@ -1,4 +1,27 @@
-const { app, BrowserWindow, Menu, dialog, ipcMain, net, shell } = require('electron');
+const {
+  app,
+  BrowserWindow,
+  WebContentsView,
+  Menu,
+  dialog,
+  ipcMain,
+  net,
+  shell,
+  protocol,
+  session,
+} = require('electron');
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'ditasha-craft',
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+      stream: true,
+    },
+  },
+]);
 const path = require('node:path');
 const { isTrustedUpdateEvent } = require('./ipc-trust.cjs');
 const { startReplacement } = require('./installer.cjs');
@@ -8,6 +31,8 @@ const { createPortableUpdater } = require('./updater.cjs');
 let win,
   splash,
   updater,
+  embeddedIDE,
+  craftEngines,
   allowQuit = false,
   closingPrompt = false;
 const gotLock = app.requestSingleInstanceLock();
@@ -20,6 +45,10 @@ else {
     }
   });
   app.whenReady().then(async () => {
+    if (process.env.DITASHA_SETUP_SMOKE_ROOT) {
+      await require('./setup-probe.cjs').run(app);
+      return;
+    }
     if (process.env.DITASHA_UPDATE_SMOKE_ROOT) {
       await require('./update-probe.cjs').run(app, net);
       return;
@@ -33,7 +62,7 @@ else {
       frame: false,
       resizable: false,
       show: false,
-      backgroundColor: '#101113',
+      backgroundColor: '#181a1b',
       icon: path.join(__dirname, '..', 'assets', 'icon.ico'),
       webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true },
     });
@@ -47,7 +76,7 @@ else {
       minWidth: 800,
       minHeight: 600,
       title: 'DITASHA Editor',
-      backgroundColor: '#101113',
+      backgroundColor: '#181a1b',
       icon: path.join(__dirname, '..', 'assets', 'icon.ico'),
       show: false,
       autoHideMenuBar: true,
@@ -75,6 +104,8 @@ else {
           "window.ditashaWorkspace ? (window.ditashaWorkspace.unsavedItems().length ? window.ditashaWorkspace.confirmDiscard('close') : 'discard') : 'discard'",
         );
         if (choice === 'discard') {
+          if (embeddedIDE && !(await embeddedIDE.requestClose())) return;
+          if (craftEngines && !(await craftEngines.requestClose())) return;
           allowQuit = true;
           win.close();
         }
@@ -135,6 +166,7 @@ else {
     });
     updater = createPortableUpdater({
       version: app.getVersion(),
+      installed: app.isPackaged && !process.env.PORTABLE_EXECUTABLE_FILE,
       directory: path.join(app.getPath('userData'), 'updates'),
       fetcher: (...args) => net.fetch(...args),
       onState: (state) => {
@@ -145,6 +177,33 @@ else {
       if (!isTrustedUpdateEvent(event, win, path.join(__dirname, '..', 'ui', 'index.html')))
         throw Error('Untrusted update request');
     };
+    require('./file-manager.cjs').registerFileManager({
+      ipcMain,
+      trusted,
+      win,
+      dialog,
+      shell,
+      app,
+    });
+    require('./gta-install.cjs').registerGtaInstall({ app, ipcMain, trusted, win, dialog, shell });
+    require('./asset-compressor.cjs').registerAssetCompressor({
+      ipcMain,
+      trusted,
+      dialog,
+      win,
+      shell,
+    });
+    craftEngines = require('./craft-engines.cjs').registerCraftEngines({
+      app,
+      ipcMain,
+      protocol,
+      net,
+      session,
+      win,
+      trusted,
+      WebContentsView,
+      dialog,
+    });
     await require('./discord-presence.cjs').registerDiscordPresence({
       app,
       ipcMain,
@@ -158,6 +217,15 @@ else {
       shell,
       win,
       trusted,
+    });
+    require('./gta-tools.cjs').registerGtaTools({ app, ipcMain, dialog, shell, win, trusted });
+    embeddedIDE = require('./embedded-ide.cjs').registerEmbeddedIDE({
+      app,
+      ipcMain,
+      dialog,
+      win,
+      trusted,
+      WebContentsView,
     });
     ipcMain.handle('ditasha:open-icon-credits', async (event) => {
       trusted(event);
@@ -184,7 +252,7 @@ else {
         name === '.' ||
         name === '..' ||
         !(data instanceof Uint8Array) ||
-        data.byteLength > 128 * 1024 * 1024
+        data.byteLength > (/\.zip$/i.test(name) ? 512 : 128) * 1024 * 1024
       )
         throw Error('Data ekspor tidak valid.');
       const result = await dialog.showSaveDialog(win, {
@@ -228,13 +296,15 @@ else {
     });
     const installUpdate = async (event, downloadFirst = false) => {
       trusted(event);
-      const target = process.env.PORTABLE_EXECUTABLE_FILE;
+      const installed = app.isPackaged && !process.env.PORTABLE_EXECUTABLE_FILE;
+      const target = process.env.PORTABLE_EXECUTABLE_FILE || (installed ? process.execPath : null);
       if (process.platform !== 'win32' || !target)
-        throw Error('Gunakan EXE portable Windows untuk memasang update.');
+        throw Error('Gunakan aplikasi Windows terinstal atau portable untuk memasang update.');
       const choice = await win.webContents.executeJavaScript(
         "window.ditashaWorkspace.confirmDiscard('update')",
       );
       if (choice !== 'discard') return false;
+      if (craftEngines && !(await craftEngines.requestClose())) return false;
       if (downloadFirst) {
         const state = await updater.download();
         if (state.status !== 'ready') throw Error(state.message);
@@ -242,6 +312,7 @@ else {
       const staged = updater.getReadyPath();
       if (!staged) throw Error('Unduh update terlebih dahulu.');
       await startReplacement({
+        installer: installed,
         target,
         staged,
         parentPid: process.pid,

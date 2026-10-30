@@ -1,3 +1,5 @@
+import { companionTextures } from './explorer-textures.js';
+import { setProject } from './project-context.js';
 import { folderArchive, sortEntries, hexPage } from './explorer.js';
 import { openArchive, writeRpf } from './archives.js';
 import { safePath, zipFiles, MAX_EXPORT } from './asset-tools.js';
@@ -25,7 +27,7 @@ export function mountArchives({
   root.innerHTML = `
  <aside class="tool-sidebar"><span class="eyebrow">ARCHIVE EXPLORER</span><h2>GTA V Explorer</h2><p class="muted">Browse, extract and edit GTA V archives locally.</p><button id="archiveOpen" class="primary">Open archive</button><div class="viewer-button-row"><button id="archiveOpenFolder">Open folder</button><button id="archiveNew">New RPF</button></div><input id="archiveFolderInput" type="file" webkitdirectory multiple hidden><label class="check"><input id="archiveEdit" type="checkbox" checked>Edit archive</label><input id="archiveInput" type="file" accept=".rpf,.oiv,.zip" hidden><input id="archiveReplacement" type="file" hidden><input id="archiveAddInput" type="file" multiple hidden><input id="archiveSearch" class="search" placeholder="Search paths…" aria-label="Search archive"><label>Sort by<select id="archiveSort"><option value="name">Name</option><option value="type">Type</option><option value="size">Size</option></select></label><label class="check"><input id="archiveDescending" type="checkbox">Descending</label><div id="archiveFolders"></div><div class="tool-bottom"><p class="muted">RPF7: OPEN / unencrypted. OIV & ZIP: Stored / Deflate. Extraction and rebuilt archives: up to 128 MB.</p></div></aside>
  <section class="archive-center"><div class="archive-toolbar"><div><span class="eyebrow" id="archiveKind">DITASHA WORKSHOP</span><h2 id="archiveTitle">Open an archive</h2></div><button id="archiveBack" disabled>← Parent archive</button></div><p id="archiveCount" class="muted">Drop an RPF, OIV or ZIP here.</p><div id="archiveEmpty" class="empty"><div class="empty-symbol"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h7l2 2h9v12H3Z"/><path d="M12 11v6m-3-3h6"/></svg></div><h3>Your game assets, in one place</h3><p>Explore folders, open nested RPF files, preview textures and models, or export edited archives.</p></div><div class="archive-table-wrap"><table id="archiveTable" hidden><thead><tr><th scope="col">Path</th><th scope="col">Type</th><th scope="col">Size</th></tr></thead><tbody id="archiveEntries"></tbody></table></div></section>
- <aside class="tool-details"><span class="eyebrow">SELECTION</span><h2 id="archiveSelected">No file selected</h2><p id="archiveDetail" class="muted">Select a file to extract, preview or replace it.</p><div class="archive-actions"><button id="archivePreview" disabled>Open in editor</button><button id="archiveTextureViewer" disabled>Texture viewer</button><button id="archiveModelViewer" disabled>Model viewer</button><button id="archiveInspect" disabled>View text / hex</button><button id="archiveCopyName" disabled>Copy name</button><button id="archiveCopyPath" disabled>Copy path</button><button id="archiveNested" disabled>Browse nested RPF</button><button id="archiveExtract" disabled>Extract file</button><button id="archiveReplace" disabled>Replace file…</button><button id="archiveRemove" disabled>Remove file</button><button id="archiveAdd" disabled>Add files…</button></div><section id="archivePackage" hidden><h3>OIV package</h3><p id="archiveMetadata"></p><pre id="archiveManifest"></pre><p class="muted">Installation instructions are displayed for inspection. Exporting preserves assembly.xml; update its paths when changing package contents.</p></section><div class="tool-bottom"><p id="archiveStatus" role="status">Ready.</p><button id="archiveExport" class="primary" disabled>Save archive copy</button><button id="archiveExtractAll" disabled>Extract all (ZIP)</button></div></aside>`;
+ <aside class="tool-details"><span class="eyebrow">SELECTION</span><h2 id="archiveSelected">No file selected</h2><p id="archiveDetail" class="muted">Select a file to extract, preview or replace it.</p><div class="archive-actions"><button id="archivePreview" disabled>Open in editor</button><button id="archiveTextureViewer" hidden disabled>Texture viewer</button><button id="archiveModelViewer" disabled>Model viewer</button><button id="archiveInspect" disabled>View text / hex</button><button id="archiveCopyName" disabled>Copy name</button><button id="archiveCopyPath" disabled>Copy path</button><button id="archiveNested" disabled>Browse nested RPF</button><button id="archiveExtract" disabled>Extract file</button><button id="archiveReplace" disabled>Replace file…</button><button id="archiveRemove" disabled>Remove file</button><button id="archiveAdd" disabled>Add files…</button></div><section id="archivePackage" hidden><h3>OIV package</h3><p id="archiveMetadata"></p><pre id="archiveManifest"></pre><p class="muted">Installation instructions are displayed for inspection. Exporting preserves assembly.xml; update its paths when changing package contents.</p></section><div class="tool-bottom"><p id="archiveStatus" role="status">Ready.</p><button id="archiveExport" class="primary" disabled>Save archive copy</button><button id="archiveExtractAll" disabled>Extract all (ZIP)</button></div></aside>`;
   const inspector = document.createElement('dialog');
   inspector.id = 'archiveInspector';
   inspector.innerHTML =
@@ -47,8 +49,16 @@ export function mountArchives({
   previewPanel.className = 'explorer-preview';
   previewPanel.hidden = true;
   previewPanel.innerHTML =
-    '<div class="explorer-preview-bar"><strong>3D preview</strong><label>Textures <select id="archivePreviewTextures"><option value="">Auto (matching YTD)</option></select></label><button id="archivePreviewReload">Reload selected model</button><button id="archivePreviewClose">Close preview</button></div><div class="explorer-preview-host"></div>';
-  root.querySelector('.archive-center').append(previewPanel);
+    '<div class="explorer-preview-bar"><strong>3D preview</strong><label>Textures <select id="archivePreviewTextures"><option value="">Auto · YTD terdekat</option></select></label><button id="archivePreviewReload">Reload selected model</button><button id="archivePreviewClose">Close preview</button></div><div class="explorer-preview-host"></div>';
+  const browser = root.querySelector('.archive-center');
+  const details = root.querySelector('.tool-details');
+  const selectionDetails = document.createElement('details');
+  selectionDetails.className = 'archive-selection-details';
+  selectionDetails.open = true;
+  selectionDetails.innerHTML = '<summary>Detail & aksi file</summary>';
+  browser.append(selectionDetails);
+  selectionDetails.append(details);
+  root.append(previewPanel);
   const previewHost = previewPanel.querySelector('.explorer-preview-host');
   let inspectData = new Uint8Array(),
     inspectOffset = 0,
@@ -95,6 +105,7 @@ export function mountArchives({
     const files = list(),
       q = $('archiveSearch').value.toLowerCase();
     $('archiveTitle').textContent = state?.archive.name || 'Open an archive';
+    setProject('archives', state?.archive.name || '');
     $('archiveKind').textContent = state?.archive.kind || 'DITASHA WORKSHOP';
     $('archiveCount').textContent = state
       ? files.length + ' files · ' + (dirty() ? 'Changes not exported' : 'Archive ready')
@@ -150,7 +161,7 @@ export function mountArchives({
         selection = e;
         if (/\.rpf$/i.test(e.name)) $('archiveNested').click();
         else if (/\.(yft|ydd|ydr)$/i.test(e.name)) $('archiveModelViewer').click();
-        else if (/\.(ytd|dds|png|jpg|jpeg|webp)$/i.test(e.name)) $('archiveTextureViewer').click();
+        else if (/\.(ytd|dds|png|jpg|jpeg|webp)$/i.test(e.name)) $('archivePreview').click();
         else if (!codeButton.disabled) codeButton.click();
         else $('archiveInspect').click();
       };
@@ -185,7 +196,7 @@ export function mountArchives({
     $('archivePreviewReload').disabled = $('archiveModelViewer').disabled;
     const textureSelect = $('archivePreviewTextures'),
       previousTexture = textureSelect.value;
-    textureSelect.replaceChildren(new Option('Auto (matching YTD)', ''));
+    textureSelect.replaceChildren(new Option('Auto · YTD terdekat', ''));
     for (const entry of files.filter((f) => /\.ytd$/i.test(f.name) && !f.encrypted))
       textureSelect.add(new Option(entry.name, entry.name));
     if ([...textureSelect.options].some((o) => o.value === previousTexture))
@@ -351,16 +362,10 @@ export function mountArchives({
   async function viewerFiles() {
     const selected = selection;
     const paired = /\.(ydd|ydr|yft)$/i.test(selected.name)
-      ? list().find(
-          (e) =>
-            !e.encrypted &&
-            ($('archivePreviewTextures').value
-              ? e.name === $('archivePreviewTextures').value
-              : e.name.toLowerCase() === selected.name.replace(/\.[^.]+$/, '.ytd').toLowerCase()),
-        )
-      : null;
+      ? companionTextures(selected.name, list(), $('archivePreviewTextures').value)
+      : [];
     const files = [];
-    for (const e of [selected, ...(paired ? [paired] : [])]) {
+    for (const e of [selected, ...paired]) {
       if ((state.replacements.get(e.name)?.length ?? e.size) > 64 * 1024 * 1024)
         throw Error('Viewer file limit: 64 MB.');
       files.push(new File([await extract(e)], e.name.split('/').at(-1)));
@@ -371,7 +376,8 @@ export function mountArchives({
     run(async () => {
       const files = await viewerFiles();
       lock(false);
-      await viewers.openTextures(files);
+      await preview(files);
+      activate('editor');
     });
   $('archiveModelViewer').onclick = () =>
     run(async () => {
@@ -613,6 +619,10 @@ export function mountArchives({
     unsavedItems: items,
     previewHost,
     previewVisible: () => !previewPanel.hidden,
+    openFile: (file) => {
+      activate('archives');
+      return run(() => load(file));
+    },
     openCode: () => code.openStandalone().catch((e) => toast(e.message)),
   };
 }

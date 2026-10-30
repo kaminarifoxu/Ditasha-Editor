@@ -17,7 +17,7 @@
     $('appVersion').textContent = 'v' + s.version;
     $('updateVersion').textContent = s.availableVersion
       ? `v${s.version} → v${s.availableVersion}`
-      : `Versi aplikasi ${s.version}`;
+      : `Versi aplikasi ${s.version}${s.installed ? ' · Terinstal' : ' · Portable'}`;
     $('updateStatus').textContent = s.message;
     $('updateAuto').checked = s.autoDownload;
     $('updateAuto').disabled = installing;

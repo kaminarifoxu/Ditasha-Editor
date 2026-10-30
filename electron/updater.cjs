@@ -44,11 +44,13 @@ function trustedURL(value, asset = false) {
     throw Error('Redirect update tidak valid.');
   return u.href;
 }
-function releaseInfo(release, local) {
+function releaseInfo(release, local, { installed = false } = {}) {
   if (release.draft || release.prerelease) return null;
   if (!isNewer(release.tag_name, local)) return null;
   const version = release.tag_name.replace(/^v/, ''),
-    names = ['DITASHA-Editor.exe', `GANOMABI-Asset-Studio-${version}-Windows-x64.exe`];
+    names = installed
+      ? ['DITASHA-Setup.exe']
+      : ['DITASHA-Editor.exe', `GANOMABI-Asset-Studio-${version}-Windows-x64.exe`];
   const asset = names
     .map((name) => release.assets?.find((a) => a.name === name && a.state === 'uploaded'))
     .find(Boolean);
@@ -71,9 +73,16 @@ function releaseInfo(release, local) {
     notes: String(release.body || '').slice(0, 4000),
   };
 }
-function createPortableUpdater({ version, directory, fetcher, onState = () => {} }) {
+function createPortableUpdater({
+  version,
+  directory,
+  fetcher,
+  installed = false,
+  onState = () => {},
+}) {
   let state = {
       status: 'idle',
+      installed,
       version,
       availableVersion: null,
       progress: 0,
@@ -199,7 +208,7 @@ function createPortableUpdater({ version, directory, fetcher, onState = () => {}
       if (response.status === 403 || response.status === 429)
         throw Error('Batas akses GitHub tercapai. Coba lagi nanti.');
       if (!response.ok) throw Error('Tidak dapat memeriksa update. Periksa koneksi internet.');
-      release = releaseInfo(await response.json(), version);
+      release = releaseInfo(await response.json(), version, { installed });
       if (!release)
         return emit({ status: 'current', message: 'Kamu sudah memakai versi terbaru.' });
       emit({

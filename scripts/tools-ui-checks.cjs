@@ -15,6 +15,7 @@ module.exports = async function checkTools(fixtures) {
   };
   let canceled = false,
     saves = [],
+    clothingZip,
     donationOpened = false;
   window.ditashaDesktop = {
     openDonation: async () => {
@@ -22,6 +23,7 @@ module.exports = async function checkTools(fixtures) {
     },
     saveExport: async (payload) => {
       if (canceled) return { saved: false };
+      if (payload.name.startsWith('ditasha_clothing-')) clothingZip = [...payload.data];
       saves.push({
         name: payload.name,
         size: payload.data.length,
@@ -59,6 +61,17 @@ module.exports = async function checkTools(fixtures) {
   });
   document.querySelector('[data-page="converter"]').click();
   assert(!$('convertSettings').hidden, 'Converter not visible');
+  assert(
+    $('conversionMode').hidden && document.querySelectorAll('[data-conversion-mode]').length === 6,
+    'Converter should use six format buttons',
+  );
+  document.querySelector('[data-conversion-mode=png]').click();
+  assert(
+    $('conversionMode').value === 'png' &&
+      document.querySelector('[data-conversion-mode=png]').getAttribute('aria-pressed') === 'true',
+    'Format buttons do not change conversion mode',
+  );
+  document.querySelector('[data-conversion-mode=ytd]').click();
   await add([png]);
   $('toolRun').click();
   await wait(() => !$('toolRun').disabled, 'YTD conversion did not finish');
@@ -94,17 +107,52 @@ module.exports = async function checkTools(fixtures) {
   document.querySelector('[data-page="pack"]').click();
   await add([
     new File([new Uint8Array(fixtures.ydd)], 'mp_m_freemode_01^jbib_000_u.ydd'),
-    new File([new Uint8Array(fixtures.ytd)], 'mp_m_freemode_01^jbib_diff_000_a_uni.ytd'),
+    new File(
+      [new Uint8Array(fixtures.packYtd || fixtures.ytd)],
+      'mp_m_freemode_01^jbib_diff_000_a_uni.ytd',
+    ),
   ]);
   assert(!$('toolRun').disabled, 'Valid replacement pack blocked');
+  assert(
+    $('packOptimize').checked && $('packMaxSize').value === '1024',
+    'Automatic optimization defaults missing',
+  );
+  $('packSettings').open = true;
+  $('packOptimize').closest('details').open = true;
+  assert(
+    $('packOptimize').getBoundingClientRect().width > 0 &&
+      $('packOptimize').getBoundingClientRect().width <= 20,
+    'Optimization checkbox overflowed the clothing sidebar',
+  );
+  $('packOptimize').closest('details').open = false;
+  $('packSettings').open = false;
+  $('packSlotFilter').value = 'Shoes';
+  $('packSlotFilter').dispatchEvent(new Event('change'));
+  assert(!$('toolQueue').querySelector('button'), 'Clothing-type filter did not filter tops');
+  $('packSlotFilter').value = 'All';
+  $('packSlotFilter').dispatchEvent(new Event('change'));
+  $('packMaxSize').value = '512';
+  $('packMaxSize').dispatchEvent(new Event('input'));
   assert(
     window.ditashaWorkspace.unsavedItems().some((e) => e.name.startsWith('Clothing pack')),
     'Pack missing from unsaved state',
   );
   $('toolQueue').querySelector('button').click();
-  $('packPreview').click();
-  await wait(() => !$('toolAdd').disabled, 'Preview did not finish');
+  await wait(() => !$('toolAdd').disabled && $('fileLoading').hidden, 'Preview did not finish');
   assert($('modelTitle').textContent === 'mp_m_freemode_01^jbib_000_u.ydd', 'Pack preview missing');
+  assert(!$('packSettings').open, 'Pack settings should start collapsed');
+  assert($('packPreview').hidden, 'Redundant manual preview button is visible');
+  assert(
+    $('bindPreviewTexture').getBoundingClientRect().height <= 44,
+    'Material action buttons stretched vertically',
+  );
+  const sessionCount = $('fileList').children.length;
+  $('toolQueue').querySelector('button').click();
+  await wait(
+    () => !$('toolAdd').disabled && $('fileLoading').hidden,
+    'Repeat preview did not finish',
+  );
+  assert($('fileList').children.length === sessionCount, 'Repeat preview duplicated session files');
   console.log('DITASHA_SNAPSHOT:clothing');
   const before = $('viewport').getBoundingClientRect().width;
   $('expand3d').click();
@@ -140,6 +188,7 @@ module.exports = async function checkTools(fixtures) {
     saves.at(-1).name === 'ditasha_clothing-v1.zip',
     'Wrong build version after canceled save',
   );
+  assert($('toolSaved').textContent.includes('Memori tekstur:'), 'Texture memory result missing');
   $('packNote').value = 'Changed';
   $('packNote').dispatchEvent(new Event('input'));
   $('toolClear').click();
@@ -154,6 +203,7 @@ module.exports = async function checkTools(fixtures) {
   );
   return {
     saves,
+    clothingZip,
     checks:
       'donation URL, adjacent placement and desktop browser action, image/YTD/DDS/GLB exports, ZIP export, clothing validation/preview/build, canceled save, unsaved clear guard, expanded 3D/Escape and editor restoration',
   };

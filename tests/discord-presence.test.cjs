@@ -231,8 +231,17 @@ test('Discord activity protocol is validated with an in-memory Discord peer', as
   assert.equal(packets[0].body.client_id, config.applicationId);
   client.setWorkspace('vehicles');
   await wait(() => packets.some((p) => p.body.args?.activity?.details === 'Vehicle workshop'));
+  client.setProject('C:\\Users\\Private\\GANOMABI-ped');
+  await wait(() => packets.some((p) => p.body.args?.activity?.state === 'Proyek: GANOMABI-ped'));
+  assert(!JSON.stringify(packets.at(-1)).includes('Private'), 'Folder paths must not be shared');
+  client.configure({ ...config, shareProject: false });
+  await wait(
+    () =>
+      packets.filter((p) => p.body.args?.activity).at(-1)?.body.args.activity.state ===
+      'Ditasha-Workshop',
+  );
   sockets.at(-1).destroy();
-  await wait(() => sockets.length === 2 && client.getState().status === 'connected');
+  await wait(() => sockets.length >= 3 && client.getState().status === 'connected');
   client.configure({ ...config, enabled: false });
   assert.equal(packets.at(-1).body.args.activity, null);
   assert.equal(client.getState().status, 'disabled');

@@ -1,11 +1,36 @@
-import { mountStudioHome } from './studio-home.js';
+import { mountPhotoBooth } from './photo-booth-ui.js';
+import { mountGtaTool } from './gta-tools-ui.js';
+import { mountFivemTools } from './fivem-tools-ui.js';
+import { mountCompressor } from './compressor-ui.js';
+import { mountCraft, craftWorkspaces } from './craft-ui.js';
+import { ICON_CODES } from './ui-icons.js';
 import { mountVehicleWorkspace } from './vehicle-ui.js';
 import { mountViewers } from './viewers-ui.js';
 import { mountArchives } from './archive-ui.js';
+import { mountEmbeddedIDE } from './embedded-ide-ui.js';
+import { mountHome } from './home-ui.js';
+import { mountFileManager } from './file-manager-ui.js';
 import { conversionModes, accepts, convertFile, picturesToYtd } from './converter.js';
 import { zipFiles, MAX_EXPORT, safePath } from './asset-tools.js';
-import { clothingInfo, importPath, analyzePack, buildPack } from './clothing-pack.js';
-export function mountTools({ download, toast, preview, confirmDiscard, onVehicleBuild }) {
+import {
+  clothingInfo,
+  importPath,
+  analyzePack,
+  buildPack,
+  MAX_PACK_BYTES,
+  MAX_PACK_FILE_BYTES,
+  MAX_PACK_FILES,
+} from './clothing-pack.js';
+import { decodeResource } from './resource-client.js';
+export function mountTools({
+  download,
+  toast,
+  preview,
+  confirmDiscard,
+  onVehicleBuild,
+  getSessionFiles,
+  selectSessionFile,
+}) {
   const $ = (id) => document.getElementById(id),
     editor = document.querySelector('main'),
     viewer = document.querySelector('.right'),
@@ -21,19 +46,70 @@ export function mountTools({ download, toast, preview, confirmDiscard, onVehicle
   root.hidden = true;
   root.innerHTML = `
  <aside class="tool-sidebar"><span class="eyebrow" id="toolEyebrow"></span><h2 id="toolHeading"></h2>
- <div id="convertSettings"><label>Konversi<select id="conversionMode"></select></label><p id="conversionHint" class="muted"></p><label>Nama YTD<input id="dictionaryName" value="ditasha_textures"></label><p class="muted">YTD / DDS: tanpa kompresi, satu mipmap. GLB: mesh & UV saja; tanpa rig, animasi atau material GTA.</p></div>
- <div id="packSettings" hidden><label>Nama resource<input id="packName" value="ditasha_clothing" maxlength="64"></label><label>Mode pack<select id="packMode"><option value="replace">Replacement clothing</option><option value="addon">Existing add-on collection</option></select></label><p class="muted" id="packHint">Nama file menentukan ped dan slot replacement.</p><label>Catatan build<textarea id="packNote" rows="3" placeholder="Apa yang berubah?"></textarea></label></div>
+ <div id="convertSettings"><label>Format tujuan<select id="conversionMode" hidden aria-hidden="true" tabindex="-1"></select></label><div id="conversionButtons" class="conversion-buttons" role="group" aria-label="Format konversi"></div><p id="conversionHint" class="muted"></p><label>Nama YTD<input id="dictionaryName" value="ditasha_textures"></label><p class="muted">YTD / DDS: tanpa kompresi, satu mipmap. GLB: mesh & UV saja; tanpa rig, animasi atau material GTA.</p></div>
+ <details id="packSettings" hidden><summary>Pengaturan pack</summary><label>Nama resource<input id="packName" value="ditasha_clothing" maxlength="64"></label><label>Mode pack<select id="packMode"><option value="replace">Replacement clothing</option><option value="addon">Existing add-on collection</option></select></label><p class="muted" id="packHint">Nama file menentukan ped dan slot replacement.</p><label>Catatan build<textarea id="packNote" rows="3" placeholder="Apa yang berubah?"></textarea></label></details>
  <div class="tool-buttons"><button id="toolAdd">+ File</button><button id="toolFolder">Folder</button><button id="toolClear">Kosongkan</button></div><input id="toolFileInput" type="file" multiple hidden><input id="toolFolderInput" type="file" webkitdirectory multiple hidden>
  <input id="toolSearch" class="search" placeholder="Cari file…" aria-label="Cari file tools"><select id="packFilter" aria-label="Filter ped" hidden><option value="All">All</option><option>Male</option><option>Female</option><option>Unknown</option></select><div id="toolQueue"></div><p id="toolCount" class="muted"></p></aside>
  <section class="tool-center"><div id="toolEmpty" class="empty"><div class="empty-symbol"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 15v5h16v-5"/></svg></div><span class="emptykicker">DITASHA WORKSHOP</span><h3 id="toolEmptyTitle">Drop files here</h3><p id="toolEmptyHelp"></p><button id="toolChoose" class="primary">Pilih file</button></div><div id="packViewer"></div><div id="convertResults" hidden><h2>Hasil konversi</h2><p class="muted">Pilih simpan untuk setiap hasil, atau simpan semuanya sebagai ZIP.</p><div id="outputFiles"></div></div></section>
- <aside class="tool-details"><span class="eyebrow">DETAILS</span><h2 id="toolDetailsHeading">Siap memulai</h2><p id="toolDetailsText" class="muted"></p><label id="packPathLabel" hidden>Path ekspor<input id="packPath"></label><button id="packPreview" hidden>Lihat model 3D</button><div id="packStats" class="pack-stats" hidden></div><h3>Findings</h3><ul id="toolFindings"></ul><p id="toolStatus" role="status"></p><progress id="toolProgress" hidden></progress><div class="tool-bottom"><button id="toolRun" class="primary" disabled>Convert</button><button id="saveAll" hidden>Simpan semua (ZIP)</button><p class="muted" id="toolSaved"></p></div></aside>`;
+ <aside class="tool-details"><span class="eyebrow">DETAILS</span><h2 id="toolDetailsHeading">Siap memulai</h2><p id="toolDetailsText" class="muted"></p><label id="packPathLabel" hidden>Path ekspor<input id="packPath"></label><button id="packPreview" hidden>Lihat model 3D</button><div id="packStats" class="pack-stats" hidden></div><details id="packFindings" open><summary>Hasil pemeriksaan</summary><ul id="toolFindings"></ul></details><p id="toolStatus" role="status"></p><progress id="toolProgress" hidden></progress><div class="tool-bottom"><button id="toolRun" class="primary" disabled>Convert</button><button id="saveAll" hidden>Simpan semua (ZIP)</button><p class="muted" id="toolSaved"></p></div></aside>`;
   nav.after(root);
+  const optimize = document.createElement('details');
+  optimize.open = false;
+  optimize.innerHTML = `<summary>Optimasi tekstur otomatis</summary><label class="check"><input id="packOptimize" type="checkbox" checked>Optimalkan YTD saat build</label><label>Resolusi maksimum<select id="packMaxSize"><option value="512">512 px · hemat</option><option value="1024" selected>1K · seimbang</option><option value="2048">2K · detail</option><option value="4096">4K · tinggi</option></select></label><p class="muted">Auto DXT1 / DXT5 sesuai alpha, mipmap, tanpa memperbesar gambar. YTD yang sudah sesuai dipertahankan. File asli tetap utuh.</p><p class="muted">5.000 file · 512 MB per pack · 256 MB per file. Slot game tetap mengikuti collection/YMT; tidak membuat YMT baru.</p>`;
+  $('packSettings').append(optimize);
+  const slotFilter = document.createElement('select');
+  slotFilter.id = 'packSlotFilter';
+  slotFilter.hidden = true;
+  slotFilter.setAttribute('aria-label', 'Filter jenis pakaian');
+  for (const label of [
+    'All',
+    'Head',
+    'Mask',
+    'Hair',
+    'Torso',
+    'Legs',
+    'Bag',
+    'Shoes',
+    'Accessories',
+    'Undershirt',
+    'Armor',
+    'Decal',
+    'Top',
+    'Hat',
+    'Glasses',
+    'Ears',
+    'Left wrist',
+    'Right wrist',
+    'Other',
+  ]) {
+    const option = document.createElement('option');
+    option.value = label;
+    option.textContent = label === 'All' ? 'Semua jenis pakaian' : label;
+    slotFilter.append(option);
+  }
+  $('packFilter').after(slotFilter);
   for (const [id, title] of conversionModes) {
     const o = document.createElement('option');
     o.value = id;
     o.textContent = title;
     $('conversionMode').append(o);
+    const button = document.createElement('button');
+    button.dataset.conversionMode = id;
+    button.title = title;
+    const icon =
+      id === 'glb' ? 'cube' : id === 'ytd' ? 'layers' : id === 'dds' ? 'document' : 'picture';
+    button.innerHTML = `<i class="di-icon" aria-hidden="true" data-icon="${icon}" data-glyph="${String.fromCodePoint(parseInt(ICON_CODES[icon], 16))}"></i><span>${id.toUpperCase()}</span>`;
+    button.onclick = () => {
+      if (busy) return;
+      $('conversionMode').value = id;
+      $('conversionMode').dispatchEvent(new Event('change'));
+    };
+    $('conversionButtons').append(button);
   }
+  let nativeRoot = null,
+    nativeMode = '';
+  const nativeHost = document.createElement('div');
+  nativeHost.className = 'vehicle-native-host';
   let page = 'editor',
     queue = [],
     pack = [],
@@ -43,6 +119,9 @@ export function mountTools({ download, toast, preview, confirmDiscard, onVehicle
     revision = 0,
     savedRevision = 0,
     buildVersion = 1;
+  let packOptimizationReport = [];
+  const previewFiles = new WeakMap();
+  const previewPanelState = new Map();
   const viewers = mountViewers({
     nav,
     download,
@@ -60,42 +139,123 @@ export function mountTools({ download, toast, preview, confirmDiscard, onVehicle
     activate,
     viewers,
   });
+  const gtaTools = ['moddrop', 'weapons'].map((tool) =>
+    mountGtaTool({ nav, activate, viewers, toast, tool }),
+  );
+  const photoBooth = mountPhotoBooth({ nav, activate, download, toast });
   const vehicles = mountVehicleWorkspace({ nav, viewers, onVehicleBuild });
-  const studioHome = mountStudioHome({ nav, activate });
+  vehicles.root.append(nativeHost);
+  const ide = mountEmbeddedIDE({ nav, toast, openQuickEditor: archives.openCode });
+  const fileManager = mountFileManager({
+    nav,
+    activate,
+    toast,
+    openFile: async (files) => {
+      const name = files[0].name;
+      if (/\.(rpf|zip|oiv)$/i.test(name)) return archives.openFile(files[0]);
+      if (/\.(ydd|ydr|yft)$/i.test(name)) {
+        activate(/\.yft$/i.test(name) ? 'vehicles' : 'modelviewer');
+        return viewers.openModels(files);
+      }
+      activate('editor');
+      return preview(files);
+    },
+  });
+  const craft = mountCraft({ nav, activate, toast, preview });
+  const homepage = mountHome({ nav, activate, preview, getSessionFiles, selectSessionFile });
+  const fivemTools = mountFivemTools({
+    nav,
+    activate,
+    download,
+    toast,
+    confirmDiscard,
+    getPack: () => pack,
+  });
   const modelHome = viewers.modelRoot.parentElement;
+  const compressor = mountCompressor({ nav, activate, viewers, toast });
   const dirty = () => pack.length && revision !== savedRevision;
   const touch = () => {
     revision++;
+    packOptimizationReport = [];
     $('toolSaved').textContent = 'Perubahan pack belum diekspor.';
   };
   const mode = () => $('conversionMode').value;
   function activate(next) {
     if (busy) return;
-    if (next === 'code') {
+    if (next === 'textureviewer') next = 'editor';
+    if (nativeRoot) {
+      nativeRoot.hidden = !(
+        next === 'rig' ||
+        (next === 'vehicles' && nativeMode && nativeMode !== 'ped')
+      );
+      vehicles.host.hidden = next === 'vehicles' && !nativeRoot.hidden;
+    }
+    if (next === 'code' && !window.ditashaIDE) {
       archives.openCode();
       return;
     }
     if (page !== next) selection = null;
-    const changed = page !== next;
+    if (page === 'pack' && next !== 'pack') {
+      for (const [panel, open] of previewPanelState) panel.open = open;
+      previewPanelState.clear();
+    }
+    if (page !== 'pack' && next === 'pack') {
+      viewer.querySelectorAll('.inspector details').forEach((panel) => {
+        previewPanelState.set(panel, panel.open);
+        panel.open = false;
+      });
+      $('packFindings').open = false;
+    }
+    if (next === 'converter') $('packFindings').open = true;
     page = next;
-    studioHome.root.hidden = next !== 'home';
-    document.body.dataset.workspace = next;
+    fivemTools.root.hidden = next !== 'fivemtools';
+    compressor.root.hidden = next !== 'compressor';
+    for (const [i, tool] of ['moddrop', 'weapons'].entries()) {
+      gtaTools[i].root.hidden = next !== tool;
+      if (next === tool) gtaTools[i].refresh();
+    }
+    photoBooth.root.hidden = next !== 'photobooth';
+    photoBooth.setActive(next === 'photobooth');
     $('workspaceLabel').textContent =
-      next === 'home'
-        ? 'Home studio'
-        : next === 'editor'
-          ? 'Texture & Model'
-          : next === 'pack'
-            ? 'Clothing pack'
-            : next === 'archives'
-              ? 'GTA V Explorer'
-              : next === 'vehicles'
-                ? 'Vehicle workshop'
-                : next === 'textureviewer'
-                  ? 'Texture viewer'
-                  : next === 'modelviewer'
-                    ? 'Model viewer'
-                    : 'Converter';
+      next === 'compressor'
+        ? 'Asset Compressor'
+        : next === 'files'
+          ? 'File Manager'
+          : next === 'rig'
+            ? 'Auto rig ped'
+            : next === 'home'
+              ? 'Home'
+              : next === 'editor'
+                ? 'Texture & Model'
+                : next === 'pack'
+                  ? 'Clothing pack'
+                  : next === 'archives'
+                    ? 'GTA V Explorer'
+                    : next === 'vehicles'
+                      ? 'Vehicle workshop'
+                      : next === 'textureviewer'
+                        ? 'Texture viewer'
+                        : next === 'modelviewer'
+                          ? 'Model viewer'
+                          : next === 'code'
+                            ? 'Integrated IDE'
+                            : 'Converter';
+    if (next === 'fivemtools') $('workspaceLabel').textContent = 'YMT & FiveM Tools';
+    if (next === 'moddrop') $('workspaceLabel').textContent = 'ModDropV';
+    if (next === 'weapons') $('workspaceLabel').textContent = 'AddonWeaponsBuilder';
+    if (next === 'photobooth') $('workspaceLabel').textContent = 'Photo Booth';
+    craft.root.hidden = !next.startsWith('craft-');
+    if (next.startsWith('craft-')) {
+      $('workspaceLabel').textContent =
+        craftWorkspaces.find((s) => 'craft-' + s[0] === next)?.[1] || 'Creative Studio';
+      craft.activate(next);
+    }
+    ide.root.hidden = next !== 'code';
+    fileManager.root.hidden = next !== 'files';
+    homepage.root.hidden = next !== 'home';
+    document.body.dataset.workspace = next;
+    if (next === 'home') homepage.refresh();
+    if (next === 'code') ide.activate();
     editor.hidden = next !== 'editor';
     root.hidden = !['converter', 'pack'].includes(next);
     archives.root.hidden = next !== 'archives';
@@ -103,23 +263,29 @@ export function mountTools({ download, toast, preview, confirmDiscard, onVehicle
     vehicles.root.hidden = next !== 'vehicles';
     const vehicleMode = next === 'vehicles';
     const explorerMode = next === 'archives' && archives.previewVisible();
-    (vehicleMode ? vehicles.host : explorerMode ? archives.previewHost : modelHome).append(
-      viewers.modelRoot,
-    );
+    (next === 'compressor'
+      ? compressor.host
+      : vehicleMode
+        ? vehicles.host
+        : explorerMode
+          ? archives.previewHost
+          : modelHome
+    ).append(viewers.modelRoot);
     viewers.modelRoot.classList.toggle('explorer-embedded', explorerMode);
-    viewers.modelRoot.hidden = !explorerMode && !['modelviewer', 'vehicles'].includes(next);
+    viewers.modelRoot.classList.toggle('compressor-embedded', next === 'compressor');
+    viewers.modelRoot.hidden =
+      !explorerMode && !['modelviewer', 'vehicles', 'compressor'].includes(next);
     viewers.vehicleControls.hidden = !vehicleMode;
+    viewers.setAttachmentMode(vehicleMode);
     viewers.modelRoot.querySelector('.tool-sidebar > h2').textContent = vehicleMode
       ? 'Kendaraan'
       : 'Model viewer';
     viewers.modelRoot
-      .querySelectorAll('.ped-attachments, .material-preview')
+      .querySelectorAll('.material-preview, .ped-files')
       .forEach((e) => (e.hidden = vehicleMode));
     nav
       .querySelectorAll('button')
       .forEach((b) => b.classList.toggle('active', b.dataset.page === next));
-    if (changed)
-      document.dispatchEvent(new CustomEvent('ditasha:workspace', { detail: { page: next } }));
     if (!['converter', 'pack'].includes(next)) {
       home.append(viewer);
       return;
@@ -128,6 +294,7 @@ export function mountTools({ download, toast, preview, confirmDiscard, onVehicle
     $('convertSettings').hidden = isPack;
     $('packSettings').hidden = !isPack;
     $('packFilter').hidden = !isPack;
+    slotFilter.hidden = !isPack;
     $('toolFolder').hidden = !isPack;
     $('toolEyebrow').textContent = isPack ? 'FIVEM RESOURCE' : 'BATCH CONVERTER';
     $('toolHeading').textContent = isPack ? 'Clothing pack' : 'Converter';
@@ -173,7 +340,8 @@ export function mountTools({ download, toast, preview, confirmDiscard, onVehicle
         (e.path || e.file.name).toLowerCase().includes(q) &&
         (!isPack ||
           $('packFilter').value === 'All' ||
-          clothingInfo(e.path).gender === $('packFilter').value),
+          clothingInfo(e.path).gender === $('packFilter').value) &&
+        (!isPack || slotFilter.value === 'All' || clothingInfo(e.path).slot === slotFilter.value),
     );
     const groups = new Map();
     for (const e of filtered) {
@@ -192,17 +360,31 @@ export function mountTools({ download, toast, preview, confirmDiscard, onVehicle
         const row = document.createElement('div');
         row.className = 'tool-file';
         const b = document.createElement('button');
-        b.textContent = e.path || e.file.name;
-        b.title = b.textContent;
+        const path = e.path || e.file.name;
+        b.textContent = path;
+        b.title = path;
+        b.setAttribute('aria-pressed', String(e === selection));
+        if (isPack) {
+          const name = document.createElement('span');
+          name.className = 'pack-file-name';
+          name.textContent = path.split('/').at(-1).split('^').at(-1);
+          const type = document.createElement('small');
+          type.className = 'pack-file-type';
+          type.textContent = path.split('.').at(-1).toUpperCase();
+          b.replaceChildren(type, name);
+          b.setAttribute('aria-label', path);
+        }
         b.classList.toggle('selected', e === selection);
         b.onclick = () => {
           if (busy) return;
           selection = e;
           render();
+          if (isPack && /\.ydd$/i.test(e.path)) previewSelection();
         };
         const del = document.createElement('button');
         del.textContent = '×';
-        del.setAttribute('aria-label', 'Hapus ' + b.textContent);
+        del.setAttribute('aria-label', 'Hapus ' + path);
+        del.title = 'Hapus file';
         del.onclick = () => {
           if (busy) return;
           list.splice(list.indexOf(e), 1);
@@ -224,8 +406,7 @@ export function mountTools({ download, toast, preview, confirmDiscard, onVehicle
     $('saveAll').hidden = isPack || !outputs.length;
     $('packStats').hidden = !isPack;
     $('packPathLabel').hidden = !isPack || !selection;
-    $('packPreview').hidden =
-      !isPack || !selection || !selection.path.toLowerCase().endsWith('.ydd');
+    $('packPreview').hidden = true;
     $('toolDetailsHeading').textContent = selection
       ? (selection.path || selection.file.name).split('/').at(-1)
       : 'Siap memulai';
@@ -253,7 +434,20 @@ export function mountTools({ download, toast, preview, confirmDiscard, onVehicle
         tile.append(small, strong);
         $('packStats').append(tile);
       }
-      findings([...check.errors, ...check.warnings]);
+      findings([
+        ...check.errors,
+        ...check.warnings,
+        ...packOptimizationReport.filter((r) => r.warning).map((r) => r.path + ': ' + r.warning),
+        ...check.slots.map(
+          (s) =>
+            s.key +
+            ': ' +
+            s.models +
+            (s.component
+              ? ' model (panduan 128 per tipe/collection; varian a–z)'
+              : ' model prop (batas mengikuti versi game/client)'),
+        ),
+      ]);
       $('toolRun').disabled = busy || check.errors.length > 0 || !pack.length;
       $('packHint').textContent =
         $('packMode').value === 'addon'
@@ -288,8 +482,12 @@ export function mountTools({ download, toast, preview, confirmDiscard, onVehicle
             skipped++;
             continue;
           }
-          if (file.size > 64 * 1024 * 1024 || total + file.size > MAX_EXPORT - 65536)
-            throw Error('Pack maksimum 128 MB, setiap file maksimum 64 MB.');
+          if (
+            pack.length >= MAX_PACK_FILES ||
+            file.size > MAX_PACK_FILE_BYTES ||
+            total + file.size > MAX_PACK_BYTES - 1024 * 1024
+          )
+            throw Error('Pack maksimum 5.000 file / 512 MB, setiap file maksimum 256 MB.');
           const path = importPath(file.webkitRelativePath || file.name);
           if (pack.some((e) => e.path.toLowerCase() === path.toLowerCase()))
             throw Error('File duplikat: ' + path);
@@ -340,13 +538,19 @@ export function mountTools({ download, toast, preview, confirmDiscard, onVehicle
       await add([...e.target.files]);
       e.target.value = '';
     };
-  $('toolSearch').oninput = $('packFilter').onchange = render;
+  $('toolSearch').oninput = $('packFilter').onchange = slotFilter.onchange = render;
   $('conversionMode').onchange = () => {
     outputs = [];
     updateHint();
     activate('converter');
   };
   function updateHint() {
+    $('conversionButtons')
+      .querySelectorAll('button')
+      .forEach((b) => {
+        b.classList.toggle('active', b.dataset.conversionMode === mode());
+        b.setAttribute('aria-pressed', String(b.dataset.conversionMode === mode()));
+      });
     $('conversionHint').textContent = conversionModes.find((m) => m[0] === mode())[2];
     $('dictionaryName').parentElement.hidden = mode() !== 'ytd';
   }
@@ -370,7 +574,7 @@ export function mountTools({ download, toast, preview, confirmDiscard, onVehicle
     }
     render();
   };
-  for (const id of ['packName', 'packMode', 'packNote'])
+  for (const id of ['packName', 'packMode', 'packNote', 'packOptimize', 'packMaxSize'])
     $(id).oninput = () => {
       if (pack.length) touch();
       render();
@@ -392,7 +596,7 @@ export function mountTools({ download, toast, preview, confirmDiscard, onVehicle
       render();
     }
   };
-  $('packPreview').onclick = async () => {
+  async function previewSelection() {
     if (!selection || busy) return;
     const e = selection;
     setBusy(true);
@@ -401,13 +605,24 @@ export function mountTools({ download, toast, preview, confirmDiscard, onVehicle
         (t) => /\.ytd$/i.test(t.path) && clothingInfo(t.path).key === clothingInfo(e.path).key,
       );
       await preview(
-        [e, ...(paired ? [paired] : [])].map((t) => new File([t.data], t.path.split('/').at(-1))),
+        [e, ...(paired ? [paired] : [])].map((t) => {
+          const name = t.path.split('/').at(-1);
+          let file = previewFiles.get(t);
+          if (!file || file.name !== name) {
+            file = new File([t.data], name);
+            previewFiles.set(t, file);
+          }
+          return file;
+        }),
+        { reuse: true },
       );
-      toast('Model dimuat. Gunakan Perbesar 3D untuk melihat lebih luas.');
+    } catch (error) {
+      toast('Preview gagal: ' + error.message);
     } finally {
       setBusy(false);
     }
-  };
+  }
+  $('packPreview').onclick = previewSelection;
   function renderOutputs() {
     $('outputFiles').replaceChildren();
     for (const out of outputs) {
@@ -445,21 +660,70 @@ export function mountTools({ download, toast, preview, confirmDiscard, onVehicle
     try {
       await new Promise((r) => setTimeout(r, 25));
       if (page === 'pack') {
-        const bytes = buildPack(pack, {
+        const entries = [];
+        packOptimizationReport = [];
+        const maxSize = Number($('packMaxSize').value),
+          enabled = $('packOptimize').checked;
+        for (const [index, entry] of pack.entries()) {
+          $('toolStatus').textContent =
+            'Menyiapkan ' + (index + 1) + '/' + pack.length + ' · ' + entry.path;
+          if (enabled && /\.ytd$/i.test(entry.path)) {
+            try {
+              const result = await decodeResource('optimize-ytd', entry.data.slice().buffer, {
+                maxSize,
+              });
+              entries.push({ ...entry, data: result.bytes });
+              packOptimizationReport.push({
+                path: entry.path,
+                changed: result.changed,
+                repacked: result.repacked,
+                graphicsAllocationBytes: result.allocation,
+                textureMemoryBefore: result.before,
+                textureMemoryAfter: result.after,
+                inputBytes: entry.data.length,
+                outputBytes: result.bytes.length,
+                textures: result.details,
+              });
+            } catch (error) {
+              entries.push(entry);
+              packOptimizationReport.push({
+                path: entry.path,
+                warning: 'File asli dipertahankan: ' + error.message,
+              });
+            }
+          } else entries.push(entry);
+        }
+        const bytes = buildPack(entries, {
           name: $('packName').value,
           mode: $('packMode').value,
           note: $('packNote').value,
           version: buildVersion,
+          optimization: packOptimizationReport,
         });
         const saved = await download(
           bytes,
           $('packName').value + '-v' + buildVersion + '.zip',
           'application/zip',
         );
+        $('toolStatus').textContent = saved ? 'Build pack selesai.' : 'Penyimpanan dibatalkan.';
         if (saved) {
           savedRevision = revision;
           buildVersion++;
           $('toolSaved').textContent = 'Pack tersimpan.';
+          const before = packOptimizationReport.reduce(
+              (s, r) => s + (r.textureMemoryBefore || 0),
+              0,
+            ),
+            after = packOptimizationReport.reduce((s, r) => s + (r.textureMemoryAfter || 0), 0);
+          $('toolSaved').textContent += enabled
+            ? ' Memori tekstur: ' +
+              (before / 1048576).toFixed(1) +
+              ' → ' +
+              (after / 1048576).toFixed(1) +
+              ' MB. ' +
+              packOptimizationReport.filter((r) => r.warning).length +
+              ' file memakai asli.'
+            : ' Optimasi dimatikan.';
         } else $('toolSaved').textContent = 'Simpan dibatalkan; pack belum diekspor.';
       } else {
         outputs = [];
@@ -518,14 +782,25 @@ export function mountTools({ download, toast, preview, confirmDiscard, onVehicle
     },
     true,
   );
+  activate('home');
   return {
+    getVehicleSource: viewers.getVehicleSource,
+    activate,
+    attachNative: (element, mode) => {
+      if (nativeRoot && nativeRoot !== element) nativeRoot.hidden = true;
+      nativeRoot = element;
+      nativeMode = mode;
+      (mode === 'ped' || !mode ? document.body : nativeHost).append(element);
+      element.classList.toggle('embedded-native', !!mode && mode !== 'ped');
+      if (!mode) element.hidden = true;
+    },
     unsavedItems: () => [
       ...(dirty() ? [{ name: 'Clothing pack · ' + $('packName').value }] : []),
+      ...fivemTools.unsavedItems(),
+      ...compressor.unsavedItems(),
       ...archives.unsavedItems(),
       ...viewers.unsavedItems(),
     ],
     isActive: () => page !== 'editor',
-    isHome: () => page === 'home',
-    activate,
   };
 }

@@ -1,4 +1,7 @@
-import { safePath, zipFiles, MAX_EXPORT } from './asset-tools.js';
+import { safePath, zipFiles } from './asset-tools.js';
+export const MAX_PACK_BYTES = 512 * 1024 * 1024;
+export const MAX_PACK_FILE_BYTES = 256 * 1024 * 1024;
+export const MAX_PACK_FILES = 5000;
 const slots = {
   head: 'Head',
   berd: 'Mask',
@@ -25,11 +28,16 @@ export function clothingInfo(name) {
       ? 'Male'
       : 'Unknown';
   const m = name.match(/(?:^|[\/^])((?:p_)?[a-z]+)_(?:diff_)?(\d{3})(?:_|\.)/i);
+  const base = name.split('/').at(-1),
+    collection = base.includes('^') ? base.split('^')[0].toLowerCase() : gender;
   return {
     gender,
     slot: slots[m?.[1]?.toLowerCase()] || 'Other',
     index: m ? Number(m[2]) : null,
-    key: gender + ' · ' + (slots[m?.[1]?.toLowerCase()] || 'Other') + ' · ' + (m?.[2] || name),
+    slotCode: m?.[1]?.toLowerCase() || '',
+    collection,
+    variant: base.match(/_diff_\d{3}_([a-z]+)_/i)?.[1]?.toLowerCase() || null,
+    key: collection + ' · ' + (slots[m?.[1]?.toLowerCase()] || 'Other') + ' · ' + (m?.[2] || name),
   };
 }
 export function importPath(path) {
@@ -48,7 +56,24 @@ export function analyzePack(entries, mode) {
     textures = 0;
   const metas = [],
     ymts = [];
+  const groups = new Map(),
+    variants = new Map();
+  if (entries.length > MAX_PACK_FILES) errors.push('Pack maksimum 5.000 file.');
   for (const e of entries) {
+    if (e.data.length > MAX_PACK_FILE_BYTES) errors.push('File maksimum 256 MB: ' + e.path);
+    const info = clothingInfo(e.path);
+    if (/\.ydd$/i.test(e.path) && info.index !== null) {
+      const key = info.collection + ' · ' + info.slot;
+      if (!groups.has(key)) groups.set(key, new Set());
+      groups.get(key).add(info.index);
+      if (mode === 'addon' && !info.slotCode.startsWith('p_') && info.index >= 128)
+        warnings.push('Periksa indeks lokal collection (000–127): ' + e.path);
+    }
+    if (/\.ytd$/i.test(e.path) && info.variant) {
+      if (!variants.has(info.key)) variants.set(info.key, new Set());
+      variants.get(info.key).add(info.variant);
+      if (!/^[a-z]$/.test(info.variant)) warnings.push('Varian tekstur perlu a–z: ' + e.path);
+    }
     try {
       safePath(e.path);
     } catch (err) {
@@ -77,11 +102,31 @@ export function analyzePack(entries, mode) {
     errors.push('Add-on memerlukan YMT dan shop .meta dari collection yang sama.');
   if (mode === 'replace' && (ymts.length || metas.length))
     errors.push('Pilih mode add-on untuk menyertakan YMT / shop metadata.');
-  if (entries.reduce((n, e) => n + e.data.length, 0) > MAX_EXPORT - 65536)
-    errors.push('Pack melebihi batas ekspor 128 MB.');
-  return { errors, warnings, models, textures, ymts: ymts.length, metas: metas.length };
+  for (const [key, values] of groups)
+    if (values.size > 128 && !/ · (Hat|Glasses|Ears|Left wrist|Right wrist)$/.test(key))
+      warnings.push(key + ': lebih dari 128 model; periksa/pisahkan collection dan YMT.');
+  for (const [key, values] of variants)
+    if (values.size > 26) warnings.push(key + ': lebih dari 26 varian tekstur.');
+  if (entries.reduce((n, e) => n + e.data.length, 0) > MAX_PACK_BYTES - 1024 * 1024)
+    errors.push('Pack melebihi batas ekspor 512 MB (termasuk laporan).');
+  return {
+    errors,
+    warnings,
+    models,
+    textures,
+    ymts: ymts.length,
+    metas: metas.length,
+    slots: [...groups].map(([key, values]) => ({
+      key,
+      models: values.size,
+      component: !/ · (Hat|Glasses|Ears|Left wrist|Right wrist)$/.test(key),
+    })),
+  };
 }
-export function buildPack(entries, { name, mode = 'replace', note = '', version = 1 }) {
+export function buildPack(
+  entries,
+  { name, mode = 'replace', note = '', version = 1, optimization = [] },
+) {
   if (!/^[a-z][a-z0-9_-]{0,63}$/.test(name))
     throw Error('Nama resource: mulai huruf kecil, gunakan a–z, angka, _ atau -.');
   const check = analyzePack(entries, mode);
@@ -116,12 +161,16 @@ export function buildPack(entries, { name, mode = 'replace', note = '', version 
     note,
     files: entries.map((e) => ({ path: e.path, size: e.data.length, ...clothingInfo(e.path) })),
     warnings: check.warnings,
+    optimization,
   };
   const readme = `${name} — build ${version}\n© 2026 Ditasha-Workshop\n\n${note}\n\nInstallation:\nExtract ${name} into your server resources folder.\nAdd: ensure ${name}\nRestart the resource/server and check it in game.\n\n${mode === 'replace' ? 'Replacement pack: uses the existing drawable slots encoded in filenames.' : 'Existing add-on: original YMT, collection IDs, filenames and shop metadata are preserved.'}\nNo new YMT, slots, collection IDs or Enhanced resources are generated.\nVerify collection compatibility and conflicts on your server.\n\nFindings:\n${check.warnings.join('\n') || 'No filename findings.'}\n`;
-  return zipFiles([
-    ...entries.map((e) => ({ name: name + '/' + e.path, data: e.data })),
-    { name: name + '/fxmanifest.lua', data: manifest.join('\n') + '\n' },
-    { name: name + '/README.txt', data: readme },
-    { name: name + '/ditasha-pack.json', data: JSON.stringify(report, null, 2) },
-  ]);
+  return zipFiles(
+    [
+      ...entries.map((e) => ({ name: name + '/' + e.path, data: e.data })),
+      { name: name + '/fxmanifest.lua', data: manifest.join('\n') + '\n' },
+      { name: name + '/README.txt', data: readme },
+      { name: name + '/ditasha-pack.json', data: JSON.stringify(report, null, 2) },
+    ],
+    { maxBytes: MAX_PACK_BYTES },
+  );
 }

@@ -1,0 +1,179 @@
+.fivem-tools-workspace {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  padding: 24px;
+}
+.ft-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.ft-heading h1 {
+  margin: 6px 0;
+  font-size: 26px;
+}
+.ft-tabs,
+.ft-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ft-tabs button[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--text);
+  background: var(--raised);
+}
+.ft-grid {
+  display: grid;
+  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+.ft-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  min-width: 0;
+}
+.ft-card h2 {
+  font-size: 17px;
+  margin: 0 0 15px;
+}
+.ft-card label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 14px 0;
+  font-size: 12px;
+}
+.ft-card input,
+.ft-card select,
+.ft-card textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.ft-card details {
+  margin: 18px 0;
+}
+.ft-card summary {
+  cursor: pointer;
+  font-size: 12px;
+}
+.ft-card p {
+  font-size: 12px;
+  line-height: 1.6;
+}
+.ft-main {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+.ft-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.ft-section-head span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.ft-table-scroll {
+  max-height: 300px;
+  overflow: auto;
+}
+.ft-table-scroll table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  table-layout: fixed;
+}
+.ft-table-scroll th,
+.ft-table-scroll td {
+  text-align: left;
+  padding: 9px 6px;
+  border-bottom: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+.ft-table-scroll th:last-child,
+.ft-table-scroll td:last-child {
+  width: 42px;
+}
+.ft-table-scroll th:nth-child(2) {
+  width: 105px;
+}
+.ft-table-scroll th:nth-child(4) {
+  width: 180px;
+}
+.ft-table-scroll td select {
+  width: 100%;
+  max-width: 100%;
+  font-size: 11px;
+  margin-top: 5px;
+}
+.ft-code {
+  font-family: monospace;
+  resize: vertical;
+  white-space: pre;
+  tab-size: 2;
+  font-size: 12px;
+}
+.ft-notice {
+  border-left: 3px solid var(--accent);
+  padding: 8px 12px;
+  background: var(--raised);
+}
+.ft-findings {
+  max-height: 230px;
+  overflow: auto;
+}
+.ft-findings p {
+  margin: 7px 0;
+}
+.ft-utility {
+  max-width: 900px;
+  margin: 0 auto;
+}
+.ft-utility dl {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 12px;
+  font-family: monospace;
+}
+.ft-utility dd {
+  margin: 0;
+  user-select: all;
+}
+.ft-manifest-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 18px;
+}
+@media (max-width: 1050px) {
+  .fivem-tools-workspace {
+    padding: 16px;
+  }
+  .ft-grid {
+    grid-template-columns: 1fr;
+  }
+  .ft-main {
+    min-width: 0;
+  }
+  .ft-table-scroll {
+    max-height: 240px;
+  }
+}
+@media (max-width: 700px) {
+  .ft-manifest-fields {
+    grid-template-columns: 1fr;
+  }
+  .ft-card {
+    padding: 14px;
+  }
+}

@@ -10,12 +10,23 @@ app.whenReady().then(async () => {
   let win;
   const captures = [];
   try {
-    const { testYdd, testYtd } = await import('../tests/format.test.mjs');
+    const { testYdd, testYtd, testYft, testYdr } = await import('../tests/format.test.mjs');
+    const { createYtd } = await import('../src/asset-tools.js');
+    const packYtd = createYtd([
+      {
+        name: 'cloth_diffuse',
+        w: 1024,
+        h: 512,
+        out: Uint8Array.from({ length: 1024 * 512 * 4 }, (_, i) =>
+          i % 4 === 3 ? (Math.floor(i / 4) % 16 < 8 ? 255 : 0) : [120, 70, 50][i % 4],
+        ),
+      },
+    ]);
     await fs.mkdir(path.resolve('release/qa'), { recursive: true });
     win = new BrowserWindow({
       width: 1500,
       height: 950,
-      show: false,
+      show: true,
       webPreferences: {
         contextIsolation: true,
         sandbox: true,
@@ -39,10 +50,30 @@ app.whenReady().then(async () => {
       }
     });
     await win.loadFile(path.resolve('ui/index.html'));
-    const studioReport = await win.webContents.executeJavaScript(
-      '(' + require('./studio-ui-checks.cjs').toString() + ')()',
-    );
-    console.log('Studio home:', studioReport);
+    const homeReports = [];
+    for (const [width, height] of [
+      [1500, 950],
+      [1024, 768],
+      [800, 600],
+    ]) {
+      win.setSize(width, height);
+      homeReports.push(
+        await win.webContents.executeJavaScript(
+          '(' +
+            require('./home-ui-checks.cjs').toString() +
+            ')(' +
+            JSON.stringify({
+              ytd: [...new Uint8Array(testYtd)],
+              size: width,
+              interactions: width === 1500,
+            }) +
+            ')',
+        ),
+      );
+    }
+    await Promise.all(captures);
+    win.setSize(1500, 950);
+    await win.loadFile(path.resolve('ui/index.html'));
     const shellReport = await win.webContents.executeJavaScript(
       '(' + require('./workspace-ui-checks.cjs').toString() + ')()',
     );
@@ -52,9 +83,42 @@ app.whenReady().then(async () => {
       '(' +
         check.toString() +
         ')(' +
-        JSON.stringify({ ydd: [...new Uint8Array(testYdd)], ytd: [...new Uint8Array(testYtd)] }) +
+        JSON.stringify({
+          ydd: [...new Uint8Array(testYdd)],
+          ytd: [...new Uint8Array(testYtd)],
+          packYtd: [...packYtd],
+        }) +
         ')',
     );
+    const { openArchive: readPackZip } = await import('../src/archives.js');
+    const { readYtd: readPackYtd } = await import('../src/resource.js');
+    const packZip = await readPackZip(
+      new Blob([new Uint8Array(report.clothingZip)]),
+      'clothing.zip',
+    );
+    const packMap = packZip.entries.find((e) => /\.ytd$/i.test(e.name));
+    const packedTextures = readPackYtd(
+      Uint8Array.from(await packZip.extract(packMap)).buffer,
+    ).textures;
+    if (
+      packedTextures.length !== 1 ||
+      packedTextures[0].w !== 512 ||
+      packedTextures[0].h !== 256 ||
+      packedTextures[0].format !== 'DXT5' ||
+      packedTextures[0].mipLevels !== 10
+    )
+      throw Error('Clothing ZIP did not contain resized, compressed native YTD with mipmaps');
+    const packLog = packZip.entries.find((e) => e.name.endsWith('ditasha-pack.json'));
+    const optimization = JSON.parse(
+      new TextDecoder().decode(await packZip.extract(packLog)),
+    ).optimization;
+    if (
+      optimization[0]?.changed !== 1 ||
+      optimization[0].textureMemoryAfter >= optimization[0].textureMemoryBefore
+    )
+      throw Error('Clothing optimization report missing native memory saving');
+    delete report.clothingZip;
+    report.automaticClothingOptimization = true;
     const { writeRpf } = await import('../src/archives.js');
     const { zipFiles } = await import('../src/asset-tools.js');
     const ytd = new Uint8Array(testYtd);
@@ -87,7 +151,6 @@ app.whenReady().then(async () => {
     }
     archiveReport.saves = archiveReport.saves.map((s) => ({ name: s.name, size: s.data.length }));
     const { viewerModel } = await import('../tests/viewer-format.test.mjs');
-    const { createYtd } = await import('../src/asset-tools.js');
     const hairYtd = createYtd([
       { name: 'hair_diff_040_a_uni', w: 1, h: 1, out: new Uint8Array([0, 255, 0, 255]) },
     ]);
@@ -106,7 +169,8 @@ app.whenReady().then(async () => {
     const faceYtd = createYtd([
       { name: 'cloth_diffuse', w: 1, h: 1, out: new Uint8Array([255, 0, 0, 255]) },
     ]);
-    const { alphaYtd, fragmentYft, bc7Ytd } = await import('../tests/vehicle-preview.test.mjs');
+    const { alphaYtd, fragmentYft, bc7Ytd, opaqueVehicleModel } =
+      await import('../tests/vehicle-preview.test.mjs');
     const viewerReport = await win.webContents.executeJavaScript(
       '(' +
         checkViewers.toString() +
@@ -123,6 +187,7 @@ app.whenReady().then(async () => {
           alphaYtd: [...new Uint8Array(alphaYtd())],
           fragmentYft: [...new Uint8Array(fragmentYft())],
           bc7Ytd: [...new Uint8Array(bc7Ytd())],
+          opaqueVehicleModel: [...new Uint8Array(opaqueVehicleModel())],
           requireWebgl: true,
         }) +
         ')',
@@ -151,7 +216,15 @@ app.whenReady().then(async () => {
       '(' +
         require('./explorer-preview-ui-checks.cjs').toString() +
         ')(' +
-        JSON.stringify({ archive: [...inlineArchive] }) +
+        JSON.stringify({
+          archive: [...inlineArchive],
+          textureFailureArchive: [
+            ...writeRpf([
+              { name: 'car.ydd', data: inlineModel },
+              { name: 'car.ytd', data: new TextEncoder().encode('invalid texture resource') },
+            ]),
+          ],
+        }) +
         ')',
     );
     const { openArchive } = await import('../src/archives.js');
@@ -168,16 +241,423 @@ app.whenReady().then(async () => {
     )
       throw Error('Code editor changes did not survive RPF export');
     inlineReport.saves = inlineReport.saves.map((s) => ({ name: s.name, size: s.data.length }));
+    await win.loadFile(path.resolve('ui/index.html'));
+    const manualStudioReport = await win.webContents.executeJavaScript(
+      '(' +
+        require('./manual-studio-ui-checks.cjs').toString() +
+        ')(' +
+        JSON.stringify({ model: [...inlineModel] }) +
+        ')',
+    );
+    const { debadgeFixture } = await import('../tests/debadge.test.mjs');
+    await win.loadFile(path.resolve('ui/index.html'));
+    const debadgeReport = await win.webContents.executeJavaScript(
+      '(' +
+        require('./debadge-ui-checks.cjs').toString() +
+        ')(' +
+        JSON.stringify({ vehicle: [...new Uint8Array(debadgeFixture())] }) +
+        ')',
+    );
+    const { readYft } = await import('../src/resource.js');
+    const indices = readYft(Uint8Array.from(debadgeReport.data).buffer)[0].geometries[0].indices;
+    if ([...indices].join(',') !== '0,1,2,0,2,3,4,4,4')
+      throw Error('UI export changed the wrong triangles');
+    delete debadgeReport.data;
+    await win.loadFile(path.resolve('ui/index.html'));
+    const { largeYtdFixture } = await import('../tests/fixtures/large-ytd.mjs');
+    const largeYtdReport = await win.webContents.executeJavaScript(
+      '(' +
+        require('./large-ytd-ui-checks.cjs').toString() +
+        ')(' +
+        JSON.stringify([...new Uint8Array(largeYtdFixture())]) +
+        ')',
+    );
+    const { readYtd } = await import('../src/resource.js');
+    const largeSaved = readYtd(Uint8Array.from(largeYtdReport.data).buffer);
+    if (
+      largeSaved.textures[0].format !== 'DXT1' ||
+      largeSaved.textures[0].mipLevels !== 2 ||
+      largeSaved.textures[1].format !== 'DXT1' ||
+      largeSaved.textures[1].mipLevels !== 2 ||
+      largeSaved.textures[2].format !== 'RGBA' ||
+      [...largeSaved.textures[2].out.slice(4095 * 4, 4096 * 4)].join(',') !== '255,0,0,255'
+    )
+      throw Error('Large YTD edit/export did not preserve source textures or mirrored pixels');
+    delete largeYtdReport.data;
+    await win.loadFile(path.resolve('ui/index.html'));
+    const { wheelYftFixture } = await import('../tests/fixtures/wheel-yft.mjs');
+    const wheelReport = await win.webContents.executeJavaScript(
+      '(' +
+        require('./wheel-yft-ui-checks.cjs').toString() +
+        ')(' +
+        JSON.stringify([...new Uint8Array(wheelYftFixture(viewerModel))]) +
+        ')',
+    );
+    const { keyedVehicleDictionary } = await import('../tests/fixtures/vehicle-dictionary.mjs');
+    const { liveryYftFixture } = await import('../tests/fixtures/livery-yft.mjs');
+    const liveryReport = await win.webContents.executeJavaScript(
+      '(' +
+        require('./vehicle-livery-ui-checks.cjs').toString() +
+        ')(' +
+        JSON.stringify({
+          model: [...new Uint8Array(liveryYftFixture(viewerModel))],
+          glassModel: [
+            ...new Uint8Array(
+              liveryYftFixture(viewerModel, { embedded: false, shader: 'vehicle_vehglass' }),
+            ),
+          ],
+          glassDictionary: [
+            ...createYtd([
+              { name: 'cloth_diffuse', w: 1, h: 1, out: new Uint8Array([0, 255, 0, 115]) },
+            ]),
+          ],
+          conflictingDictionary: [
+            ...createYtd([
+              { name: 'cloth_diffuse', w: 1, h: 1, out: new Uint8Array([255, 0, 0, 255]) },
+            ]),
+          ],
+          keyedDictionary: [...new Uint8Array(keyedVehicleDictionary())],
+          paint4Model: [
+            ...new Uint8Array(
+              liveryYftFixture(viewerModel, {
+                embedded: false,
+                shader: 'vehicle_paint4',
+                primary: 'vehicle_generic_detail2',
+              }),
+            ),
+          ],
+          sharedDictionary: [
+            ...createYtd([
+              {
+                name: 'vehicle_generic_detail2',
+                w: 1,
+                h: 1,
+                out: new Uint8Array([0, 255, 0, 255]),
+              },
+            ]),
+          ],
+          searchModel: [...new Uint8Array(liveryYftFixture(viewerModel, { embedded: false }))],
+          base: [
+            ...createYtd([
+              { name: 'cloth_diffuse', w: 1, h: 1, out: new Uint8Array([0, 255, 0, 255]) },
+            ]),
+          ],
+          livery: [
+            ...createYtd([
+              {
+                name: 'vehicle_sign_1',
+                w: 4,
+                h: 1,
+                out: new Uint8Array([0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 0, 0, 255, 255]),
+              },
+            ]),
+          ],
+          combined: [
+            ...createYtd([
+              { name: 'cloth_diffuse', w: 1, h: 1, out: new Uint8Array([0, 255, 0, 255]) },
+              {
+                name: 'vehicle_sign_1',
+                w: 4,
+                h: 1,
+                out: new Uint8Array([0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 0, 0, 255, 255]),
+              },
+            ]),
+          ],
+        }) +
+        ')',
+    );
+    await win.loadFile(path.resolve('ui/index.html'));
+    const pedAlphaReport = await win.webContents.executeJavaScript(
+      '(' +
+        require('./ped-alpha-ui-checks.cjs').toString() +
+        ')(' +
+        JSON.stringify({
+          skin: [
+            ...new Uint8Array(
+              liveryYftFixture(viewerModel, {
+                embedded: false,
+                shader: 'ped',
+                primary: 'head_diff_000_a_uni',
+              }),
+            ),
+          ],
+          brow: [
+            ...new Uint8Array(
+              liveryYftFixture(viewerModel, {
+                embedded: false,
+                shader: 'ped_hair_cutout_alpha',
+                primary: 'head_diff_000_a_uni',
+              }),
+            ),
+          ],
+          texture: [
+            ...createYtd([
+              { name: 'head_diff_000_a_uni', w: 1, h: 1, out: new Uint8Array([255, 0, 0, 32]) },
+            ]),
+          ],
+        }) +
+        ')',
+    );
+    await win.loadFile(path.resolve('ui/index.html'));
+    const { surfaceYftFixture } = await import('../tests/fixtures/surface-yft.mjs');
+    const surfaceDictionary = (normal, specular, base = true) => [
+      ...createYtd([
+        ...(base
+          ? [{ name: 'cloth_diffuse', w: 1, h: 1, out: new Uint8Array([50, 50, 50, 255]) }]
+          : []),
+        { name: 'surface_normal', w: 1, h: 1, out: new Uint8Array(normal) },
+        { name: 'surface_spec', w: 1, h: 1, out: new Uint8Array(specular) },
+      ]),
+    ];
+    const surfaceReport = await win.webContents.executeJavaScript(
+      '(' +
+        require('./vehicle-surface-ui-checks.cjs').toString() +
+        ')(' +
+        JSON.stringify({
+          model: [...new Uint8Array(surfaceYftFixture(viewerModel, { falloff: 4 }))],
+          flat: surfaceDictionary([128, 128, 0, 255], [0, 255, 0, 255]),
+          shiny: surfaceDictionary([128, 128, 0, 255], [255, 0, 0, 255]),
+          tilted: surfaceDictionary([240, 128, 0, 255], [0, 255, 0, 255]),
+          aux: surfaceDictionary([128, 128, 0, 255], [0, 255, 0, 255], false),
+          striped: [
+            ...createYtd([
+              { name: 'cloth_diffuse', w: 1, h: 1, out: new Uint8Array([50, 50, 50, 255]) },
+              {
+                name: 'surface_normal',
+                w: 2,
+                h: 1,
+                out: new Uint8Array([128, 128, 0, 255, 240, 128, 0, 255]),
+              },
+              { name: 'surface_spec', w: 1, h: 1, out: new Uint8Array([0, 255, 0, 255]) },
+            ]),
+          ],
+          wrong: [
+            ...createYtd([
+              { name: 'cloth_diffuse', w: 1, h: 1, out: new Uint8Array([255, 0, 0, 255]) },
+            ]),
+          ],
+          parent: [
+            ...createYtd([
+              { name: 'cloth_diffuse', w: 1, h: 1, out: new Uint8Array([0, 255, 0, 255]) },
+            ]),
+          ],
+          metadata: [
+            ...new TextEncoder().encode(
+              '<CVehicleModelInfo__InitDataList><txdRelationships><Item><parent>base</parent><child>surface</child></Item></txdRelationships></CVehicleModelInfo__InitDataList>',
+            ),
+          ],
+        }) +
+        ')',
+    );
+    await win.loadFile(path.resolve('ui/index.html'));
+    const { componentYddFixture } = await import('../tests/fixtures/component-ydd.mjs');
+    const fullpedReport = await win.webContents.executeJavaScript(
+      '(' +
+        require('./fullped-ui-checks.cjs').toString() +
+        ')(' +
+        JSON.stringify({
+          model: [...new Uint8Array(componentYddFixture(viewerModel))],
+          texture: [
+            ...createYtd([
+              { name: 'cloth_diffuse', w: 1, h: 1, out: new Uint8Array([20, 90, 180, 255]) },
+            ]),
+          ],
+        }) +
+        ')',
+    );
+    await win.loadFile(path.resolve('ui/index.html'));
+    const gtaToolsReport = await win.webContents.executeJavaScript(
+      '(' + require('./gta-tools-ui-checks.cjs').toString() + ')()',
+    );
+    await win.loadFile(path.resolve('ui/index.html'));
+    const { boothPedFixture } = await import('../tests/fixtures/booth-ped.mjs');
+    const { boothGlbFixture, boothVehicleFixture } =
+      await import('../tests/fixtures/booth-glb.mjs');
+    const { boothYcdFixture } = await import('../tests/fixtures/booth-ycd.mjs');
+    const photoBoothReport = await win.webContents.executeJavaScript(
+      '(' +
+        require('./photo-booth-ui-checks.cjs').toString() +
+        ')(' +
+        JSON.stringify({
+          native: [...new Uint8Array(boothPedFixture())],
+          ycd: [...new Uint8Array(boothYcdFixture())],
+          ycdAlt: [...new Uint8Array(boothYcdFixture({ encoding: 'raw' }))],
+          ycdBulk: Array.from({ length: 101 }, (_, i) => [
+            ...new Uint8Array(boothYcdFixture({ variant: i + 1 })),
+          ]),
+          missingRig: [...new Uint8Array(boothPedFixture({ missingRig: true, paletteBone: 40 }))],
+          replacementYtd: [
+            ...createYtd([
+              {
+                name: 'preview_repair',
+                w: 2,
+                h: 2,
+                out: new Uint8Array([
+                  230, 35, 35, 255, 230, 35, 35, 255, 230, 35, 35, 255, 230, 35, 35, 255,
+                ]),
+              },
+            ]),
+          ],
+          glb: [...new Uint8Array(await boothGlbFixture())],
+        }) +
+        ')',
+    );
+    Object.assign(
+      photoBoothReport,
+      await win.webContents.executeJavaScript(
+        '(' +
+          require('./booth-textures-qa.cjs').toString() +
+          ')(' +
+          JSON.stringify({
+            native: [...new Uint8Array(boothPedFixture())],
+            red: [
+              ...createYtd([
+                {
+                  name: 'preview_repair',
+                  w: 2,
+                  h: 2,
+                  out: new Uint8Array([
+                    230, 35, 35, 255, 230, 35, 35, 255, 230, 35, 35, 255, 230, 35, 35, 255,
+                  ]),
+                },
+              ]),
+            ],
+            blue: [
+              ...createYtd([
+                {
+                  name: 'preview_repair',
+                  w: 2,
+                  h: 2,
+                  out: new Uint8Array([
+                    35, 35, 230, 255, 35, 35, 230, 255, 35, 35, 230, 255, 35, 35, 230, 255,
+                  ]),
+                },
+              ]),
+            ],
+          }) +
+          ')',
+      ),
+    );
+    const { bc5YtdFixture } = await import('../tests/fixtures/bc5-ytd.mjs');
+    Object.assign(
+      photoBoothReport,
+      await win.webContents.executeJavaScript(
+        '(' +
+          require('./booth-preset-codec-qa.cjs').toString() +
+          ')(' +
+          JSON.stringify({ mixed: [...new Uint8Array(bc5YtdFixture({ broken: true }))] }) +
+          ')',
+      ),
+    );
+    Object.assign(
+      photoBoothReport,
+      await require('./booth-stage-qa.cjs')(win, await boothGlbFixture(), fs, path),
+    );
+    Object.assign(
+      photoBoothReport,
+      await require('./booth-extras-qa.cjs')(
+        win,
+        {
+          yft: [...new Uint8Array(testYft)],
+          nativeProp: [...new Uint8Array(boothPedFixture({ missingRig: true, paletteBone: 124 }))],
+          vehicle: [...new Uint8Array(await boothVehicleFixture())],
+        },
+        fs,
+        path,
+      ),
+    );
+    await win.webContents.executeJavaScript(`(() => {
+      const list=document.getElementById('pbAssets'),panel=document.querySelector('.pb-assets');
+      document.getElementById('pbCollapseGroups').click();list.querySelector('[data-select-actor]').click();
+      panel.scrollTop+=list.getBoundingClientRect().top-panel.getBoundingClientRect().top-20;
+    })()`);
+    await new Promise((r) => setTimeout(r, 250));
+    await fs.writeFile(
+      path.resolve('release/qa/photo-booth-asset-groups.png'),
+      (await win.webContents.capturePage()).toPNG(),
+    );
+    Object.assign(
+      photoBoothReport,
+      await win.webContents.executeJavaScript(
+        '(' +
+          require('./booth-vehicles-qa.cjs').toString() +
+          ')(' +
+          JSON.stringify({ yft: [...new Uint8Array(testYft)], ytd: [...new Uint8Array(testYtd)] }) +
+          ')',
+      ),
+    );
+    await new Promise((r) => setTimeout(r, 150));
+    await fs.writeFile(
+      path.resolve('release/qa/photo-booth-vehicle-resource.png'),
+      (await win.webContents.capturePage()).toPNG(),
+    );
+    const { studioMetaFixture } = await import('../tests/fixtures/studio-meta.mjs');
+    const studioZip = zipFiles([
+      { name: 'one.ymap', data: new Uint8Array(studioMetaFixture()) },
+      { name: 'two.ymap', data: new Uint8Array(studioMetaFixture('ymap', { x: 1500 })) },
+      { name: 'types.ytyp', data: new Uint8Array(studioMetaFixture('ytyp')) },
+      { name: 'qa-room.ydr', data: new Uint8Array(testYdr) },
+      { name: 'ignored.lua', data: 'not executed' },
+    ]);
+    Object.assign(
+      photoBoothReport,
+      await require('./booth-map-studio-qa.cjs')(
+        win,
+        { ped: [...new Uint8Array(await boothGlbFixture())], zip: [...studioZip] },
+        fs,
+        path,
+      ),
+    );
+    Object.assign(
+      photoBoothReport,
+      await require('./booth-storage-qa.cjs')(win, await boothGlbFixture()),
+    );
+    Object.assign(
+      photoBoothReport,
+      await require('./booth-emote-report-qa.cjs')(win, await boothGlbFixture(), fs, path),
+    );
+    Object.assign(
+      photoBoothReport,
+      await require('./booth-gta-grid-qa.cjs')(win, await boothGlbFixture(), fs, path),
+    );
+    Object.assign(
+      photoBoothReport,
+      await require('./booth-library-scale-qa.cjs')(win, await boothGlbFixture()),
+    );
+    Object.assign(
+      photoBoothReport,
+      await require('./booth-vehicle-materials-qa.cjs')(win, await boothGlbFixture()),
+    );
+    Object.assign(
+      photoBoothReport,
+      await require('./booth-movie-qa.cjs')(win, await boothGlbFixture(), fs, path),
+    );
+    await win.loadFile(path.resolve('ui/index.html'));
+    const fivemToolsReport = await win.webContents.executeJavaScript(
+      '(' + require('./fivem-tools-ui-checks.cjs').toString() + ')()',
+    );
     await Promise.all(captures);
     console.log(
       'PASS: ' +
         JSON.stringify({
+          homeReports,
           iconReport,
           report,
           archiveReport,
           viewerReport,
           offlineReport,
           inlineReport,
+          manualStudioReport,
+          debadgeReport,
+          largeYtdReport,
+          wheelReport,
+          liveryReport,
+          pedAlphaReport,
+          surfaceReport,
+          fivemToolsReport,
+          fullpedReport,
+          gtaToolsReport,
+          photoBoothReport,
         }),
     );
     win.destroy();

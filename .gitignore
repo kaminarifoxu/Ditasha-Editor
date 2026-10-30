@@ -1,4 +1,6 @@
 node_modules/
+ide-runtime/
+craft-runtime/
 release/
 *.log
 font-source.css
@@ -14,3 +16,6 @@ font-source.css
 
 __pycache__/
 *.pyc
+
+/integrations/opencut/source/
+/integrations/opencut/dist/

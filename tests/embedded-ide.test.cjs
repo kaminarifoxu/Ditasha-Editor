@@ -1,0 +1,148 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs/promises');
+const path = require('node:path');
+const os = require('node:os');
+const { EventEmitter } = require('node:events');
+const {
+  inspectRuntime,
+  agentPort,
+  clampBounds,
+  registerEmbeddedIDE,
+  disposeIDEView,
+} = require('../electron/embedded-ide.cjs');
+
+test('IDE bounds stay within the content area and hide invalid or empty rectangles', () => {
+  assert.deepEqual(clampBounds({ x: -5, y: 20, width: 1600, height: 900 }, [1000, 700]), {
+    x: 0,
+    y: 20,
+    width: 1000,
+    height: 680,
+  });
+  for (const value of [
+    null,
+    {},
+    { x: NaN, y: 0, width: 50, height: 50 },
+    { x: 1001, y: 0, width: 50, height: 50 },
+  ])
+    assert.equal(clampBounds(value, [1000, 700]), null);
+  assert.equal(agentPort('Extension host agent listening on 42515\n'), 42515);
+  assert.equal(agentPort('Extension host agent listening on 99999'), null);
+  assert.equal(agentPort('http://example.invalid:1234/'), null);
+});
+
+test('IDE runtime needs the full MIT workbench, not a desktop executable or proprietary server', async (t) => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'ditasha-ide-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  await assert.rejects(inspectRuntime('relative'), /absolute/);
+  await fs.mkdir(path.join(root, 'out/vs/code/browser/workbench'), { recursive: true });
+  await fs.writeFile(path.join(root, 'node'), '');
+  await fs.writeFile(path.join(root, 'out/server-main.js'), '');
+  await fs.writeFile(
+    path.join(root, 'product.json'),
+    JSON.stringify({ licenseName: 'Microsoft Software License Terms' }),
+  );
+  await assert.rejects(inspectRuntime(root, 'linux'), /MIT/);
+  await fs.writeFile(path.join(root, 'product.json'), JSON.stringify({ licenseName: 'MIT' }));
+  await assert.rejects(inspectRuntime(root, 'linux'), /ENOENT/);
+  await fs.writeFile(
+    path.join(root, 'out/vs/code/browser/workbench/workbench.html'),
+    '<html></html>',
+  );
+  assert.equal((await inspectRuntime(root, 'linux')).root, await fs.realpath(root));
+});
+
+test('IDE IPC validates callers and reports a missing engine instead of claiming the IDE is installed', async (t) => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'ditasha-ide-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const handlers = new Map();
+  const app = new EventEmitter();
+  app.getPath = () => root;
+  const win = new EventEmitter();
+  registerEmbeddedIDE({
+    app,
+    win,
+    resourcesPath: root,
+    ipcMain: { handle: (key, value) => handlers.set(key, value) },
+    dialog: {},
+    trusted: (event) => {
+      if (event !== 'trusted') throw Error('Untrusted');
+    },
+    WebContentsView: class {},
+  });
+  await assert.rejects(handlers.get('ditasha:embedded-ide-state')('untrusted'), /Untrusted/);
+  assert.equal((await handlers.get('ditasha:embedded-ide-state')('trusted')).installed, false);
+  await assert.rejects(handlers.get('ditasha:embedded-ide-start')('trusted'), /not installed/);
+  assert.equal((await handlers.get('ditasha:embedded-ide-state')('trusted')).status, 'error');
+  win.emit('closed');
+});
+
+test('startup failures expose exit code and engine output without exposing the connection token', async (t) => {
+  if (process.platform === 'win32') return t.skip('Uses a local executable symlink on Unix.');
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'ditasha-ide-exit-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const engine = path.join(root, 'ide-runtime');
+  await fs.mkdir(path.join(engine, 'out/vs/code/browser/workbench'), { recursive: true });
+  await fs.symlink(process.execPath, path.join(engine, 'node'));
+  await fs.writeFile(path.join(engine, 'product.json'), JSON.stringify({ licenseName: 'MIT' }));
+  await fs.writeFile(path.join(engine, 'out/vs/code/browser/workbench/workbench.html'), '');
+  await fs.writeFile(
+    path.join(engine, 'out/server-main.js'),
+    `
+    const fs = require('node:fs');
+    const token = fs.readFileSync(process.argv[process.argv.indexOf('--connection-token-file') + 1], 'utf8');
+    console.error('Missing dependency; token=' + token);
+    process.exitCode = 23;
+  `,
+  );
+  const handlers = new Map();
+  const app = new EventEmitter();
+  app.getPath = () => root;
+  const win = new EventEmitter();
+  registerEmbeddedIDE({
+    app,
+    win,
+    resourcesPath: root,
+    ipcMain: { handle: (key, value) => handlers.set(key, value) },
+    dialog: {},
+    trusted: () => {},
+    WebContentsView: class {},
+  });
+  await assert.rejects(handlers.get('ditasha:embedded-ide-start')({}), /exit 23/);
+  const state = await handlers.get('ditasha:embedded-ide-state')({});
+  assert.match(state.details, /Missing dependency; token=\[redacted\]/);
+  const token = await fs.readFile(path.join(root, 'embedded-ide/connection-token'), 'utf8');
+  assert.equal(state.details.includes(token), false);
+  assert.equal(await fs.readFile(state.diagnosticsFile, 'utf8'), state.details);
+  win.emit('closed');
+});
+
+test('IDE teardown tolerates missing or destroyed native contents and captures contents before detach', () => {
+  let closed = 0,
+    detached = 0;
+  const contents = { isDestroyed: () => false, close: () => closed++ };
+  const view = { webContents: contents };
+  const win = {
+    isDestroyed: () => false,
+    contentView: {
+      removeChildView(value) {
+        detached++;
+        value.webContents = undefined;
+      },
+    },
+  };
+  disposeIDEView(win, view);
+  assert.equal(closed, 1);
+  assert.equal(detached, 1);
+  // Electron has already torn down the window and removed WebContentsView.webContents.
+  const gone = { isDestroyed: () => true };
+  assert.doesNotThrow(() => disposeIDEView(gone, view));
+  assert.doesNotThrow(() => disposeIDEView(gone, null));
+  disposeIDEView(gone, {
+    webContents: {
+      isDestroyed: () => true,
+      close: () => assert.fail('Destroyed contents closed again'),
+    },
+  });
+  assert.equal(closed, 1);
+});

@@ -1,6 +1,9 @@
 import { ICON_CODES } from './ui-icons.js';
 
 const actions = {
+  eyedropper: 'eyedropper',
+  fillLayer: 'paint-bucket',
+  centerLayer: 'center-layer',
   brush: 'brush',
   eraser: 'eraser',
   move: 'arrows',
@@ -21,8 +24,15 @@ const actions = {
   snapshot: 'camera',
   photoshoot: 'camera',
   mvPhotoshoot: 'camera',
+  vehicleParts: 'cube',
+  nbMotionPlay: 'arrows',
+  nbPartsAnalyze: 'eye',
+  nbPartsDonor: 'folder-open',
   addPng3d: 'picture',
   mvAddModels: 'plus',
+  stampUpdateText: 'check',
+  vwHideSelected: 'eye-crossed',
+  vwRestoreSelected: 'eye',
   stickerBake: 'check',
   stickerMove: 'arrows',
   editTexture2d: 'picture',
@@ -80,6 +90,17 @@ const actions = {
   archiveNew: 'plus',
   archiveBack: 'arrow-left',
   archivePreview: 'layers',
+  nbSetup: 'download',
+  nbProbe: 'refresh',
+  nbRun: 'tshirt',
+  nbSave: 'disk',
+  nbCancel: 'cross',
+  nbReveal: 'folder-open',
+  nbClose: 'arrow-left',
+  nbAnalyze: 'eye',
+  vehicleDebadge: 'eraser',
+  vehicleStrobo: 'plus',
+  vehicleOpen: 'folder-open',
   archiveTextureViewer: 'picture',
   archiveModelViewer: 'cube',
   archiveInspect: 'document',
@@ -97,6 +118,8 @@ const actions = {
   inspectorClose: 'cross',
 };
 const pages = {
+  compressor: 'compress',
+  files: 'folder-open',
   editor: 'layers',
   converter: 'exchange',
   pack: 'tshirt',
@@ -109,10 +132,22 @@ const labels = {
   'Hapus YTD rambut': 'trash',
   'Reset posisi': 'refresh',
   'Hapus rambut': 'trash',
+  'Hapus attachment': 'trash',
   Simpan: 'disk',
   Tersimpan: 'check',
 };
 const keepLabels = new Set([
+  'nbSetup',
+  'nbProbe',
+  'nbRun',
+  'nbSave',
+  'nbReveal',
+  'vehicleDebadge',
+  'vehicleStrobo',
+  'vehicleParts',
+  'nbMotionPlay',
+  'nbPartsAnalyze',
+  'nbPartsDonor',
   'open',
   'drop',
   'addImageSidebar',
@@ -127,6 +162,7 @@ const keepLabels = new Set([
   'mvOpen',
   'photoshoot',
   'addPng3d',
+  'stampUpdateText',
   'stickerBake',
   'stickerMove',
   'stickerRemove',
@@ -144,6 +180,28 @@ const keepLabels = new Set([
   'archiveExtractAll',
 ]);
 function icon(name) {
+  const paths = {
+    eyedropper: 'M14 4l6 6M12 6l6 6M13 9L4 18v3h3l9-9M15 5l2-2a2 2 0 013 3l-2 2',
+    'paint-bucket':
+      'M5 3l9 9M4 8l6-6 11 11-9 9L1 11l3-3M3 14h16M21 17s-2 2-2 3a2 2 0 004 0c0-1-2-3-2-3',
+    'center-layer': 'M12 2v5M12 17v5M2 12h5M17 12h5M8 8h8v8H8Z',
+  };
+  if (paths[name]) {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.classList.add('di-icon');
+    svg.dataset.icon = name;
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', '1.7');
+    svg.setAttribute('stroke-linecap', 'round');
+    svg.setAttribute('stroke-linejoin', 'round');
+    const path = document.createElementNS(svg.namespaceURI, 'path');
+    path.setAttribute('d', paths[name]);
+    svg.append(path);
+    return svg;
+  }
   const el = document.createElement('i');
   el.className = 'di-icon';
   el.setAttribute('aria-hidden', 'true');
@@ -155,7 +213,8 @@ function icon(name) {
 export function mountMinimalUi() {
   function decorate(el) {
     const text = el.textContent.trim().replace(/\s+/g, ' ');
-    let name = pages[el.dataset.page] || actions[el.id] || labels[text];
+    let name =
+      pages[el.dataset.page] || actions[el.id] || actions[el.dataset.editorAction] || labels[text];
     if (/AddHair$/.test(el.id)) name = 'plus';
     if (/AddHairTextures$/.test(el.id)) name = 'picture';
     if (/RemoveHair$|ClearHair$/.test(el.id)) name = 'trash';
@@ -183,7 +242,7 @@ export function mountMinimalUi() {
       el.dataset.autoLabel = 'true';
     }
     el.title = accessible;
-    el.querySelectorAll(':scope > svg').forEach((svg) => svg.remove());
+    el.querySelectorAll(':scope > svg, :scope > .di-icon').forEach((symbol) => symbol.remove());
     const badge = el.id === 'openUpdates' ? document.getElementById('updateBadge') : null;
     badge?.remove();
     const label = document.createElement('span');
@@ -217,7 +276,7 @@ export function mountMinimalUi() {
   }
   document
     .querySelectorAll('.ped-attachments')
-    .forEach((root) => hint(root, ':scope > p:not([id])', 'Tentang preview rambut'));
+    .forEach((root) => hint(root, ':scope > p:not([id])', 'Tentang attachment'));
   document
     .querySelectorAll('.material-preview')
     .forEach((root) => hint(root, ':scope > p', 'Tentang alpha'));

@@ -1,0 +1,27 @@
+# Integrated IDE in DITASHA
+
+This integration hosts the **Code - OSS server-web workbench inside the DITASHA window** using an isolated Electron WebContentsView. It does not launch the desktop VS Code window or reproduce its UI with Monaco controls. The existing Monaco editor remains available for quick edits and applying text changes to RPF archives.
+
+## Current validation status
+
+Windows builds bundle the MIT VSCodium Code - OSS Web Host. The exact version, official release URL, size and SHA-256 are pinned in `scripts/ide-runtime.json`. Packaging refuses an unexpected download. Microsoft VS Code Server binaries and Microsoft Marketplace extensions are not redistributed. Windows CI checks the real workbench before packaging, compares the packaged runtime files byte-for-byte, and starts the workbench again from the packaged resource directory. The dependency directory has its own explicit resource mapping because electron-builder skips a top-level node_modules directory in a resource mapping.
+
+## Bundled engine and builds
+
+Run `npm run prepare:ide` to download, verify and extract the pinned Windows engine. `npm run build:win` does this automatically and includes the engine and license notices in the portable application. For offline builds, set `DITASHA_IDE_ARCHIVE` to the exact pinned archive; its checksum is still verified. The IDE starts when you enter its workspace, while other workspaces keep it hidden without closing its tabs.
+
+The advanced **Choose engine** button accepts a different extracted MIT server-web runtime. A regular Microsoft `Code.exe` installation is not a server-web engine.
+
+The DITASHA navigation and toolbar remain visible around the IDE. Quick edits to archive files remain a separate workflow; they are not automatically written back from the IDE into an RPF.
+
+## Capabilities and limits
+
+- The local engine provides project Explorer, file search, tabs, terminal, the extension host, settings, tasks, Git integration and debugger infrastructure.
+- Install Git, compilers, language runtimes, language extensions and debug adapters as needed. They are not part of DITASHA itself.
+- Code - OSS is not Microsoft's branded VS Code distribution. Microsoft-only services, Settings Sync, Copilot, Remote extensions and Marketplace access are not promised. Compatible VSIX packages can be installed through the workbench. Do not bypass extension licensing restrictions.
+- No AI provider or API key is needed for the IDE integration.
+- Each engine starts on an OS-assigned loopback port with a random connection token. The IDE view has no DITASHA preload or renderer IPC bridge. Other origins and pop-up windows cannot navigate the DITASHA shell.
+- Engine processes stop when DITASHA closes. Save important files before closing; the embedded workbench's before-unload guard is respected.
+- IDE buffers and extensions use a separate persistent data directory. Engine selection does not overwrite the original game assets.
+
+Before release, test on Windows: resize and DPI changes; switch between all workspaces; open and save a project; search; terminal input/output and process cleanup; Git diff; install a compatible VSIX; breakpoint debugging with its installed runtime; unsaved-close cancellation; and restore after restart. Passing the application unit tests alone does not establish these capabilities end-to-end.

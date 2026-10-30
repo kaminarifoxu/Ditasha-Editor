@@ -1,6 +1,13 @@
+import { readPedRig, readPedWeights } from './ped-skin.js';
 import { decodeBC7 } from 'tex-decoder/build/esm/bc7.js';
-import { Matrix4, Quaternion, Vector3 } from 'three';
+import { Matrix3, Matrix4, Quaternion, Vector3 } from 'three';
 import { deflateRaw, Inflate } from 'pako';
+import { fragmentPose, fragmentChildren, assembleFragments } from './fragment-assembly.js';
+import {
+  MAX_DECODED_TEXTURE_BYTES,
+  MAX_YTD_RESOURCE_BYTES,
+  MAX_YTD_GRAPHICS_BYTES,
+} from './texture-memory.js';
 export const pageSize = (f) =>
   512 *
   2 ** (f & 15) *
@@ -14,7 +21,7 @@ export const pageSize = (f) =>
     ((f >>> 5) & 3) * 128 +
     ((f >>> 4) & 1) * 256);
 export class Resource {
-  constructor(buffer, version) {
+  constructor(buffer, version, maxBytes = 128 * 1024 * 1024) {
     this.header = new Uint8Array(buffer.slice(0, 16));
     const h = new DataView(buffer);
     if (h.getUint32(0, true) !== 0x37435352)
@@ -23,8 +30,10 @@ export class Resource {
       throw Error('Versi resource ini belum didukung. Gunakan GTA V Legacy.');
     this.sys = pageSize(h.getUint32(8, true));
     const expected = this.sys + pageSize(h.getUint32(12, true));
-    if (expected > 128 * 1024 * 1024 || expected < 64)
-      throw Error('Ukuran resource tidak didukung (maksimum 128 MB).');
+    if (expected > maxBytes || expected < 64)
+      throw Error(
+        'Ukuran resource tidak didukung (maksimum ' + Math.round(maxBytes / 1048576) + ' MB).',
+      );
     let parts = [],
       total = 0;
     let inf = new Inflate({ raw: true });
@@ -91,6 +100,50 @@ export function decodeTexture(r, p) {
   const out = new Uint8ClampedArray(w * h * 4),
     v = r.v;
   const name = r.str(r.ptr(p + 40)) || 'texture';
+  if ([0x31495441, 0x32495441].includes(format)) {
+    const channels = format === 0x32495441 ? 2 : 1;
+    const length = Math.ceil(w / 4) * Math.ceil(h / 4) * 8 * channels;
+    if (data + length > r.bytes.length)
+      throw Error('Compressed BC' + (channels === 2 ? '5' : '4') + ' texture buffer is truncated.');
+    let offset = data;
+    for (let by = 0; by < h; by += 4)
+      for (let bx = 0; bx < w; bx += 4) {
+        const values = [];
+        for (let channel = 0; channel < channels; channel++) {
+          const at = offset + channel * 8,
+            a = [r.bytes[at], r.bytes[at + 1]];
+          if (a[0] > a[1])
+            for (let i = 1; i <= 6; i++) a.push(Math.round(((7 - i) * a[0] + i * a[1]) / 7));
+          else {
+            for (let i = 1; i <= 4; i++) a.push(Math.round(((5 - i) * a[0] + i * a[1]) / 5));
+            a.push(0, 255);
+          }
+          let bits = 0n;
+          for (let i = 0; i < 6; i++) bits |= BigInt(r.bytes[at + 2 + i]) << BigInt(i * 8);
+          values.push(
+            Array.from({ length: 16 }, (_, i) => a[Number((bits >> BigInt(i * 3)) & 7n)]),
+          );
+        }
+        for (let i = 0; i < 16; i++) {
+          const x = bx + (i % 4),
+            y = by + (i >> 2);
+          if (x >= w || y >= h) continue;
+          const red = values[0][i],
+            green = channels === 2 ? values[1][i] : red;
+          out.set([red, green, channels === 2 ? 0 : red, 255], (y * w + x) * 4);
+        }
+        offset += 8 * channels;
+      }
+    return {
+      name,
+      w,
+      h,
+      p,
+      out,
+      format: channels === 2 ? 'BC5' : 'BC4',
+      mipLevels: r.bytes[p + 93] || 1,
+    };
+  }
   if ([28, 50, 51].includes(format)) {
     const channels = format === 51 ? 2 : 1;
     const stride = r.u16(p + 86) || w * channels;
@@ -205,33 +258,108 @@ export function decodeTexture(r, p) {
     mipLevels: r.bytes[p + 93] || 1,
   };
 }
-export function readYtd(buffer) {
-  const r = new Resource(buffer, 13);
-  let pixels = 0;
-  r.textures = r.list(48, r.u16(56)).map((p) => {
-    pixels += r.u16(p + 80) * r.u16(p + 82);
-    if (pixels > 33554432) throw Error('Decoded textures exceed 128 MB.');
-    return decodeTexture(r, p);
+function dictionaryTextures(r, dictionary = 0) {
+  const hashes = r.ptr(dictionary + 32),
+    hashCount = r.u16(dictionary + 40);
+  return r.list(dictionary + 48, r.u16(dictionary + 56)).map((p, i) => {
+    const nameHash = hashes !== null && i < hashCount ? r.u32(hashes + i * 4) : undefined;
+    return {
+      p,
+      nameHash,
+      name:
+        r.str(r.ptr(p + 40)) ||
+        (nameHash === undefined ? 'texture' : 'hash_' + nameHash.toString(16).padStart(8, '0')),
+    };
   });
-  if (!r.textures.length) throw Error('Tidak ada tekstur dalam YTD.');
+}
+// Metadata-only indexing does not allocate decoded pixel buffers.
+export function indexYtd(buffer) {
+  const r = new Resource(buffer, 13, MAX_YTD_RESOURCE_BYTES);
+  return dictionaryTextures(r).map(({ p, ...t }) => ({
+    ...t,
+    w: r.u16(p + 80),
+    h: r.u16(p + 82),
+  }));
+}
+export function readYtd(
+  buffer,
+  { maxDecodedBytes = MAX_DECODED_TEXTURE_BYTES, names, tolerateErrors = false } = {},
+) {
+  const r = new Resource(buffer, 13, MAX_YTD_RESOURCE_BYTES);
+  const entries = dictionaryTextures(r).filter((t) => !names || names.includes(t.name));
+  const bytes = entries.reduce((n, { p }) => n + r.u16(p + 80) * r.u16(p + 82) * 4, 0);
+  if (
+    !Number.isFinite(maxDecodedBytes) ||
+    maxDecodedBytes < 0 ||
+    bytes > Math.min(maxDecodedBytes, MAX_DECODED_TEXTURE_BYTES)
+  )
+    throw Error(
+      'Decoded texture limit: ' +
+        Math.floor(
+          Math.min(Math.max(0, maxDecodedBytes || 0), MAX_DECODED_TEXTURE_BYTES) / 1048576,
+        ) +
+        ' MB available. Close other textures or load only referenced maps.',
+    );
+  r.textures = [];
+  r.warnings = [];
+  for (const entry of entries) {
+    try {
+      r.textures.push({ ...decodeTexture(r, entry.p), name: entry.name, nameHash: entry.nameHash });
+    } catch (error) {
+      if (!tolerateErrors) throw error;
+      r.warnings.push(entry.name + ': ' + error.message);
+    }
+  }
+  if (!r.textures.length && !tolerateErrors) throw Error('Tidak ada tekstur dalam YTD.');
   return r;
 }
 export function writeYtd(r, textures) {
-  let total = textures.reduce((n, t) => n + Math.ceil((t.w * t.h * 4) / 16) * 16, 0);
-  if (total + r.sys > 128 * 1024 * 1024)
-    throw Error('Ekspor melebihi 128 MB. Kurangi ukuran kanvas.');
+  // Retain native compressed data/mipmaps for unchanged textures. Expanding the
+  // entire dictionary to RGBA can make a perfectly valid vehicle YTD unsavable.
+  const changed = [];
+  for (const t of textures) {
+    if (
+      !Number.isInteger(t.w) ||
+      !Number.isInteger(t.h) ||
+      t.w < 1 ||
+      t.h < 1 ||
+      t.w > 8192 ||
+      t.h > 8192 ||
+      t.w * t.h > 16777216 ||
+      t.out?.length !== t.w * t.h * 4
+    )
+      throw Error('Dimensi/data tekstur tidak valid.');
+    const original = decodeTexture(r, t.p);
+    let same = t.w === original.w && t.h === original.h;
+    if (same)
+      for (let i = 0; i < t.out.length; i++)
+        if (t.out[i] !== original.out[i]) {
+          same = false;
+          break;
+        }
+    if (same) continue;
+    changed.push(t);
+  }
+  let total =
+    r.bytes.length - r.sys + changed.reduce((n, t) => n + Math.ceil(t.out.length / 16) * 16, 0);
+  if (total > MAX_YTD_GRAPHICS_BYTES)
+    throw Error(
+      'Data grafis YTD setelah edit melebihi 512 MB. Pisahkan dictionary sebelum menambah tekstur besar.',
+    );
   const large = total > 16777216,
     unit = large ? 8192 : 512,
     exp = Math.max(0, Math.ceil(Math.log2(total / unit)));
   if (exp > 15) throw Error('Ekspor melebihi ukuran yang didukung.');
   const gfxSize = unit * 2 ** exp;
+  if (r.sys + gfxSize > MAX_YTD_RESOURCE_BYTES)
+    throw Error('Resource YTD setelah edit melebihi 768 MB.');
   const bytes = new Uint8Array(r.sys + gfxSize);
-  bytes.set(r.bytes.subarray(0, r.sys));
+  bytes.set(r.bytes);
   const v = new DataView(bytes.buffer);
   const pages = r.ptr(8);
   if (pages !== null && pages < r.sys - 16) v.setUint8(pages + 9, 1);
-  let offset = 0;
-  for (const t of textures) {
+  let offset = r.bytes.length - r.sys;
+  for (const t of changed) {
     v.setUint16(t.p + 80, t.w, true);
     v.setUint16(t.p + 82, t.h, true);
     v.setUint16(t.p + 84, 1, true);
@@ -287,7 +415,15 @@ function nameHash(name) {
   h ^= h >>> 11;
   return (h + (h << 15)) >>> 0;
 }
-function shaderInfo(r, d) {
+const shaderNumericComponents = new Map(
+  [
+    ['bumpiness', 1],
+    ['specMapIntMask', 3],
+    ['specularIntensityMult', 1],
+    ['specularFalloffMult', 1],
+  ].map(([name, count]) => [nameHash(name), count]),
+);
+function shaderInfo(r, d, decodeEmbedded = true) {
   const group = r.ptr(d + 16),
     bindings = [],
     embeddedTextures = [],
@@ -296,11 +432,15 @@ function shaderInfo(r, d) {
   const dictionary = r.ptr(group + 8);
   if (dictionary !== null) {
     let pixels = 0;
-    for (const p of r.list(dictionary + 48, r.u16(dictionary + 56))) {
+    for (const { p, name, nameHash } of dictionaryTextures(r, dictionary)) {
+      if (!decodeEmbedded) {
+        embeddedTextures.push({ name, nameHash });
+        continue;
+      }
       pixels += r.u16(p + 80) * r.u16(p + 82);
       if (pixels > 33554432) throw Error('Embedded textures exceed 128 MB.');
       try {
-        embeddedTextures.push(decodeTexture(r, p));
+        embeddedTextures.push({ ...decodeTexture(r, p), name, nameHash });
       } catch (e) {
         warnings.push(e.message);
       }
@@ -319,15 +459,28 @@ function shaderInfo(r, d) {
     const params = r.ptr(shader),
       count = r.bytes[shader + 16];
     if (params === null || !count) {
-      bindings.push({});
+      bindings.push({ shaderHash: r.u32(shader + 8), shaderFileHash: r.u32(shader + 24) });
       continue;
     }
     let hashes = params + count * 16;
     for (let i = 0; i < count; i++) hashes += r.bytes[params + i * 16] * 16;
-    const refs = [];
+    const refs = [],
+      shaderParameters = [];
     for (let i = 0; i < count; i++) {
-      const p = params + i * 16;
-      if (r.bytes[p] !== 0) continue;
+      const p = params + i * 16,
+        hash = r.u32(hashes + i * 4);
+      if (r.bytes[p] !== 0) {
+        const components = shaderNumericComponents.get(hash);
+        if (components) {
+          const data = r.ptr(p + 8);
+          if (data !== null) {
+            const values = Array.from({ length: components }, (_, k) => r.f32(data + k * 4));
+            if (!values.every(Number.isFinite)) throw Error('Invalid non-finite shader parameter.');
+            shaderParameters.push({ hash, values });
+          }
+        }
+        continue;
+      }
       const texture = r.ptr(p + 8);
       if (texture !== null)
         refs.push({ hash: r.u32(hashes + i * 4), name: r.str(r.ptr(texture + 40)) });
@@ -335,11 +488,15 @@ function shaderInfo(r, d) {
     const diffuse =
       refs.find((t) => t.hash === nameHash('DiffuseSampler')) ||
       refs.find((t) => t.hash === nameHash('TextureSampler')) ||
+      ((r.u32(shader + 8) === nameHash('vehicle_licenseplate') ||
+        r.u32(shader + 24) === nameHash('vehicle_licenseplate.sps')) &&
+        refs.find((t) => t.hash === nameHash('PlateBgSampler'))) ||
       refs.find((t) => t.hash === nameHash('DiffuseSampler2'));
     bindings.push({
       diffuseTexture: diffuse?.name || null,
       textureNames: refs.map((t) => t.name).filter(Boolean),
       textureSamplers: refs,
+      shaderParameters,
       shaderHash: r.u32(shader + 8),
       shaderFileHash: r.u32(shader + 24),
     });
@@ -388,16 +545,34 @@ function rigidGeometry(data, matrix) {
   for (let i = 0; i < positions.length; i += 3) {
     // Undo GTA -> Three basis, transform in GTA coordinates, then restore basis.
     point.set(positions[i], -positions[i + 2], positions[i + 1]).applyMatrix4(matrix);
+    if (
+      ![point.x, point.y, point.z].every((v) => Number.isFinite(v) && Math.abs(v) <= 3.402823466e38)
+    )
+      throw Error('Invalid transformed vertex position.');
     positions.set([point.x, point.z, -point.y], i);
   }
-  return { ...data, positions };
+  let normals = data.normals;
+  if (normals) {
+    normals = normals.slice();
+    const normalMatrix = new Matrix3().getNormalMatrix(matrix);
+    for (let i = 0; i < normals.length; i += 3) {
+      point
+        .set(normals[i], -normals[i + 2], normals[i + 1])
+        .applyMatrix3(normalMatrix)
+        .normalize();
+      normals.set([point.x, point.z, -point.y], i);
+    }
+  }
+  return { ...data, positions, normals };
 }
 
 function readDrawables(r, drawables, metadata = new Map()) {
   const cache = new Map(),
     shaderCache = new Map();
   let vertices = 0,
-    indexTotal = 0;
+    indexTotal = 0,
+    instanceVertices = 0,
+    instanceIndices = 0;
   function geometry(g) {
     if (cache.has(g)) return cache.get(g);
     const vb = r.ptr(g + 24),
@@ -407,6 +582,12 @@ function readDrawables(r, drawables, metadata = new Map()) {
       count = r.u32(vb + 24),
       data = r.ptr(vb + 16) ?? r.ptr(vb + 32),
       decl = r.ptr(vb + 48);
+    // Empty native geometry placeholders occur in otherwise readable vehicles.
+    // Nonempty/mismatched buffers still go through every validation below.
+    if (count === 0 && r.u32(ib + 8) === 0) {
+      cache.set(g, null);
+      return null;
+    }
     if (
       !stride ||
       !count ||
@@ -443,11 +624,29 @@ function readDrawables(r, drawables, metadata = new Map()) {
     };
     const positions = new Float32Array(count * 3),
       uvs = offsets[6] ? new Float32Array(count * 2) : null,
-      uvs2 = offsets[7] ? new Float32Array(count * 2) : null;
+      uvs2 = offsets[7] ? new Float32Array(count * 2) : null,
+      normals =
+        offsets[3] && [3, 6, 7, 10].includes(offsets[3].type) ? new Float32Array(count * 3) : null;
+    let normalsValid = !!normals;
     for (let i = 0; i < count; i++) {
       positions.set([get(i, 0, 0), get(i, 0, 2), -get(i, 0, 1)], i * 3);
       if (uvs) uvs.set([get(i, 6, 0), get(i, 6, 1)], i * 2);
       if (uvs2) uvs2.set([get(i, 7, 0), get(i, 7, 1)], i * 2);
+      if (normals)
+        try {
+          const component = (k) =>
+            offsets[3].type === 10
+              ? Math.max(-1, r.v.getInt8(data + i * stride + offsets[3].offset + k) / 127)
+              : get(i, 3, k);
+          const x = component(0),
+            y = component(1),
+            z = component(2),
+            length = Math.hypot(x, y, z);
+          if (!Number.isFinite(length) || length < 1e-8) normalsValid = false;
+          else normals.set([x / length, z / length, -y / length], i * 3);
+        } catch {
+          normalsValid = false;
+        }
     }
     const ic = r.u32(ib + 8),
       ip = r.ptr(ib + 16);
@@ -466,15 +665,42 @@ function readDrawables(r, drawables, metadata = new Map()) {
       indices[i] = r.u16(ip + i * 2);
       if (indices[i] >= count) throw Error('Index model tidak valid.');
     }
-    const result = { positions, uvs, uvs2, indices, sourceGeometry: g, indexOffset: ip };
+    let skin = null,
+      skinWarning = '';
+    try {
+      skin = readPedWeights(r, g, data, count, stride, offsets);
+    } catch (e) {
+      skinWarning = e.message;
+    }
+    const result = {
+      skin,
+      skinWarning,
+      positions,
+      normals: normalsValid ? normals : null,
+      uvs,
+      uvs2,
+      indices,
+      sourceGeometry: g,
+      indexOffset: ip,
+    };
     cache.set(g, result);
     return result;
   }
   return drawables
-    .map((d, di) => {
-      const details = metadata.get(d) || {};
+    .map((entry, di) => {
+      const d = typeof entry === 'number' ? entry : entry.pointer;
+      const details = typeof entry === 'number' ? metadata.get(d) || {} : entry;
       try {
-        const bones = drawableBones(r, d);
+        const ownBones = drawableBones(r, d);
+        let rig = [],
+          rigWarning = '';
+        try {
+          rig = readPedRig(r, d);
+        } catch (e) {
+          rigWarning = e.message;
+        }
+        const bones =
+          details.boneMatrices || (ownBones.length ? ownBones : details.inheritedBones || []);
         const lods = [],
           shaderDrawable = r.ptr(d + 16) === null ? (details.shaderParent ?? d) : d,
           key = r.ptr(shaderDrawable + 16);
@@ -498,10 +724,14 @@ function readDrawables(r, drawables, metadata = new Map()) {
               if (g === null) continue;
               const data = geometry(g);
               if (!data) continue;
+              instanceVertices += data.positions.length / 3;
+              instanceIndices += data.indices.length;
+              if (instanceVertices > 2000000 || instanceIndices > 6000000)
+                throw Error('Assembled model exceeds 2 million vertices or 6 million indices.');
               const shaderIndex = mapping === null ? 0 : r.u16(mapping + gi * 2),
                 binding = info.bindings[shaderIndex];
               geometries.push({
-                ...rigidGeometry(data, rigid ? bones[boneIndex] : null),
+                ...rigidGeometry(data, rigid ? details.transform || bones[boneIndex] : null),
                 boneIndex,
                 name: 'Part ' + (mi + 1) + ' / Mesh ' + (gi + 1),
                 part: mi,
@@ -511,6 +741,7 @@ function readDrawables(r, drawables, metadata = new Map()) {
                 diffuseTexture: binding?.diffuseTexture || null,
                 textureNames: binding?.textureNames || [],
                 textureSamplers: binding?.textureSamplers || [],
+                shaderParameters: binding?.shaderParameters || [],
               });
             }
           }
@@ -519,11 +750,20 @@ function readDrawables(r, drawables, metadata = new Map()) {
         }
         if (!lods.length) return null;
         return {
+          rig,
+          rigWarning,
           name: details.name || 'Drawable ' + (di + 1),
           geometries: lods[0].geometries,
           lods,
           ...info,
           fragmentChild: details.fragmentChild || false,
+          fragmentState: details.fragmentState,
+          fragmentIndex: details.fragmentIndex,
+          fragmentBoneTag: details.fragmentBoneTag,
+          sourceDrawable: d,
+          ...(details.componentSlot
+            ? { componentSlot: details.componentSlot, drawableHash: details.drawableHash }
+            : {}),
         };
       } catch (e) {
         if (!details.fragmentChild) throw e;
@@ -535,9 +775,67 @@ function readDrawables(r, drawables, metadata = new Map()) {
 }
 
 // Legacy resource layouts: CodeWalker DrawableBase / FragType.
+let pedDrawableNames;
+function componentDrawableNames() {
+  if (pedDrawableNames) return pedDrawableNames;
+  pedDrawableNames = new Map();
+  for (const slot of [
+    'head',
+    'hair',
+    'uppr',
+    'lowr',
+    'hand',
+    'feet',
+    'teef',
+    'accs',
+    'task',
+    'decl',
+    'jbib',
+  ])
+    for (let i = 0; i < 256; i++)
+      for (const suffix of ['u', 'r']) {
+        const name = slot + '_' + String(i).padStart(3, '0') + '_' + suffix;
+        pedDrawableNames.set(nameHash(name), { name, componentSlot: slot });
+      }
+  return pedDrawableNames;
+}
 export function readYdd(buffer) {
   const r = new Resource(buffer, 165);
-  return requireGeometry(readDrawables(r, r.list(48, r.u16(56))));
+  const pointers = r.list(48, r.u16(56)),
+    metadata = new Map();
+  const hashes = r.ptr(32),
+    count = r.u16(40);
+  if (hashes !== null && count === pointers.length && hashes + count * 4 <= r.sys) {
+    const names = componentDrawableNames();
+    pointers.forEach((p, i) => {
+      const hash = r.u32(hashes + i * 4),
+        component = names.get(hash);
+      if (component) metadata.set(p, { ...component, drawableHash: hash });
+    });
+  }
+  return requireGeometry(readDrawables(r, pointers, metadata));
+}
+// Naming/pairing hints only: never decode geometry or texture pixels for a bulk import.
+export function clothingAssetHints(buffer, extension) {
+  if (extension === 'ytd') {
+    const entries = indexYtd(buffer);
+    return {
+      names: entries.map((t) => t.name),
+      keys: entries.flatMap((t) => [
+        nameHash(t.name),
+        ...(t.nameHash === undefined ? [] : [t.nameHash]),
+      ]),
+    };
+  }
+  if (extension !== 'ydd') throw Error('Hints memerlukan YDD atau YTD.');
+  const r = new Resource(buffer, 165),
+    names = [];
+  for (const drawable of r.list(48, r.u16(56))) {
+    const info = shaderInfo(r, drawable, false);
+    for (const binding of info.bindings)
+      if (binding.diffuseTexture) names.push(binding.diffuseTexture);
+  }
+  return { names: [...new Set(names)], keys: [...new Set(names.map(nameHash))] };
 }
 export function readYdr(buffer) {
   const r = new Resource(buffer, 165);
@@ -545,40 +843,38 @@ export function readYdr(buffer) {
 }
 export function readYft(buffer) {
   const r = new Resource(buffer, 162),
-    offsets = [],
-    metadata = new Map();
+    offsets = [];
   const main = r.ptr(48);
   if (main !== null) offsets.push(main);
   const count = r.u32(72);
   if (count) offsets.push(...r.list(56, count));
   const cloth = r.ptr(248);
   if (cloth !== null) offsets.push(cloth);
-  // FragType.PhysicsLODGroup (0xF0), LOD1 (0x10), Children (0xD0/0x11D).
-  // Pristine and damaged child drawables are separate inspection choices, not stacked.
-  const physics = r.ptr(240),
-    physicsLod = physics === null ? null : r.ptr(physics + 16);
-  if (physicsLod !== null) {
-    const children = r.list(physicsLod + 208, r.bytes[physicsLod + 285]);
-    children.forEach((child, index) => {
-      for (const [offset, label] of [
-        [160, 'Pristine'],
-        [168, 'Damaged'],
-      ]) {
-        const d = r.ptr(child + offset);
-        if (d === null || offsets.includes(d)) continue;
-        offsets.push(d);
-        metadata.set(d, {
-          name: `Fragment ${index + 1} · bone ${r.u16(child + 18)} · ${label}`,
-          shaderParent: main,
-          fragmentChild: true,
-        });
-      }
-    });
+  let inheritedBones = main === null ? [] : drawableBones(r, main);
+  let children = [];
+  try {
+    const pose = fragmentPose(r);
+    if (pose?.length) inheritedBones = inheritedBones.map((bone, i) => pose[i] || bone);
+  } catch (e) {
+    (r.fragmentWarnings ||= []).push('Fragment pose: ' + e.message);
   }
-  if (!offsets.length) throw Error('YFT tidak memiliki drawable yang dapat ditampilkan.');
-  const result = requireGeometry(readDrawables(r, [...new Set(offsets)], metadata));
-  if (r.fragmentWarnings?.length)
+  try {
+    children = fragmentChildren(r, main, inheritedBones);
+  } catch (e) {
+    (r.fragmentWarnings ||= []).push('Fragment assembly: ' + e.message);
+  }
+  const entries = [...new Set(offsets)].map((pointer) => ({
+    pointer,
+    boneMatrices: pointer === main ? inheritedBones : undefined,
+  }));
+  entries.push(...children);
+  if (!entries.length) throw Error('YFT tidak memiliki drawable yang dapat ditampilkan.');
+  const result = requireGeometry(readDrawables(r, entries));
+  assembleFragments(result, main);
+  if (r.fragmentWarnings?.length) {
+    result[0].geometryWarnings = [...r.fragmentWarnings];
     result[0].warnings = [...result[0].warnings, ...r.fragmentWarnings];
+  }
   return result;
 }
 

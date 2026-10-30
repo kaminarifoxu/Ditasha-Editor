@@ -1,0 +1,74 @@
+[
+  {
+    "id": "photocraft",
+    "version": "v0.9.0",
+    "url": "https://github.com/storytold/photocraft/releases/download/v0.9.0/photocraft-web-0.9.0.zip",
+    "sha256": "b3fa5ab6a9d32bc5ff7dfdde31939a2337471a196a2e70f1ff961a61b1bb02e6",
+    "bytes": 11467035
+  },
+  {
+    "id": "vectorcraft",
+    "version": "v0.11.0",
+    "url": "https://github.com/storytold/vectorcraft/releases/download/v0.11.0/vectorcraft-web-0.11.0.zip",
+    "sha256": "b14014b9f65d5649bd52298b2c34954ddaa2fddf4f6b81e0b4289c31f4e31265",
+    "bytes": 24687078
+  },
+  {
+    "id": "filmcraft",
+    "version": "v0.8.0",
+    "url": "https://github.com/storytold/filmcraft/releases/download/v0.8.0/filmcraft-web-0.8.0.zip",
+    "sha256": "6b13956fc741522427663517b1e483d6e0777891063fed02b1bd94bfada8a6c7",
+    "bytes": 13326588
+  },
+  {
+    "id": "lightcraft",
+    "version": "v0.8.0",
+    "url": "https://github.com/storytold/lightcraft/releases/download/v0.8.0/lightcraft-web-0.8.0.zip",
+    "sha256": "bfabb7edecfc8723b9d698ad2b6fa32e99fcdf977628a68b2884c4b06c6f017a",
+    "bytes": 66660218
+  },
+  {
+    "id": "effectcraft",
+    "version": "v0.10.0",
+    "url": "https://github.com/storytold/effectcraft/releases/download/v0.10.0/effectcraft-web-0.10.0.zip",
+    "sha256": "b922abeda2420391a7fd887f53ebae6948730e63720bad6a6eb3dc48dc1b46a8",
+    "bytes": 19031497
+  },
+  {
+    "id": "pdfcraft",
+    "version": "v0.8.0",
+    "url": "https://github.com/storytold/pdfcraft/releases/download/v0.8.0/pdfcraft-web-0.8.0.zip",
+    "sha256": "1f9ea51f3c1f71cc719c12814e10f236912fa41ef54a7782c7dd4a619d9eee9a",
+    "bytes": 14113243
+  },
+  {
+    "id": "wordcraft",
+    "version": "v0.7.0",
+    "url": "https://github.com/storytold/wordcraft/releases/download/v0.7.0/wordcraft-web-0.7.0.zip",
+    "sha256": "98df7c68a0ac788a9ac0f531fd34c31ab7d89965abb4935f57168d287dab3189",
+    "bytes": 15009187
+  },
+  {
+    "id": "gridcraft",
+    "version": "v0.7.0",
+    "url": "https://github.com/storytold/gridcraft/releases/download/v0.7.0/gridcraft-web-0.7.0.zip",
+    "sha256": "ad10af2baf9c7ed4ccbd81e32b37698f5075cdf4f26b726fee7fc7938a3a8d27",
+    "bytes": 7113559
+  },
+  {
+    "id": "deckcraft",
+    "version": "v0.7.0",
+    "url": "https://github.com/storytold/deckcraft/releases/download/v0.7.0/deckcraft-web-0.7.0.zip",
+    "sha256": "4ab91994048c096fa356b7246c31098474d978ecd572e5b252dd825a287d1c40",
+    "bytes": 9385879
+  },
+  {
+    "id": "opencut",
+    "version": "v0.1.0",
+    "build": "ditasha-local-2",
+    "commit": "cf5e79e919144200294fb9fed22a222592a0aeea",
+    "url": "https://codeload.github.com/opencut-app/opencut-classic/zip/cf5e79e919144200294fb9fed22a222592a0aeea",
+    "sha256": "c0231fcaa96865787a39d10cdd500cf30a860d441c6d2831acc86f33c04c3a26",
+    "bytes": 4609813
+  }
+]

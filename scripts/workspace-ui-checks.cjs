@@ -26,6 +26,7 @@ module.exports = async function checkWorkspaceShell() {
       message: 'Isi Application ID.',
     }),
     workspace: async (p) => calls.push({ page: p }),
+    project: async (name) => calls.push({ project: name }),
     configure: async (value) => {
       calls.push(value);
       return {
@@ -56,6 +57,15 @@ module.exports = async function checkWorkspaceShell() {
     calls.some((c) => c.applicationId === '123456789012345678' && c.enabled),
     'Discord preferences were not saved',
   );
+  $('discordProjectName').value = 'GANOMABI Ped';
+  $('discordProjectName').dispatchEvent(new Event('change'));
+  await sleep(30);
+  assert(
+    calls.some((c) => c.project === 'GANOMABI Ped'),
+    'Project name not sent to Discord',
+  );
+  $('discordProjectName').value = '';
+  $('discordProjectName').dispatchEvent(new Event('change'));
   $('discordEnabled').checked = false;
   $('discordSave').click();
   await sleep(50);

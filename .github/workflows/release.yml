@@ -28,7 +28,18 @@ jobs:
         run: npm run build:win
       - name: Test GTA V viewers, explorer, archive tools and converter
         run: npx electron scripts/smoke-tools.cjs
-        timeout-minutes: 3
+        timeout-minutes: 5
+      - name: Install and reinstall Windows Setup with preserved user data
+        run: node scripts/smoke-setup.cjs
+        timeout-minutes: 8
+      - name: Test real embedded IDE engine
+        shell: pwsh
+        run: |
+          node scripts/check-packaged-ide.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Packaged engine files differ.' }
+          $env:DITASHA_IDE_RUNTIME = Join-Path $env:GITHUB_WORKSPACE 'release/win-unpacked/resources/ide-runtime'
+          npx electron scripts/smoke-embedded-ide.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Embedded IDE check failed.' }
       - name: Test real portable download and restart
         env:
           DITASHA_CI_GITHUB_TOKEN: ${{ github.token }}
@@ -42,6 +53,7 @@ jobs:
           name: DITASHA-Editor-Windows-x64
           path: |
             release/DITASHA-Editor.exe
+            release/DITASHA-Setup.exe
             release/*.sha256
       - name: Store UI screenshots
         if: always()
@@ -65,5 +77,5 @@ jobs:
             exit 0
           }
           $exe = "release/DITASHA-Editor.exe"
-          gh release create $tag $exe "$exe.sha256" --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "DITASHA Editor $version" --notes-file docs/RELEASE_NOTES.md
+          gh release create $tag $exe "$exe.sha256" "release/DITASHA-Setup.exe" "release/DITASHA-Setup.exe.sha256" --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "DITASHA Editor $version" --notes-file docs/RELEASE_NOTES.md
           if ($LASTEXITCODE -ne 0) { throw 'GitHub release publication failed.' }

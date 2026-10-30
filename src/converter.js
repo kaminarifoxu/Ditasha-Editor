@@ -1,3 +1,4 @@
+import { MAX_YTD_INPUT_BYTES } from './texture-memory.js';
 import { decodeResource } from './resource-client.js';
 import * as THREE from 'three';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
@@ -23,10 +24,10 @@ export function accepts(mode, name) {
         : ['png', 'jpg', 'jpeg', 'webp', 'dds', 'ytd']
   ).includes(ext);
 }
-export async function imageData(file) {
+export async function imageData(file, options = {}) {
   const ext = file.name.split('.').at(-1).toLowerCase();
   if (ext === 'dds') return [readDds(await file.arrayBuffer(), file.name)];
-  if (ext === 'ytd') return await decodeResource('textures', await file.arrayBuffer());
+  if (ext === 'ytd') return await decodeResource('textures', await file.arrayBuffer(), options);
   const bitmap = await createImageBitmap(file);
   try {
     if (bitmap.width * bitmap.height > 16777216) throw Error('Gambar maksimum 16 megapixel.');
@@ -65,7 +66,8 @@ async function picture(t, mode) {
   return new Uint8Array(await blob.arrayBuffer());
 }
 export async function convertFile(file, mode) {
-  if (file.size > 64 * 1024 * 1024) throw Error('File maksimum 64 MB.');
+  if (file.size > (/\.ytd$/i.test(file.name) ? MAX_YTD_INPUT_BYTES : 64 * 1024 ** 2))
+    throw Error('YTD maksimum 256 MB; format lain 64 MB.');
   if (!accepts(mode, file.name)) throw Error('Format input tidak sesuai konversi.');
   const base = file.name.replace(/\.[^.]+$/, '');
   if (mode === 'glb') {
@@ -87,7 +89,8 @@ export async function convertFile(file, mode) {
           geo.setAttribute('position', new THREE.BufferAttribute(g.positions, 3));
           if (g.uvs) geo.setAttribute('uv', new THREE.BufferAttribute(g.uvs, 2));
           geo.setIndex(new THREE.BufferAttribute(g.indices, 1));
-          geo.computeVertexNormals();
+          if (g.normals) geo.setAttribute('normal', new THREE.BufferAttribute(g.normals, 3));
+          else geo.computeVertexNormals();
           group.add(
             new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ side: THREE.DoubleSide })),
           );

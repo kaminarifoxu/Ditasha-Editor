@@ -83,3 +83,20 @@ test('YFT masking retains fragment layout and inherited materials after re-openi
     parsed.map((d) => d.geometries[0].diffuseTexture),
   );
 });
+
+test('Texture worker checks the remaining decoded budget before allocating a dictionary', () => {
+  const bytes = createYtd([
+    { name: 'hair_diff_001_a_uni', w: 4, h: 4, out: new Uint8Array(64) },
+    { name: 'hair_normal', w: 4, h: 4, out: new Uint8Array(64) },
+  ]).buffer;
+  assert.equal(performResourceJob('textures', bytes, { maxDecodedBytes: 128 }).length, 2);
+  assert.throws(
+    () => performResourceJob('textures', bytes, { maxDecodedBytes: 127 }),
+    /Decoded texture limit/,
+  );
+  assert.throws(
+    () => performResourceJob('textures', bytes, { maxDecodedBytes: 0 }),
+    /Decoded texture limit/,
+  );
+  assert.equal(performResourceJob('textures', bytes).length, 2);
+});

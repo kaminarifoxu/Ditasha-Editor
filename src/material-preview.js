@@ -9,6 +9,16 @@ export function previewAlpha(settings, textured) {
   };
 }
 
+export function defaultPreviewSettings(material) {
+  return {
+    mode: 'cutout',
+    cutoff: 0.25,
+    removeBlack: false,
+    ...material?.userData.previewAlphaDefault,
+    automatic: true,
+  };
+}
+
 // Preview settings and colour-keyed maps never modify editor pixels or export data.
 export function mountMaterialPreview({ container, prefix, onChange }) {
   const root = document.createElement('details');
@@ -22,7 +32,7 @@ export function mountMaterialPreview({ container, prefix, onChange }) {
     settings = new Map(),
     keyedMaps = new Set(),
     selectedKey = 'all';
-  const defaults = () => ({ mode: 'cutout', cutoff: 0.25, removeBlack: false });
+  const defaults = defaultPreviewSettings;
   function selected() {
     return $('Part').value === 'all' ? items : items.filter((item) => item.key === $('Part').value);
   }
@@ -57,12 +67,22 @@ export function mountMaterialPreview({ container, prefix, onChange }) {
           canvas.width = image.width;
           canvas.height = image.height;
           const ctx = canvas.getContext('2d');
-          ctx.drawImage(image, 0, 0);
+          if (image.data)
+            ctx.putImageData(
+              new ImageData(new Uint8ClampedArray(image.data), image.width, image.height),
+              0,
+              0,
+            );
+          else ctx.drawImage(image, 0, 0);
           const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
           pixels.data.set(hairTexturePixels({ out: pixels.data }, true));
           ctx.putImageData(pixels, 0, 0);
           map = source.clone();
-          map.source = new THREE.Source(canvas);
+          map.source = new THREE.Source(
+            source.isDataTexture
+              ? { data: new Uint8Array(pixels.data), width: image.width, height: image.height }
+              : canvas,
+          );
           map.needsUpdate = true;
           keyedMaps.add(map);
           cache.set(source, map);
@@ -75,7 +95,7 @@ export function mountMaterialPreview({ container, prefix, onChange }) {
     onChange();
   }
   function change(update) {
-    for (const item of selected()) Object.assign(item.settings, update);
+    for (const item of selected()) Object.assign(item.settings, update, { automatic: false });
     apply();
     refresh();
   }
@@ -93,7 +113,11 @@ export function mountMaterialPreview({ container, prefix, onChange }) {
     change({ cutoff: value });
   };
   $('Black').onchange = () => change({ removeBlack: $('Black').checked });
-  $('Reset').onclick = () => change(defaults());
+  $('Reset').onclick = () => {
+    for (const item of selected()) Object.assign(item.settings, defaults(item.material));
+    apply();
+    refresh();
+  };
   function clear(reset = false) {
     releaseMaps();
     items = [];
@@ -116,7 +140,8 @@ export function mountMaterialPreview({ container, prefix, onChange }) {
         const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
         materials.forEach((material, slot) => {
           const key = (mesh.name || 'Mesh ' + (index + 1)) + ' · ' + slot;
-          if (!settings.has(key)) settings.set(key, defaults());
+          if (!settings.has(key) || settings.get(key).automatic)
+            settings.set(key, defaults(material));
           items.push({ key, material, source: material.map, settings: settings.get(key) });
         });
       });

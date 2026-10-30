@@ -9,6 +9,7 @@ export function mountVehicleWorkshop({
   camera,
   getMeshes,
   getRoot,
+  getAttachments = () => null,
   getSource,
   onSelect,
   getHiddenGeometry,
@@ -22,7 +23,7 @@ export function mountVehicleWorkshop({
   root.id = 'vehicleWorkshop';
   root.hidden = true;
   root.className = 'vehicle-workshop';
-  root.innerHTML = `<summary>Vehicle workshop · offline</summary><p class="muted">Pilih mesh atau klik model. Sembunyikan badge pada daftar Visible parts. Transform part dan lightbar masuk ke ekspor GLB/proyek; belum ditulis sebagai part/siren YFT.</p><label>Mesh terpilih<select id="vwMesh"></select></label><button id="vwPick">Pilih mesh di 3D</button><button id="vwBadges">Cari kandidat badge</button><p id="vwBadgeStatus" class="muted"></p><details class="workshop-section"><summary>Transform mesh</summary><div id="vwTransform" class="studio-fields"></div><button id="vwResetMesh">Reset transform mesh</button></details><details id="vwLightSection" class="workshop-section"><summary>Lightbar preview</summary><button id="vwAddLight">Tambah lightbar preview</button><button id="vwRemoveLight">Hapus lightbar</button><div id="vwLightTransform" class="studio-fields"></div><label>Warna kiri<input type="color" id="vwLeftColor" value="#dd1535"></label><label>Warna kanan<input type="color" id="vwRightColor" value="#206cff"></label></details><details class="workshop-section"><summary>Ekspor &amp; proyek</summary><button id="vwNative">Ekspor resource · mesh tersembunyi</button><p class="muted">Ekspor native hanya menonaktifkan triangle mesh utama yang disembunyikan. Bone, collision dan rig tidak dihapus. Berlaku untuk LOD yang dipilih, bukan pencocokan otomatis semua LOD. Simpan sebagai file baru dan uji di game.</p><button id="vwGlb">Ekspor scene GLB</button><button id="vwSave">Simpan proyek kendaraan</button><button id="vwOpen">Buka proyek kendaraan</button><input id="vwProjectInput" type="file" accept=".json" hidden><p id="vwStatus" role="status" class="muted"></p></details>`;
+  root.innerHTML = `<summary>Vehicle workshop · offline</summary><p class="muted">Pilih mesh atau klik model. Sembunyikan badge pada daftar Visible parts. Transform part dan lightbar masuk ke ekspor GLB/proyek; belum ditulis sebagai part/siren YFT.</p><label>Mesh terpilih<select id="vwMesh"></select></label><div class="viewer-button-row"><button id="vwPick">Pilih mesh di 3D</button><button id="vwHideSelected">Hapus / sembunyikan part</button><button id="vwRestoreSelected">Pulihkan part</button></div><button id="vwBadges">Cari kandidat badge</button><p id="vwBadgeStatus" class="muted"></p><details class="workshop-section"><summary>Transform mesh</summary><div id="vwTransform" class="studio-fields"></div><button id="vwResetMesh">Reset transform mesh</button></details><details id="vwLightSection" class="workshop-section"><summary>Lightbar preview</summary><button id="vwAddLight">Tambah lightbar preview</button><button id="vwRemoveLight">Hapus lightbar</button><div id="vwLightTransform" class="studio-fields"></div><label>Warna kiri<input type="color" id="vwLeftColor" value="#dd1535"></label><label>Warna kanan<input type="color" id="vwRightColor" value="#206cff"></label></details><details class="workshop-section"><summary>Ekspor &amp; proyek</summary><button id="vwNative">Ekspor resource · mesh tersembunyi</button><p class="muted">Ekspor native hanya menonaktifkan triangle mesh utama yang disembunyikan. Bone, collision dan rig tidak dihapus. Berlaku untuk LOD yang dipilih, bukan pencocokan otomatis semua LOD. Simpan sebagai file baru dan uji di game.</p><button id="vwGlb">Ekspor scene GLB</button><button id="vwSave">Simpan proyek kendaraan</button><button id="vwOpen">Buka proyek kendaraan</button><input id="vwProjectInput" type="file" accept=".json" hidden><p id="vwStatus" role="status" class="muted"></p></details>`;
   container.querySelector('#mvParts').after(root);
   const $ = (id) => root.querySelector('#' + id),
     transforms = new Map(),
@@ -42,11 +43,14 @@ export function mountVehicleWorkshop({
     ry: THREE.MathUtils.radToDeg(mesh.rotation.y),
     rz: THREE.MathUtils.radToDeg(mesh.rotation.z),
     scale: mesh.scale.x,
+    sx: mesh.scale.x,
+    sy: mesh.scale.y,
+    sz: mesh.scale.z,
   });
   const apply = (mesh, t) => {
     mesh.position.set(t.x, t.y, t.z);
     mesh.rotation.set(...['rx', 'ry', 'rz'].map((k) => THREE.MathUtils.degToRad(t[k])));
-    mesh.scale.setScalar(t.scale);
+    mesh.scale.set(t.sx ?? t.scale, t.sy ?? t.scale, t.sz ?? t.scale);
   };
   const valid = (t) =>
     t &&
@@ -54,7 +58,10 @@ export function mountVehicleWorkshop({
       (k) => Number.isFinite(t[k]) && Math.abs(t[k]) < 10000,
     ) &&
     t.scale >= 0.001 &&
-    t.scale <= 100;
+    t.scale <= 100 &&
+    ['sx', 'sy', 'sz'].every(
+      (k) => t[k] === undefined || (Number.isFinite(t[k]) && t[k] >= 0.001 && t[k] <= 100),
+    );
   const fields = (host, prefix, change) => {
     for (const [key, label] of [
       ['x', 'X'],
@@ -158,6 +165,22 @@ export function mountVehicleWorkshop({
       $('vwPick').classList.remove('active');
     }
   });
+  for (const [id, hidden] of [
+    ['vwHideSelected', true],
+    ['vwRestoreSelected', false],
+  ]) {
+    $(id).onclick = () => {
+      const entry = getMeshes().find((e) => e.key === selected);
+      if (!entry) return toast('Pilih mesh terlebih dahulu.');
+      setHidden(selected, hidden);
+      entry.mesh.visible = !hidden;
+      dirty = true;
+      $('vwStatus').textContent = hidden
+        ? 'Part disembunyikan. Ekspor resource untuk menyimpan triangle yang dinonaktifkan.'
+        : 'Part dipulihkan.';
+      render();
+    };
+  }
   $('vwBadges').onclick = () => {
     const matches = getMeshes().filter((e) => /badge|emblem|decal|logo|script/i.test(e.mesh.name));
     $('vwBadgeStatus').textContent = matches.length
@@ -269,6 +292,8 @@ export function mountVehicleWorkshop({
     if (!getMeshes().length) throw Error('Buka kendaraan terlebih dahulu.');
     const copy = new THREE.Group();
     copy.add(getRoot().clone(true));
+    const attachments = getAttachments();
+    if (attachments?.children.length) copy.add(attachments.clone(true));
     if (light.children.length) copy.add(light.clone(true));
     const unwanted = [];
     copy.traverse((o) => {
@@ -293,26 +318,38 @@ export function mountVehicleWorkshop({
         ? 'Scene GLB tersimpan; bukan resource GTA.'
         : 'Penyimpanan dibatalkan.';
     });
+  function projectState() {
+    const source = getSource();
+    if (!source) throw Error('Buka model utama dahulu.');
+    return {
+      format: 'ditasha-vehicle',
+      version: 1,
+      source: { name: source.name, size: source.file.size },
+      transforms: [...transforms].filter(([key]) => getMeshes().some((e) => e.key === key)),
+      hidden: getMeshes()
+        .filter((e) => !e.mesh.visible)
+        .map((e) => e.key),
+      light: light.children.length
+        ? {
+            transform: snapshot(light),
+            left: $('vwLeftColor').value,
+            right: $('vwRightColor').value,
+          }
+        : null,
+    };
+  }
+  function markSaved() {
+    dirty = false;
+    savedHidden = JSON.stringify(
+      getMeshes()
+        .filter((e) => !e.mesh.visible)
+        .map((e) => e.key)
+        .sort(),
+    );
+  }
   $('vwSave').onclick = () =>
     operation('model', async () => {
-      const source = getSource();
-      if (!source) throw Error('Buka model utama dahulu.');
-      const project = {
-        format: 'ditasha-vehicle',
-        version: 1,
-        source: { name: source.name, size: source.file.size },
-        transforms: [...transforms],
-        hidden: getMeshes()
-          .filter((e) => !e.mesh.visible)
-          .map((e) => e.key),
-        light: light.children.length
-          ? {
-              transform: snapshot(light),
-              left: $('vwLeftColor').value,
-              right: $('vwRightColor').value,
-            }
-          : null,
-      };
+      const project = projectState();
       if (
         await download(JSON.stringify(project, null, 2), 'ditasha-vehicle.json', 'application/json')
       ) {
@@ -322,6 +359,55 @@ export function mountVehicleWorkshop({
           'Proyek disimpan. Buka model/extra yang sama sebelum memuat proyek kembali.';
       }
     });
+  function applyProject(p, validateOnly = false) {
+    const s = getSource();
+    if (
+      p.format !== 'ditasha-vehicle' ||
+      p.version !== 1 ||
+      !s ||
+      p.source?.name !== s.name ||
+      p.source?.size !== s.file.size ||
+      !Array.isArray(p.transforms) ||
+      p.transforms.length > 4096 ||
+      !Array.isArray(p.hidden)
+    )
+      throw Error('Proyek tidak cocok dengan model utama.');
+    const keys = new Set(getMeshes().map((e) => e.key));
+    if (
+      p.transforms.some((e) => !Array.isArray(e) || !keys.has(e[0]) || !valid(e[1])) ||
+      p.hidden.some((k) => !keys.has(k))
+    )
+      throw Error('Muat drawable/LOD dan extra yang sama seperti proyek.');
+    if (
+      p.light &&
+      (!valid(p.light.transform) ||
+        !/^#[a-f0-9]{6}$/i.test(p.light.left) ||
+        !/^#[a-f0-9]{6}$/i.test(p.light.right))
+    )
+      throw Error('Lightbar proyek tidak valid.');
+    if (validateOnly) return;
+    transforms.clear();
+    p.transforms.forEach(([k, t]) => transforms.set(k, t));
+    for (const e of getMeshes()) {
+      if (e.mesh.userData.workshopOriginal) apply(e.mesh, e.mesh.userData.workshopOriginal);
+      e.mesh.visible = !p.hidden.includes(e.key);
+      setHidden(e.key, !e.mesh.visible);
+      if (transforms.has(e.key)) apply(e.mesh, transforms.get(e.key));
+    }
+    clearLight();
+    if (p.light) {
+      $('vwLeftColor').value = p.light.left;
+      $('vwRightColor').value = p.light.right;
+      addLight();
+      apply(light, p.light.transform);
+      fill('vwl_', p.light.transform);
+    }
+    dirty = false;
+    savedHidden = JSON.stringify(p.hidden.slice().sort());
+    choose();
+    render();
+    $('vwStatus').textContent = 'Proyek dimuat; periksa hasil sebelum mengekspor.';
+  }
   $('vwOpen').onclick = () => $('vwProjectInput').click();
   $('vwProjectInput').onchange = () =>
     operation('model', async () => {
@@ -329,58 +415,28 @@ export function mountVehicleWorkshop({
       $('vwProjectInput').value = '';
       if (!f) return;
       if (f.size > 1024 * 1024) throw Error('Proyek maksimum 1 MB.');
-      const p = JSON.parse(await f.text()),
-        s = getSource();
-      if (
-        p.format !== 'ditasha-vehicle' ||
-        p.version !== 1 ||
-        !s ||
-        p.source?.name !== s.name ||
-        p.source?.size !== s.file.size ||
-        !Array.isArray(p.transforms) ||
-        p.transforms.length > 4096 ||
-        !Array.isArray(p.hidden)
-      )
-        throw Error('Proyek tidak cocok dengan model utama.');
-      const keys = new Set(getMeshes().map((e) => e.key));
-      if (
-        p.transforms.some((e) => !Array.isArray(e) || !keys.has(e[0]) || !valid(e[1])) ||
-        p.hidden.some((k) => !keys.has(k))
-      )
-        throw Error('Muat drawable/LOD dan extra yang sama seperti proyek.');
-      if (
-        p.light &&
-        (!valid(p.light.transform) ||
-          !/^#[a-f0-9]{6}$/i.test(p.light.left) ||
-          !/^#[a-f0-9]{6}$/i.test(p.light.right))
-      )
-        throw Error('Lightbar proyek tidak valid.');
-      transforms.clear();
-      p.transforms.forEach(([k, t]) => transforms.set(k, t));
-      for (const e of getMeshes()) {
-        if (e.mesh.userData.workshopOriginal) apply(e.mesh, e.mesh.userData.workshopOriginal);
-        e.mesh.visible = !p.hidden.includes(e.key);
-        setHidden(e.key, !e.mesh.visible);
-        if (transforms.has(e.key)) apply(e.mesh, transforms.get(e.key));
-      }
-      clearLight();
-      if (p.light) {
-        $('vwLeftColor').value = p.light.left;
-        $('vwRightColor').value = p.light.right;
-        addLight();
-        apply(light, p.light.transform);
-        fill('vwl_', p.light.transform);
-      }
-      dirty = false;
-      savedHidden = JSON.stringify(p.hidden.slice().sort());
-      choose();
-      render();
-      $('vwStatus').textContent = 'Proyek dimuat; periksa hasil sebelum mengekspor.';
+      applyProject(JSON.parse(await f.text()));
     });
   return {
     root,
     refresh,
     changed: () => {},
+    projectState,
+    applyProject,
+    markSaved,
+    select: (key) => {
+      if ([...$('vwMesh').options].some((o) => o.value === key)) {
+        $('vwMesh').value = key;
+        choose(true);
+      }
+    },
+    capture: (key, mesh) => {
+      transforms.set(key, snapshot(mesh));
+      dirty = true;
+      selected = key;
+      if ([...$('vwMesh').options].some((o) => o.value === key)) $('vwMesh').value = key;
+      choose();
+    },
     light,
     rememberOriginal: (mesh) => (mesh.userData.workshopOriginal = snapshot(mesh)),
     unsavedItems: () =>

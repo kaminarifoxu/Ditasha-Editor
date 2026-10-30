@@ -14,6 +14,15 @@
     <link href="icons.css" rel="stylesheet" />
     <link href="workspace.css" rel="stylesheet" />
     <link href="studio.css" rel="stylesheet" />
+    <link href="creative-suite.css" rel="stylesheet" />
+    <link href="studio-motion.css" rel="stylesheet" />
+    <link href="asset-workshop.css" rel="stylesheet" />
+    <link href="files-workspace.css" rel="stylesheet" />
+    <link href="compressor.css" rel="stylesheet" />
+    <link href="fivem-tools.css" rel="stylesheet" />
+    <link href="gta-tools.css" rel="stylesheet" />
+    <link href="photo-booth.css" rel="stylesheet" />
+    <link href="workspace-polish.css" rel="stylesheet" />
   </head>
   <body>
     <header>
@@ -28,7 +37,7 @@
       </div>
       <span class="local"><span></span> Workspace lokal</span
       ><button class="updatebutton" id="openUpdates">
-        <span id="appVersion">v1.19.0</span> · Cek update
+        <span id="appVersion">v1.39.0</span> · Cek update
         <span hidden="" id="updateBadge"></span></button
       ><a
         class="donation-button"
@@ -200,6 +209,21 @@
           ><label class="check"
             ><input checked="" id="apply" type="checkbox" /> Terapkan tekstur ke model</label
           >
+          <div class="modeltools">
+            <button
+              id="bindPreviewTexture"
+              title="Pasang tekstur aktif ke objek yang dipilih di Scene Studio; hanya preview"
+            >
+              Pasang ke objek
+            </button>
+            <button
+              id="resetPreviewTexture"
+              title="Kembalikan sampler asli untuk objek yang dipilih"
+            >
+              Reset tekstur objek
+            </button>
+          </div>
+          <p class="muted" id="materialBindingStatus" role="status"></p>
           <p class="muted" id="modelStats">
             Putar: tarik mouse · Zoom: scroll<br />Geser: klik kanan + tarik
           </p>
@@ -256,17 +280,17 @@
       </p>
       <p>
         YFT / YDD / YDR Legacy: preview geometri statis dan UV, pilihan drawable, wireframe dan foto
-        PNG. GTA V Explorer menyediakan Texture viewer (grid/list, original size, export PNG/DDS)
-        dan Model viewer (LOD, part visibility, grid, points, geometry bounds dan diffuse textures).
-        Preview bersifat statis; animasi, fisika, pengeditan mesh, dan ekspor YFT/YDD/YDR belum
-        tersedia. Material preview diterapkan ke seluruh mesh drawable.
+        PNG. Tekstur dibuka langsung di Texture & Model. GTA V Explorer menyediakan preview model di
+        kanan dan Model viewer (LOD, part visibility, grid, points, geometry bounds dan diffuse
+        textures). Preview bersifat statis; animasi, fisika, pengeditan mesh, dan ekspor YFT/YDD/YDR
+        belum tersedia. Material preview diterapkan ke seluruh mesh drawable.
       </p>
       <p>
         Model Enhanced, file terenkripsi, serta format tekstur lain belum didukung. GLB, DDS
         (DXT1/3/5, RGBA/BGRA 32-bit) dan PNG/JPG/WebP juga dapat dibuka. Converter mengekspor
         gambar, YTD baru, DDS dan geometri statis ke GLB. Clothing pack mengekspor replacement atau
-        collection add-on yang sudah memiliki YMT + shop metadata. YMT baru tidak dibuat. File tetap
-        di browser dan tidak diunggah.
+        collection add-on yang sudah memiliki YMT + shop metadata. YMT Creator menyediakan metadata
+        XML untuk dikonversi menjadi YMT binary. File tetap di browser dan tidak diunggah.
       </p>
       <p class="muted">
         Uicons by

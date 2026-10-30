@@ -7,11 +7,12 @@ export function mountVehicleWorkspace({ nav, viewers, onVehicleBuild }) {
   const root = document.createElement('section');
   root.className = 'vehicle-workspace';
   root.hidden = true;
-  root.innerHTML = `<div class="vehicle-workspace-head"><div><span class="eyebrow">GTA V · OFFLINE</span><h2>Vehicle workshop</h2></div><div class="viewer-button-row"><button id="vehicleOpen" class="primary">Open YFT / YTD</button><button id="vehicleDebadge">Debadge native</button><button id="vehicleStrobo">Strobo donor</button></div></div><div class="vehicle-viewer-host"></div>`;
+  root.innerHTML = `<div class="vehicle-workspace-head"><div><span class="eyebrow">GTA V · OFFLINE</span><h2>Vehicle workshop</h2></div><div class="viewer-button-row"><button id="vehicleOpen" class="primary">Open YFT / YTD</button><button id="vehicleDebadge">Debadge native</button><button id="vehicleStrobo">Strobo donor</button><button id="vehicleParts">Inject donor parts</button></div></div><div class="vehicle-viewer-host"></div>`;
   nav.after(root);
   root.querySelector('#vehicleOpen').onclick = () => document.getElementById('mvInput').click();
   root.querySelector('#vehicleDebadge').onclick = () => onVehicleBuild?.('debadge');
   root.querySelector('#vehicleStrobo').onclick = () => onVehicleBuild?.('strobo');
+  root.querySelector('#vehicleParts').onclick = () => onVehicleBuild?.('parts');
   viewers.vehicleControls.open = true;
   return { root, host: root.querySelector('.vehicle-viewer-host') };
 }
