@@ -26,6 +26,22 @@ jobs:
         run: npm test
       - name: Build portable EXE
         run: npm run build:win
+      - name: Verify differential reconstruction of actual EXE packages
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $previous = gh release view --repo $env:GITHUB_REPOSITORY --json tagName --jq .tagName
+          if ($LASTEXITCODE -ne 0) { throw 'Previous release metadata unavailable.' }
+          $previousDir = Join-Path $env:RUNNER_TEMP 'ditasha-previous-installer'
+          New-Item -ItemType Directory -Force $previousDir | Out-Null
+          gh release download $previous --repo $env:GITHUB_REPOSITORY --pattern 'DITASHA-Setup.exe' --pattern 'DITASHA-Setup.exe.sha256' --dir $previousDir
+          if ($LASTEXITCODE -ne 0) { throw 'Previous installer download failed.' }
+          $env:DITASHA_PREVIOUS_SETUP = Join-Path $previousDir 'DITASHA-Setup.exe'
+          $env:DITASHA_PREVIOUS_VERSION = $previous
+          npx electron scripts/smoke-differential-electron.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Differential reconstruction failed.' }
+        timeout-minutes: 8
       - name: Test GTA V viewers, explorer, archive tools and converter
         run: npx electron scripts/smoke-tools.cjs
         timeout-minutes: 5
@@ -55,12 +71,15 @@ jobs:
             release/DITASHA-Editor.exe
             release/DITASHA-Setup.exe
             release/*.sha256
+            release/*.blockmap
       - name: Store UI screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: DITASHA-Editor-UI-QA
-          path: release/qa/*.png
+          path: |
+            release/qa/*.png
+            release/qa/*-result.json
       - name: Publish new version to GitHub Releases
         shell: pwsh
         env:
@@ -71,11 +90,19 @@ jobs:
           if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne $tag) {
             throw 'Tag must match package.json version.'
           }
-          gh release view $tag --repo $env:GITHUB_REPOSITORY 2>$null
+          $assets = @('release/DITASHA-Editor.exe', 'release/DITASHA-Editor.exe.sha256', 'release/DITASHA-Editor.exe.blockmap', 'release/DITASHA-Setup.exe', 'release/DITASHA-Setup.exe.sha256', 'release/DITASHA-Setup.exe.blockmap')
+          foreach ($asset in $assets) { if (!(Test-Path $asset)) { throw "Missing release file: $asset" } }
+          $isDraft = gh release view $tag --repo $env:GITHUB_REPOSITORY --json isDraft --jq .isDraft 2>$null
           if ($LASTEXITCODE -eq 0) {
-            Write-Host "Release $tag already exists; keeping its assets unchanged."
-            exit 0
+            if ($isDraft -eq 'false') {
+              Write-Host "Release $tag already exists; keeping its assets unchanged."
+              exit 0
+            }
+            gh release upload $tag @assets --clobber --repo $env:GITHUB_REPOSITORY
+            if ($LASTEXITCODE -ne 0) { throw 'Draft asset upload failed.' }
+          } else {
+            gh release create $tag @assets --draft --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "DITASHA Editor $version" --notes-file docs/RELEASE_NOTES.md
+            if ($LASTEXITCODE -ne 0) { throw 'Draft release creation failed.' }
           }
-          $exe = "release/DITASHA-Editor.exe"
-          gh release create $tag $exe "$exe.sha256" "release/DITASHA-Setup.exe" "release/DITASHA-Setup.exe.sha256" --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "DITASHA Editor $version" --notes-file docs/RELEASE_NOTES.md
+          gh release edit $tag --draft=false --latest --repo $env:GITHUB_REPOSITORY
           if ($LASTEXITCODE -ne 0) { throw 'GitHub release publication failed.' }

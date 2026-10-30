@@ -28,6 +28,9 @@
     $('updateTransfer').textContent = s.totalBytes
       ? `${((s.downloadedBytes || 0) / 1048576).toFixed(1)} / ${(s.totalBytes / 1048576).toFixed(1)} MB · ${s.progress}%`
       : '';
+    if (s.mode === 'differential' && s.fullBytes && s.totalBytes)
+      $('updateTransfer').textContent +=
+        ` · Hemat ${Math.max(0, Math.round((1 - s.totalBytes / s.fullBytes) * 100))}% dibanding paket penuh`;
     for (const [id, active] of [
       ['stepDownload', transfer],
       ['stepVerify', ['verifying', 'ready'].includes(s.status)],

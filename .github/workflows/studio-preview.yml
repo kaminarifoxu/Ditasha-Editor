@@ -87,12 +87,14 @@ jobs:
           path: |
             release/DITASHA-Editor.exe
             release/DITASHA-Editor.exe.sha256
+            release/DITASHA-Editor.exe.blockmap
       - uses: actions/upload-artifact@v4
         with:
           name: DITASHA-Installer-Windows
           path: |
             release/DITASHA-Setup.exe
             release/DITASHA-Setup.exe.sha256
+            release/DITASHA-Setup.exe.blockmap
       - uses: actions/upload-artifact@v4
         if: always()
         with:

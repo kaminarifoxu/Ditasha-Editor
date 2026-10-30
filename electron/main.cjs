@@ -167,6 +167,11 @@ else {
     updater = createPortableUpdater({
       version: app.getVersion(),
       installed: app.isPackaged && !process.env.PORTABLE_EXECUTABLE_FILE,
+      baseFile:
+        process.env.PORTABLE_EXECUTABLE_FILE ||
+        (process.env.LOCALAPPDATA
+          ? path.join(process.env.LOCALAPPDATA, 'ganomabi-asset-studio-updater', 'installer.exe')
+          : null),
       directory: path.join(app.getPath('userData'), 'updates'),
       fetcher: (...args) => net.fetch(...args),
       onState: (state) => {
