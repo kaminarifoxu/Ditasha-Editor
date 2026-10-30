@@ -10,11 +10,13 @@ export function mountClothingCatalog({ openPreview } = {}) {
   root.setAttribute('aria-label','DITASHA Clothing Catalog');
   root.innerHTML = `<header class="cl-head"><strong>◈ DITASHA <span>Clothing</span></strong><div class="cl-actions"><button data-import>+ Import file</button><button data-import-folder>+ Import folder</button><button data-close aria-label="Tutup katalog">✕</button></div></header>
   <div class="cl-toolbar"><div class="cl-genders"><button class="active" data-gender="all">Semua</button><button data-gender="male">Cowok</button><button data-gender="female">Cewek</button></div><input data-search placeholder="Cari pakaian, nama file atau pack..." aria-label="Cari pakaian"/><select data-pack aria-label="Pilih pack"><option value="all">Semua pack</option></select></div>
-  <div class="cl-pack-actions"><button data-rename-pack>Ubah nama pack</button><button data-delete-pack>Hapus pack</button></div><div class="cl-cats" data-cats></div><p class="cl-count" data-count></p><div class="cl-grid" data-grid></div><p class="cl-feedback" data-feedback role="status"></p>`;
+  <div class="cl-pack-actions"><button data-save-outfit>Simpan Outfit</button><button data-show-outfits>Outfit Saya</button><button data-rename-pack>Ubah nama pack</button><button data-delete-pack>Hapus pack</button></div><div class="cl-cats" data-cats></div><p class="cl-count" data-count></p><div class="cl-grid" data-grid></div><p class="cl-feedback" data-feedback role="status"></p>`;
   document.body.append(root);
   const $ = s => root.querySelector(s);
   let items = [], gender = 'all', category = 'all';
   let selectedPack = 'all';
+  const outfitSlots = new Map();
+  let outfitGender = 'male';
   const categories = ['all','jbib','accs','lowr','feet','teef','task','berd','hand','decl','p_head','p_eyes','p_ears','hair','head','uppr'];
   function draw() {
     $('[data-cats]').replaceChildren();
@@ -41,6 +43,17 @@ export function mountClothingCatalog({ openPreview } = {}) {
       const textures=pack.files.filter(entry => /\.ytd$/i.test(entry.name) && entry.component===file.component && entry.drawable===file.drawable);
       const foot=document.createElement('small');foot.textContent=pack.pack+' · '+file.gender+' · '+textures.length+' texture files';
       card.append(preview,name,desc,foot);
+      const add = document.createElement('button');
+      add.textContent = outfitSlots.get(file.component)?.relativePath === file.relativePath ? '✓ Dipilih untuk Outfit' : '+ Ke Outfit';
+      add.onclick = () => {
+        if (file.gender === 'unknown') { $('[data-feedback]').textContent='Gender file tidak dikenali. Periksa nama file freemode.'; return; }
+        if (outfitSlots.size && file.gender !== outfitGender) outfitSlots.clear();
+        outfitGender = file.gender;
+        outfitSlots.set(file.component, {packId:id,relativePath:file.relativePath,textureVariant:variants.length?picker.value:null});
+        draw();
+        $('[data-feedback]').textContent=outfitSlots.size+' komponen dipilih untuk outfit '+outfitGender;
+      };
+      card.append(add);
       const variants = [...new Set(textures.map(t => t.textureVariant).filter(Boolean))].sort();
       const picker = document.createElement('select');
       picker.setAttribute('aria-label', 'Pilih variasi tekstur');
@@ -120,6 +133,22 @@ export function mountClothingCatalog({ openPreview } = {}) {
     if(!window.confirm('Hapus pack '+(current?.pack||'')+' beserta semua file yang tersimpan?'))return;
     try{await window.ditashaClothing.remove(selectedPack);selectedPack='all';await refresh();$('[data-feedback]').textContent='Pack telah dihapus.';}
     catch(e){$('[data-feedback]').textContent='Gagal menghapus pack: '+e.message;}
+  };
+  $('[data-save-outfit]').onclick=async()=>{
+    if(!outfitSlots.size){$('[data-feedback]').textContent='Pilih pakaian dengan + Ke Outfit terlebih dahulu.';return;}
+    const name=window.prompt('Nama outfit:', 'My Outfit');
+    if(name===null)return;
+    try {
+      const saved=await window.ditashaClothing.saveOutfit({name,gender:outfitGender,slots:[...outfitSlots.values()]});
+      $('[data-feedback]').textContent='Outfit '+saved.name+' disimpan secara permanen.';
+    }catch(e){$('[data-feedback]').textContent='Gagal menyimpan outfit: '+e.message;}
+  };
+  $('[data-show-outfits]').onclick=async()=>{
+    try {
+      const outfits=await window.ditashaClothing.listOutfits();
+      const labels=outfits.map(o=>o.name+' ('+o.gender+', '+o.slots.length+' komponen)').join(' • ');
+      $('[data-feedback]').textContent=outfits.length ? 'Outfit tersimpan: '+labels : 'Belum ada outfit tersimpan.';
+    }catch(e){$('[data-feedback]').textContent='Gagal membaca outfit: '+e.message;}
   };
   $('[data-search]').oninput=draw;
   $('[data-pack]').onchange=e=>{selectedPack=e.target.value;draw();};
