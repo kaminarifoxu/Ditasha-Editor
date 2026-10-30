@@ -74,6 +74,16 @@ class ClothingLibrary {
     await fs.writeFile(temp, JSON.stringify({ version: 1, items }, null, 2), 'utf8');
     await fs.rename(temp, target);
   }
+  async readAsset(packId, relativePath) {
+    if (!/^[0-9a-f-]{36}$/i.test(packId)) throw new Error('Invalid pack ID');
+    const packs = await this.list();
+    const pack = packs.find(item => item.id === packId);
+    const file = pack?.files.find(item => item.relativePath === relativePath);
+    if (!file) throw new Error('Asset not found');
+    if (!/\\.(ydd|ytd)$/i.test(file.name)) throw new Error('Asset cannot be previewed');
+    if (file.bytes > 64 * 1024 * 1024 && !/\\.ytd$/i.test(file.name)) throw new Error('Preview model too large');
+    return { name: file.name, bytes: await fs.readFile(ensureInside(this.root, file.relativePath)) };
+  }
   async remove(id) {
     if (!/^[0-9a-f-]{36}$/i.test(id)) throw new Error('Invalid ID');
     const items = await this.list();
