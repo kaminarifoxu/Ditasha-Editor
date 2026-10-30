@@ -43,3 +43,18 @@ test('rejects duplicate source paths', async () => {
     await assert.rejects(library.importFiles({ files: [source, source] }), /Duplicate source/);
   } finally { await fs.rm(root, { recursive: true, force: true }); }
 });
+
+test('reads persisted model bytes for preview after app reload', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'ditasha-preview-'));
+  try {
+    const source = path.join(root, 'mp_m_freemode_01^jbib_005_u.ydd');
+    await fs.writeFile(source, Buffer.from('example-model'));
+    const library = new ClothingLibrary(path.join(root, 'library'));
+    const pack = await library.importFiles({ files: [source] });
+    const reopened = new ClothingLibrary(path.join(root, 'library'));
+    const result = await reopened.readAsset(pack.id, pack.files[0].relativePath);
+    assert.equal(result.name, path.basename(source));
+    assert.equal(Buffer.from(result.bytes).toString(), 'example-model');
+    await assert.rejects(reopened.readAsset(pack.id, '../index.json'), /Asset not found/);
+  } finally { await fs.rm(root, { recursive: true, force: true }); }
+});
