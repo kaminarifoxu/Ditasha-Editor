@@ -27,6 +27,7 @@ const { isTrustedUpdateEvent } = require('./ipc-trust.cjs');
 const { startReplacement } = require('./installer.cjs');
 const { completeUpdateStartup } = require('./update-startup.cjs');
 const fs = require('node:fs/promises');
+const { ClothingLibrary } = require('./clothing-library.cjs');
 const { createPortableUpdater } = require('./updater.cjs');
 let win,
   splash,
@@ -231,6 +232,26 @@ else {
       win,
       trusted,
       WebContentsView,
+    });
+    const clothingLibrary = new ClothingLibrary(path.join(app.getPath('userData'), 'clothing-library-v2'));
+    const trustedClothingEvent = (event) => event.sender === win?.webContents && !event.sender.isDestroyed();
+    ipcMain.handle('ditasha:clothing-list', (event) => {
+      if (!trustedClothingEvent(event)) throw new Error('Untrusted caller');
+      return clothingLibrary.list();
+    });
+    ipcMain.handle('ditasha:clothing-import', async (event, pack) => {
+      if (!trustedClothingEvent(event)) throw new Error('Untrusted caller');
+      const selection = await dialog.showOpenDialog(win, {
+        title: 'Import custom clothing YDD/YTD',
+        properties: ['openFile', 'multiSelections'],
+        filters: [{ name: 'GTA clothing files', extensions: ['ydd','ytd','ymt','yld','meta','png','jpg','jpeg','webp'] }],
+      });
+      if (selection.canceled || !selection.filePaths.length) return null;
+      return clothingLibrary.importFiles({ pack, files: selection.filePaths });
+    });
+    ipcMain.handle('ditasha:clothing-remove', (event, id) => {
+      if (!trustedClothingEvent(event)) throw new Error('Untrusted caller');
+      return clothingLibrary.remove(id);
     });
     ipcMain.handle('ditasha:open-icon-credits', async (event) => {
       trusted(event);
