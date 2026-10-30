@@ -1,3 +1,12 @@
+# v1.70.0 preview — Consistent panels and workspace controls
+
+- Extend panel minimization to Asset Compressor, Visual Debadge, YMT Creator, native build and GTA tool panels. Add a header Panel menu with workspace-specific controls and restore-all; retain the File Manager details drawer on smaller windows.
+- Group the long Photo Booth inspector into collapsible Pose/emote and Studio sections. Use responsive stacked panels on narrow windows without stealing the preview's grid tracks.
+- Add visible choice controls for short transform, orientation, material, rig, gender, import, video and shadow settings while preserving original selects, listeners and preset state. Disabled fieldsets and optgroups cannot be activated.
+- Clarify photo/video/layer/camera and donor action labels. Keep shared focus indicators, consistent spacing, light/dark themes and reduced motion.
+- Add regression checks across eleven native workspaces at three window sizes, panel-menu restore, section folding and choice-control behavior. Existing Photo Booth video/props/YCD/map, native rigging and vehicle checks remain in the Windows pipeline.
+- Document the complete request audit and feature boundaries in TASK_AUDIT.md. This update does not add full-world GTA streaming, encrypted RPF support or a stable Release publication.
+
 # v1.43.0 preview — Offline YMT Creator and FiveM utilities
 
 - Add YMT & FiveM Tools inside Asset workshop and Home. Import freemode YDD/YTD/YLD files, a folder, the current Clothing pack, or names only. Review component/prop slots and output filenames with validation for missing models/textures, suffix mismatches, duplicate slots and index gaps; undo file-list changes.

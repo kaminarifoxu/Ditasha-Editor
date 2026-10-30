@@ -253,17 +253,6 @@
 .workspace-shell .editor-commandbar button.workspace-explicit-action .control-label {
   display: none;
 }
-.pb-layout:has(> .pb-panel:first-child.workspace-panel-collapsed) {
-  grid-template-columns: 48px minmax(0, 1fr) 255px;
-}
-.pb-layout:has(> .pb-panel:last-child.workspace-panel-collapsed) {
-  grid-template-columns: 245px minmax(0, 1fr) 48px;
-}
-.pb-layout:has(> .pb-panel:first-child.workspace-panel-collapsed):has(
-    > .pb-panel:last-child.workspace-panel-collapsed
-  ) {
-  grid-template-columns: 48px minmax(0, 1fr) 48px;
-}
 .workspace-shell .tool-workspace:has(> .tool-sidebar.workspace-panel-collapsed) {
   grid-template-columns: 48px minmax(0, 1fr) 260px;
 }
@@ -319,18 +308,6 @@
     min-height: 320px;
   }
 }
-.workspace-shell .file-manager:has(> .fm-sidebar.workspace-panel-collapsed) {
-  grid-template-columns: 48px minmax(0, 1fr) 290px;
-}
-.workspace-shell .file-manager:has(> .fm-inspector.workspace-panel-collapsed) {
-  grid-template-columns: 210px minmax(0, 1fr) 48px;
-}
-.workspace-shell
-  .file-manager:has(> .fm-sidebar.workspace-panel-collapsed):has(
-    > .fm-inspector.workspace-panel-collapsed
-  ) {
-  grid-template-columns: 48px minmax(0, 1fr) 48px;
-}
 @media (max-width: 1250px) {
   .workspace-shell > main {
     --files-track: 160px;
@@ -358,4 +335,365 @@
   min-width: 110px;
   gap: 6px;
   padding: 8px 10px;
+}
+
+/* Shared workbench controls. Content and camera stay primary; settings can step aside. */
+.workspace-shell
+  :is(
+    .ac-files,
+    .ac-settings,
+    .debadge-sidebar,
+    .debadge-inspector,
+    .ft-grid > aside,
+    .gt-panel,
+    .native-build-layout > aside
+  ) {
+  min-width: 0;
+  scrollbar-gutter: stable;
+  overflow-wrap: anywhere;
+}
+.workspace-shell
+  :is(
+    .ac-files,
+    .ac-settings,
+    .debadge-sidebar,
+    .debadge-inspector,
+    .ft-card,
+    .gt-panel,
+    .native-build-layout > aside
+  )
+  :is(button, input, select, textarea) {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.workspace-shell .workspace-panel-inline.workspace-panel-collapsed > .workspace-panel-toggle {
+  flex-direction: row;
+}
+.workspace-shell
+  .workspace-panel-inline.workspace-panel-collapsed
+  > .workspace-panel-toggle
+  > span:first-child {
+  writing-mode: horizontal-tb;
+}
+.workspace-shell .workspace-settings-section {
+  border-bottom: 1px solid var(--line);
+  padding: 0 0 12px;
+  margin: 0 0 18px;
+}
+.workspace-shell .workspace-settings-section > summary {
+  font-size: 13px;
+  font-weight: 650;
+  padding: 6px 0;
+}
+.workspace-shell .workspace-settings-section[open] > summary {
+  margin-bottom: 12px;
+}
+.workspace-shell .workspace-choice-grid > button {
+  font-size: 12px;
+  min-height: 36px;
+}
+.workspace-shell .workspace-choice-grid[hidden] {
+  display: none;
+}
+.workspace-shell .workspace-panels-dialog {
+  width: min(440px, 90vw);
+  padding: 24px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.workspace-panel-menu-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.workspace-panel-menu-head h2 {
+  margin: 0;
+  font-size: 20px;
+}
+.workspace-panels-dialog p {
+  color: var(--muted);
+  line-height: 1.6;
+}
+.workspace-panel-menu-list {
+  display: grid;
+  gap: 8px;
+  margin: 18px 0;
+}
+.workspace-panel-menu-list label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.workspace-panel-menu-list input {
+  accent-color: var(--accent);
+}
+.workspace-shell #openWorkspacePanels {
+  min-height: 34px;
+  padding: 6px 12px;
+}
+.workspace-shell .workspace-panels-dialog::backdrop {
+  background: #0009;
+}
+
+.workspace-shell .ac-layout {
+  --ac-files: 240px;
+  --ac-settings: 270px;
+}
+.workspace-shell .ac-layout:has(> .ac-files.workspace-panel-collapsed) {
+  --ac-files: 48px;
+}
+.workspace-shell .ac-layout:has(> .ac-settings.workspace-panel-collapsed) {
+  --ac-settings: 48px;
+}
+.workspace-shell .debadge-layout {
+  --db-files: 245px;
+  --db-settings: 235px;
+}
+.workspace-shell .debadge-layout:has(> .debadge-sidebar.workspace-panel-collapsed) {
+  --db-files: 48px;
+}
+.workspace-shell .debadge-layout:has(> .debadge-inspector.workspace-panel-collapsed) {
+  --db-settings: 48px;
+}
+@media (min-width: 1251px) {
+  .workspace-shell .ac-layout {
+    grid-template-columns: var(--ac-files) minmax(0, 1fr) var(--ac-settings);
+  }
+  .workspace-shell .debadge-layout {
+    grid-template-columns: var(--db-files) minmax(0, 1fr) var(--db-settings);
+  }
+}
+@media (max-width: 1250px) {
+  .workspace-shell .ac-layout {
+    grid-template-columns: var(--ac-files) minmax(0, 1fr);
+  }
+  .workspace-shell .debadge-layout {
+    grid-template-columns: var(--db-files) minmax(0, 1fr);
+  }
+  .workspace-shell :is(.ac-settings, .debadge-inspector).workspace-panel-collapsed {
+    min-height: 0;
+    max-height: none;
+    display: block;
+  }
+  .workspace-shell
+    :is(.ac-settings, .debadge-inspector).workspace-panel-collapsed
+    > .workspace-panel-toggle {
+    flex-direction: row;
+  }
+  .workspace-shell
+    :is(.ac-settings, .debadge-inspector).workspace-panel-collapsed
+    > .workspace-panel-toggle
+    > span:first-child {
+    writing-mode: horizontal-tb;
+  }
+}
+.workspace-shell .native-build-layout {
+  --native-files: 200px;
+  --native-status: 220px;
+}
+.workspace-shell .native-build-layout:has(> aside:first-child.workspace-panel-collapsed) {
+  --native-files: 48px;
+}
+.workspace-shell .native-build-layout:has(> aside:last-child.workspace-panel-collapsed) {
+  --native-status: 48px;
+}
+@media (min-width: 1151px) {
+  .workspace-shell .native-build-layout {
+    grid-template-columns: var(--native-files) minmax(0, 1fr) var(--native-status);
+  }
+  .workspace-shell .native-build-layout > aside:last-child {
+    grid-column: auto;
+  }
+}
+@media (max-width: 1150px) {
+  .workspace-shell .native-build-layout {
+    grid-template-columns: var(--native-files) minmax(0, 1fr);
+  }
+  .workspace-shell .native-build-layout > aside:last-child {
+    grid-column: 1 / -1;
+  }
+  .workspace-shell
+    .native-build-layout
+    > aside:last-child.workspace-panel-collapsed
+    > .workspace-panel-toggle {
+    flex-direction: row;
+  }
+  .workspace-shell
+    .native-build-layout
+    > aside:last-child.workspace-panel-collapsed
+    > .workspace-panel-toggle
+    > span:first-child {
+    writing-mode: horizontal-tb;
+  }
+}
+.workspace-shell .ft-grid:has(> aside.workspace-panel-collapsed) {
+  grid-template-columns: 48px minmax(0, 1fr);
+}
+.workspace-shell .gt-layout > .gt-panel.workspace-panel-collapsed {
+  align-self: start;
+}
+
+/* Photo Booth uses three columns only when the preview has room. */
+.workspace-shell .pb-layout {
+  --pb-assets: 245px;
+  --pb-settings: 255px;
+}
+.workspace-shell .pb-layout:has(> .pb-assets.workspace-panel-collapsed) {
+  --pb-assets: 48px;
+}
+.workspace-shell .pb-layout:has(> .pb-settings.workspace-panel-collapsed) {
+  --pb-settings: 48px;
+}
+@media (min-width: 1351px) {
+  .workspace-shell .pb-layout {
+    grid-template-columns: var(--pb-assets) minmax(0, 1fr) var(--pb-settings);
+  }
+  .workspace-shell .pb-settings {
+    grid-column: auto;
+  }
+}
+@media (min-width: 901px) and (max-width: 1350px) {
+  .workspace-shell .pb-layout {
+    grid-template-columns: var(--pb-assets) minmax(0, 1fr);
+    height: auto;
+  }
+  .workspace-shell .pb-settings {
+    grid-column: 1 / -1;
+    max-height: 440px;
+  }
+  .workspace-shell .pb-settings.workspace-panel-collapsed > .workspace-panel-toggle {
+    flex-direction: row;
+  }
+  .workspace-shell
+    .pb-settings.workspace-panel-collapsed
+    > .workspace-panel-toggle
+    > span:first-child {
+    writing-mode: horizontal-tb;
+  }
+}
+@media (max-width: 900px) {
+  .workspace-shell .pb-layout {
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+  }
+  .workspace-shell .pb-stage {
+    grid-row: 1;
+    min-height: 500px;
+  }
+  .workspace-shell .pb-settings {
+    grid-column: auto;
+  }
+  .workspace-shell .pb-panel {
+    max-height: 440px;
+  }
+  .workspace-shell .pb-panel.workspace-panel-collapsed > .workspace-panel-toggle {
+    flex-direction: row;
+  }
+  .workspace-shell
+    .pb-panel.workspace-panel-collapsed
+    > .workspace-panel-toggle
+    > span:first-child {
+    writing-mode: horizontal-tb;
+  }
+  .workspace-shell .ft-grid:has(> aside.workspace-panel-collapsed) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .workspace-shell .ft-grid > aside.workspace-panel-collapsed > .workspace-panel-toggle {
+    flex-direction: row;
+  }
+  .workspace-shell
+    .ft-grid
+    > aside.workspace-panel-collapsed
+    > .workspace-panel-toggle
+    > span:first-child {
+    writing-mode: horizontal-tb;
+  }
+  .workspace-shell header .workspace-search {
+    width: 36px;
+    min-width: 36px;
+    padding: 8px;
+  }
+  .workspace-shell header .workspace-search :is(span, kbd) {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .workspace-shell:not([data-motion='reduced']) .workspace-panels-dialog[open] {
+    animation: workspace-panel-appear 150ms ease-out;
+  }
+  @keyframes workspace-panel-appear {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+/* File Manager keeps its narrow-screen details drawer instead of adding a grid column. */
+.workspace-shell .fm-modern.fm-explorer {
+  --fm-files: 190px;
+}
+.workspace-shell .fm-modern.fm-explorer:has(> .fm-sidebar.workspace-panel-collapsed) {
+  --fm-files: 48px;
+}
+@media (min-width: 1201px) {
+  .workspace-shell .fm-modern.fm-explorer:has(> .fm-sidebar.workspace-panel-collapsed) {
+    grid-template-columns: var(--fm-files) minmax(0, 1fr) 290px;
+  }
+  .workspace-shell .fm-modern.fm-explorer:has(> .fm-inspector.workspace-panel-collapsed) {
+    grid-template-columns: var(--fm-files) minmax(0, 1fr) 48px;
+  }
+  .workspace-shell .fm-modern.fm-explorer.fm-hide-details {
+    grid-template-columns: var(--fm-files) minmax(0, 1fr);
+  }
+}
+@media (max-width: 1200px) {
+  .workspace-shell .fm-modern.fm-explorer,
+  .workspace-shell .fm-modern.fm-explorer.fm-hide-details {
+    grid-template-columns: var(--fm-files) minmax(0, 1fr);
+  }
+  .workspace-shell .fm-explorer .fm-inspector.workspace-panel-collapsed {
+    width: 48px;
+    bottom: auto;
+    max-height: 300px;
+  }
+}
+.workspace-shell
+  :is(.viewer-toolbar, .vehicle-workspace-head, .pb-stage-toolbar)
+  button.workspace-explicit-action {
+  width: auto;
+  gap: 6px;
+}
+.workspace-shell
+  :is(.viewer-toolbar, .vehicle-workspace-head, .pb-stage-toolbar)
+  button.workspace-explicit-action
+  .control-label {
+  display: inline;
+}
+
+@media (max-width: 1050px) {
+  .workspace-shell .ft-grid:has(> aside.workspace-panel-collapsed) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .workspace-shell .ft-grid > aside.workspace-panel-collapsed > .workspace-panel-toggle {
+    flex-direction: row;
+  }
+  .workspace-shell
+    .ft-grid
+    > aside.workspace-panel-collapsed
+    > .workspace-panel-toggle
+    > span:first-child {
+    writing-mode: horizontal-tb;
+  }
 }

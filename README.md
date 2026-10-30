@@ -3,7 +3,11 @@
 © 2026 Ditasha-Workshop
 
 Editor YTD dan preview YFT/YDD/YDR GTA V Legacy untuk Windows 10/11 64-bit.
-Unduh DITASHA-Editor.exe dari Releases dan buka langsung tanpa instalasi.
+Pilih DITASHA-Setup.exe untuk instalasi, atau DITASHA-Editor.exe untuk versi portable.
+Preview build tersedia sebagai artifact workflow; updater stable memakai GitHub Releases.
+
+Audit permintaan, implementasi, tes dan batas fitur: [TASK_AUDIT.md](docs/TASK_AUDIT.md).
+Menu **Panel** di header mengatur sidebar workspace; pengaturan panjang Photo Booth dapat dilipat.
 Logo, tema sakura, font, dan editor disertakan untuk penggunaan offline.
 
 ## Fitur

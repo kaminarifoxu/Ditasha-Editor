@@ -80,6 +80,31 @@ app.whenReady().then(async () => {
       })()`),
       );
     }
+    for (const width of [1500, 1100, 850]) {
+      win.setSize(width, 950);
+      await win.webContents.executeJavaScript(
+        `document.getElementById('appearanceTheme').value='${width === 1100 ? 'light' : 'midnight'}';document.getElementById('appearanceTheme').dispatchEvent(new Event('change'));`,
+      );
+      report.push({
+        width,
+        workspaces: await win.webContents.executeJavaScript(
+          '(' + require('./workspace-complete-ui-checks.cjs').toString() + ')()',
+        ),
+      });
+      for (const page of ['photobooth', 'compressor', 'files']) {
+        await win.webContents.executeJavaScript(
+          `document.querySelector('.workspace-nav [data-page="${page}"]').click()`,
+        );
+        await new Promise((r) => setTimeout(r, 120));
+        await fs.writeFile(
+          `release/qa/workspace-${page}-${width}.png`,
+          (await win.webContents.capturePage()).toPNG(),
+        );
+      }
+      await win.webContents.executeJavaScript(
+        "document.querySelector('[data-page=editor]').click()",
+      );
+    }
     win.setSize(1500, 950);
     await win.webContents.executeJavaScript("document.getElementById('editTexture3d').click()");
     await new Promise((r) => setTimeout(r, 150));
