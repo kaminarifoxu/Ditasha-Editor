@@ -24,6 +24,13 @@ test('freemode file matching keeps head hair sex and texture variants distinct',
     components: [{ component_id: 2, drawable: 5, texture: 1 }],
   };
   assert.equal(validateAppearance(value), value);
+  assert.equal(validateAppearance({ ...value, model: -1667301416 }).model, 'mp_f_freemode_01');
+  assert.equal(
+    validateAppearance({ ...value, hair: { style: 3000, texture: 0 } }).components.find(
+      (c) => c.component_id === 2,
+    ).drawable,
+    3000,
+  );
   assert.throws(() => validateAppearance({ ...value, model: 'arbitrary' }));
   assert.throws(() =>
     validateAppearance({ ...value, components: [{ component_id: 2, drawable: -1, texture: 1 }] }),
@@ -57,6 +64,7 @@ test('head workflows validate fitting transforms slot names and mode before nati
     { headSlot: '../head.ydd' },
     { weights: 'guess' },
     { gender: 'animal' },
+    { collection: '../escape' },
   ])
     assert.throws(() => validateJob({ ...payload, headOptions: { enabled: true, ...option } }));
   assert.throws(() => validateJob({ mode: 'probe', headOptions: { enabled: true } }));

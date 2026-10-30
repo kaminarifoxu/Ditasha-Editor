@@ -32,7 +32,8 @@ def import_source(bpy, filename):
     if 'FINISHED' not in result:
         raise ValueError('Blender gagal mengimpor model sumber.')
     bpy.context.view_layer.update()
-    objects = [o for o in bpy.data.objects if o.type == 'MESH' and len(o.data.polygons)]
+    custom_shapes={bone.custom_shape for arm in bpy.data.objects if arm.type=='ARMATURE' for bone in arm.pose.bones if bone.custom_shape is not None}
+    objects = [o for o in bpy.data.objects if o.type == 'MESH' and len(o.data.polygons) and o not in custom_shapes]
     if not objects:
         raise ValueError('Model sumber tidak memiliki mesh berisi face.')
     return objects

@@ -1,3 +1,4 @@
+import { hashName } from './asset-tools.js';
 export const FREEMODE_PARTS = [
   ['head', 'Kepala', 0, 'ped', 'ped'],
   ['hair', 'Rambut', 2, 'accessory', 'hair'],
@@ -23,7 +24,19 @@ export function freemodePart(file) {
   };
 }
 export function validateAppearance(value) {
-  const data = typeof value === 'string' ? JSON.parse(value) : value;
+  let data = typeof value === 'string' ? JSON.parse(value) : value;
+  if (
+    data &&
+    typeof data === 'object' &&
+    !['mp_m_freemode_01', 'mp_f_freemode_01'].includes(data.model)
+  ) {
+    const hash = Number(data.model);
+    const model =
+      Number.isSafeInteger(hash) && hash >= -2147483648 && hash <= 4294967295
+        ? ['mp_m_freemode_01', 'mp_f_freemode_01'].find((name) => hashName(name) === hash >>> 0)
+        : null;
+    if (model) data = { ...data, model };
+  }
   if (
     !data ||
     typeof data !== 'object' ||
@@ -36,17 +49,41 @@ export function validateAppearance(value) {
     );
   for (const component of data.components)
     if (
+      !component ||
+      typeof component !== 'object' ||
       !Number.isInteger(component.component_id) ||
       component.component_id < 0 ||
       component.component_id > 11 ||
       !Number.isInteger(component.drawable) ||
       component.drawable < 0 ||
-      component.drawable > 999 ||
+      component.drawable > 65535 ||
       !Number.isInteger(component.texture) ||
       component.texture < 0 ||
       component.texture > 255
     )
       throw Error('Nomor komponen appearance tidak valid.');
+  if (new Set(data.components.map((c) => c.component_id)).size !== data.components.length)
+    throw Error('Komponen appearance duplikat.');
+  if (data.hair?.style !== undefined) {
+    const style = data.hair.style,
+      texture = data.hair.texture ?? 0;
+    if (
+      !Number.isInteger(style) ||
+      style < 0 ||
+      style > 65535 ||
+      !Number.isInteger(texture) ||
+      texture < 0 ||
+      texture > 255
+    )
+      throw Error('Pilihan rambut appearance tidak valid.');
+    data = {
+      ...data,
+      components: [
+        ...data.components.filter((c) => c.component_id !== 2),
+        { component_id: 2, drawable: style, texture },
+      ],
+    };
+  }
   return data;
 }
 export function mountFreemodeCharacter({ container, guard, importFiles, setStatus }) {

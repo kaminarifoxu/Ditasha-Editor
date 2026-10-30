@@ -264,3 +264,8 @@
   margin-top: 0;
   height: clamp(300px, calc(100dvh - var(--header-height) - 380px), 680px);
 }
+
+.workspace-shell .native-prop-layout .rig-pose-controls,
+.workspace-shell .native-prop-layout .native-preview > .viewer-button-row {
+  padding: 8px 12px;
+}

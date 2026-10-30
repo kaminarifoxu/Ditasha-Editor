@@ -55,7 +55,7 @@ export function createWeaponSketch(kind = 'pistol') {
 export function mountWeaponStudio({ root, download, toast, confirmDiscard }) {
   const layout = document.createElement('div');
   layout.className = 'wd-layout';
-  layout.innerHTML = `<aside class="wd-settings"><h2>Model & desain senjata</h2><label>Acuan FiveM<select id="wdReference">${WEAPON_REFERENCES.map(([label, code, model], i) => `<option value="${i}">${label} · ${model}</option>`).join('')}</select></label><p id="wdReferenceInfo" class="muted"></p><button id="wdImport" class="primary">+ Model GLB / OBJ / YDR</button><button id="wdPart">+ Model part / attachment</button><input id="wdInput" type="file" accept=".glb,.obj,.ydr,.ydd,.ytd" multiple hidden><button id="wdSketch">Buat sketsa desain generik</button><p class="muted">Model GTA asli diimpor dari file lokal beserta YTD. Sketsa bawaan adalah blockout orisinal untuk desain, bukan model senjata GTA.</p><label>Bagian<select id="wdObject"></select></label><label>Alat<select id="wdTransform"><option value="translate">Geser</option><option value="rotate">Putar</option><option value="scale">Skala</option></select></label><button id="wdDelete">Hapus bagian terpilih</button><label>Warna material<input id="wdColor" type="color" value="#d5b444"></label><button id="wdApplyColor">Terapkan warna</button><button id="wdTexture">+ PNG tekstur / desain UV</button><input id="wdTextureInput" type="file" accept=".png,.jpg,.jpeg,.webp" hidden><label>Ulang tekstur<input id="wdRepeat" type="number" min=".1" max="10" step=".1" value="1"></label><label>Geser UV X<input id="wdUvX" type="number" min="-10" max="10" step=".01" value="0"></label><label>Geser UV Y<input id="wdUvY" type="number" min="-10" max="10" step=".01" value="0"></label><button id="wdUvApply">Terapkan penempatan UV</button><p class="muted">Tekstur mengikuti UV mesh terpilih. Gunakan PNG atlas untuk desain penuh; vertex/UV asli dipertahankan.</p></aside><section class="wd-stage"><div class="wd-toolbar"><button id="wdFit">Lihat semua</button><button id="wdSide">Samping</button><label class="check"><input id="wdWire" type="checkbox">Wireframe</label><label class="check"><input id="wdGrid" type="checkbox" checked>Grid</label></div><div id="wdViewport"><p>Impor model senjata atau mulai dari sketsa desain.</p></div><p id="wdStatus" class="muted" role="status">Siap mendesain model.</p><details><summary>UV mesh terpilih</summary><canvas id="wdUv" width="512" height="512"></canvas><button id="wdUvSave">Simpan UV PNG</button></details></section><aside class="wd-export"><h2>Ekspor desain</h2><label>Nama desain<input id="wdName" value="ditasha_weapon" maxlength="48"></label><button id="wdExport" class="primary">Simpan model GLB</button><button id="wdTextureSave">Simpan tekstur PNG terpilih</button><p class="muted">GLB menyimpan bentuk, material, tekstur dan transform part. Rig tulang senjata, muzzle/magazine, animasi dan metadata GTA tetap perlu disiapkan di Blender/Sollumz sebelum dipaketkan sebagai senjata game.</p><details class="wd-engine"><summary>Build DLC · AddonWeaponsBuilder</summary><p class="muted">Gunakan sumber senjata GTA yang sudah memiliki model, skeleton dan metadata. Engine DLC tidak mengubah GLB mentah menjadi senjata siap game.</p></details></aside>`;
+  layout.innerHTML = `<aside class="wd-settings"><h2>Model & desain senjata</h2><label>Acuan FiveM<select id="wdReference">${WEAPON_REFERENCES.map(([label, code, model], i) => `<option value="${i}">${label} · ${model}</option>`).join('')}</select></label><p id="wdReferenceInfo" class="muted"></p><button id="wdImport" class="primary">+ Model GLB / OBJ / YDR</button><button id="wdPart">+ Model part / attachment</button><input id="wdInput" type="file" accept=".glb,.obj,.ydr,.ydd,.ytd" multiple hidden><button id="wdSketch">Buat sketsa desain generik</button><p class="muted">Model GTA asli diimpor dari file lokal beserta YTD. Sketsa bawaan adalah blockout orisinal untuk desain, bukan model senjata GTA.</p><label>Bagian<select id="wdObject"></select></label><label>Material<select id="wdMaterial"><option value="all">Semua material terpilih</option></select></label><label>Alat<select id="wdTransform"><option value="translate">Geser</option><option value="rotate">Putar</option><option value="scale">Skala</option></select></label><button id="wdDelete">Hapus bagian terpilih</button><label>Warna material<input id="wdColor" type="color" value="#d5b444"></label><button id="wdApplyColor">Terapkan warna</button><button id="wdTexture">+ PNG tekstur / desain UV</button><input id="wdTextureInput" type="file" accept=".png,.jpg,.jpeg,.webp" hidden><label>Ulang tekstur<input id="wdRepeat" type="number" min=".1" max="10" step=".1" value="1"></label><label>Geser UV X<input id="wdUvX" type="number" min="-10" max="10" step=".01" value="0"></label><label>Geser UV Y<input id="wdUvY" type="number" min="-10" max="10" step=".01" value="0"></label><button id="wdUvApply">Terapkan penempatan UV</button><p class="muted">Tekstur mengikuti UV mesh terpilih. Gunakan PNG atlas untuk desain penuh; vertex/UV asli dipertahankan.</p></aside><section class="wd-stage"><div class="wd-toolbar"><button id="wdFit">Lihat semua</button><button id="wdSide">Samping</button><label class="check"><input id="wdWire" type="checkbox">Wireframe</label><label class="check"><input id="wdGrid" type="checkbox" checked>Grid</label></div><div id="wdViewport"><p>Impor model senjata atau mulai dari sketsa desain.</p></div><p id="wdStatus" class="muted" role="status">Siap mendesain model.</p><details><summary>UV mesh terpilih</summary><canvas id="wdUv" width="512" height="512"></canvas><button id="wdUvSave">Simpan UV PNG</button></details></section><aside class="wd-export"><h2>Ekspor desain</h2><label>Nama desain<input id="wdName" value="ditasha_weapon" maxlength="48"></label><button id="wdExport" class="primary">Simpan model GLB</button><button id="wdTextureSave">Simpan tekstur PNG terpilih</button><p class="muted">GLB menyimpan bentuk, material, tekstur dan transform part. Rig tulang senjata, muzzle/magazine, animasi dan metadata GTA tetap perlu disiapkan di Blender/Sollumz sebelum dipaketkan sebagai senjata game.</p><details class="wd-engine"><summary>Build DLC · AddonWeaponsBuilder</summary><p class="muted">Gunakan sumber senjata GTA yang sudah memiliki model, skeleton dan metadata. Engine DLC tidak mengubah GLB mentah menjadi senjata siap game.</p></details></aside>`;
   root.querySelector('.gt-heading').after(layout);
   layout
     .querySelector('.wd-engine')
@@ -134,14 +134,35 @@ export function mountWeaponStudio({ root, download, toast, confirmDiscard }) {
   function materials(mesh) {
     return Array.isArray(mesh?.material) ? mesh.material : mesh?.material ? [mesh.material] : [];
   }
+  const targets = () => [...new Set([...assembly.children, ...objects()])];
+  function selectionMaterials() {
+    const values = [];
+    selected?.traverse((object) => {
+      for (const material of materials(object))
+        if (!values.includes(material)) values.push(material);
+    });
+    return values;
+  }
+  function editableMaterials() {
+    const values = selectionMaterials(),
+      choice = $('wdMaterial').value;
+    return choice === 'all' ? values : values[Number(choice)] ? [values[Number(choice)]] : [];
+  }
   function uv() {
     const canvas = $('wdUv'),
       ctx = canvas.getContext('2d');
     ctx.fillStyle = '#151923';
     ctx.fillRect(0, 0, 512, 512);
-    const attr = selected?.geometry?.getAttribute('uv');
+    let mesh = selected;
+    if (mesh && !mesh.isMesh) {
+      mesh = null;
+      selected.traverse((object) => {
+        if (!mesh && object.isMesh) mesh = object;
+      });
+    }
+    const attr = mesh?.geometry?.getAttribute('uv');
     if (!attr) return;
-    const index = selected.geometry.index;
+    const index = mesh.geometry.index;
     const count = index ? index.count : attr.count;
     ctx.strokeStyle = '#d5b444';
     ctx.lineWidth = 0.5;
@@ -161,20 +182,35 @@ export function mountWeaponStudio({ root, download, toast, confirmDiscard }) {
     selected = mesh || null;
     gizmo?.detach();
     if (selected) gizmo.attach(selected);
+    const all = document.createElement('option');
+    all.value = 'all';
+    all.textContent = 'Semua material terpilih';
+    $('wdMaterial').replaceChildren(
+      all,
+      ...selectionMaterials().map((m, i) => {
+        const option = document.createElement('option');
+        option.value = String(i);
+        option.textContent = m.name || 'Material ' + (i + 1);
+        return option;
+      }),
+    );
     uv();
     budget?.invalidate();
   }
   function list() {
-    const meshes = objects();
+    const meshes = objects(),
+      choices = targets();
     $('wdObject').replaceChildren(
-      ...meshes.map((mesh, i) => {
+      ...choices.map((mesh, i) => {
         const o = document.createElement('option');
         o.value = i;
-        o.textContent = mesh.name || 'Mesh ' + (i + 1);
+        o.textContent = (mesh.isMesh ? 'Mesh · ' : 'Part · ') + (mesh.name || 'Objek ' + (i + 1));
         return o;
       }),
     );
-    select(meshes[0]);
+    const preferred = partImport ? assembly.children.at(-1) : choices[0];
+    $('wdObject').value = String(choices.indexOf(preferred));
+    select(preferred);
     $('wdStatus').textContent =
       `${meshes.length} mesh · ${meshes.reduce((n, m) => n + (m.geometry.index?.count || m.geometry.attributes.position.count) / 3, 0)} segitiga. Geser sumbu untuk mengatur part.`;
   }
@@ -369,7 +405,7 @@ export function mountWeaponStudio({ root, download, toast, confirmDiscard }) {
       list();
       fit();
     });
-  $('wdObject').onchange = () => select(objects()[Number($('wdObject').value)]);
+  $('wdObject').onchange = () => select(targets()[Number($('wdObject').value)]);
   $('wdTransform').onchange = () => {
     init();
     gizmo.setMode($('wdTransform').value);
@@ -385,8 +421,10 @@ export function mountWeaponStudio({ root, download, toast, confirmDiscard }) {
     serial++;
     list();
   };
+  $('wdMaterial').onchange = uv;
   $('wdApplyColor').onclick = () => {
-    for (const material of materials(selected)) {
+    if (!selected) return toast('Pilih mesh atau part terlebih dahulu.');
+    for (const material of editableMaterials()) {
       material.color?.set($('wdColor').value);
       material.needsUpdate = true;
     }
@@ -410,7 +448,7 @@ export function mountWeaponStudio({ root, download, toast, confirmDiscard }) {
           canvas.width = Math.max(1, Math.round(bitmap.width * scale));
           canvas.height = Math.max(1, Math.round(bitmap.height * scale));
           canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-          for (const material of materials(selected)) {
+          for (const material of editableMaterials()) {
             const map = new THREE.CanvasTexture(canvas);
             map.colorSpace = THREE.SRGBColorSpace;
             material.map?.dispose();
@@ -437,7 +475,7 @@ export function mountWeaponStudio({ root, download, toast, confirmDiscard }) {
       ![x, y].every((n) => Number.isFinite(n) && Math.abs(n) <= 10)
     )
       return toast('Pengaturan UV di luar batas.');
-    for (const m of materials(selected))
+    for (const m of editableMaterials())
       if (m.map) {
         m.map.repeat.set(repeat, repeat);
         m.map.offset.set(x, y);
@@ -485,7 +523,7 @@ export function mountWeaponStudio({ root, download, toast, confirmDiscard }) {
   $('wdUvSave').onclick = () => action(() => png($('wdUv'), '_uv'));
   $('wdTextureSave').onclick = () =>
     action(async () => {
-      const map = materials(selected).find((m) => m.map)?.map;
+      const map = editableMaterials().find((m) => m.map)?.map;
       if (!map?.image) throw Error('Mesh terpilih belum memiliki tekstur.');
       const canvas = document.createElement('canvas');
       canvas.width = map.image.width;

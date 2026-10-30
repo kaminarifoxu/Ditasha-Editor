@@ -53,9 +53,10 @@ with tempfile.TemporaryDirectory() as directory:
     assert rest['textures'],'Skinned source textures missing from preview'
     before=set(bpy.data.objects)
     bpy.ops.import_scene.gltf(filepath=str(output/'ditasha-halfped.glb'))
-    imported=[o for o in bpy.data.objects if o not in before and o.type=='MESH']
+    custom_shapes={b.custom_shape for a in bpy.data.objects if a.type=='ARMATURE' for b in a.pose.bones if b.custom_shape is not None}
+    imported=[o for o in bpy.data.objects if o not in before and o.type=='MESH' and o not in custom_shapes]
     print('IMPORTED_HEAD_BINDINGS',[(o.name,o.parent_type,o.parent_bone,len(o.vertex_groups),[m.type for m in o.modifiers]) for o in imported])
-    assert imported and all(ped_review.armature_for(o) for o in imported)
+    assert len(imported)==2 and all(ped_review.armature_for(o) for o in imported),[(o.name,o.parent_type) for o in imported]
     for obj in imported:
         assert obj.data.uv_layers
         if obj.parent_type=='BONE':

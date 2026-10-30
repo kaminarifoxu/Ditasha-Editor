@@ -115,6 +115,7 @@ function validateJob(payload) {
   };
   if (
     payload.mode === 'garment' &&
+    !payload.headOptions?.enabled &&
     ((payload.clothing !== undefined &&
       (!payload.clothing ||
         typeof payload.clothing !== 'object' ||

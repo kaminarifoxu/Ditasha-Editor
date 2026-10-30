@@ -1,3 +1,11 @@
+# v1.75.0 — Character and weapon workshops
+
+- Persist imported YCD/animated GLB emotes across application sessions, with automatic local source saves, chunked bytes, SHA-256 deduplication and bounded playback caching. Import emote folders or RPEmotes ZIPs without evaluating Lua. Add explicit save, reload and saved-library deletion controls.
+- Assemble a freemode Photo Booth character from local head, hair and body YDD/YTD components as one actor. Select texture dictionaries and import illenium/fivem-appearance component JSON. Save assembled characters in scene presets. Native parent head blending, facial sliders and overlays are not simulated offline; original game assets must be supplied locally.
+- Add a dedicated halfped/head and separate hair workflow for exported Sims 4/other GLB, FBX, OBJ or Blender meshes. Fit against male/female GTA references, transfer facial surface weights or bind rigidly, adjust hair placement, inspect head/jaw and other poses, and export skinned GLB, a packed Blender project and optional existing-slot native YDDs. Export source UV SVG and actual freemode reference UV when provided by a suitable template.
+- Reorganize Auto Rig and AddonWeaponsBuilder around settings, a larger 3D viewport and export panels like Logo Prop 3D. Add a weapon design workbench with model/part import, group and mesh transforms, material/PNG edits, UV preview, UV/texture PNG and assembled GLB exports. Common FiveM weapon names are references; original generic blockouts are included, while authentic GTA models and game-ready weapon rigs/metadata require local assets and preparation.
+- Keep explicit limits: no direct Sims .package conversion, automatic full-character head segmentation, arbitrary new YMT slot registration, hat/physics hair rig generation or guarantee of correct facial deformation for every stylized head. See CHARACTER_WORKSHOPS.md for the workflows and tests.
+
 # v1.74.1 — Reliable logo prop textures
 
 - Fix native logo exports failing with invalid texture layer sizes at mip 0 or later mip levels for odd-sized and landscape/portrait images. Pad a private native texture to a square power-of-two canvas and remap UVs into the original pixels, preserving the prop aspect ratio, silhouette, colors and transparency.

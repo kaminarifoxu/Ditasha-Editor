@@ -84,10 +84,39 @@ module.exports = async function checkCharacterWorkshops({
   assert(new DataView(buffer).getUint32(0, true) === 0x46546c67, 'Weapon GLB magic');
   const length = new DataView(buffer).getUint32(12, true),
     gltf = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, 20, length)));
-  assert(gltf.meshes.length > before, 'Weapon GLB did not include the imported part');
+  assert(
+    gltf.meshes.length >= 5 && gltf.nodes.some((n) => n.name === 'test-attachment.glb'),
+    'Weapon GLB did not include the imported part',
+  );
   assert(
     gltf.materials.some((m) => m.pbrMetallicRoughness?.baseColorFactor?.[0] > 0.5),
     'Weapon material edit was lost',
+  );
+  const textureCanvas = document.createElement('canvas');
+  textureCanvas.width = 32;
+  textureCanvas.height = 16;
+  const textureContext = textureCanvas.getContext('2d');
+  textureContext.fillStyle = '#d52222';
+  textureContext.fillRect(0, 0, 32, 16);
+  const textureBlob = await new Promise((resolve) => textureCanvas.toBlob(resolve, 'image/png'));
+  files($('wdTextureInput'), [
+    ['design.png', [...new Uint8Array(await textureBlob.arrayBuffer())]],
+  ]);
+  await wait(() => !$('wdTexture').disabled, 'Weapon texture import');
+  $('wdExport').click();
+  await wait(
+    () => saves.filter((s) => s.name.endsWith('.glb')).length === 2 && !$('wdExport').disabled,
+    'Textured weapon GLB',
+  );
+  const textured = Uint8Array.from(saves.filter((s) => s.name.endsWith('.glb')).at(-1).data).buffer;
+  const texturedLength = new DataView(textured).getUint32(12, true),
+    texturedJson = JSON.parse(
+      new TextDecoder().decode(new Uint8Array(textured, 20, texturedLength)),
+    );
+  assert(
+    texturedJson.images?.length &&
+      texturedJson.materials.some((m) => m.pbrMetallicRoughness?.baseColorTexture),
+    'Applied weapon texture missing from GLB',
   );
   $('wdUvSave').click();
   await wait(
@@ -220,6 +249,7 @@ module.exports = async function checkCharacterWorkshops({
       weaponGlbPartImport: true,
       weaponMaterial: true,
       weaponUvPng: true,
+      weaponTexture: true,
       freemodeSingleActor: true,
       freemodeHeadHair: true,
       zipAutoSave: true,
