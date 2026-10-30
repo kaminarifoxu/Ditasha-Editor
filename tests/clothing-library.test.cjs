@@ -101,3 +101,26 @@ test('pairs drawable and multiple texture variations from GTA naming', () => {
   assert.equal(textureB.textureVariant, 'b');
   assert.equal(textureA.gender, 'female');
 });
+
+test('saves freemode outfit with multiple drawable parts across restart', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'ditasha-outfit-'));
+  try {
+    const sources = ['mp_m_freemode_01^jbib_001_u.ydd', 'mp_m_freemode_01^lowr_002_u.ydd',
+      'mp_m_freemode_01^jbib_diff_001_a_uni.ytd'].map(name => path.join(root,name));
+    for(const source of sources) await fs.writeFile(source,'sample');
+    const library = new ClothingLibrary(path.join(root,'library'));
+    const pack = await library.importFiles({files:sources});
+    const top=pack.files.find(f=>f.component==='jbib' && /\.ydd$/i.test(f.name));
+    const pants=pack.files.find(f=>f.component==='lowr');
+    const preset=await library.saveOutfit({name:'My Outfit',gender:'male',slots:[
+      {packId:pack.id,relativePath:top.relativePath,textureVariant:'a'},
+      {packId:pack.id,relativePath:pants.relativePath}
+    ]});
+    const reopened = new ClothingLibrary(path.join(root,'library'));
+    assert.equal((await reopened.listOutfits())[0].id,preset.id);
+    await assert.rejects(reopened.saveOutfit({name:'Wrong',gender:'female',slots:[
+      {packId:pack.id,relativePath:top.relativePath}]}),/incompatible/);
+    assert.equal(await reopened.removeOutfit(preset.id),true);
+    assert.deepEqual(await reopened.listOutfits(),[]);
+  } finally { await fs.rm(root,{recursive:true,force:true}); }
+});
