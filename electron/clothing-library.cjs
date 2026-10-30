@@ -84,6 +84,17 @@ class ClothingLibrary {
     if (file.bytes > 64 * 1024 * 1024 && !/\.ytd$/i.test(file.name)) throw new Error('Preview model too large');
     return { name: file.name, bytes: await fs.readFile(ensureInside(this.root, file.relativePath)) };
   }
+  async rename(id, label) {
+    if (!/^[0-9a-f-]{36}$/i.test(id)) throw new Error('Invalid ID');
+    if (typeof label !== 'string' || !label.trim() || label.length > 96)
+      throw new Error('Invalid pack name');
+    const items = await this.list();
+    const item = items.find(pack => pack.id === id);
+    if (!item) throw new Error('Pack not found');
+    item.pack = safeLabel(label, 'My Custom Pack');
+    await this.writeIndex(items);
+    return { id, pack: item.pack };
+  }
   async remove(id) {
     if (!/^[0-9a-f-]{36}$/i.test(id)) throw new Error('Invalid ID');
     const items = await this.list();
