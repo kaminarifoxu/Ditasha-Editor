@@ -44,7 +44,7 @@ export function mountClothingCatalog({ openPreview } = {}) {
       const foot=document.createElement('small');foot.textContent=pack.pack+' · '+file.gender+' · '+textures.length+' texture files';
       card.append(preview,name,desc,foot);
       const add = document.createElement('button');
-      add.textContent = outfitSlots.get(file.component)?.relativePath === file.relativePath ? '✓ Dipilih untuk Outfit' : '+ Ke Outfit';
+      add.textContent = outfitSlots.get(file.component)?.packId === id && outfitSlots.get(file.component)?.relativePath === file.relativePath ? '✓ Dipilih untuk Outfit' : '+ Ke Outfit';
       add.onclick = () => {
         if (file.gender === 'unknown') { $('[data-feedback]').textContent='Gender file tidak dikenali. Periksa nama file freemode.'; return; }
         if (outfitSlots.size && file.gender !== outfitGender) outfitSlots.clear();
@@ -57,8 +57,17 @@ export function mountClothingCatalog({ openPreview } = {}) {
       const variants = [...new Set(textures.map(t => t.textureVariant).filter(Boolean))].sort();
       const picker = document.createElement('select');
       picker.setAttribute('aria-label', 'Pilih variasi tekstur');
+      const storedSelection = outfitSlots.get(file.component);
+      const isSelected = storedSelection?.packId === id && storedSelection?.relativePath === file.relativePath;
       if (variants.length) {
         for (const variant of variants) picker.add(new Option('Texture ' + variant.toUpperCase(), variant));
+        if (isSelected && variants.includes(storedSelection.textureVariant)) picker.value = storedSelection.textureVariant;
+        picker.onchange = () => {
+          if (isSelected) {
+            outfitSlots.set(file.component, { packId: id, relativePath: file.relativePath, textureVariant: picker.value });
+            $('[data-feedback]').textContent = 'Variasi outfit diperbarui menjadi ' + picker.value.toUpperCase();
+          }
+        };
         card.append(picker);
       }
       if (typeof openPreview === 'function') {
