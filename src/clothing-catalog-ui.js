@@ -10,7 +10,7 @@ export function mountClothingCatalog({ openPreview } = {}) {
   root.setAttribute('aria-label','DITASHA Clothing Catalog');
   root.innerHTML = `<header class="cl-head"><strong>◈ DITASHA <span>Clothing</span></strong><div class="cl-actions"><button data-import>+ Import pakaian</button><button data-close aria-label="Tutup katalog">✕</button></div></header>
   <div class="cl-toolbar"><div class="cl-genders"><button class="active" data-gender="all">Semua</button><button data-gender="male">Cowok</button><button data-gender="female">Cewek</button></div><input data-search placeholder="Cari pakaian, nama file atau pack..." aria-label="Cari pakaian"/><select data-pack aria-label="Pilih pack"><option value="all">Semua pack</option></select></div>
-  <div class="cl-cats" data-cats></div><p class="cl-count" data-count></p><div class="cl-grid" data-grid></div><p class="cl-feedback" data-feedback role="status"></p>`;
+  <div class="cl-pack-actions"><button data-rename-pack>Ubah nama pack</button><button data-delete-pack>Hapus pack</button></div><div class="cl-cats" data-cats></div><p class="cl-count" data-count></p><div class="cl-grid" data-grid></div><p class="cl-feedback" data-feedback role="status"></p>`;
   document.body.append(root);
   const $ = s => root.querySelector(s);
   let items = [], gender = 'all', category = 'all';
@@ -90,6 +90,21 @@ export function mountClothingCatalog({ openPreview } = {}) {
       const result=await window.ditashaClothing.import(name);
       if(result){$('[data-feedback]').textContent='Berhasil menyimpan '+result.files.length+' file ke '+result.pack;await refresh();}
     }catch(e){$('[data-feedback]').textContent='Import gagal: '+e.message;}
+  };
+  $('[data-rename-pack]').onclick=async()=>{
+    if(selectedPack==='all'){ $('[data-feedback]').textContent='Pilih satu pack terlebih dahulu.'; return; }
+    const current=items.find(x=>x.id===selectedPack);
+    const label=window.prompt('Nama pack baru:',current?.pack||'');
+    if(label===null)return;
+    try{await window.ditashaClothing.rename(selectedPack,label);await refresh();$('[data-feedback]').textContent='Nama pack diperbarui.';}
+    catch(e){$('[data-feedback]').textContent='Gagal mengubah nama: '+e.message;}
+  };
+  $('[data-delete-pack]').onclick=async()=>{
+    if(selectedPack==='all'){ $('[data-feedback]').textContent='Pilih satu pack terlebih dahulu.'; return; }
+    const current=items.find(x=>x.id===selectedPack);
+    if(!window.confirm('Hapus pack '+(current?.pack||'')+' beserta semua file yang tersimpan?'))return;
+    try{await window.ditashaClothing.remove(selectedPack);selectedPack='all';await refresh();$('[data-feedback]').textContent='Pack telah dihapus.';}
+    catch(e){$('[data-feedback]').textContent='Gagal menghapus pack: '+e.message;}
   };
   $('[data-search]').oninput=draw;
   $('[data-pack]').onchange=e=>{selectedPack=e.target.value;draw();};
