@@ -52,26 +52,28 @@ app.whenReady().then(async () => {
         report.push(result);
       }
     }
-    // Each archive sidebar and both together must release space without adding a phantom column.
+    // Explorer details are nested below the file list, not a third sidebar.
     for (const width of [1500, 1000, 800]) {
       win.setSize(width, 900);
       report.push(
         await win.webContents.executeJavaScript(`(async()=>{
         document.querySelector('[data-page=archives]').click();
-        const root=document.querySelector('.archive-workspace'),left=root.querySelector('.tool-sidebar'),right=root.querySelector('.tool-details');
+        const root=document.querySelector('.archive-workspace'),left=root.querySelector(':scope > .tool-sidebar'),right=root.querySelector('.archive-selection-details > .tool-details');
         const toggle=p=>p.querySelector('.workspace-panel-toggle');
         const settle=()=>new Promise(r=>setTimeout(r,120));
         const check=(v,m)=>{if(!v)throw Error(m+' at archive/${width}');};
         for(const p of [left,right])if(p.classList.contains('workspace-panel-collapsed'))toggle(p).click();
         await settle();
         const center=root.querySelector('.archive-center'),initial=center.getBoundingClientRect().width;
+        check(getComputedStyle(root).gridTemplateColumns.split(' ').length===2,'Explorer has an empty column');
         toggle(right).click();await settle();
-        if(${width}>880){check(right.getBoundingClientRect().width<=50,'Archive details track did not collapse '+JSON.stringify({width:right.getBoundingClientRect().width,viewport:innerWidth,classes:right.className,grid:getComputedStyle(root).gridTemplateColumns,track:getComputedStyle(root).getPropertyValue('--archive-details-track'),display:getComputedStyle(right).display}));check(center.getBoundingClientRect().width>initial+100,'Archive details did not release space');}
-        else check(right.getBoundingClientRect().height<70,'Stacked archive details did not collapse');
+        check(right.getBoundingClientRect().height<90,'Inline archive details did not collapse');
+        check(getComputedStyle(toggle(right).firstElementChild).writingMode==='horizontal-tb','Inline details label became vertical');
+        check(Math.abs(center.getBoundingClientRect().width-initial)<2,'Inline details changed file list width');
         toggle(left).click();await settle();
         check(left.getBoundingClientRect().width<=50,'Archive files track did not collapse');
+        check(center.getBoundingClientRect().width>initial+100,'Directory panel did not release space');
         check(center.getBoundingClientRect().right<=innerWidth+1,'Archive center outside window');
-        if(${width}<=880)check(getComputedStyle(root).gridTemplateColumns.split(' ').length===2,'Stacked archive gained a phantom column');
         toggle(left).click();toggle(right).click();
         document.querySelector('[data-page=editor]').click();
         return {width:${width},archiveCollapse:true};
