@@ -30,7 +30,12 @@ def reference_from_engine(bpy, gender):
         bpy.ops.object.select_all(action='DESELECT');arm.hide_set(False);arm.hide_viewport=False;arm.select_set(True);bpy.context.view_layer.objects.active=arm
         bpy.ops.object.mode_set(mode='EDIT')
         try:
-            for bone in arm.data.edit_bones:bone.use_connect=False
+            for bone in arm.data.edit_bones:
+                bone.use_connect=False
+                # Tiny template helper tails lose orientation to float32
+                # cancellation when edit matrices are assigned. Tail length is
+                # display-only for this linear GTA skin; preserve heads/rotations.
+                bone.length=max(.025,bone.length)
             for spec in names:
                 bone=arm.data.edit_bones[spec['name']]
                 bone.parent=arm.data.edit_bones.get(spec['parent']) if spec['parent'] else None

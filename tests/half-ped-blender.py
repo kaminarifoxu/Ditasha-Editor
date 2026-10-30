@@ -74,8 +74,9 @@ with tempfile.TemporaryDirectory() as directory:
     import importlib,numpy as np
     module=bridge.engine_info(bpy)['muto'];io=importlib.import_module(module+'.bl.io')
     specs=json.loads((Path(io.DATA)/'template_mp_f.json').read_text())['bones']
-    for spec in specs:
-        assert np.abs(np.array(arm.data.bones[spec['name']].matrix_local)-np.array(spec['matrix_local'])).max()<1e-5,spec['name']
+    deltas={spec['name']:float(np.abs(np.array(arm.data.bones[spec['name']].matrix_local)-np.array(spec['matrix_local'])).max()) for spec in specs}
+    print('FEMALE_REST_MATRIX_DELTAS',sorted(deltas.items(),key=lambda item:-item[1])[:5])
+    assert max(deltas.values())<1e-5,deltas
     before=set(bpy.data.objects)
     target=second/female['nativeHead'][0]['file']
     status=bpy.ops.sollumz.import_assets(directory=str(target.parent),files=[{'name':target.name}],use_custom_settings=True,textures_mode='PACK')
