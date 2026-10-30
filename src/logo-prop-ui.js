@@ -72,7 +72,7 @@ export function mountLogoProp({ nav, activate, download, toast, confirmDiscard }
   const color = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
   function buttons() {
     for (const control of root.querySelectorAll(
-      '.lp-settings input,.lp-settings select,#lpImport,#lpName',
+      '.lp-settings input,.lp-settings select,#lpResetBg,#lpImport,#lpName',
     ))
       control.disabled = loading || ownRun;
     for (const id of ['lpPng', 'lpGlb', 'lpNative']) $(id).disabled = !valid || loading || ownRun;
@@ -190,7 +190,7 @@ export function mountLogoProp({ nav, activate, download, toast, confirmDiscard }
   $('lpFit').onclick = () => fit();
   $('lpFront').onclick = () => fit(true);
   $('lpImage').onclick = (e) => {
-    if (!image || !processed) return;
+    if (!image || !processed || loading || ownRun) return;
     const r = e.currentTarget.getBoundingClientRect(),
       x = Math.min(
         image.width - 1,
