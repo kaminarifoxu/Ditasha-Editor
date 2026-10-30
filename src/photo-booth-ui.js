@@ -2170,6 +2170,8 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     return new GLTFLoader(manager).parseAsync(buffer, '');
   }
   async function importFiles(files, assetKind, category = 'auto', options = {}) {
+    if (options.targetActorId != null && !assets.some(a => a.id === options.targetActorId && a.kind === 'ped'))
+      throw Error('Ped tujuan tidak ditemukan. Pilih ped freemode lagi.');
     if (options.referenceOnly && !currentActor())
       throw Error('Buka ped dahulu sebelum mengimpor skeleton acuan.');
     if (!files.length) return;
