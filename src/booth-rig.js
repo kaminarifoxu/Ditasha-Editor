@@ -46,7 +46,7 @@ export function selectBoothRig(ownRig, skin, candidates = [], { family, choice =
           break;
         }
       }
-      if (index >= rig.length) {
+      if (!Number.isInteger(index) || index < 0 || index >= rig.length) {
         valid = false;
         break;
       }
@@ -61,6 +61,9 @@ export function selectBoothRig(ownRig, skin, candidates = [], { family, choice =
         indices: mapped || skin.indices,
         source: option.label || 'Skeleton acuan',
         required,
+        warning: !own.length && rig !== own
+          ? 'Bone indices cocok secara jumlah, tetapi sumber bone asli tidak ada; posisi skin belum bisa diverifikasi.'
+          : null,
       };
   }
   return {
