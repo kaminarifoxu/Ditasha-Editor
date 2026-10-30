@@ -527,3 +527,82 @@ body[data-motion='reduced'] .photo-booth-workspace {
 .pb-emote-pages[hidden] {
   display: none;
 }
+.pb-movie-panel {
+  position: fixed;
+  left: 20px;
+  bottom: 20px;
+  width: 420px;
+  max-width: calc(100vw - 40px);
+  max-height: calc(100vh - 120px);
+  overflow: auto;
+  z-index: 10060;
+  background: var(--panel, #1c2130);
+  color: var(--text, #eee);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 12px 40px #0008;
+}
+#pbMoviePanel > header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  position: sticky;
+  height: auto;
+  min-height: 0;
+  top: 0;
+  background: var(--panel, #1c2130);
+  z-index: 1;
+}
+.pb-movie-panel header strong {
+  flex: 1;
+}
+#pbMovieBody {
+  padding: 0 14px 14px;
+}
+.pb-movie-panel label {
+  display: grid;
+  gap: 5px;
+  margin: 10px 0;
+  font-size: 11px;
+}
+.pb-movie-panel .check {
+  display: flex;
+  align-items: center;
+}
+.pb-movie-panel input:not([type='checkbox']),
+.pb-movie-panel select {
+  width: 100%;
+  min-width: 0;
+}
+.pb-movie-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 12px;
+}
+.pb-movie-markers {
+  position: relative;
+  height: 30px;
+  margin: 5px 12px 12px;
+  border-bottom: 2px solid var(--border);
+}
+.pb-movie-markers button {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 13px;
+  padding: 2px;
+  border: 0;
+  background: transparent;
+  color: #b6bdd2;
+}
+.pb-movie-markers button[aria-pressed='true'] {
+  color: #efc46f;
+}
+.pb-movie-panel progress {
+  width: 100%;
+  margin-top: 10px;
+}
+.pb-movie-panel summary {
+  cursor: pointer;
+  padding: 12px 0;
+}

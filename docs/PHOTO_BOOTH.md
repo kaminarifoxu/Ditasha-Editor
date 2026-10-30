@@ -188,3 +188,7 @@ Settings → **Instalasi GTA V** validates and remembers a local game root, open
 **Lewati objek studio di luar kamera** explicitly controls Three's per-camera frustum culling for static studio meshes, with an in-frame/total mesh counter. This skips main-camera draws behind/outside the frustum and recomputes on camera movement. It preserves offscreen shadow casters and does not touch animated ped bounds or hide objects via `visible=false`. This is not wall occlusion, geometry unloading or streaming. Static meshes already used Three's default frustum path; the new control makes that behavior explicit rather than claiming a new full-world renderer.
 
 The Clip dropdown now opens a searchable three-column button grid, with the active emote highlighted. Lists over 90 items have page controls. Selection uses the existing native select as its internal state, preserving per-ped ownership, saved IDs and fullscreen reparenting. Arrow keys move through the grid; Escape closes it.
+
+## v1.68 — cinematic video
+
+See [PHOTO_BOOTH_CINEMATIC.md](PHOTO_BOOTH_CINEMATIC.md) for the Video & keyframe workflow, camera/lens/lighting controls, original VP8/WebM export path, fallback, limits and research references. Movie state is optional in the scene schema and retained by the existing binary-chunk preset storage. No CodeWalker renderer source or game assets are bundled by this change.

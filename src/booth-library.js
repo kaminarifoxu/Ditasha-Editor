@@ -1,7 +1,9 @@
+import { validateMovie } from './booth-movie.js';
 import { BOOTH_STUDIOS } from './booth-studio.js';
 import { MAX_BOOTH_MODELS, OUTFIT_CATEGORIES } from './booth-outfits.js';
 import { validateActorMotion } from './booth-actors.js';
 export function validateBoothScene(record) {
+  if (record?.movie !== undefined) validateMovie(record.movie);
   if (
     record?.version !== 1 ||
     !Array.isArray(record.assets) ||
