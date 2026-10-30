@@ -1,5 +1,6 @@
 """DITASHA's rig review. Diagnostic poses never modify exported ped resources."""
 import math
+import importlib
 from pathlib import Path
 import json
 
@@ -137,6 +138,7 @@ def run_muto(worker, bpy, arguments, options, progress=None):
     height = configure_muto(bpy.context.scene.mpr, options)
     original_import = worker._import
     original_steps = getattr(worker, 'STEPS', None)
+    original_exports = []
     notify = progress or (lambda stage: None)
     class TracedSteps(tuple):
         def __iter__(self):
@@ -163,8 +165,21 @@ def run_muto(worker, bpy, arguments, options, progress=None):
     if original_steps is not None:
         worker.STEPS = TracedSteps(original_steps)
     try:
+        if progress is not None and getattr(worker, '__package__', None):
+            export_module = importlib.import_module(worker.__package__ + '.sollumz_setup')
+            for name, label in [('build_hierarchy','hierarchy'),('apply_ped_textures','textures'),('add_lods','lods'),('export','native'),('write_test_resource','resource')]:
+                function = getattr(export_module, name)
+                original_exports.append((export_module,name,function))
+                def traced_export(*args,_fn=function,_label=label,**kwargs):
+                    notify('export.' + _label)
+                    result = _fn(*args,**kwargs)
+                    print('DITASHA_PED_EXPORT_DONE ' + _label,flush=True)
+                    return result
+                setattr(export_module,name,traced_export)
         return worker.run({**arguments, 'height': height})
     finally:
+        for module,name,function in original_exports:
+            setattr(module,name,function)
         worker._import = original_import
         if original_steps is not None:
             worker.STEPS = original_steps

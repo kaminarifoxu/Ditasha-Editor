@@ -1,6 +1,7 @@
 import importlib.util
 from pathlib import Path
 from types import SimpleNamespace as N
+import sys
 
 spec = importlib.util.spec_from_file_location('ped_review', Path(__file__).resolve().parents[1] / 'electron/ped_review.py')
 m = importlib.util.module_from_spec(spec)
@@ -28,6 +29,23 @@ worker.run=traced_worker
 assert m.run_muto(worker, N(context=context), {'src':'model.glb'}, {}, stages.append)['ok']
 assert stages==['import','prepare','strip','markers'],stages
 assert worker.STEPS is original_steps
+exports=N(**{name:(lambda value=None:value) for name in ['build_hierarchy','apply_ped_textures','add_lods','export','write_test_resource']})
+saved_exports=vars(exports).copy()
+worker.__package__='_ditasha_test.bl'
+sys.modules['_ditasha_test.bl.sollumz_setup']=exports
+def export_worker(args):
+    worker._import(args['src'])
+    assert exports.build_hierarchy(42)==42
+    raise RuntimeError('native failure fixture')
+worker.run=export_worker
+stages=[]
+try:m.run_muto(worker,N(context=context),{'src':'model.glb'},{},stages.append)
+except RuntimeError:pass
+else:raise AssertionError('Expected fixture failure')
+assert stages==['import','prepare','export.hierarchy'],stages
+assert all(getattr(exports,name) is function for name,function in saved_exports.items())
+assert worker.STEPS is original_steps and worker._import is replace_scene
+del sys.modules['_ditasha_test.bl.sollumz_setup'];del worker.__package__
 worker.run=run_worker
 assert m.run_muto(worker, N(context=context), {'src': 'model.glb'}, {'reference': 'mp_f', 'height': 1.62})['ok']
 assert worker._import is replace_scene

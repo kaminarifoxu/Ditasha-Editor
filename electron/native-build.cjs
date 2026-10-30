@@ -703,11 +703,6 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
       clearTimeout(timer);
       child = null;
       try {
-        const reportFile = path.join(job.output, 'report.json');
-        if ((await fs.stat(reportFile)).size > 1024 * 1024)
-          throw Error('Report engine terlalu besar.');
-        const rep = JSON.parse(await fs.readFile(reportFile, 'utf8'));
-        state.report = rep;
         reviewFile = null;
         if (['ped', 'garment'].includes(job.mode)) {
           const project = path.join(job.output, 'ditasha-result.blend');
@@ -717,6 +712,11 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
             state.reviewId = reviewFile.id;
           }
         }
+        const reportFile = path.join(job.output, 'report.json');
+        if ((await fs.stat(reportFile)).size > 1024 * 1024)
+          throw Error('Report engine terlalu besar.');
+        const rep = JSON.parse(await fs.readFile(reportFile, 'utf8'));
+        state.report = rep;
         if (rep.ok && rep.preview && !error && !state.cancelled) {
           const previewPath = path.join(job.output, 'preview.json');
           if ((await fs.stat(previewPath)).size > 48 * 1024 * 1024)
@@ -761,6 +761,11 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
           error || (reportError.code === 'ENOENT' ? null : reportError.message),
           stage,
         );
+        if (reviewFile) {
+          state.message +=
+            ' Hasil rig sebelum ekspor tersedia sebagai proyek Blender untuk koreksi.';
+          state.report = { ok: false, stage, error: state.message, recovery: true };
+        }
       }
       if (job.mode === 'probe') await fs.rm(root, { recursive: true, force: true }).catch(() => {});
       running = false;
