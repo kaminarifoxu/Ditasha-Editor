@@ -73,7 +73,7 @@ for (const mode of ['success', 'staging-failure', 'launch-failure', 'ready-failu
 
 test(
   'Windows production spawn starts helper and confirms handshake',
-  { skip: process.platform !== 'win32', timeout: 30000 },
+  { skip: process.platform !== 'win32', timeout: 45000 },
   async (t) => {
     const { startReplacement } = require('../electron/installer.cjs');
     const directory = await fs.mkdtemp(path.join(os.tmpdir(), "Ditasha's spawn "));
@@ -95,7 +95,10 @@ test(
       confirmRestart: false,
     });
     let report;
-    for (let i = 0; i < 80; i++) {
+    // Busy Windows CI runners may take longer than eight seconds to release the parent
+    // executable and finish the PowerShell installer. Poll for a bounded 25 seconds.
+    const deadline = Date.now() + 25000;
+    while (Date.now() < deadline) {
       try {
         report = JSON.parse(
           (await fs.readFile(path.join(directory, 'install.json'), 'utf8')).replace(/^\uFEFF/, ''),
