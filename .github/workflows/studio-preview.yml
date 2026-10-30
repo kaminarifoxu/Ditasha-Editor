@@ -2,11 +2,13 @@ name: Test and build DITASHA studio preview
 on:
   push:
     branches: [codex/embedded-code-oss]
+  pull_request:
+    branches: [codex/embedded-code-oss]
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: ditasha-studio-preview
+  group: ditasha-studio-preview-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 jobs:
   windows:
