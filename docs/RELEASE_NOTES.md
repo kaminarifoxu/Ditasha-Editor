@@ -1,3 +1,10 @@
+# v1.75.1 — Full ped import and rig diagnostics
+
+- Exclude mesh objects used only as imported bone control shapes before Muto joins a skinned GLB character. The helper Icosphere was treated as part of the body, changing bounds and causing incorrect automatic joint placement. A real six-part skinned GLB that previously failed native export now completes all eight Muto steps and produces YFT/YDD/YTD/YMT, pose previews and a correction project.
+- Preserve the last full-ped stage and report the specific failed Muto operator. Unexpected Blender exits include available Python/native error details instead of only an exit code. Add a downloadable diagnostic log with the engine report.
+- Stack full-ped body-reference choices and height controls within the left settings panel to prevent narrow, vertically wrapped labels.
+- Validate with Blender 5.2.2, Sollumz 2.9 and Muto 0.3.2 on Windows. This fixes imported control geometry; unusual anatomy, non-A/T poses and model-specific rig failures still require source inspection and manual correction.
+
 # v1.75.0 — Character and weapon workshops
 
 - Persist imported YCD/animated GLB emotes across application sessions, with automatic local source saves, chunked bytes, SHA-256 deduplication and bounded playback caching. Import emote folders or RPEmotes ZIPs without evaluating Lua. Add explicit save, reload and saved-library deletion controls.

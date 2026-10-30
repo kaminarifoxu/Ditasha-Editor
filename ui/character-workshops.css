@@ -269,3 +269,15 @@
 .workspace-shell .native-prop-layout .native-preview > .viewer-button-row {
   padding: 8px 12px;
 }
+
+/* The full-ped settings now live in a narrow side panel. */
+.workspace-shell .native-prop-layout #nbSourcePanel .studio-fields {
+  grid-template-columns: minmax(0, 1fr);
+}
+.workspace-shell .native-prop-layout #nbSourcePanel .workspace-choice-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+.workspace-shell .native-prop-layout #nbSourcePanel .workspace-choice-grid > button {
+  word-break: normal;
+  overflow-wrap: normal;
+}

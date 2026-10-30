@@ -23,6 +23,25 @@ const PICK_TYPES = {
   variations: { name: 'Target carvariations.meta', extensions: ['meta'] },
   vehicles: { name: 'Target vehicles.meta', extensions: ['meta'] },
 };
+function engineFailure(log, error, stage) {
+  const lines = String(log || '')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const detail = lines.findLast(
+    (line) =>
+      /(?:\w*(?:Error|Exception):|Error:|EXCEPTION_ACCESS_VIOLATION|out of memory|failed to allocate)/i.test(
+        line,
+      ) && !line.startsWith('DITASHA_NATIVE_RESULT'),
+  );
+  return [
+    error || 'Engine tidak menghasilkan report.',
+    stage ? 'Tahap terakhir: ' + stage + '.' : '',
+    detail ? detail.slice(0, 1200) : 'Simpan log diagnosis untuk memeriksa penyebabnya.',
+  ]
+    .filter(Boolean)
+    .join(' ');
+}
 function validateJob(payload) {
   if (
     !payload ||
@@ -728,9 +747,20 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
               : ['ped', 'garment'].includes(job.mode)
                 ? 'Preview rig siap. Periksa model 3D, lalu Simpan hasil ped.'
                 : 'Proses selesai. Periksa report dan hasil sebelum dipakai di game.');
-      } catch {
+      } catch (reportError) {
         state.status = 'error';
-        state.message = error || 'Engine tidak menghasilkan report. Periksa log.';
+        let stage;
+        try {
+          const progressFile = path.join(job.output, 'progress.json');
+          if ((await fs.stat(progressFile)).size <= 4096)
+            stage = JSON.parse(await fs.readFile(progressFile, 'utf8')).stage;
+          if (typeof stage !== 'string' || stage.length > 64) stage = null;
+        } catch {}
+        state.message = engineFailure(
+          state.log,
+          error || (reportError.code === 'ENOENT' ? null : reportError.message),
+          stage,
+        );
       }
       if (job.mode === 'probe') await fs.rm(root, { recursive: true, force: true }).catch(() => {});
       running = false;
@@ -741,4 +771,4 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
   });
   return { cancel };
 }
-module.exports = { validateJob, blenderArgs, registerNativeBuild };
+module.exports = { validateJob, blenderArgs, registerNativeBuild, engineFailure };

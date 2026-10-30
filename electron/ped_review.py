@@ -131,19 +131,43 @@ def armature_for(obj):
     return None
 
 
-def run_muto(worker, bpy, arguments, options):
+def run_muto(worker, bpy, arguments, options, progress=None):
     # The pinned batch worker imports the model before reading Scene.mpr. Apply
     # settings after import too, in case a multi-scene GLB changes active scenes.
     height = configure_muto(bpy.context.scene.mpr, options)
     original_import = worker._import
+    original_steps = getattr(worker, 'STEPS', None)
+    notify = progress or (lambda stage: None)
+    class TracedSteps(tuple):
+        def __iter__(self):
+            for item in super().__iter__():
+                notify(item[0])
+                yield item
     def configured_import(source):
+        notify('import')
         original_import(source)
+        # glTF creates mesh objects used only to draw bone controls (Icosphere).
+        # Muto joins every mesh in bpy.data.objects, including these controls,
+        # which changes body bounds and corrupts automatic joint placement.
+        if hasattr(bpy, 'data'):
+            bones=[bone for arm in bpy.data.objects if arm.type=='ARMATURE' for bone in arm.pose.bones]
+            helpers={bone.custom_shape for bone in bones if bone.custom_shape is not None and bone.custom_shape.type=='MESH'}
+            for bone in bones:
+                if bone.custom_shape in helpers: bone.custom_shape=None
+            for helper in helpers:
+                bpy.data.objects.remove(helper,do_unlink=True)
+            if helpers: print('DITASHA_PED_IGNORED_BONE_CONTROLS',len(helpers),flush=True)
         configure_muto(bpy.context.scene.mpr, options)
+        notify('prepare')
     worker._import = configured_import
+    if original_steps is not None:
+        worker.STEPS = TracedSteps(original_steps)
     try:
         return worker.run({**arguments, 'height': height})
     finally:
         worker._import = original_import
+        if original_steps is not None:
+            worker.STEPS = original_steps
 
 
 def audit_rig(objects, mesh_levels):

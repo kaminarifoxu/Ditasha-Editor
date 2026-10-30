@@ -121,6 +121,16 @@ export function mountNativeBuild({
   const exportHeading = document.createElement('h2');
   exportHeading.textContent = 'Ekspor & validasi';
   rightPanel.prepend(exportHeading);
+  const saveLog = document.createElement('button');
+  saveLog.id = 'nbSaveLog';
+  saveLog.textContent = 'Simpan log diagnosis';
+  $('nbLog').before(saveLog);
+  saveLog.addEventListener('click', () => {
+    const text = [state.message || '', state.log || '', JSON.stringify(state.report, null, 2)].join(
+      '\n\n',
+    );
+    download(new Blob([text], { type: 'text/plain;charset=utf-8' }), 'ditasha-rig-log.txt');
+  });
   const selectedNames = () =>
     [
       ...$($('nbMode').value === 'parts' ? 'nbPartCandidates' : 'nbCandidates').querySelectorAll(
