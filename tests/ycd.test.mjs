@@ -4,6 +4,23 @@ import { Group, Bone, AnimationMixer, LoopOnce } from 'three';
 import { readYcd, ycdAnimationClip } from '../src/ycd.js';
 import { boothYcdFixture } from './fixtures/booth-ycd.mjs';
 import { captureBoothRest, applyBoothPose } from '../src/photo-booth-pose.js';
+import { inflateRaw } from 'pako';
+test('headerless YCD system pages decode without changing source bytes', () => {
+  const packed = new Uint8Array(boothYcdFixture());
+  const raw = inflateRaw(packed.subarray(16));
+  new DataView(raw.buffer).setUint32(4, 1, true);
+  const original = raw.slice();
+  const source = readYcd(raw.buffer);
+  const wrapped = readYcd(packed.buffer);
+  assert.equal(source.clips[0].name, wrapped.clips[0].name);
+  const { g } = rig();
+  assert(ycdAnimationClip(source.clips[0], g).tracks.length > 0);
+  assert.deepEqual(raw, original);
+  const invalid = raw.slice();
+  new DataView(invalid.buffer).setBigUint64(40, 0x50000000n + BigInt(raw.length), true);
+  assert.throws(() => readYcd(invalid.buffer), /header bukan RSC7/);
+  assert.throws(() => readYcd(new Uint8Array(8192).buffer), /header bukan RSC7/);
+});
 function rig() {
   const g = new Group(),
     root = new Bone(),

@@ -318,9 +318,9 @@ body[data-motion='reduced'] .photo-booth-workspace {
 .pb-emote-player {
   position: absolute;
   right: 18px;
-  top: 84px;
+  top: var(--pb-overlay-top, 84px);
   width: min(310px, calc(100vw - 36px));
-  max-height: calc(100dvh - 152px);
+  max-height: calc(100dvh - var(--pb-overlay-top, 84px) - 70px);
   display: flex;
   flex-direction: column;
   border: 1px solid var(--border, #353c50);
@@ -380,10 +380,36 @@ body[data-motion='reduced'] .photo-booth-workspace {
 .pb-emote-minimized .pb-emote-header {
   border-bottom: 0;
 }
+.pb-ped-panel {
+  left: 18px;
+  right: auto;
+}
+.pb-ped-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.pb-ped-body > .pb-assets {
+  min-height: 0;
+  max-height: none;
+  width: 100%;
+  box-sizing: border-box;
+  border: 0;
+  overflow: visible;
+}
+.pb-ped-body > .pb-assets > .workspace-panel-toggle,
+.pb-ped-body > .pb-assets > h2:first-of-type {
+  display: none;
+}
+@media (max-width: 759px) {
+  .pb-emote-player.pb-emote-minimized {
+    width: min(285px, calc(50vw - 27px));
+  }
+}
 @media (max-height: 650px), (max-width: 850px) {
   .pb-emote-player {
-    top: 125px;
-    max-height: calc(100dvh - 185px);
+    top: var(--pb-overlay-top, 125px);
+    max-height: calc(100dvh - var(--pb-overlay-top, 125px) - 60px);
   }
 }
 .pb-export-dialog {

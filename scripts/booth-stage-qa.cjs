@@ -18,6 +18,18 @@ module.exports = async function checkBoothStage(win, glb, fs, path) {
     await pause(250);
     const r=document.querySelector('.pb-stage').getBoundingClientRect();
     if(Math.abs(r.left)>1||Math.abs(r.top)>1||r.width<innerWidth-2||r.height<innerHeight-2)throw Error('Expanded stage is not at window origin');
+    const panel=$('pbPedPanel');
+    if(panel.hidden||!panel.contains($('pbAssets'))||!panel.contains($('pbPed')))throw Error('Fullscreen ped panel missing live controls');
+    if(panel.getBoundingClientRect().left>30)throw Error('Ped panel is not on the left');
+    const actorIds=[...$('pbActor').options].map(o=>o.value);
+    panel.querySelector('[data-select-actor="'+actorIds[1]+'"]').click();
+    if($('pbActor').value!==actorIds[1]||$('pbStageActor').value!==actorIds[1])throw Error('Ped panel selection not shared');
+    panel.querySelector('[data-select-actor="'+actorIds[0]+'"]').click();
+    $('pbPedMinimize').click();
+    if(!$('pbPedBody').hidden||$('pbPedMinimize').getAttribute('aria-expanded')!=='false')throw Error('Ped panel did not minimize');
+    $('pbPedToggle').click();
+    if($('pbPedBody').hidden)throw Error('Ped panel did not reopen');
+    $('pbPedMinimize').click();
     $('pbMove').click();await pause(100);
   })()`);
   await new Promise((r) => setTimeout(r, 250));
@@ -148,8 +160,10 @@ module.exports = async function checkBoothStage(win, glb, fs, path) {
   await win.webContents.executeJavaScript(`(() => {
     const $=id=>document.getElementById(id);$('pbFullscreen').click();
     if(!document.querySelector('.pb-settings').contains($('pbActor'))||!document.querySelector('.pb-settings').contains($('pbClip')))throw Error('Emote controls not restored after fullscreen');
+    if(!document.querySelector('.pb-layout > .pb-assets')?.contains($('pbAssets'))||!$('pbPedPanel').hidden)throw Error('Ped controls not restored after fullscreen');
     $('pbFullscreen').click();
     if(!$('pbEmoteBody').hidden)throw Error('Minimized state not preserved on re-entry');
+    if(!$('pbPedBody').hidden)throw Error('Ped minimized state not preserved on re-entry');
     $('pbFullscreen').click();
   })()`);
   return {
@@ -157,6 +171,8 @@ module.exports = async function checkBoothStage(win, glb, fs, path) {
     numericMovementKeepsStudio: true,
     realMouseGizmoDrag: true,
     windowOriginFullscreen: true,
+    leftPedPanel: true,
+    pedMinimizeAndRestore: true,
     stableStudioScreenshots: true,
     fullscreenEmotePlayer: true,
     minimizedPlayback: true,

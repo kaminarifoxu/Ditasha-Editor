@@ -200,3 +200,9 @@ Impor YFT dan semua YTD resource melalui **Folder kendaraan**, atau tambahkan ma
 Library emote kini menahan metadata hingga 32.768 clip (maksimum 2.000 file dan 512 MB sumber). Data animasi sumber hanya dimuat untuk emote yang dipilih. Cache playback dibatasi 16 juta nilai / 192 MB, dengan eviction dictionary yang tidak aktif. Pemilihan terlalu banyak emote berat secara bersamaan tetap dapat ditolak; daftar library dan preset tidak dibuang. File duplikat berdasarkan SHA-256 dilewati. File sumber tetap diperlukan untuk menyimpan preset dan memuat ulang emote yang dikeluarkan dari cache.
 
 Pesan header YCD membedakan signature FXAP, RSC8, arsip dan format tidak dikenal. FXAP yang terlindungi tidak dapat dibaca sebagai sumber YCD; gunakan sumber tidak dilindungi yang disediakan pembuat aset. File tidak dikenal memerlukan pemeriksaan byte file aslinya, bukan screenshot.
+
+## v1.73 fullscreen ped panel and headerless poses
+
+Fullscreen keeps Ped & outfit on the left and the emote player on the right. Each has Minimize/Open and a toolbar shortcut. The left panel reuses the actual import, search, owner-group and preset controls; leaving fullscreen restores them to the regular sidebar. On widths below 760 px, opening one panel minimizes the other.
+
+The YCD reader also accepts uncompressed system-page exports with the validated zero-VFT/version-flag dictionary layout, correctly bounded 0x50000000 pointers and clip tables. Arbitrary zero-filled or unknown headers are still rejected, and normal clip/channel limits remain active. Original bytes are retained for presets; RSC7 exports and this raw input are distinct encodings. This does not decrypt assets or enable multi-source facial blending.
