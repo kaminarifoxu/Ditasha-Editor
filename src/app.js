@@ -1,3 +1,4 @@
+import { mountClothingCatalog } from './clothing-catalog-ui.js';
 import { mountWorkspacePolish } from './workspace-polish.js';
 import { defaultDrawableSelection, drawableView } from './drawable-selection.js';
 import { resolveModelTexture, modelAlphaMode, modelPreviewAlpha } from './model-material.js';
@@ -2577,6 +2578,7 @@ mountMinimalUi();
 mountWorkspaceShell({ toast });
 mountAssetWorkshopUi();
 mountWorkspacePolish();
+mountClothingCatalog();
 let canvasFitFrame;
 new ResizeObserver(() => {
   cancelAnimationFrame(canvasFitFrame);
