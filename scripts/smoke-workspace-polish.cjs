@@ -40,6 +40,7 @@ app.whenReady().then(async () => {
           check(area.width>100&&area.height>80,'Texture area collapsed');
           check(texture.left>=area.left-1&&texture.right<=area.right+1&&texture.top>=area.top-1&&texture.bottom<=area.bottom+1,'Texture clipped');
           check(vp.width>150&&gpu.width>150&&Math.abs(vp.width-gpu.width)<3,'3D canvas width mismatch');
+          check($('photoshoot').clientWidth>=105&&$('photoshoot').scrollWidth<=$('photoshoot').clientWidth+1,'Photoshoot label clipped');
           check(vp.left>=0&&vp.right<=innerWidth+1&&bar.right<=innerWidth+1,'Preview outside window');
           const left=document.querySelector('main > .files'),button=left.querySelector('.workspace-panel-toggle');button.click();await new Promise(r=>setTimeout(r,80));check(button.getAttribute('aria-expanded')==='false'&&rect(left).width<=50,'Minimize did not reclaim space');button.click();
           const select=$('stampType'),choices=select.nextElementSibling;choices.querySelectorAll('button')[1].click();check(select.value==='text'&&!$('stampTextFields').hidden,'Stamp buttons lost behavior');choices.querySelectorAll('button')[0].click();

@@ -19,9 +19,9 @@ export function mountWorkspacePolish() {
       '.tool-sidebar, .tool-details, .fm-sidebar, .fm-inspector, .pb-panel, .native-build-layout > aside, main > .files',
     )
     .forEach((panel, index) => {
-      const label =
-        panel.querySelector('h2,h3,.sectiontitle')?.textContent.trim() ||
-        (panel.classList.contains('files') ? 'File & layer' : 'Pengaturan');
+      const label = panel.classList.contains('files')
+        ? 'File & layer'
+        : panel.querySelector('h2,h3,.sectiontitle')?.textContent.trim() || 'Pengaturan';
       const key = panel.id || panel.parentElement.id + ':' + panel.className + ':' + index;
       const toggle = document.createElement('button');
       toggle.type = 'button';
