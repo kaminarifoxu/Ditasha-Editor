@@ -72,3 +72,20 @@ test('renames saved pack and preserves name after restart', async () => {
     await assert.rejects(reopened.rename(pack.id, '  '), /Invalid pack name/);
   } finally { await fs.rm(root, { recursive: true, force: true }); }
 });
+
+test('imports a nested clothing resource folder and persists textures', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'ditasha-folder-'));
+  try {
+    const folder = path.join(root, 'resource');
+    const stream = path.join(folder, 'stream', 'collection');
+    await fs.mkdir(stream, { recursive: true });
+    await fs.writeFile(path.join(stream, 'mp_f_freemode_01^jbib_003_u.ydd'), 'model');
+    await fs.writeFile(path.join(stream, 'mp_f_freemode_01^jbib_diff_003_a_uni.ytd'), 'texture');
+    await fs.writeFile(path.join(folder, 'ignored.txt'), 'ignore');
+    const library = new ClothingLibrary(path.join(root, 'library'));
+    const pack = await library.importDirectory({ pack: 'Nested Pack', directory: folder });
+    assert.equal(pack.files.length, 2);
+    assert.equal((await new ClothingLibrary(path.join(root, 'library')).list())[0].files.length, 2);
+    assert.equal(pack.files.find(x => /\\.ytd$/i.test(x.name)).component, 'jbib');
+  } finally { await fs.rm(root, { recursive: true, force: true }); }
+});
