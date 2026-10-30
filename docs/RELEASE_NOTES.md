@@ -1,3 +1,11 @@
+# v1.71.0 preview — Photo Booth material automation and large emote libraries
+
+- Bind vehicle YTDs to the matching vehicle/base-high family, source folder or explicit dictionary parent instead of falling back to a selected ped. Shared and ambiguous maps remain global. Add Folder tekstur kendaraan for bulk YTD/relationship imports and a per-model automatic diffuse report/reset action.
+- Render supported second-diffuse vehicle liveries on UV2 in Photo Booth using the same material hook as Vehicle Viewer. Preserve normal/specular maps and dictionary ownership. Use separator aliases only when no exact map/hash exists and the relevant scope is unambiguous.
+- Separate the external emote catalog (up to 32,768 clip entries, 2,000 files/512 MB source) from the bounded playback cache. Decode selected dictionaries on demand, evict inactive cache entries, skip duplicate source contents and preserve selected IDs on preset restore. Active simultaneous animation memory remains bounded; oversized active combinations report an error instead of discarding the library.
+- Diagnose YCD headers with actual signatures and distinct messages for truncated, unknown, archive, RSC8 and FXAP inputs. This does not decrypt escrow assets or convert unsupported formats.
+- Add regressions for 2,400 imported/restored clips, concurrent cache hydration, duplicate detection, header diagnostics, vehicle ownership and GPU-rendered base-plus-livery. Actual user asset inspection remains local; synthetic fixtures are used in public tests.
+
 # v1.70.0 preview — Consistent panels and workspace controls
 
 - Extend panel minimization to Asset Compressor, Visual Debadge, YMT Creator, native build and GTA tool panels. Add a header Panel menu with workspace-specific controls and restore-all; retain the File Manager details drawer on smaller windows.

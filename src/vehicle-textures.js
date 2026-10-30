@@ -1,4 +1,4 @@
-import { textureNameMatches } from './model-material.js';
+import { textureNameMatches, textureNameAliasMatches } from './model-material.js';
 import { liveryReference } from './vehicle-livery.js';
 import { surfaceReferences } from './vehicle-surface.js';
 import {
@@ -65,7 +65,9 @@ export async function loadVehicleTextures(files, references, { decode, image, ex
       let names;
       if (metadata && metadata.reduce((n, t) => n + t.w * t.h * 4, 0) > available) {
         names = metadata
-          .filter((t) => references.some((r) => textureNameMatches(r, t)))
+          .filter((t) =>
+            references.some((r) => textureNameMatches(r, t) || textureNameAliasMatches(r, t)),
+          )
           .map((t) => t.name);
         warnings.push(
           file.name +

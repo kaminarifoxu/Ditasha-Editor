@@ -25,3 +25,53 @@ test('YTD replacement atomically replaces one model source and leaves other owne
   assert.equal(next.textures[1].boothOwner, 1);
   assert.deepEqual(state.textureFiles, [old, other]);
 });
+
+test('Vehicle texture import pairs high/base dictionaries without using the selected ped and leaves shared/ambiguous maps global', async () => {
+  const { vehicleTextureTarget } = await import('../src/booth-textures.js');
+  const ped = { id: 1, name: 'ped.ydd', kind: 'ped' },
+    car = {
+      id: 2,
+      name: 'gs_hi.yft',
+      kind: 'vehicle',
+      file: { name: 'gs_hi.yft', webkitRelativePath: 'pack/gs_hi.yft' },
+    },
+    bike = {
+      id: 3,
+      name: 'bike.yft',
+      kind: 'vehicle',
+      file: { name: 'bike.yft', webkitRelativePath: 'other/bike.yft' },
+    };
+  assert.equal(vehicleTextureTarget({ name: 'gs.ytd' }, [ped, car, bike]), car);
+  assert.equal(vehicleTextureTarget({ name: 'vehshare.ytd' }, [ped, car, bike]), null);
+  assert.equal(
+    vehicleTextureTarget({ name: 'random.ytd', webkitRelativePath: 'pack/random.ytd' }, [
+      ped,
+      car,
+      bike,
+    ]),
+    car,
+  );
+  assert.equal(vehicleTextureTarget({ name: 'random.ytd' }, [ped, car, bike]), null);
+  assert.equal(
+    vehicleTextureTarget(
+      { name: 'shared_parent.ytd' },
+      [ped, car, bike],
+      [],
+      [{ child: 'gs', parent: 'shared_parent' }],
+    ),
+    car,
+  );
+});
+test('Vehicle diffuse matching prefers exact maps and resolves a unique separator alias without guessing ambiguous maps', async () => {
+  const { resolveModelTexture } = await import('../src/model-material.js');
+  const base = { name: 'detail_base', dictionary: 'gs.ytd' },
+    wheel = { name: 'wheel_diff', dictionary: 'gs.ytd' },
+    exact = { name: 'Detail Base', dictionary: 'shared.ytd' };
+  assert.equal(resolveModelTexture('Detail Base', [base, wheel], [], 'gs_hi.yft'), base);
+  assert.equal(resolveModelTexture('wheel_diff', [base, wheel], [], 'gs.yft'), wheel);
+  assert.equal(resolveModelTexture('Detail Base', [base, exact], [], 'gs.yft'), exact);
+  assert.equal(
+    resolveModelTexture('Detail Base', [base, { ...base, name: 'detail-base' }], [], 'gs.yft'),
+    null,
+  );
+});

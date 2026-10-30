@@ -126,6 +126,19 @@ export function validateBoothScene(record) {
       (typeof a.textureOverride !== 'string' || a.textureOverride.length > 2048)
     )
       throw Error('Penggantian tekstur tidak valid.');
+    if (
+      a.textureParents !== undefined &&
+      (!Array.isArray(a.textureParents) ||
+        a.textureParents.length > 4096 ||
+        !a.textureParents.every(
+          (p) =>
+            p &&
+            [p.child, p.parent].every(
+              (n) => typeof n === 'string' && /^[a-z0-9_(). -]{1,128}$/i.test(n),
+            ),
+        ))
+    )
+      throw Error('Relasi dictionary preset tidak valid.');
     if (a.matte !== undefined && typeof a.matte !== 'boolean')
       throw Error('Matte preset tidak valid.');
     if (a.label !== undefined && (typeof a.label !== 'string' || a.label.length > 60))

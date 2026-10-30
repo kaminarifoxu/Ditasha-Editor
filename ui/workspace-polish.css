@@ -697,3 +697,17 @@
     writing-mode: horizontal-tb;
   }
 }
+/* Short toolbar labels stay together beside choice buttons. */
+.workspace-shell .pb-stage-picker {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+.workspace-shell .pb-stage-picker > .workspace-choice-grid {
+  width: auto;
+  grid-template-columns: repeat(2, max-content);
+  margin: 0;
+}
+.workspace-shell .pb-ped-sizing > label.check {
+  grid-column: 1 / -1;
+}

@@ -192,3 +192,11 @@ The Clip dropdown now opens a searchable three-column button grid, with the acti
 ## v1.68 — cinematic video
 
 See [PHOTO_BOOTH_CINEMATIC.md](PHOTO_BOOTH_CINEMATIC.md) for the Video & keyframe workflow, camera/lens/lighting controls, original VP8/WebM export path, fallback, limits and research references. Movie state is optional in the scene schema and retained by the existing binary-chunk preset storage. No CodeWalker renderer source or game assets are bundled by this change.
+
+## v1.71 — otomatisasi material kendaraan dan katalog emote
+
+Impor YFT dan semua YTD resource melalui **Folder kendaraan**, atau tambahkan map tanpa menduplikasi model melalui **Folder tekstur kendaraan**. Base/hi family, folder sumber dan relasi dictionary dipakai untuk pairing. Setiap material membaca diffuse sendiri; shader paint yang didukung juga menggunakan livery UV kedua. **Otomatiskan semua material** pada kartu kendaraan menghapus override satu-tekstur-untuk-semua-mesh dan kembali ke nama sampler masing-masing. Laporan diffuse menunjukkan map dan dictionary yang dipakai. Map yang tidak ada atau ambigu tetap dilaporkan; aplikasi tidak menciptakan tekstur asli yang hilang.
+
+Library emote kini menahan metadata hingga 32.768 clip (maksimum 2.000 file dan 512 MB sumber). Data animasi sumber hanya dimuat untuk emote yang dipilih. Cache playback dibatasi 16 juta nilai / 192 MB, dengan eviction dictionary yang tidak aktif. Pemilihan terlalu banyak emote berat secara bersamaan tetap dapat ditolak; daftar library dan preset tidak dibuang. File duplikat berdasarkan SHA-256 dilewati. File sumber tetap diperlukan untuk menyimpan preset dan memuat ulang emote yang dikeluarkan dari cache.
+
+Pesan header YCD membedakan signature FXAP, RSC8, arsip dan format tidak dikenal. FXAP yang terlindungi tidak dapat dibaca sebagai sumber YCD; gunakan sumber tidak dilindungi yang disediakan pembuat aset. File tidak dikenal memerlukan pemeriksaan byte file aslinya, bukan screenshot.

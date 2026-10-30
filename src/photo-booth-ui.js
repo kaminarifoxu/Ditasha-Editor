@@ -1,3 +1,6 @@
+import { createEmoteCatalog } from './emote-catalog.js';
+import { parseTextureParents, isTextureParentFile } from './texture-parents.js';
+import { resolveVehicleLivery, setVehicleLivery, liveryReference } from './vehicle-livery.js';
 import { mountBoothMovie } from './booth-movie-ui.js';
 import { MOVIE_DEFAULTS } from './booth-movie.js';
 import { createBoothFisheye } from './booth-fisheye.js';
@@ -6,7 +9,11 @@ import { mountEmotePicker } from './booth-emote-picker.js';
 import { createBoothViewCulling } from './booth-view-culling.js';
 import { installedStudioFiles } from './gta-install-ui.js';
 import { expandStudioFiles, prepareStudioPack, buildMapStudio } from './booth-map-studio.js';
-import { resolveBoothTexture, replaceBoothTextureScope } from './booth-textures.js';
+import {
+  resolveBoothTexture,
+  replaceBoothTextureScope,
+  vehicleTextureTarget,
+} from './booth-textures.js';
 import { vehicleModManifest, groupBoothVehicles, vehiclePreviewIndices } from './booth-vehicles.js';
 import {
   isRigidBoothProp,
@@ -173,7 +180,10 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     replaceYtdTarget = null,
     clipFiles = [],
     clipSerial = 0,
-    emoteValues = 0,
+    emoteCatalog = createEmoteCatalog({ decode: decodeEmote }),
+    emoteBinding = Promise.resolve(),
+    emoteGeneration = 0,
+    emoteBindingError = null,
     studioPacks = [],
     currentStudioId = 'catalogue';
   const studioClipPlane = new THREE.Plane();
@@ -247,6 +257,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
   }
   async function exportMovie({ settings, animate, signal, progress, seek }) {
     if (busy) throw Error('Tunggu proses aktif selesai sebelum ekspor video.');
+    await settleEmotes();
     if (!assets.length) throw Error('Masukkan ped atau kendaraan sebelum merekam.');
     ensure();
     busy = true;
@@ -1049,6 +1060,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     let skinned = 0,
       staticMeshes = 0;
     for (const a of assets) {
+      a.textureReport = [];
       a.liveGrip = null;
       a.attachmentStatus = '';
       a.root = new THREE.Group();
@@ -1111,6 +1123,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           const geom = new THREE.BufferGeometry();
           geom.setAttribute('position', new THREE.BufferAttribute(g.positions, 3));
           if (g.uvs) geom.setAttribute('uv', new THREE.BufferAttribute(g.uvs, 2));
+          if (g.uvs2) geom.setAttribute('uv1', new THREE.BufferAttribute(g.uvs2, 2));
           geom.setIndex(new THREE.BufferAttribute(previewIndices, 1));
           if (g.normals) geom.setAttribute('normal', new THREE.BufferAttribute(g.normals, 3));
           else geom.computeVertexNormals();
@@ -1127,7 +1140,18 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
             override ||
             (owner.kind === 'ped'
               ? resolveBoothTexture(g.diffuseTexture, textures, embedded, a.id, owner.id, a.name)
-              : resolveModelTexture(g.diffuseTexture, ownTextures, embedded, a.name));
+              : resolveModelTexture(
+                  g.diffuseTexture,
+                  ownTextures,
+                  embedded,
+                  a.name,
+                  owner.textureParents || [],
+                ));
+          if (g.diffuseTexture)
+            a.textureReport.push({
+              name: g.diffuseTexture,
+              dictionary: t?.dictionary || (t ? 'embedded' : null),
+            });
           if (g.diffuseTexture && !t)
             warnings.push(a.name + ': tekstur ' + g.diffuseTexture + ' belum ditemukan');
           const alpha = modelPreviewAlpha(g) || {
@@ -1153,9 +1177,23 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
                     resolveBoothTexture(name, textures, embedded, a.id, owner.id, a.name),
                   ]),
                 )
-              : resolveSurfaceMaps(g, ownTextures, embedded, a.name),
+              : resolveSurfaceMaps(g, ownTextures, embedded, a.name, owner.textureParents || []),
             textureMap,
           );
+          if (owner.kind === 'vehicle') {
+            const livery = resolveVehicleLivery(
+              g,
+              ownTextures,
+              embedded,
+              a.name,
+              owner.textureParents || [],
+            );
+            if (livery && g.uvs2) {
+              geom.setAttribute('ditashaLiveryUv', new THREE.BufferAttribute(g.uvs2, 2));
+              setVehicleLivery(material, textureMap(livery));
+            } else if (liveryReference(g) && !livery)
+              warnings.push(a.name + ': livery ' + liveryReference(g) + ' belum ditemukan');
+          }
           let mesh;
           const valid = g.skin && rig && selection.indices;
           if (valid) {
@@ -1295,6 +1333,24 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     if (actor) actor.motion.clip = $('pbClip').value;
     clipPicker.sync();
     $('pbClipField').hidden = !clips.length;
+    const generation = ++emoteGeneration;
+    emoteBindingError = null;
+    emoteBinding = bindClips(clips, actor, generation).catch((error) => {
+      if (generation !== emoteGeneration) return;
+      emoteBindingError = error;
+      emoteIssues = [...new Set([...emoteIssues, error.message])].slice(0, 200);
+      updateIssues([]);
+      setStatus(error.message);
+    });
+    return emoteBinding;
+  }
+  async function bindClips(clips, actor, generation) {
+    const selected = actors()
+      .filter((a) => a.motion.pose === 'clip')
+      .map((a) => clipsFor(a).find((c) => c.id === a.motion.clip))
+      .filter(Boolean);
+    const hydrated = await emoteCatalog.load(selected);
+    if (generation !== emoteGeneration) return;
     mixers.forEach((m) => {
       m.stopAllAction();
       m.uncacheRoot(m.getRoot());
@@ -1304,7 +1360,9 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     // property mixer and erases constant YCD translations / paused rotations.
     applyBoothPose(rest, 'rest', 0);
     for (const owner of actors()) {
-      const selected = clipsFor(owner).find((c) => c.id === owner.motion.clip);
+      if (owner.motion.pose !== 'clip') continue;
+      const descriptor = clipsFor(owner).find((c) => c.id === owner.motion.clip);
+      const selected = hydrated.get(descriptor?.id) || descriptor;
       if (!selected) continue;
       const roots = new Set();
       for (const a of assets.filter(
@@ -1338,10 +1396,20 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         }
       }
     }
-    const selected = actor && clips.find((c) => c.id === actor.motion.clip);
+    const current = actor && clips.find((c) => c.id === actor.motion.clip);
     $('pbTime').max = String(
-      actor?.motion.pose === 'clip' && selected ? Math.max(0.01, selected.clip.duration) : 4,
+      actor?.motion.pose === 'clip' && current ? Math.max(0.01, current.clip.duration) : 4,
     );
+    applyPose();
+    setControls();
+  }
+  async function settleEmotes() {
+    let current;
+    do {
+      current = emoteBinding;
+      await current;
+    } while (current !== emoteBinding);
+    if (emoteBindingError) throw emoteBindingError;
   }
   function applyPose() {
     if (!stage) return;
@@ -1375,7 +1443,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       ? `${report.skinned} mesh GTA skinned · ${report.static} mesh statis/rigid. ${[...report.sources].slice(0, 2).join(' · ')}`
       : 'Pilih ped untuk mengatur emote.';
     const selectedEmote = selected && clipsFor(selected).find((c) => c.id === selected.motion.clip);
-    if (selected?.motion.pose === 'clip' && selectedEmote?.ycd) {
+    if (selected?.motion.pose === 'clip' && (selectedEmote?.ycd || selectedEmote?.nativeYcd)) {
       const bound = mixers.filter((m) => m.userData.actor === selected.id).length;
       $('pbRigStatus').textContent += bound
         ? ` YCD: ${bound} skeleton terikat ke bone tag GTA.`
@@ -1644,6 +1712,30 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           label.append(select);
           card.append(label);
         }
+      }
+      if (owner.kind === 'vehicle' && a.drawables) {
+        const automatic = document.createElement('button');
+        automatic.textContent = 'Otomatiskan semua material';
+        automatic.dataset.autoVehicleTextures = a.id;
+        automatic.onclick = () => {
+          for (const part of assets.filter((b) => actorForAsset(assets, b) === owner))
+            part.textureOverride = '';
+          rebuild({ fitCamera: false });
+        };
+        const report = document.createElement('details'),
+          title = document.createElement('summary');
+        const rows = [
+          ...new Map((a.textureReport || []).map((row) => [JSON.stringify(row), row])).values(),
+        ];
+        title.textContent = `Diffuse otomatis: ${rows.filter((r) => r.dictionary).length}/${rows.length} map`;
+        report.append(title);
+        for (const row of rows.slice(0, 200)) {
+          const line = document.createElement('p');
+          line.textContent =
+            row.name + ' → ' + (row.dictionary || 'belum ditemukan; tambahkan YTD sumber');
+          report.append(line);
+        }
+        card.append(automatic, report);
       }
       if (a.drawables?.length > 1) {
         const select = document.createElement('select');
@@ -1936,6 +2028,11 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
             ),
           )
         : [];
+    const textureParents = [];
+    for (const file of files.filter((f) => isTextureParentFile(f.name))) {
+      if (file.size > 2 * 1024 ** 2) throw Error(file.name + ': metadata maksimal 2 MB.');
+      textureParents.push(...parseTextureParents(await file.text()));
+    }
     const pending = [];
     try {
       for (const file of models) {
@@ -2020,6 +2117,15 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           });
       }
       const all = [...assets, ...pending];
+      if (textureParents.length > 4096) throw Error('Maksimal 4096 relasi dictionary per impor.');
+      if (textureParents.length)
+        for (const a of all.filter((a) => a.kind === 'vehicle')) {
+          a.textureParents = [
+            ...new Map(
+              [...(a.textureParents || []), ...textureParents].map((p) => [JSON.stringify(p), p]),
+            ).values(),
+          ];
+        }
       if (all.reduce((n, a) => n + boothVertexCount(a), 0) > MAX_BOOTH_VERTICES)
         throw Error(
           'Scene melebihi 5 juta vertex. Kurangi model atau gunakan LOD yang lebih ringan.',
@@ -2032,13 +2138,18 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           image: imageData,
           existing: textures,
         });
-        const target = outfitTextureTarget(
-          file,
-          pending,
-          currentActor() || pending.find((a) => a.kind === 'ped'),
-          loaded.textures,
-          (a) => modelTextureReferences(a.drawables || []),
-        );
+        const vehicleImport =
+          ['vehicle', 'vehicle-part', 'vehicle-texture'].includes(assetKind) ||
+          (assetKind === 'texture' && currentActor()?.kind === 'vehicle');
+        const target = vehicleImport
+          ? vehicleTextureTarget(file, all, loaded.textures, textureParents)
+          : outfitTextureTarget(
+              file,
+              pending,
+              currentActor() || pending.find((a) => a.kind === 'ped'),
+              loaded.textures,
+              (a) => modelTextureReferences(a.drawables || []),
+            );
         const ownerId = target?.id ?? null;
         const merged = [
           ...textures.filter((t) => t.boothOwner !== ownerId),
@@ -2186,6 +2297,26 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       );
     });
   };
+  const vehicleMaps = document.createElement('button');
+  vehicleMaps.id = 'pbVehicleTextureFolder';
+  vehicleMaps.textContent = 'Folder tekstur kendaraan';
+  vehicleMaps.title =
+    'Baca semua YTD dan relasi vehicles.meta/gtxd dari folder resource, lalu pasangkan per material';
+  $('pbVehicleFolder').after(vehicleMaps);
+  const vehicleMapInput = document.createElement('input');
+  vehicleMapInput.type = 'file';
+  vehicleMapInput.multiple = true;
+  vehicleMapInput.webkitdirectory = true;
+  vehicleMapInput.hidden = true;
+  root.append(vehicleMapInput);
+  vehicleMaps.onclick = () => vehicleMapInput.click();
+  vehicleMapInput.onchange = (e) => {
+    const files = [...e.target.files].filter(
+      (f) => /\.(ytd|dds|png|jpg|jpeg|webp)$/i.test(f.name) || isTextureParentFile(f.name),
+    );
+    e.target.value = '';
+    guard(() => importFiles(files, 'vehicle-texture'));
+  };
   $('pbTextures').onclick = () => $('pbTextureInput').click();
   $('pbTextureInput').onchange = (e) => {
     const files = [...e.target.files];
@@ -2206,6 +2337,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         })),
         warnings: decoded.warnings,
         values: decoded.values,
+        memoryBytes: decoded.memoryBytes,
       };
     }
     if (!/\.glb$/i.test(file.name)) throw Error('Pilih emote .ycd atau .glb.');
@@ -2220,6 +2352,13 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           label: file.name + ' / ' + clip.name,
         })),
         warnings: [],
+        memoryBytes:
+          file.size +
+          gltf.animations.reduce(
+            (n, c) =>
+              n + c.tracks.reduce((n, t) => n + t.values.byteLength + t.times.byteLength, 0),
+            0,
+          ),
         values: gltf.animations.reduce(
           (n, c) => n + c.tracks.reduce((n, t) => n + t.values.length, 0),
           0,
@@ -2239,27 +2378,19 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     e.target.value = '';
     if (files.length)
       guard(async () => {
-        if (clipFiles.length + files.length > 2000)
-          throw Error('Maksimal 2000 file emote dalam satu sesi.');
-        if (
-          [...clipFiles.map((c) => c.file), ...files].reduce((n, f) => n + f.size, 0) >
-          512 * 1024 ** 2
-        )
-          throw Error('Total sumber emote maksimal 512 MB.');
         let first = null;
         const errors = [];
+        let duplicateCount = 0;
         for (const file of files) {
           try {
             const prefix = 'external:' + ++clipSerial,
-              decoded = await decodeEmote(file, prefix);
-            if (
-              externalClips.length + decoded.entries.length > 2048 ||
-              emoteValues + decoded.values > 16e6
-            )
-              throw Error('Batas sesi 2048 clip / 16 juta nilai animasi tercapai.');
+              decoded = await emoteCatalog.add(file, prefix);
+            if (decoded.duplicate) {
+              duplicateCount++;
+              continue;
+            }
             externalClips.push(...decoded.entries);
-            emoteValues += decoded.values;
-            clipFiles.push({ file, prefix });
+            clipFiles = [...emoteCatalog.sources];
             first ||= prefix + ':0';
             errors.push(...decoded.warnings.map((w) => file.name + ': ' + w));
           } catch (e) {
@@ -2284,12 +2415,13 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         const modelIssues = [...$('pbIssueList').children]
           .map((n) => n.textContent)
           .filter((m) => !emoteIssues.includes(m));
-        emoteIssues = errors.slice(0, 200);
+        emoteIssues = [...new Set(errors)].slice(0, 200);
         if (errors.length > 200)
           emoteIssues.push(errors.length - 200 + ' peringatan lain tidak ditampilkan.');
         updateIssues(modelIssues);
         setStatus(
           `${clipFiles.length} file emote · ${externalClips.length} clip. ` +
+            (duplicateCount ? `${duplicateCount} file duplikat dilewati. ` : '') +
             (errors.length
               ? errors.length + ' peringatan. Klik Lihat masalah.'
               : 'Pilih emote lalu Putar untuk ped terpilih.'),
@@ -2308,7 +2440,8 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     externalClips = [];
     emoteIssues = [];
     updateIssues([]);
-    emoteValues = 0;
+    emoteCatalog = createEmoteCatalog({ decode: decodeEmote });
+    emoteGeneration++;
     $('pbClipSearch').value = '';
     textureFiles = [];
     textureOwners = [];
@@ -2394,6 +2527,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
   $('pbStageCapture').onclick = () => $('pbCapture').click();
   function exportPhoto(size) {
     return guard(async () => {
+      await settleEmotes();
       movie.pause();
       for (const a of actors()) a.motion.playing = false;
       playing = false;
@@ -2596,6 +2730,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         vehicleSlot: a.vehicleSlot || '',
         vehicleBone: a.vehicleBone || '',
         vehicleOffBones: a.vehicleOffBones || [],
+        textureParents: a.textureParents || [],
         grip: !!a.grip,
         pitch: a.pitch || 0,
         roll: a.roll || 0,
@@ -2683,21 +2818,22 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         if (restoredTextures.reduce((n, t) => n + t.out.length, 0) > MAX_DECODED_TEXTURE_BYTES)
           throw Error('Tekstur preset terlalu besar.');
       }
-      let restoredEmoteValues = 0;
+      const restoredCatalog = createEmoteCatalog({ decode: decodeEmote });
+      const clipAliases = new Map();
       for (const c of record.clipFiles) {
-        let decoded;
         try {
-          decoded = await decodeEmote(c.file, c.prefix);
+          const result = await restoredCatalog.add(c.file, c.prefix);
+          if (result.duplicate) clipAliases.set(c.prefix, result.source.prefix);
+          else newClips.push(...result.entries);
+          restoreWarnings.push(...result.warnings.map((w) => c.file.name + ': ' + w));
         } catch (error) {
           restoreWarnings.push(c.file.name + ': ' + error.message);
-          continue;
         }
-        restoreWarnings.push(...decoded.warnings.map((w) => c.file.name + ': ' + w));
-        restoredEmoteValues += decoded.values;
-        if (restoredEmoteValues > 16e6 || newClips.length + decoded.entries.length > 2048)
-          throw Error('Preset melebihi batas nilai/clip emote.');
-        newClips.push(...decoded.entries);
       }
+      for (const a of pending)
+        for (const [from, to] of clipAliases)
+          if (a.motion.clip.startsWith(from + ':'))
+            a.motion.clip = to + a.motion.clip.slice(from.length);
       for (const pack of record.studio?.packs || [])
         restoredPacks.push(await prepareStudioPack(pack, decodeResource));
       if (record.studio?.id.startsWith('custom:')) {
@@ -2717,7 +2853,9 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       textureOwners = record.textureFiles.map((_, i) =>
         record.textureOwners?.[i] == null ? null : pending[record.textureOwners[i]].id,
       );
-      clipFiles = [...record.clipFiles];
+      clipFiles = [...restoredCatalog.sources];
+      emoteCatalog = restoredCatalog;
+      emoteGeneration++;
       externalClips = newClips;
       emoteIssues = restoreWarnings.slice(0, 200);
       if (restoreWarnings.length > 200)
@@ -2730,7 +2868,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           a.motion.clip = '';
           a.motion.pose = 'relaxed';
         }
-      emoteValues = restoredEmoteValues;
+
       $('pbClipSearch').value = '';
       clipSerial = Math.max(clipSerial, ...clipFiles.map((c) => Number(c.prefix.split(':')[1])));
       selectedActor = actors()[0]?.id;

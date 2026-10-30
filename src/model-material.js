@@ -33,6 +33,13 @@ export function textureParentChain(source, parents = []) {
   }
   return chain;
 }
+export const textureNameAliasMatches = (name, candidate) => {
+  const alias = (value) => normalize(value).replace(/[ _.-]+/g, '');
+  return (
+    !!name &&
+    alias(name) === alias(typeof candidate === 'string' ? candidate : candidate?.name || '')
+  );
+};
 export function textureNameMatches(name, candidate) {
   const texture = typeof candidate === 'string' ? { name: candidate } : candidate;
   const key = normalize(name),
@@ -47,6 +54,27 @@ export function textureNameMatches(name, candidate) {
 // External replacements belong to a dictionary; embedded maps belong to one drawable.
 export function resolveModelTexture(name, external, embedded, sourceName, parents = []) {
   if (!name) return null;
+  // Export tools sometimes turn separators in a display name into spaces. Use this
+  // only when the exact name/hash has no match, and the relevant scope is unique.
+  const alias = (value) => normalize(value).replace(/[ _.-]+/g, '');
+  const exactLocal = embedded.some((t) => textureNameMatches(name, t));
+  if (!external.some((t) => textureNameMatches(name, t)) && !exactLocal) {
+    const candidates = external.filter((t) => alias(t.name) === alias(name));
+    const ownedAlias = candidates.filter(
+      (t) => textureDictionaryFamily(t.dictionary) === textureDictionaryFamily(sourceName),
+    );
+    if (ownedAlias.length === 1) return ownedAlias[0];
+    if (ownedAlias.length > 1) return null;
+    for (const dictionary of textureParentChain(sourceName, parents)) {
+      const inherited = candidates.filter(
+        (t) => textureDictionaryFamily(t.dictionary) === dictionary,
+      );
+      if (inherited.length) return inherited.length === 1 ? inherited[0] : null;
+    }
+    const localAlias = embedded.filter((t) => alias(t.name) === alias(name));
+    if (localAlias.length) return localAlias.length === 1 ? localAlias[0] : null;
+    return candidates.length === 1 ? candidates[0] : null;
+  }
   const matches = external.filter((texture) => textureNameMatches(name, texture));
   const source = textureDictionaryFamily(sourceName);
   const owned = matches.filter((t) => textureDictionaryFamily(t.dictionary) === source);

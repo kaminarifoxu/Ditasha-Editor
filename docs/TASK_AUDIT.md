@@ -1,4 +1,4 @@
-# DITASHA Editor — audit permintaan dan bukti v1.70
+# DITASHA Editor — audit permintaan dan bukti v1.71
 
 Daftar ini mencocokkan permintaan yang dilanjutkan dari percakapan sebelumnya dengan implementasi aktual. **Ada di source** berbeda dari **lulus tes**, dan tes fixture tidak menyatakan semua aset pengguna pasti cocok atau sudah diuji di FiveM.
 
@@ -54,3 +54,10 @@ Keempat repository dipelajari sebagai referensi; bukan dependency runtime dan ti
 - Engine kreatif pihak ketiga tetap memakai UI bawaannya. Pembenahan menyatukan shell dan alat native DITASHA, bukan menulis ulang semua aplikasi pihak ketiga.
 
 Lihat `PHOTO_BOOTH.md`, `PHOTO_BOOTH_CINEMATIC.md`, `NATIVE_BUILD.md`, `INSTALLER_AND_WORKSPACE.md` dan `YMT_CREATOR.md` untuk workflow dan batas teknis masing-masing.
+
+## Regresi tambahan dari screenshot kendaraan/emote
+
+- `src/emote-catalog.js`: metadata library dipisahkan dari cache playback; `tests/emote-catalog.test.mjs` memeriksa >2.048 clip, eviction, deduplication, concurrency dan kegagalan tanpa menghapus sumber. `scripts/booth-library-scale-qa.cjs` mengimpor serta membuka ulang preset 2.400 clip.
+- `src/photo-booth-ui.js`: pairing kendaraan tidak mengikuti ped terpilih, normal/specular tetap terpisah, livery dibaca di UV2; `scripts/booth-vehicle-materials-qa.cjs` memeriksa hasil pixel base/livery sekaligus dan reset otomatis per material.
+- `src/ycd.js`: header dilaporkan berdasarkan signature. Ini diagnosis yang lebih tepat; keberhasilan membaca YCD tertentu harus diuji dengan file sumbernya.
+- **Tekstur yang benar-benar hilang tetap memerlukan dictionary sumber tambahan.** Pencocokan otomatis tidak boleh memilih diffuse lain secara acak demi menghilangkan peringatan.

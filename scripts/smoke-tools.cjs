@@ -618,6 +618,14 @@ app.whenReady().then(async () => {
     );
     Object.assign(
       photoBoothReport,
+      await require('./booth-library-scale-qa.cjs')(win, await boothGlbFixture()),
+    );
+    Object.assign(
+      photoBoothReport,
+      await require('./booth-vehicle-materials-qa.cjs')(win, await boothGlbFixture()),
+    );
+    Object.assign(
+      photoBoothReport,
       await require('./booth-movie-qa.cjs')(win, await boothGlbFixture(), fs, path),
     );
     await win.loadFile(path.resolve('ui/index.html'));

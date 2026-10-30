@@ -152,3 +152,16 @@ test('Unsupported lists have bounded summaries and expose details separately', a
   new DataView(wrong).setUint32(0, 0, true);
   assert.throws(() => readYcd(wrong), /header bukan RSC7 Legacy/);
 });
+
+test('YCD header diagnostics distinguish archives, Enhanced, escrow, truncated and unknown signatures', () => {
+  const input = (signature) => {
+    const bytes = new Uint8Array(32);
+    bytes.set(new TextEncoder().encode(signature));
+    return bytes.buffer;
+  };
+  assert.throws(() => readYcd(input('FXAP')), /Asset Escrow/);
+  assert.throws(() => readYcd(input('RSC8')), /Enhanced/);
+  assert.throws(() => readYcd(input('PK\u0003\u0004')), /arsip/);
+  assert.throws(() => readYcd(input('????')), /signature 3f 3f 3f 3f/);
+  assert.throws(() => readYcd(new ArrayBuffer(4)), /terpotong/);
+});

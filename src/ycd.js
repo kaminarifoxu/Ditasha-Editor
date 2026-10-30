@@ -190,11 +190,32 @@ function sequence(r, at, boneCount, budget) {
   };
 }
 export function readYcd(buffer) {
-  if (buffer.byteLength > 64 * 1024 ** 2 || buffer.byteLength < 16) fail('file maksimal 64 MB.');
-  if (new DataView(buffer).getUint32(0, true) !== 0x37435352)
+  if (buffer.byteLength > 64 * 1024 ** 2) fail('file maksimal 64 MB.');
+  if (buffer.byteLength < 16) fail('header terpotong (' + buffer.byteLength + ' byte).');
+  if (new DataView(buffer).getUint32(0, true) !== 0x37435352) {
+    const bytes = new Uint8Array(buffer, 0, Math.min(16, buffer.byteLength));
+    const signature = [...bytes.slice(0, 4)].map((b) => b.toString(16).padStart(2, '0')).join(' ');
+    const ascii = String.fromCharCode(...bytes.slice(0, 4));
+    if (ascii === 'RSC8')
+      fail('resource Enhanced/RSC8 belum didukung. Gunakan ekspor GTA V Legacy.');
+    if (ascii === 'FXAP')
+      fail(
+        'file FiveM Asset Escrow (FXAP) tidak dapat dibaca sebagai YCD sumber. Gunakan file sumber tidak dilindungi dari pembuat aset.',
+      );
+    if (
+      ascii.startsWith('PK') ||
+      ascii.startsWith('Rar!') ||
+      (bytes[0] === 0x37 && bytes[1] === 0x7a)
+    )
+      fail('file ini arsip, bukan YCD binary. Ekstrak .ycd asli dari ZIP/RAR/7z terlebih dahulu.');
+    if (ascii.startsWith('<?xm') || ascii.startsWith('<Cli'))
+      fail('file XML, bukan YCD binary. Konversikan XML ke YCD Legacy sebelum impor.');
     fail(
-      'header bukan RSC7 Legacy. File mungkin berbeda format, terpotong, atau terlindungi; gunakan YCD Legacy asli yang dapat dibuka di CodeWalker.',
+      'header bukan RSC7 Legacy (signature ' +
+        signature +
+        '). Format file belum dikenali; file sumber diperlukan untuk pemeriksaan.',
     );
+  }
   const r = new Resource(buffer, 46, 128 * 1024 ** 2),
     animations = new Map(),
     clips = [],
@@ -304,7 +325,13 @@ export function readYcd(buffer) {
     error.details = warnings;
     throw error;
   }
-  return { clips, warnings, animations: animations.size, values: budget.values };
+  return {
+    clips,
+    warnings,
+    animations: animations.size,
+    values: budget.values,
+    memoryBytes: r.bytes.byteLength + budget.values * 4,
+  };
 }
 function evaluate(anim, index, time, quaternion) {
   // Native clip windows may extend beyond one animation cycle (CW GetFramePosition).
