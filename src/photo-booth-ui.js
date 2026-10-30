@@ -2231,7 +2231,9 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
             0,
           ],
           yaw: 0,
-          owner: ['ped', 'vehicle'].includes(assetKind)
+          owner: options.targetActorId != null && assetKind !== 'ped' && assetKind !== 'vehicle'
+            ? options.targetActorId
+            : ['ped', 'vehicle'].includes(assetKind)
             ? null
             : assetKind === 'vehicle-part' && currentActor()?.kind === 'vehicle'
               ? currentActor().id
@@ -2387,13 +2389,15 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           (slot.textureVariant == null || f.textureVariant === slot.textureVariant));
         for (const entry of textures) selected.push({ packId: pack.id, entry });
       }
+      const owner = currentActor();
+      if (!owner || owner.kind !== 'ped') throw Error('Pilih atau import ped freemode terlebih dahulu agar outfit menempel pada karakter.');
       const files = [];
       for (const {packId, entry} of selected) {
         const data = await library.previewRead(packId, entry.relativePath);
         files.push(new File([data.bytes], data.name));
       }
-      await importFiles(files, 'clothing', 'auto');
-      setStatus('Outfit ' + outfit.name + ' telah diimpor. Gunakan ped freemode untuk fitting dan pose.');
+      await importFiles(files, 'clothing', 'auto', { targetActorId: owner.id });
+      setStatus('Outfit ' + outfit.name + ' terpasang pada ped ' + owner.name + '. Periksa rigging dan kecocokan tekstur.');
     } catch (error) {
       setStatus('Gagal memuat outfit: ' + error.message);
     } finally { button.disabled = false; }
@@ -2405,8 +2409,10 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     if (!detail || !Array.isArray(detail.files) || !detail.files.length) return;
     try {
       activate('photobooth');
-      await importFiles(detail.files, 'clothing', 'auto');
-      setStatus('Outfit dari Clothing Library berhasil dimuat. Tambahkan ped freemode bila belum ada.');
+      const owner = currentActor();
+      if (!owner || owner.kind !== 'ped') throw Error('Import ped freemode di Photo Booth dahulu, kemudian kirim outfit.');
+      await importFiles(detail.files, 'clothing', 'auto', { targetActorId: owner.id });
+      setStatus('Outfit dari Clothing Library dimuat ke ped ' + owner.name + '.');
       detail.onComplete?.({ success: true });
     } catch (error) {
       setStatus('Gagal memuat outfit library: ' + error.message);
