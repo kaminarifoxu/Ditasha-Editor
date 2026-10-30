@@ -657,6 +657,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       'pbEmoteLoadSaved',
       'pbEmoteFolder',
       'pbEmoteClearSaved',
+      'pbEmoteAutoSave',
       'pbActor',
       'pbPlayAll',
       'pbPauseAll',
@@ -668,6 +669,15 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       'pbLibraryRefresh',
     ])
       $(id).disabled = busy;
+    const freemode = root.querySelector('.pb-freemode-character');
+    if (freemode)
+      freemode.querySelectorAll('button,input,select').forEach((control) => {
+        control.disabled =
+          busy ||
+          (control.matches('[data-add]') &&
+            !freemode.querySelector('[data-freemode-part=head]').value);
+      });
+    if ($('pbFreemode')) $('pbFreemode').disabled = busy;
     $('pbOutfitButtons')
       .querySelectorAll('button')
       .forEach((b) => (b.disabled = busy));
@@ -2243,6 +2253,17 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
             file.name + ': file ini tidak memiliki skeleton. Pilih YFT/YDD acuan yang lengkap.',
           );
         pending.push(a);
+      }
+      if (assetKind === 'ped' && options.singleActor) {
+        const primary = pending.find((a) => !/\.yft$/i.test(a.name));
+        if (!primary) throw Error('Karakter freemode memerlukan model kepala.');
+        for (const a of pending)
+          if (a !== primary) {
+            a.kind = /hair_|teef_|\.yft$/i.test(a.name) ? 'accessory' : 'clothing';
+            a.category = outfitCategory(a.name, 'auto', a.kind);
+            a.owner = primary.id;
+            a.offset = [0, 0, 0];
+          }
       }
       if (assetKind === 'vehicle') groupBoothVehicles(pending, assets, metadata);
       if (assetKind === 'ped') {

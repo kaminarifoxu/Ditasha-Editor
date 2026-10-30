@@ -67,7 +67,7 @@ app.whenReady().then(async () => {
       'tests/logo-native-blender.py',
     ];
     for (const script of process.argv.includes('--character-only')
-      ? ['tests/half-ped-blender.py']
+      ? ['tests/clothing-native-blender.py', 'tests/half-ped-blender.py']
       : process.argv.includes('--logo-only')
         ? ['tests/logo-native-blender.py']
         : checks) {

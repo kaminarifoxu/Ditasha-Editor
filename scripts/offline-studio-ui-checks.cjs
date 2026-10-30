@@ -500,7 +500,14 @@ module.exports = async function checkOfflineStudio(fixtures) {
       rigViewport.top > 150 &&
       rigViewport.top < innerHeight / 2 &&
       rigViewport.bottom > 200,
-    'Completed rig preview must lead the visible workspace',
+    'Completed rig preview must lead the visible workspace ' +
+      JSON.stringify({
+        top: rigViewport.top,
+        bottom: rigViewport.bottom,
+        height: innerHeight,
+        center: $('nbViewport').closest('.native-preview').parentElement.className,
+        left: $('nbPed').closest('aside')?.id,
+      }),
   );
   assert(
     document.querySelector('.rig-quality') && $('nbPedPose').options.length === 3,

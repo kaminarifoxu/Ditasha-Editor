@@ -142,12 +142,36 @@ def run(bpy,job,output,review,preview_scene):
         native.append(export_native(bpy,arm,copies[:len(source)],output,prefix+options['headSlot'],source_image_node))
         if hair:native.append(export_native(bpy,arm,copies[len(source):],output,prefix+options['hairSlot'],source_image_node,shader_name='ped_hair_cutout_alpha.sps'))
         for obj in copies:bpy.data.objects.remove(obj,do_unlink=True)
-    bpy.ops.object.select_all(action='DESELECT')
-    for obj in [arm,*source,*hair]:obj.select_set(True)
-    bpy.context.view_layer.objects.active=arm
-    glb=output/'ditasha-halfped.glb'
-    result=bpy.ops.export_scene.gltf(filepath=str(glb),export_format='GLB',use_selection=True,export_animations=False,export_skins=True,export_all_influences=False)
-    if 'FINISHED' not in result or not glb.exists() or glb.stat().st_size>64*1024**2:raise ValueError('GLB halfped gagal atau melebihi 64 MB.')
+    # The bundled reference armature can be hidden/marked as a template. Export
+    # a fresh visible armature so glTF cannot silently omit its skin joints.
+    export_arm=bpy.data.objects.new('DITASHA_Halfped_Rig',arm.data.copy())
+    bpy.context.collection.objects.link(export_arm);export_arm.matrix_world=arm.matrix_world.copy()
+    export_arm.data.pose_position='POSE'
+    for bone in export_arm.data.bones:bone.use_deform=True
+    saved=[]
+    try:
+        bpy.ops.object.select_all(action='DESELECT')
+        export_arm.hide_set(False);export_arm.select_set(True)
+        for obj in [*source,*hair]:
+            saved.append((obj,obj.parent,obj.matrix_world.copy(),[(m,m.object) for m in obj.modifiers if m.type=='ARMATURE']))
+            world=obj.matrix_world.copy();obj.parent=export_arm;obj.matrix_world=world
+            obj.hide_set(False);obj.hide_viewport=False;obj.hide_render=False;obj.select_set(True)
+            for modifier in obj.modifiers:
+                if modifier.type=='ARMATURE':modifier.object=export_arm
+        bpy.context.view_layer.objects.active=export_arm;bpy.context.view_layer.update()
+        glb=output/'ditasha-halfped.glb'
+        result=bpy.ops.export_scene.gltf(filepath=str(glb),export_format='GLB',use_selection=True,export_animations=False,export_skins=True,export_all_influences=False,export_def_bones=False)
+        if 'FINISHED' not in result or not glb.exists() or glb.stat().st_size>64*1024**2:raise ValueError('GLB halfped gagal atau melebihi 64 MB.')
+        import struct
+        raw=glb.read_bytes();length=struct.unpack_from('<I',raw,12)[0];document=json.loads(raw[20:20+length])
+        if not document.get('skins') or any('skin' not in node for node in document.get('nodes',[]) if 'mesh' in node):
+            raise ValueError('GLB halfped kehilangan skeleton/weights; hasil tidak dinyatakan selesai.')
+    finally:
+        for obj,parent,world,modifiers in saved:
+            obj.parent=parent;obj.matrix_world=world
+            for modifier,original in modifiers:modifier.object=original
+        data=export_arm.data;bpy.data.objects.remove(export_arm,do_unlink=True)
+        if data.users==0:bpy.data.armatures.remove(data)
     for obj in heads:obj.hide_render=True;obj.hide_set(True)
     context=[o for o in reference if o not in heads]+source+hair
     def preview_head(*args,**kwargs): return preview_scene(*args,**kwargs,source_materials=True)

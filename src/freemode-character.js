@@ -69,6 +69,9 @@ export function mountFreemodeCharacter({ container, guard, importFiles, setStatu
   function draw() {
     const gender = $('[data-gender]').value;
     $('[data-parts]').replaceChildren();
+    const body = document.createElement('details');
+    body.innerHTML = '<summary>Badan & outfit</summary>';
+    $('[data-parts]').append(body);
     for (const [part, label, id] of FREEMODE_PARTS) {
       const control = document.createElement('label');
       control.textContent = label;
@@ -91,11 +94,47 @@ export function mountFreemodeCharacter({ container, guard, importFiles, setStatu
           select.value = option.value;
       }
       if (!appearance && select.options.length > 1) select.selectedIndex = 1;
+      const textureLabel = document.createElement('label');
+      textureLabel.textContent = 'Tekstur ' + label.toLowerCase();
+      const texture = document.createElement('select');
+      texture.dataset.freemodeTexture = part;
+      textureLabel.append(texture);
+      function textureOptions() {
+        texture.replaceChildren();
+        const empty = document.createElement('option');
+        empty.value = '';
+        empty.textContent = 'Embedded / belum ada YTD';
+        texture.append(empty);
+        const model = select.value === '' ? null : freemodePart(files[Number(select.value)]);
+        const choices = parts.filter(
+          (p) =>
+            p.texture &&
+            p.part === part &&
+            (!p.gender || p.gender === gender) &&
+            model &&
+            p.drawable === model.drawable,
+        );
+        for (const item of choices) {
+          const option = document.createElement('option');
+          option.value = String(files.indexOf(item.file));
+          option.textContent = item.file.name;
+          texture.append(option);
+        }
+        if (choices.length)
+          texture.selectedIndex = Math.min(
+            choices.length,
+            1 + (appearance?.components.find((c) => c.component_id === id)?.texture || 0),
+          );
+      }
       select.onchange = () => {
+        textureOptions();
         $('[data-add]').disabled = !$('[data-freemode-part=head]').value;
       };
+      textureOptions();
       control.append(select);
-      $('[data-parts]').append(control);
+      const target = ['head', 'hair'].includes(part) ? $('[data-parts]') : body;
+      if (target === body) body.append(control, textureLabel);
+      else body.before(control, textureLabel);
     }
     $('[data-add]').disabled = !$('[data-freemode-part=head]').value;
     $('[data-status]').textContent =
@@ -143,35 +182,25 @@ export function mountFreemodeCharacter({ container, guard, importFiles, setStatu
         throw Error('Pilih model kepala freemode terlebih dahulu.');
       const gender = $('[data-gender]').value,
         rigChoice = 'freemode-' + gender;
-      const chosen = selected.map((p) => freemodePart(files[Number(p.index)]));
-      const images = parts
-        .filter(
-          (p) =>
-            p.texture &&
-            (!p.gender || p.gender === gender) &&
-            chosen.some((c) => c.part === p.part && c.drawable === p.drawable),
-        )
-        .map((p) => p.file);
+      const images = selected
+        .map((p) => $(`[data-freemode-texture=${p.part}]`).value)
+        .filter((value) => value !== '')
+        .map((value) => files[Number(value)]);
       const skeleton = files.find((f) =>
         new RegExp('mp_' + (gender === 'female' ? 'f' : 'm') + '_freemode_01\\.yft$', 'i').test(
           f.name,
         ),
       );
-      const head = selected.find((p) => p.part === 'head');
       await importFiles(
-        [files[Number(head.index)], ...(skeleton ? [skeleton] : [])],
+        [
+          ...selected.map((p) => files[Number(p.index)]),
+          ...(skeleton ? [skeleton] : []),
+          ...images,
+        ],
         'ped',
-        'ped',
-        { rigChoice },
+        'auto',
+        { rigChoice, singleActor: true },
       );
-      for (const part of selected.filter((p) => p.part !== 'head'))
-        await importFiles(
-          [files[Number(part.index)]],
-          part.part === 'hair' || part.part === 'teef' ? 'accessory' : 'clothing',
-          part.category,
-          { rigChoice },
-        );
-      if (images.length) await importFiles(images, 'texture');
       setStatus(
         'Karakter freemode ditambahkan. Atur emote per ped; simpan scene untuk memakai karakter ini lagi. Periksa tekstur yang belum tersedia.',
       );
