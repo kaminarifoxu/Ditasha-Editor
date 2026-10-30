@@ -6,6 +6,33 @@ import re
 from pathlib import Path
 
 
+def prepare_texture(bpy, image, name):
+    """Pad a private native texture; map UVs into the unchanged source pixels.
+
+    The GEN8 provider truncates non-block-aligned mip data for NPOT textures.
+    A square power-of-two canvas keeps every mip compatible, including tails.
+    Blender pixels and UVs both start at the bottom left.
+    """
+    import numpy as np
+    w, h = image.size
+    if not image.has_data or min(w,h)<1 or max(w,h)>2048:
+        raise ValueError('Tekstur logo tidak terbaca atau melebihi 2048 px.')
+    size = max(4, 1 << (max(w,h)-1).bit_length())
+    scale, offset = (w/size,h/size), ((size-w)//2/size,(size-h)//2/size)
+    if (w,h)!=(size,size):
+        values=np.empty(w*h*4,dtype=np.float32);image.pixels.foreach_get(values)
+        pixels=np.zeros((size,size,4),dtype=np.float32)
+        x,y=(size-w)//2,(size-h)//2
+        pixels[y:y+h,x:x+w]=values.reshape(h,w,4)
+        padded=bpy.data.images.new(name,width=size,height=size,alpha=True)
+        padded.colorspace_settings.name=image.colorspace_settings.name
+        padded.pixels.foreach_set(pixels.ravel());padded.update()
+        bpy.data.images.remove(image)
+        image=padded
+    image.name=name
+    return image, scale, offset
+
+
 def run(bpy, job, output):
     name = job['name']
     if not re.fullmatch(r'[a-z][a-z0-9_]{2,47}', name):
@@ -28,7 +55,9 @@ def run(bpy, job, output):
     image = bpy.data.images.load(str(source),check_existing=False)
     image.pixels[:4]
     if not image.has_data or max(image.size)>2048: raise ValueError('Tekstur logo tidak terbaca.')
-    image.name = name+'_diffuse'
+    source_size=list(image.size)
+    image,uv_scale,uv_offset=prepare_texture(bpy,image,name+'_diffuse')
+    native_size=list(image.size)
     side = bpy.data.images.new(name+'_edge',width=4,height=4)
     side.pixels[:] = [*data['sideColor'],1.0]*16
     native_materials=[]
@@ -45,7 +74,9 @@ def run(bpy, job, output):
     mesh.update()
     model=bpy.data.objects.new(name+'_high',mesh);bpy.context.collection.objects.link(model);model.parent=drawable;model.sollum_type='sollumz_drawable_model'
     layer=mesh.uv_layers.new(name='UVMap 0')
-    for loop in mesh.loops: layer.data[loop.index].uv=uvs[loop.vertex_index*2:loop.vertex_index*2+2]
+    for loop in mesh.loops:
+        u,v=uvs[loop.vertex_index*2:loop.vertex_index*2+2]
+        layer.data[loop.index].uv=(u*uv_scale[0]+uv_offset[0],v*uv_scale[1]+uv_offset[1])
     for material in native_materials: mesh.materials.append(material)
     for poly in mesh.polygons: poly.material_index=materials[poly.index]
     color=mesh.color_attributes.new(name='Color 1',type='BYTE_COLOR',domain='CORNER')
@@ -110,4 +141,5 @@ end)
     (output/'README.txt').write_text('DITASHA Logo Prop\nCopy this output folder into FiveM resources and ensure its folder name in server.cfg.\nTest: /'+name+'_spawn (local test object in front of the player).\nPlace archetype '+name+' in CodeWalker/YMAP or an existing MLO for permanent placement.\nDecorative static prop, no collision or MLO room/portal generation. Textures are embedded in YDR.\nSource PNG and editable Blender project are included; source images outside this result are unchanged.\n',encoding='utf8')
     return {'files':[target.name,ytyp_file.name,'fxmanifest.lua','preview.lua'],'triangles':count//3,
         'embeddedTextures':len(verified_textures),'roundTrip':True,'decorativeNoCollision':True,
+        'sourceTextureSize':source_size,'nativeTextureSize':native_size,
         'modelName':name,'warnings':['Prop dekorasi tanpa collision. Uji spawn dan posisi di GTA V/FiveM.']}

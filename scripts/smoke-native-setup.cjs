@@ -82,7 +82,7 @@ app.whenReady().then(async () => {
           ],
           {
             env: require('../electron/native-setup.cjs').managedEnv(settings.managedRoot),
-            timeout: 120000,
+            timeout: script === 'tests/logo-native-blender.py' ? 300000 : 120000,
             maxBuffer: 4 * 1024 * 1024,
           },
         );

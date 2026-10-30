@@ -1,3 +1,9 @@
+# v1.74.1 — Reliable logo prop textures
+
+- Fix native logo exports failing with invalid texture layer sizes at mip 0 or later mip levels for odd-sized and landscape/portrait images. Pad a private native texture to a square power-of-two canvas and remap UVs into the original pixels, preserving the prop aspect ratio, silhouette, colors and transparency.
+- Keep the processed source PNG unchanged. PNG/GLB exports and the live preview retain their original image proportions. Native texture preparation is automatic; manual image resizing is unnecessary.
+- Verify native YDR/YTYP reimport for 1254 × 1254, 1024 × 576 and portrait textures as well as transparent and opaque square textures, checking mapped colors, alpha, UV bounds and open silhouette holes.
+
 # v1.74.0 — Logo to GTA prop studio
 
 - Add Logo → Prop 3D with an orbitable, textured 3D preview. Import PNG/JPG/WebP, preserve alpha or remove a selected flat background from the edges or all matching pixels. Original images remain unchanged.
