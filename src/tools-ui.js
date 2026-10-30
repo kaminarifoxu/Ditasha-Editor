@@ -1,4 +1,5 @@
 import { mountPhotoBooth } from './photo-booth-ui.js';
+import { mountLogoProp } from './logo-prop-ui.js';
 import { mountGtaTool } from './gta-tools-ui.js';
 import { mountFivemTools } from './fivem-tools-ui.js';
 import { mountCompressor } from './compressor-ui.js';
@@ -143,6 +144,7 @@ export function mountTools({
     mountGtaTool({ nav, activate, viewers, toast, tool }),
   );
   const photoBooth = mountPhotoBooth({ nav, activate, download, toast });
+  const logoProp = mountLogoProp({ nav, activate, download, toast, confirmDiscard });
   const vehicles = mountVehicleWorkspace({ nav, viewers, onVehicleBuild });
   vehicles.root.append(nativeHost);
   const ide = mountEmbeddedIDE({ nav, toast, openQuickEditor: archives.openCode });
@@ -216,6 +218,8 @@ export function mountTools({
     }
     photoBooth.root.hidden = next !== 'photobooth';
     photoBooth.setActive(next === 'photobooth');
+    logoProp.root.hidden = next !== 'logoprop';
+    logoProp.setActive(next === 'logoprop');
     $('workspaceLabel').textContent =
       next === 'compressor'
         ? 'Asset Compressor'
@@ -244,6 +248,7 @@ export function mountTools({
     if (next === 'moddrop') $('workspaceLabel').textContent = 'ModDropV';
     if (next === 'weapons') $('workspaceLabel').textContent = 'AddonWeaponsBuilder';
     if (next === 'photobooth') $('workspaceLabel').textContent = 'Photo Booth';
+    if (next === 'logoprop') $('workspaceLabel').textContent = 'Logo → Prop 3D';
     craft.root.hidden = !next.startsWith('craft-');
     if (next.startsWith('craft-')) {
       $('workspaceLabel').textContent =
@@ -797,6 +802,7 @@ export function mountTools({
     unsavedItems: () => [
       ...(dirty() ? [{ name: 'Clothing pack · ' + $('packName').value }] : []),
       ...fivemTools.unsavedItems(),
+      ...logoProp.unsavedItems(),
       ...compressor.unsavedItems(),
       ...archives.unsavedItems(),
       ...viewers.unsavedItems(),

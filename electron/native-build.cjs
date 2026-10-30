@@ -31,11 +31,14 @@ function validateJob(payload) {
       'parts',
       'parts_preview',
       'garment',
+      'logo',
     ].includes(payload.mode)
   )
     throw Error('Mode build tidak valid.');
   if (payload.mode === 'ped' && !/^[a-z][a-z0-9_]{2,31}$/.test(payload.name || ''))
     throw Error('Nama ped: 3–32 huruf kecil/angka/underscore, diawali huruf.');
+  if (payload.mode === 'logo' && !/^[a-z][a-z0-9_]{2,47}$/.test(payload.name || ''))
+    throw Error('Nama prop logo tidak valid.');
   if (
     payload.pedOptions !== undefined &&
     (!payload.pedOptions ||
@@ -151,6 +154,9 @@ function validateJob(payload) {
   if (payload.mode === 'parts' && (!selected.length || new Set(selected).size !== selected.length))
     throw Error('Pilih part donor sebelum build.');
   return {
+    ...(payload.mode === 'logo'
+      ? { logo: require('./logo-prop.cjs').validateLogo(payload.logo) }
+      : {}),
     clothing,
     useClip,
     clipIndex,
@@ -516,7 +522,7 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
       };
     if (job.mode === 'garment' && job.clothing.source === 'generate') job.source = null;
     else if (['ped', 'ped_preview', 'garment'].includes(job.mode)) job.source = await get('ped');
-    else if (job.mode !== 'probe') job.source = await get('vehicle');
+    else if (!['probe', 'logo'].includes(job.mode)) job.source = await get('vehicle');
     if (job.mode === 'garment') job.reference = await get('reference');
     if (job.useClip && ['ped', 'garment'].includes(job.mode)) job.clip = await get('clip');
     if (['strobo_preview', 'parts_preview', 'parts'].includes(job.mode))
@@ -551,7 +557,7 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
       await fs.readFile(path.join(__dirname, 'ped_review.py')),
     );
     await fs.copyFile(path.join(__dirname, 'garment_skin.py'), path.join(root, 'garment_skin.py'));
-    for (const name of ['clothing_workflow.py', 'clip_review.py', 'native_dds.py'])
+    for (const name of ['clothing_workflow.py', 'clip_review.py', 'native_dds.py', 'logo_prop.py'])
       await fs.copyFile(path.join(__dirname, name), path.join(root, name));
     await fs.writeFile(spec, JSON.stringify(job));
     preview = null;
@@ -561,7 +567,11 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
       message: 'Menjalankan Blender…',
       log: '',
       report: null,
-      output: ['probe', 'ped', 'ped_preview', 'garment'].includes(job.mode) ? null : root,
+      output: ['probe', 'ped', 'ped_preview', 'garment'].includes(job.mode)
+        ? null
+        : job.mode === 'logo'
+          ? job.output
+          : root,
       cancelled: false,
     };
     running = true;

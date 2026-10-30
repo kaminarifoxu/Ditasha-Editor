@@ -101,6 +101,7 @@ export function mountWorkspaceShell({ toast }) {
     'moddrop',
     'weapons',
     'photobooth',
+    'logoprop',
     'converter',
     'code',
   ]) {

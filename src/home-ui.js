@@ -4,6 +4,13 @@ import { ICON_CODES } from './ui-icons.js';
 const icon = (name) =>
   `<i class="di-icon" aria-hidden="true" data-icon="${name}" data-glyph="${String.fromCodePoint(parseInt(ICON_CODES[name], 16))}"></i>`;
 const workspaces = [
+  [
+    'logoprop',
+    'cube',
+    'Logo → Prop 3D',
+    'PNG menjadi logo timbul atau papan GTA V/FiveM.',
+    'PNG · YDR · YTYP',
+  ],
   ['moddrop', 'cube', 'ModDropV', 'Build DLC kendaraan, ped, prop dan pakaian.', 'DLC BUILDER'],
   [
     'weapons',

@@ -2254,17 +2254,19 @@ function confirmDiscard(reason = 'close', items = unsavedItems()) {
   $('unsavedBack').textContent =
     reason === 'update' && !items.length ? 'Nanti saja' : 'Kembali ke editor';
   $('unsavedHeading').textContent =
-    reason === 'update'
-      ? 'Pasang update aplikasi?'
-      : reason === 'tab'
-        ? 'Tutup tab ini?'
-        : reason === 'file'
-          ? 'Hapus file dari workspace?'
-          : reason === 'pack'
-            ? 'Kosongkan clothing pack?'
-            : reason === 'archive'
-              ? 'Ganti arsip tanpa mengekspor?'
-              : 'Tutup DITASHA Editor?';
+    reason === 'logo'
+      ? 'Ganti gambar logo?'
+      : reason === 'update'
+        ? 'Pasang update aplikasi?'
+        : reason === 'tab'
+          ? 'Tutup tab ini?'
+          : reason === 'file'
+            ? 'Hapus file dari workspace?'
+            : reason === 'pack'
+              ? 'Kosongkan clothing pack?'
+              : reason === 'archive'
+                ? 'Ganti arsip tanpa mengekspor?'
+                : 'Tutup DITASHA Editor?';
   $('unsavedDescription').textContent = items.length
     ? 'Ada perubahan yang belum disimpan. Ekspor desain, clothing pack atau salinan arsip sebelum melanjutkan agar hasil editmu tetap tersimpan.'
     : 'Update akan diunduh dan diverifikasi. Setelah siap, aplikasi ditutup dan versi terbaru dibuka kembali.';
@@ -2275,15 +2277,17 @@ function confirmDiscard(reason = 'close', items = unsavedItems()) {
     $('unsavedList').append(row);
   }
   $('unsavedDiscard').textContent =
-    reason === 'update'
-      ? 'Pasang & mulai ulang'
-      : reason === 'tab'
-        ? 'Tutup tanpa menyimpan'
-        : reason === 'archive'
-          ? 'Lanjut tanpa mengekspor'
-          : reason === 'file' || reason === 'pack'
-            ? 'Hapus tanpa menyimpan'
-            : 'Tutup tanpa menyimpan';
+    reason === 'logo'
+      ? 'Ganti tanpa mengekspor'
+      : reason === 'update'
+        ? 'Pasang & mulai ulang'
+        : reason === 'tab'
+          ? 'Tutup tanpa menyimpan'
+          : reason === 'archive'
+            ? 'Lanjut tanpa mengekspor'
+            : reason === 'file' || reason === 'pack'
+              ? 'Hapus tanpa menyimpan'
+              : 'Tutup tanpa menyimpan';
   let resolve;
   discardPending = new Promise((r) => (resolve = r));
   const finish = (value) => {

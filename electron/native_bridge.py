@@ -550,6 +550,13 @@ def run(job):
             report.update(result)
             report['ok'] = True
             return report
+        if job['mode'] == 'logo':
+            if not report['engine']['sollumz'] or not report['engine']['native']:
+                raise RuntimeError('Ekspor prop memerlukan Sollumz native aktif di Blender Windows.')
+            import logo_prop
+            report.update(logo_prop.run(bpy, job, output))
+            report['ok'] = True
+            return report
         if not report['engine']['sollumz'] or not report['engine']['native']:
             raise RuntimeError('Aktifkan Sollumz 2.9 dengan szio/PyMateria native di Blender terlebih dahulu (Windows).')
         for obj in list(bpy.data.objects):

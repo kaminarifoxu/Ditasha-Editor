@@ -55,13 +55,20 @@ app.whenReady().then(async () => {
     await import(
       require('node:url').pathToFileURL(path.resolve('scripts/prepare-texture-roundtrip.mjs')).href
     );
-    for (const script of [
+    await import(
+      require('node:url').pathToFileURL(path.resolve('scripts/prepare-logo-native.mjs')).href
+    );
+    const checks = [
       'scripts/smoke-native-preview.py',
       'tests/ped-review-blender.py',
       'tests/garment-skin-blender.py',
       'tests/clothing-native-blender.py',
       'tests/texture-allocation-blender.py',
-    ]) {
+      'tests/logo-native-blender.py',
+    ];
+    for (const script of process.argv.includes('--logo-only')
+      ? ['tests/logo-native-blender.py']
+      : checks) {
       try {
         const check = await promisify(execFile)(
           settings.engine,
