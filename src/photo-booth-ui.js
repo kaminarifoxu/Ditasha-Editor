@@ -1,4 +1,5 @@
 import { mountFreemodeCharacter } from './freemode-character.js';
+import { outfitLayerWarnings } from './booth-clipping-check.js';
 import { createEmoteVault } from './emote-vault.js';
 import { expandEmoteFiles } from './emote-import.js';
 import { createEmoteCatalog } from './emote-catalog.js';
@@ -2399,7 +2400,8 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         files.push(new File([data.bytes], data.name));
       }
       await importFiles(files, 'clothing', 'auto', { targetActorId: owner.id });
-      setStatus('Outfit ' + outfit.name + ' terpasang pada ped ' + owner.name + '. Periksa rigging dan kecocokan tekstur.');
+      const risks = outfitLayerWarnings(assets, owner.id);
+      setStatus('Outfit ' + outfit.name + ' dimuat ke ' + owner.name + '. ' + (risks.length ? 'Potensi clipping: ' + risks.join(' ') : 'Tidak terdeteksi pasangan layer berisiko; tetap cek visual.'));
     } catch (error) {
       setStatus('Gagal memuat outfit: ' + error.message);
     } finally { button.disabled = false; }
@@ -2414,7 +2416,8 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       const owner = currentActor();
       if (!owner || owner.kind !== 'ped') throw Error('Import ped freemode di Photo Booth dahulu, kemudian kirim outfit.');
       await importFiles(detail.files, 'clothing', 'auto', { targetActorId: owner.id });
-      setStatus('Outfit dari Clothing Library dimuat ke ped ' + owner.name + '.');
+      const risks = outfitLayerWarnings(assets, owner.id);
+      setStatus('Outfit dimuat ke ' + owner.name + '. ' + (risks.length ? 'Potensi clipping: ' + risks.join(' ') : 'Cek hasil secara visual untuk clipping.'));
       detail.onComplete?.({ success: true });
     } catch (error) {
       setStatus('Gagal memuat outfit library: ' + error.message);
