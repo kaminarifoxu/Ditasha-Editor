@@ -1,4 +1,4 @@
-# v1.71.0 preview — Photo Booth material automation and large emote libraries
+# v1.71.0 — Vehicle materials, emote libraries and workspace controls
 
 - Bind vehicle YTDs to the matching vehicle/base-high family, source folder or explicit dictionary parent instead of falling back to a selected ped. Shared and ambiguous maps remain global. Add Folder tekstur kendaraan for bulk YTD/relationship imports and a per-model automatic diffuse report/reset action.
 - Render supported second-diffuse vehicle liveries on UV2 in Photo Booth using the same material hook as Vehicle Viewer. Preserve normal/specular maps and dictionary ownership. Use separator aliases only when no exact map/hash exists and the relevant scope is unambiguous.
@@ -13,7 +13,7 @@
 - Add visible choice controls for short transform, orientation, material, rig, gender, import, video and shadow settings while preserving original selects, listeners and preset state. Disabled fieldsets and optgroups cannot be activated.
 - Clarify photo/video/layer/camera and donor action labels. Keep shared focus indicators, consistent spacing, light/dark themes and reduced motion.
 - Add regression checks across eleven native workspaces at three window sizes, panel-menu restore, section folding and choice-control behavior. Existing Photo Booth video/props/YCD/map, native rigging and vehicle checks remain in the Windows pipeline.
-- Document the complete request audit and feature boundaries in TASK_AUDIT.md. This update does not add full-world GTA streaming, encrypted RPF support or a stable Release publication.
+- Document the complete request audit and feature boundaries in TASK_AUDIT.md. This update does not add full-world GTA streaming or encrypted RPF support.
 
 # v1.43.0 preview — Offline YMT Creator and FiveM utilities
 
