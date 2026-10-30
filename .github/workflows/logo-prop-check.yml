@@ -1,7 +1,7 @@
 name: Verify Logo Prop Studio
 on:
   push:
-    branches: [codex/logo-prop-studio]
+    branches: [codex/logo-prop-studio, codex/logo-texture-fix]
   workflow_dispatch:
 permissions:
   contents: read
