@@ -46,7 +46,8 @@ module.exports = async function checkMovie(win, ped, fs, path) {
   $('pbMoviePlay').click();await pause(150);$('pbMovieStop').click();if(Number($('pbMovieTime').value)<=.5)throw Error('Movie preview clock did not advance');
   $('pbMovieTime').value='0';$('pbMovieTime').dispatchEvent(new Event('change'));
   const canvas=document.querySelector('#pbViewport canvas'),before=canvas.toDataURL();
-  const blobs=[],oldURL=URL.createObjectURL,oldClick=HTMLAnchorElement.prototype.click;
+  const blobs=[],oldURL=URL.createObjectURL,oldClick=HTMLAnchorElement.prototype.click,oldSave=window.ditashaDesktop?.saveExport;
+  if(oldSave)window.ditashaDesktop.saveExport=async req=>{if(req.name.endsWith('.webm')){blobs.push(new Blob([req.data],{type:'video/webm'}));return{saved:true};}return oldSave(req);};
   URL.createObjectURL=function(blob){if(blob.type.startsWith('video/'))blobs.push(blob);return oldURL.call(URL,blob);};
   HTMLAnchorElement.prototype.click=function(){if(this.download?.endsWith('.webm'))return;return oldClick.call(this);};
   try{
@@ -70,7 +71,7 @@ module.exports = async function checkMovie(win, ped, fs, path) {
    const row=[...$('pbLibraryList').querySelectorAll('article')].find(n=>n.textContent.includes('QA cinematic camera'));
    $('pbMovieDelete').click();row.querySelector('[data-library-load]').click();await wait(()=>!$('pbPed').disabled&&$('pbMovieMarkers').children.length===2,'Movie preset restore');
    return{movieCameraMarkers:true,cameraInterpolation:true,moviePreview:true,movieCancelRestoresScene:true,webmExport:true,finiteVideoDuration:video.duration,videoDimensions:[video.videoWidth,video.videoHeight],encodedCameraMoves:true,circularFisheye:true,moviePresetPersistence:true,videoBytes:[...new Uint8Array(await blob.arrayBuffer())]};
-  }finally{URL.createObjectURL=oldURL;HTMLAnchorElement.prototype.click=oldClick;}
+  }finally{URL.createObjectURL=oldURL;HTMLAnchorElement.prototype.click=oldClick;if(oldSave)window.ditashaDesktop.saveExport=oldSave;}
  })()`);
   const video = result.videoBytes;
   delete result.videoBytes;
