@@ -24,21 +24,22 @@ export function mountClothingCatalog() {
       button.onclick=()=>{category=c;draw();}; $('[data-cats]').append(button);
     }
     const search = $('[data-search]').value.trim().toLowerCase();
-    const rows = items.flatMap(pack => pack.files.map(file => ({pack,file,id:pack.id})))
+    const rows = items.flatMap(pack => pack.files.filter(file => /\.ydd$/i.test(file.name)).map(file => ({pack,file,id:pack.id})))
       .filter(x => (gender==='all'||x.file.gender===gender) &&
          (category==='all'||x.file.component===category) &&
          (selectedPack==='all'||x.id===selectedPack) &&
          (!search||[x.pack.pack,x.file.name,x.file.component].join(' ').toLowerCase().includes(search)));
-    $('[data-count]').textContent = rows.length+' imported files · Files are stored on this computer';
+    $('[data-count]').textContent = rows.length+' clothing models · Saved locally (3D thumbnail pending)';
     const grid = $('[data-grid]');grid.replaceChildren();
     for (const {pack,file,id} of rows) {
       const card=document.createElement('article');card.className='cl-card';
       const preview=document.createElement('div');preview.className='cl-placeholder';
-      const icon=document.createElement('span');icon.textContent=/\.ytd$/i.test(file.name)?'▧':'♙';
+      const icon=document.createElement('span');icon.textContent='♙';
       preview.append(icon);
       const name=document.createElement('strong');name.textContent=file.component.toUpperCase()+' #'+(file.drawable??'?');
       const desc=document.createElement('small');desc.textContent=file.name;
-      const foot=document.createElement('small');foot.textContent=pack.pack+' · '+file.gender;
+      const textures=pack.files.filter(entry => /\.ytd$/i.test(entry.name) && entry.component===file.component && entry.drawable===file.drawable);
+      const foot=document.createElement('small');foot.textContent=pack.pack+' · '+file.gender+' · '+textures.length+' texture files';
       card.append(preview,name,desc,foot);grid.append(card);
     }
     if (!rows.length) {
