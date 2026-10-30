@@ -21,7 +21,7 @@ export function mountWorkspacePolish() {
   const panelRecords = [];
   document
     .querySelectorAll(
-      '.tool-sidebar, .tool-details, .fm-sidebar, .fm-inspector, .pb-panel, .native-build-layout > aside, main > .files, .ac-files, .ac-settings, .debadge-sidebar, .debadge-inspector, .ft-grid > aside, .gt-layout > .gt-panel',
+      '.lp-settings, .lp-export, .tool-sidebar, .tool-details, .fm-sidebar, .fm-inspector, .pb-panel, .native-build-layout > aside, main > .files, .ac-files, .ac-settings, .debadge-sidebar, .debadge-inspector, .ft-grid > aside, .gt-layout > .gt-panel',
     )
     .forEach((panel, index) => {
       const label = panel.classList.contains('ac-files')

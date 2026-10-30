@@ -9,6 +9,7 @@ import re
 import sys
 import traceback
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import xml.etree.ElementTree as ET
 
 
@@ -548,6 +549,13 @@ def run(job):
             import garment_skin
             result = garment_skin.run(bpy, job, output, review, preview_scene)
             report.update(result)
+            report['ok'] = True
+            return report
+        if job['mode'] == 'logo':
+            if not report['engine']['sollumz'] or not report['engine']['native']:
+                raise RuntimeError('Ekspor prop memerlukan Sollumz native aktif di Blender Windows.')
+            import logo_prop
+            report.update(logo_prop.run(bpy, job, output))
             report['ok'] = True
             return report
         if not report['engine']['sollumz'] or not report['engine']['native']:

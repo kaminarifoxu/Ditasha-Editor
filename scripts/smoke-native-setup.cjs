@@ -13,7 +13,7 @@ app.whenReady().then(async () => {
       app: { getPath: () => root, on: () => {} },
       ipcMain: { handle: (name, fn) => handlers.set(name, fn) },
       trusted: (event) => assert.equal(event, 'trusted'),
-      dialog: {},
+      dialog: { showOpenDialog: async () => ({ canceled: false, filePaths: [root] }) },
       shell: {},
     });
   const call = (name, value) => handlers.get('ditasha:native-' + name)('trusted', value);
@@ -55,13 +55,20 @@ app.whenReady().then(async () => {
     await import(
       require('node:url').pathToFileURL(path.resolve('scripts/prepare-texture-roundtrip.mjs')).href
     );
-    for (const script of [
+    await import(
+      require('node:url').pathToFileURL(path.resolve('scripts/prepare-logo-native.mjs')).href
+    );
+    const checks = [
       'scripts/smoke-native-preview.py',
       'tests/ped-review-blender.py',
       'tests/garment-skin-blender.py',
       'tests/clothing-native-blender.py',
       'tests/texture-allocation-blender.py',
-    ]) {
+      'tests/logo-native-blender.py',
+    ];
+    for (const script of process.argv.includes('--logo-only')
+      ? ['tests/logo-native-blender.py']
+      : checks) {
       try {
         const check = await promisify(execFile)(
           settings.engine,
@@ -86,6 +93,20 @@ app.whenReady().then(async () => {
       }
     }
     if (failures.length) throw Error(failures.join('\n'));
+    // Exercise the actual trusted renderer IPC path as well as direct Python.
+    const logoJob = JSON.parse(await fs.readFile('release/qa/logo-native-fixture.json', 'utf8'));
+    const destination = await call('pick', 'output');
+    await call('start', { ...logoJob, inputs: { output: destination.id } });
+    state = await wait();
+    if (state.status !== 'success' || !state.report?.roundTrip)
+      throw Error('Logo IPC export failed: ' + state.message + '\n' + state.log);
+    assert.equal(
+      (await fs.readFile(path.join(state.output, 'stream', 'ditasha_test_logo.ydr')))
+        .subarray(0, 4)
+        .toString(),
+      'RSC7',
+    );
+    console.log('PASS_LOGO_NATIVE_IPC_OUTPUT', state.output);
 
     console.log(
       'PASS: automatic download, checksum, isolated Blender profile, native dependencies, enabled Muto and persistent setup.',

@@ -1,3 +1,10 @@
+# v1.74.0 — Logo to GTA prop studio
+
+- Add Logo → Prop 3D with an orbitable, textured 3D preview. Import PNG/JPG/WebP, preserve alpha or remove a selected flat background from the edges or all matching pixels. Original images remain unchanged.
+- Generate a bounded extruded silhouette with preserved holes and separated letters, or a rectangular sign board. Adjust width, thickness, side color, contour detail, alpha threshold and texture resolution. Export processed PNG or textured GLB locally.
+- Export decorative native YDR and YTYP through the installed Windows Blender/Sollumz engine, with embedded textures, a FiveM manifest, a local spawn-test command and an editable Blender project. The engine reimports each YDR to verify UVs and embedded textures before success.
+- These are static decorative props for placement in a map/existing MLO. Collision, MLO rooms/portals, OCR and inferred sculpted depth are not generated. Background removal is color-based, with adjustable tolerance rather than semantic segmentation.
+
 # v1.73.0 — Raw YCD poses and fullscreen ped panel
 
 - Recognize validated headerless YCD system pages as well as RSC7 containers. Decode the original bytes with existing pointer/channel/frame budgets; no source rewriting, decryption or generic zero-header bypass. A previously uploaded 32 KB pose file was verified locally as one 90-frame, approximately 90-second clip with finite skeletal tracks. Uploaded files are not redistributed in tests.

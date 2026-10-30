@@ -1,0 +1,186 @@
+.workspace-shell > .logo-prop-workspace {
+  grid-column: 2 / -1;
+  grid-row: 2;
+  margin-left: var(--rail-width);
+  width: calc(100% - var(--rail-width));
+  height: calc(100dvh - var(--header-height));
+}
+.logo-prop-workspace {
+  padding: 24px;
+  overflow: auto;
+  box-sizing: border-box;
+  min-width: 0;
+}
+.lp-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.lp-heading h1 {
+  font-size: 28px;
+  margin: 8px 0;
+}
+.lp-heading p {
+  color: var(--muted);
+  font-size: 12px;
+}
+.lp-layout {
+  display: grid;
+  grid-template-columns: var(--lp-settings, 250px) minmax(260px, 1fr) var(--lp-export, 240px);
+  gap: 18px;
+  min-height: 640px;
+  height: calc(100% - 120px);
+}
+.lp-settings,
+.lp-export,
+.lp-stage {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--panel);
+}
+.lp-settings,
+.lp-export {
+  padding: 18px;
+  overflow: auto;
+}
+.lp-settings h2,
+.lp-export h2 {
+  font-size: 16px;
+  margin: 0 0 18px;
+}
+.lp-export h3 {
+  font-size: 13px;
+  margin-top: 28px;
+}
+.logo-prop-workspace label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 14px 0;
+  font-size: 12px;
+}
+.logo-prop-workspace .check {
+  flex-direction: row;
+  align-items: center;
+  margin: 0;
+}
+.logo-prop-workspace select,
+.logo-prop-workspace input {
+  max-width: 100%;
+  box-sizing: border-box;
+  width: 100%;
+}
+.logo-prop-workspace input[type='checkbox'] {
+  width: auto;
+}
+.lp-export > button {
+  display: block;
+  width: 100%;
+  margin: 10px 0;
+}
+.lp-export p,
+.lp-settings p {
+  font-size: 11px;
+  line-height: 1.65;
+}
+.lp-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.lp-actions button {
+  flex: 1;
+  font-size: 11px;
+}
+.lp-stage {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.lp-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.lp-toolbar button {
+  font-size: 11px;
+}
+#lpViewport {
+  flex: 1;
+  min-height: 350px;
+  position: relative;
+  overflow: hidden;
+}
+#lpViewport canvas {
+  display: block;
+}
+#lpStats,
+#lpStatus {
+  font-size: 11px;
+  padding: 0 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+#lpImage {
+  display: block;
+  max-width: 100%;
+  max-height: 190px;
+  width: auto;
+  height: auto;
+  border: 1px solid var(--border);
+  background: repeating-conic-gradient(#ddd 0 25%, #999 0 50%) 50%/16px 16px;
+  cursor: crosshair;
+}
+#lpImage:not([width]) {
+  display: none;
+}
+#lpLog {
+  font-size: 10px;
+  max-height: 250px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 1250px) {
+  .lp-layout {
+    grid-template-columns: var(--lp-settings, 235px) minmax(260px, 1fr);
+    height: auto;
+  }
+  .lp-export {
+    grid-column: 1/-1;
+  }
+  .lp-stage {
+    min-height: 600px;
+  }
+}
+@media (max-width: 850px) {
+  .logo-prop-workspace {
+    padding: 14px;
+  }
+  .lp-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .lp-settings {
+    max-height: 390px;
+  }
+  .lp-stage {
+    min-height: 480px;
+  }
+  .lp-export {
+    grid-column: auto;
+  }
+}
+
+.lp-layout:has(> .lp-settings.workspace-panel-collapsed) {
+  --lp-settings: 48px;
+}
+.lp-layout:has(> .lp-export.workspace-panel-collapsed) {
+  --lp-export: 48px;
+}

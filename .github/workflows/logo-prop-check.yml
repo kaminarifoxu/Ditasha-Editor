@@ -1,0 +1,39 @@
+name: Verify Logo Prop Studio
+on:
+  push:
+    branches: [codex/logo-prop-studio]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ui:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm test
+      - run: npm run build:ui
+      - run: npx electron scripts/smoke-logo-prop.cjs
+        timeout-minutes: 4
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Logo-Prop-UI-QA
+          path: release/qa/logo-prop-*
+  native:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Install verified engine and round-trip YDR/YTYP with embedded textures
+        run: npx electron scripts/smoke-native-setup.cjs --logo-only
