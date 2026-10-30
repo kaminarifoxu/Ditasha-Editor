@@ -149,7 +149,7 @@
     max-height: none;
   }
 }
-@media (max-width: 800px) {
+@media (max-width: 950px) {
   .wd-layout {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -222,7 +222,7 @@
     max-height: none;
   }
 }
-@media (max-width: 800px) {
+@media (max-width: 950px) {
   .workspace-shell .native-prop-layout {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -248,4 +248,19 @@
 }
 .workspace-shell .native-prop-layout .rig-pose-controls label {
   margin: 0;
+}
+.workspace-shell .native-prop-layout .rig-pose-controls label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.workspace-shell .native-prop-layout .rig-pose-controls select {
+  width: 200px;
+  max-width: 100%;
+  margin: 0;
+}
+.workspace-shell .native-prop-layout #nbViewport {
+  margin-top: 0;
+  height: clamp(300px, calc(100dvh - var(--header-height) - 380px), 680px);
 }

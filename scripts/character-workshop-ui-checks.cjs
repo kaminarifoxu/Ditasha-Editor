@@ -96,6 +96,7 @@ module.exports = async function checkCharacterWorkshops({
   );
   assert(saves.find((s) => s.name.endsWith('_uv.png')).data[0] === 137, 'UV PNG signature');
   console.log('DITASHA_SNAPSHOT:character-weapons');
+  await pause(180);
   document.querySelector('.workspace-nav [data-page=photobooth]').click();
   await wait(() => !$('pbPed').disabled, 'Freemode ready');
   $('pbClear').click();
@@ -134,6 +135,7 @@ module.exports = async function checkCharacterWorkshops({
   await wait(() => !$('pbPed').disabled, 'Duplicate emote import');
   assert((await vault.list()).length === 1, 'Duplicate emote source was persisted twice');
   console.log('DITASHA_SNAPSHOT:character-freemode');
+  await pause(180);
   let state = { running: false, status: 'idle', engine: 'test-engine' },
     payload = null;
   const nativeOriginal = window.ditashaNative;

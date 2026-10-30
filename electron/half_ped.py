@@ -138,7 +138,7 @@ def run(bpy,job,output,review,preview_scene):
                             for layer in clone.data.uv_layers:
                                 for i in poly.loop_indices:
                                     u,v=layer.data[i].uv;layer.data[i].uv=(u*uv_scale[0]+uv_offset[0],v*uv_scale[1]+uv_offset[1])
-        prefix='mp_'+('f' if options['gender']=='mp_f' else 'm')+'_freemode_01^'
+        prefix=(options.get('collection') or 'mp_'+('f' if options['gender']=='mp_f' else 'm')+'_freemode_01')+'^'
         native.append(export_native(bpy,arm,copies[:len(source)],output,prefix+options['headSlot'],source_image_node))
         if hair:native.append(export_native(bpy,arm,copies[len(source):],output,prefix+options['hairSlot'],source_image_node,shader_name='ped_hair_cutout_alpha.sps'))
         for obj in copies:bpy.data.objects.remove(obj,do_unlink=True)
@@ -177,7 +177,10 @@ def run(bpy,job,output,review,preview_scene):
     def preview_head(*args,**kwargs): return preview_scene(*args,**kwargs,source_materials=True)
     original_poses=review.POSES
     try:
-        review.POSES=(*review.POSES,('head','Uji kepala & rahang',{'SKEL_Head':(0,0,.25),'FB_Jaw_000':(.2,0,0)}))
+        rotations={'SKEL_Head':(0,0,.25)}
+        jaw=next((b.name for b in arm.pose.bones if b.name.startswith('FB_Jaw')),None)
+        if jaw:rotations[jaw]=(.2,0,0)
+        review.POSES=(*review.POSES,('head','Uji kepala & rahang',rotations))
         preview=review.create_pose_previews(bpy,context,output,preview_head)
     finally:review.POSES=original_poses
     try:preview['motion']=review.add_walk_preview(bpy,context,output,preview_head)

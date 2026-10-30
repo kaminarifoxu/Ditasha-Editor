@@ -153,6 +153,7 @@ function validateJob(payload) {
     hairScale: 1,
     hairOffset: [0, 0, 0],
     native: false,
+    collection: '',
     headSlot: 'head_046_r',
     hairSlot: 'hair_000_u',
     ...payload.headOptions,
@@ -178,6 +179,11 @@ function validateJob(payload) {
       !/^hair_\d{3}_[ur]$/.test(headOptions.hairSlot)
     )
       throw Error('Pengaturan kepala/rambut tidak valid.');
+    if (
+      typeof headOptions.collection !== 'string' ||
+      (headOptions.collection && !/^[a-z][a-z0-9_]{2,63}$/.test(headOptions.collection))
+    )
+      throw Error('Nama collection halfped tidak valid.');
     for (const key of ['offset', 'rotation', 'hairOffset'])
       if (
         !Array.isArray(headOptions[key]) ||

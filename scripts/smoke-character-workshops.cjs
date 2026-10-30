@@ -41,6 +41,20 @@ app.whenReady().then(async () => {
       });
     await fs.mkdir(path.resolve('release/qa'), { recursive: true });
     win = create();
+    const captures = [];
+    win.webContents.on('console-message', (_event, ...args) => {
+      const text = args
+        .map((a) => (typeof a === 'string' ? a : a?.message))
+        .find((a) => a?.startsWith('DITASHA_SNAPSHOT:character-'));
+      if (text)
+        captures.push(
+          win.webContents
+            .capturePage()
+            .then((img) =>
+              fs.writeFile(path.resolve('release/qa/' + text.split(':')[1] + '.png'), img.toPNG()),
+            ),
+        );
+    });
     await win.loadFile(path.resolve('ui/index.html'));
     const check = require('./character-workshop-ui-checks.cjs');
     const result = await win.webContents.executeJavaScript(
@@ -55,6 +69,7 @@ app.whenReady().then(async () => {
         (await win.webContents.capturePage()).toPNG(),
       );
     }
+    await Promise.all(captures);
     win.destroy();
     win = create();
     await win.loadFile(path.resolve('ui/index.html'));

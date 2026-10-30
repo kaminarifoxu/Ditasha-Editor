@@ -445,6 +445,10 @@ def preview_scene(bpy, fragment, output, donor=None, filename='preview.json', ev
             key = (tri.material_index, badge)
             if key not in groups:
                 alpha = 'blend' if any(n in shader.lower() for n in ('glass', 'badge', 'decal', 'lightsemissive', 'alpha')) else 'opaque'
+                if (source or source_materials) and material and material.node_tree:
+                    bsdf=material.node_tree.nodes.get('Principled BSDF')
+                    opacity=bsdf.inputs.get('Alpha') if bsdf else None
+                    if opacity and (opacity.is_linked or opacity.default_value<.999):alpha='blend'
                 groups[key] = {'name': obj.name, 'kind': kind, 'candidate': obj.name if badge else None, 'positions': [], 'uvs': [], 'texture': texture(material), 'alpha': alpha}
                 if source or source_materials:
                     groups[key]['color'] = source_color(material)

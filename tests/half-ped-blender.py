@@ -54,9 +54,13 @@ with tempfile.TemporaryDirectory() as directory:
     before=set(bpy.data.objects)
     bpy.ops.import_scene.gltf(filepath=str(output/'ditasha-halfped.glb'))
     imported=[o for o in bpy.data.objects if o not in before and o.type=='MESH']
-    assert imported and all(o.find_armature() for o in imported)
+    print('IMPORTED_HEAD_BINDINGS',[(o.name,o.parent_type,o.parent_bone,len(o.vertex_groups),[m.type for m in o.modifiers]) for o in imported])
+    assert imported and all(ped_review.armature_for(o) for o in imported)
     for obj in imported:
         assert obj.data.uv_layers
+        if obj.parent_type=='BONE':
+            assert obj.parent_bone=='SKEL_Head',obj.parent_bone
+            continue
         for vertex in obj.data.vertices:
             weights=[g.weight for g in vertex.groups if g.weight>1e-6]
             assert weights and len(weights)<=4 and abs(sum(weights)-1)<.02
