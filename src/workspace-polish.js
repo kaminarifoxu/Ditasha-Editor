@@ -84,7 +84,6 @@ export function mountWorkspacePolish() {
     snapshot: ['Foto preview', 'Simpan PNG dari sudut kamera preview saat ini'],
     photoshoot: ['Photoshoot', 'Buka pengaturan latar, logo dan foto model'],
     reset: ['Pas model', 'Pas seluruh model ke kamera preview'],
-    expand3d: ['Perbesar 3D', 'Perbesar viewport 3D · Esc untuk kembali'],
     replace: ['Ganti gambar', 'Ganti gambar pada layer terpilih'],
     addImage: ['Tambah layer', 'Tambahkan gambar sebagai layer baru'],
     undo: ['Undo 2D', 'Urungkan perubahan tekstur 2D'],
