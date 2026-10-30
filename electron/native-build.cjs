@@ -37,7 +37,11 @@ function validateJob(payload) {
     throw Error('Mode build tidak valid.');
   if (payload.mode === 'ped' && !/^[a-z][a-z0-9_]{2,31}$/.test(payload.name || ''))
     throw Error('Nama ped: 3–32 huruf kecil/angka/underscore, diawali huruf.');
-  if (payload.mode === 'logo' && !/^[a-z][a-z0-9_]{2,47}$/.test(payload.name || ''))
+  if (
+    payload.mode === 'logo' &&
+    (!/^[a-z][a-z0-9_]{2,47}$/.test(payload.name || '') ||
+      /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/.test(payload.name))
+  )
     throw Error('Nama prop logo tidak valid.');
   if (
     payload.pedOptions !== undefined &&

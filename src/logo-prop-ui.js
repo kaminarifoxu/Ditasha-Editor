@@ -254,7 +254,10 @@ export function mountLogoProp({ nav, activate, download, toast, confirmDiscard }
   };
   const name = () => {
     const value = $('lpName').value;
-    if (!/^[a-z][a-z0-9_]{2,47}$/.test(value))
+    if (
+      !/^[a-z][a-z0-9_]{2,47}$/.test(value) ||
+      /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/.test(value)
+    )
       throw Error('Nama model 3–48 huruf kecil/angka/underscore, diawali huruf.');
     return value;
   };

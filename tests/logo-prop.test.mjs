@@ -64,3 +64,9 @@ test('native logo jobs validate bounded mesh, PNG and model names before running
     );
   assert.throws(() => validateJob({ mode: 'logo', name: '../escape', logo }));
 });
+
+test('reserved Windows prop filenames are rejected', () => {
+  const { logo } = logoPropFixture();
+  for (const name of ['con', 'nul', 'com1', 'lpt1'])
+    assert.throws(() => validateJob({ mode: 'logo', name, logo }));
+});

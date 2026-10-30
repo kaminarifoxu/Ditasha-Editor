@@ -45,6 +45,9 @@ jobs:
       - name: Test GTA V viewers, explorer, archive tools and converter
         run: npx electron scripts/smoke-tools.cjs
         timeout-minutes: 5
+      - name: Test Logo Prop Studio preview and exports
+        run: npx electron scripts/smoke-logo-prop.cjs
+        timeout-minutes: 4
       - name: Install and reinstall Windows Setup with preserved user data
         run: node scripts/smoke-setup.cjs
         timeout-minutes: 8
