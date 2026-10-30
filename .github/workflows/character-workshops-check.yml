@@ -20,6 +20,8 @@ jobs:
       - run: npm run build:ui
       - run: npx electron scripts/smoke-tools.cjs
         timeout-minutes: 6
+      - run: npx electron scripts/smoke-character-workshops.cjs
+        timeout-minutes: 5
       - uses: actions/upload-artifact@v4
         if: always()
         with:

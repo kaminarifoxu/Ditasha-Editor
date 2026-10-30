@@ -27,6 +27,7 @@ with tempfile.TemporaryDirectory() as directory:
     node=material.node_tree.nodes.new('ShaderNodeTexImage');node.image=image
     material.node_tree.links.new(node.outputs['Color'],material.node_tree.nodes.get('Principled BSDF').inputs['Base Color'])
     source.data.materials.clear();source.data.materials.append(material)
+    source_name=source.name
     input_file=temp/'head.glb';bpy.ops.export_scene.gltf(filepath=str(input_file),export_format='GLB',use_selection=True,export_animations=False)
     input_bytes=input_file.read_bytes()
     bpy.ops.object.select_all(action='DESELECT')
@@ -45,10 +46,10 @@ with tempfile.TemporaryDirectory() as directory:
         assert (output/item['file']).read_bytes()[:4]==b'RSC7'
         assert item['verified']['lodMeshes']>=3,item
     rest=json.loads((output/'preview.json').read_text());moved=json.loads((output/'preview-head.json').read_text())
-    head_rest=[m['positions'] for m in rest['meshes'] if m['name']==source.name]
-    head_moved=[m['positions'] for m in moved['meshes'] if m['name']==source.name]
+    head_rest=[m['positions'] for m in rest['meshes'] if m['name']==source_name]
+    head_moved=[m['positions'] for m in moved['meshes'] if m['name']==source_name]
     # Imported source names can acquire Blender suffixes, but a real head pose must change geometry.
-    assert rest['meshes']!=moved['meshes'],'Head pose did not deform the real result'
+    assert head_rest and head_rest!=head_moved,'Head pose did not deform the real result'
     assert rest['textures'],'Skinned source textures missing from preview'
     before=set(bpy.data.objects)
     bpy.ops.import_scene.gltf(filepath=str(output/'ditasha-halfped.glb'))

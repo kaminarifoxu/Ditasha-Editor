@@ -493,7 +493,7 @@ def preview_scene(bpy, fragment, output, donor=None, filename='preview.json', ev
             if clone is not None:
                 bpy.data.objects.remove(clone, do_unlink=True)
     for obj in fragment.children_recursive:
-        if obj.type == 'MESH' and (source or (getattr(obj, 'sollum_type', '') == 'sollumz_drawable_model' and 'damaged' not in obj.name.lower())):
+        if obj.type == 'MESH' and (source or source_materials or (getattr(obj, 'sollum_type', '') == 'sollumz_drawable_model' and 'damaged' not in obj.name.lower())):
             append(obj, 'base')
     if donor:
         parts = donor_parts if donor_parts is not None else siren_parts(donor)[0]
