@@ -182,7 +182,11 @@ module.exports = async function checkVehicleLivery(fixtures) {
   // Controls remain accessible before potentially hundreds of fragments.
   const sidebar = $('mvOpen').closest('aside'),
     repair = $('mvTextureFolder').closest('details');
-  assert(sidebar.children[3] === repair, 'Auto repair is buried below the parts list');
+  assert(
+    repair.compareDocumentPosition($('mvParts').closest('details')) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    'Auto repair is buried below the parts list',
+  );
   const extras = $('mvModels').closest('details');
   assert(extras && !extras.open, 'Extra fragments must start in a collapsed section');
   assert(sidebar.getBoundingClientRect().width >= 280, 'Vehicle control sidebar is too narrow');
