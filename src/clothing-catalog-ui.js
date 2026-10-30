@@ -1,4 +1,4 @@
-export function mountClothingCatalog() {
+export function mountClothingCatalog({ openPreview } = {}) {
   if (!window.ditashaClothing) return;
   const tab = document.createElement('button');
   tab.type = 'button'; tab.className = 'clothing-launch';
@@ -40,7 +40,30 @@ export function mountClothingCatalog() {
       const desc=document.createElement('small');desc.textContent=file.name;
       const textures=pack.files.filter(entry => /\.ytd$/i.test(entry.name) && entry.component===file.component && entry.drawable===file.drawable);
       const foot=document.createElement('small');foot.textContent=pack.pack+' · '+file.gender+' · '+textures.length+' texture files';
-      card.append(preview,name,desc,foot);grid.append(card);
+      card.append(preview,name,desc,foot);
+      if (typeof openPreview === 'function') {
+        const button = document.createElement('button');
+        button.textContent = 'Buka di 3D Editor';
+        button.onclick = async () => {
+          button.disabled = true;
+          try {
+            const matching = pack.files.filter(entry => entry.component === file.component &&
+              entry.drawable === file.drawable && /\\.ytd$/i.test(entry.name));
+            const selected = [file, ...matching];
+            const modelFiles = [];
+            for (const entry of selected) {
+              const data = await window.ditashaClothing.previewRead(id, entry.relativePath);
+              modelFiles.push(new File([data.bytes], data.name));
+            }
+            root.hidden = true;
+            await openPreview(modelFiles);
+          } catch (error) {
+            $('[data-feedback]').textContent = 'Gagal membuka preview: ' + error.message;
+          } finally { button.disabled = false; }
+        };
+        card.append(button);
+      }
+      grid.append(card);
     }
     if (!rows.length) {
       const empty=document.createElement('p');empty.className='cl-empty';
