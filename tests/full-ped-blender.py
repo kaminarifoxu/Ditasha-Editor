@@ -28,6 +28,7 @@ with tempfile.TemporaryDirectory() as directory:
     report=bridge.run({'mode':'ped','source':str(source),'output':str(output),'name':'ditasha_full_test','pedOptions':{'reference':'mp_m','height':1.8}})
     print('FULL_PED_REPORT',json.dumps(report,ensure_ascii=True),flush=True)
     assert report['ok'],report
+    assert report['rigging']['mesh']['parts']==len(objects),'Bone control helper was joined into the body'
     assert source.read_bytes()==original
     assert {'.yft','.ydd','.ytd','.ymt'}.issubset({f.suffix for f in output.rglob('*') if f.is_file()})
     assert (output/'preview.json').is_file() and (output/'ditasha-result.blend').is_file()

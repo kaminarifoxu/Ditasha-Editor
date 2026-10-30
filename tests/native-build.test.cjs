@@ -3,6 +3,21 @@ const { test } = require('node:test'),
   assert = require('node:assert/strict');
 const { validateJob, blenderArgs } = require('../electron/native-build.cjs');
 const { execFileSync } = require('node:child_process');
+test('Unexpected Blender exits retain the actual error and last rig stage', () => {
+  const { engineFailure } = require('../electron/native-build.cjs');
+  const message = engineFailure(
+    'INFO: import complete\nTraceback (most recent call last):\nValueError: missing humanoid joints\n',
+    'Blender keluar dengan kode 1',
+    'markers',
+  );
+  assert.match(message, /kode 1/);
+  assert.match(message, /markers/);
+  assert.match(message, /missing humanoid joints/);
+  assert.match(
+    engineFailure('INFO: glTF import finished', 'Blender keluar dengan kode 1'),
+    /Simpan log diagnosis/,
+  );
+});
 test('Native build accepts bounded job settings and refuses arbitrary task/transform data', () => {
   assert.equal(validateJob({ mode: 'strobo_preview' }).mode, 'strobo_preview');
   assert.equal(validateJob({ mode: 'parts_preview' }).mode, 'parts_preview');

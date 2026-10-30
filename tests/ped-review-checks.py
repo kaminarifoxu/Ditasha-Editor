@@ -17,6 +17,18 @@ def run_worker(args):
     assert context.scene.mpr.ref_body == 'mp_f' and args['height'] == 1.62
     return {'ok': True}
 worker = N(_import=replace_scene, run=run_worker)
+worker.STEPS = (('strip','strip_rig'),('markers','markers_auto'))
+original_steps = worker.STEPS
+stages=[]
+def traced_worker(args):
+    worker._import(args['src'])
+    assert list(worker.STEPS)==list(original_steps)
+    return {'ok': True}
+worker.run=traced_worker
+assert m.run_muto(worker, N(context=context), {'src':'model.glb'}, {}, stages.append)['ok']
+assert stages==['import','prepare','strip','markers'],stages
+assert worker.STEPS is original_steps
+worker.run=run_worker
 assert m.run_muto(worker, N(context=context), {'src': 'model.glb'}, {'reference': 'mp_f', 'height': 1.62})['ok']
 assert worker._import is replace_scene
 def fail_worker(args):

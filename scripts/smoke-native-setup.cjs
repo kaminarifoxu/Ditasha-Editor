@@ -66,11 +66,13 @@ app.whenReady().then(async () => {
       'tests/texture-allocation-blender.py',
       'tests/logo-native-blender.py',
     ];
-    for (const script of process.argv.includes('--character-only')
+    for (const script of process.argv.includes('--full-ped-only')
       ? ['tests/full-ped-blender.py']
-      : process.argv.includes('--logo-only')
-        ? ['tests/logo-native-blender.py']
-        : checks) {
+      : process.argv.includes('--character-only')
+        ? ['tests/clothing-native-blender.py', 'tests/half-ped-blender.py']
+        : process.argv.includes('--logo-only')
+          ? ['tests/logo-native-blender.py']
+          : checks) {
       try {
         const check = await promisify(execFile)(
           settings.engine,

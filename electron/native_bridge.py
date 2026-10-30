@@ -582,7 +582,11 @@ def run(job):
             review = importlib.util.module_from_spec(review_spec)
             review_spec.loader.exec_module(review)
             options = job.get('pedOptions', {})
-            result = review.run_muto(worker, bpy, {'src': job['source'], 'out': str(output), 'ped': job['name'], 'mode': 'ADDON', 'tex': 'YTD', 'rig': 'mp_m'}, options)
+            def progress(stage):
+                report['stage'] = stage
+                (output / 'progress.json').write_text(json.dumps({'stage': stage}), encoding='utf-8')
+                print('DITASHA_PED_STAGE ' + stage, flush=True)
+            result = review.run_muto(worker, bpy, {'src': job['source'], 'out': str(output), 'ped': job['name'], 'mode': 'ADDON', 'tex': 'YTD', 'rig': 'mp_m'}, options, progress)
             report['pedOptions'] = options
             report['rigging'] = result
             # A self-contained correction project remains available even when
@@ -596,7 +600,9 @@ def run(job):
             except Exception as exc:
                 report.setdefault('warnings', []).append('Proyek koreksi: ' + str(exc))
             if not result.get('ok'):
-                raise RuntimeError('Auto rig gagal. Buka .blend untuk memeriksa marker/weights dan lihat batch_report.json.')
+                failed = next(((key, value) for key,value in result.get('steps', {}).items() if value not in ('FINISHED','SKIPPED')), None)
+                detail = (failed[0] + ': ' + str(failed[1])) if failed else result.get('error', 'Engine tidak menyelesaikan seluruh tahap rig.')
+                raise RuntimeError('Auto rig gagal: ' + detail + '. Periksa log dan proyek Blender hasil koreksi.')
             required = {'.yft', '.ydd', '.ytd', '.ymt'}
             present = {f.suffix.lower() for f in output.rglob('*') if f.is_file()}
             if not required.issubset(present) or not list(output.rglob('fxmanifest.lua')):
@@ -647,9 +653,10 @@ def run(job):
                 report['warnings'] = ['Patch resource: resource kendaraan asli beserta YTD/handling tetap harus dimuat lebih dahulu.', 'ID siren harus unik pada server. Uji animasi siren, posisi, collision dan LOD di game.']
         bpy.ops.wm.save_as_mainfile(filepath=str(output / 'ditasha-result.blend'), copy=True)
         report['ok'] = True
-    except Exception as exc:
+    except (Exception, SystemExit) as exc:
         report['error'] = str(exc)
         report['traceback'] = traceback.format_exc()[-5000:]
+        print(report['traceback'], file=sys.stderr, flush=True)
     finally:
         (output / 'report.json').write_text(json.dumps(report, indent=2), encoding='utf-8')
     return report
