@@ -192,7 +192,24 @@ function sequence(r, at, boneCount, budget) {
 export function readYcd(buffer) {
   if (buffer.byteLength > 64 * 1024 ** 2) fail('file maksimal 64 MB.');
   if (buffer.byteLength < 16) fail('header terpotong (' + buffer.byteLength + ' byte).');
-  if (new DataView(buffer).getUint32(0, true) !== 0x37435352) {
+  const view = new DataView(buffer);
+  let raw = false;
+  // Some exported YCDs contain the uncompressed system pages without the RSC7
+  // envelope. Recognize the observed dictionary layout, never arbitrary zeros.
+  if (buffer.byteLength >= 64 && view.getUint32(0, true) === 0 && view.getUint32(4, true) === 1) {
+    const table = Number(view.getBigUint64(40, true)) - 0x50000000;
+    const capacity = view.getUint16(48, true),
+      count = view.getUint16(50, true);
+    raw =
+      buffer.byteLength % 512 === 0 &&
+      capacity > 0 &&
+      capacity <= 4096 &&
+      count > 0 &&
+      count <= 256 &&
+      table >= 64 &&
+      table + capacity * 8 <= buffer.byteLength;
+  }
+  if (view.getUint32(0, true) !== 0x37435352 && !raw) {
     const bytes = new Uint8Array(buffer, 0, Math.min(16, buffer.byteLength));
     const signature = [...bytes.slice(0, 4)].map((b) => b.toString(16).padStart(2, '0')).join(' ');
     const ascii = String.fromCharCode(...bytes.slice(0, 4));
@@ -216,7 +233,13 @@ export function readYcd(buffer) {
         '). Format file belum dikenali; file sumber diperlukan untuk pemeriksaan.',
     );
   }
-  const r = new Resource(buffer, 46, 128 * 1024 ** 2),
+  const r = raw
+      ? Object.assign(Object.create(Resource.prototype), {
+          sys: buffer.byteLength,
+          bytes: new Uint8Array(buffer),
+          v: view,
+        })
+      : new Resource(buffer, 46, 128 * 1024 ** 2),
     animations = new Map(),
     clips = [],
     listClips = [],

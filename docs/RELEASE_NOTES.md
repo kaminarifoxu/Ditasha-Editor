@@ -1,3 +1,10 @@
+# v1.73.0 — Raw YCD poses and fullscreen ped panel
+
+- Recognize validated headerless YCD system pages as well as RSC7 containers. Decode the original bytes with existing pointer/channel/frame budgets; no source rewriting, decryption or generic zero-header bypass. A previously uploaded 32 KB pose file was verified locally as one 90-frame, approximately 90-second clip with finite skeletal tracks. Uploaded files are not redistributed in tests.
+- Add a live Ped & outfit panel on the left of fullscreen Photo Booth, with minimize/restore and a toolbar shortcut. Keep the same controls, ownership, actor selection and callbacks, and restore the normal sidebar on leaving fullscreen. Preserve minimized states across fullscreen re-entry.
+- On narrow windows, opening one fullscreen panel minimizes the other to avoid overlap. Existing per-ped emote playback, scene framing and clean PNG capture remain intact.
+- Add synthetic raw-resource validation and fullscreen ped-selection/minimize/restore regressions. This does not add support for encrypted YCD or multi-source facial blends.
+
 # v1.72.0 — Smaller differential downloads
 
 - Reuse unchanged installer/portable blocks from the verified local version and request only changed byte ranges from GitHub. Show transfer size and savings against the full package; validate the reconstructed EXE size, SHA-256 and Windows header before installation.
