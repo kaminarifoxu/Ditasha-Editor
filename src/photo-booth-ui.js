@@ -2359,6 +2359,21 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       throw e;
     }
   }
+  // Clothing Library V2 sends actual persisted YDD/YTD files to the existing booth importer.
+  // This imports outfit parts into the stage; it does not invent a freemode body or morphs.
+  window.addEventListener('ditasha:clothing-outfit-to-booth', async (event) => {
+    const detail = event.detail;
+    if (!detail || !Array.isArray(detail.files) || !detail.files.length) return;
+    try {
+      activate('photobooth');
+      await importFiles(detail.files, 'clothing', 'auto');
+      setStatus('Outfit dari Clothing Library berhasil dimuat. Tambahkan ped freemode bila belum ada.');
+      detail.onComplete?.({ success: true });
+    } catch (error) {
+      setStatus('Gagal memuat outfit library: ' + error.message);
+      detail.onComplete?.({ success: false, error: error.message });
+    }
+  });
   mountFreemodeCharacter({
     container: root.querySelector('.pb-assets'),
     guard,
