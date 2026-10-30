@@ -7,7 +7,7 @@
   "main": "electron/main.cjs",
   "scripts": {
     "start": "electron .",
-    "build:win": "npm run prepare:ide && npm run prepare:craft && npm run build:ui && electron-builder --win nsis portable --x64",
+    "build:win": "npm run prepare:ide && npm run prepare:craft && npm run build:ui && electron-builder --win nsis portable --x64 --publish never",
     "prepare:ide": "node scripts/prepare-ide.cjs",
     "test": "node --test tests/*.test.cjs tests/*.test.mjs",
     "build:ui": "node scripts/build-ui.cjs",
