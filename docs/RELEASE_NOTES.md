@@ -1,3 +1,10 @@
+# v1.72.0 — Smaller differential downloads
+
+- Reuse unchanged installer/portable blocks from the verified local version and request only changed byte ranges from GitHub. Show transfer size and savings against the full package; validate the reconstructed EXE size, SHA-256 and Windows header before installation.
+- Publish external v2 blockmaps alongside both EXEs. Validate the NSIS installer cache during install/reinstall testing, and verify real HTTP reconstruction of built packages. Upload the complete asset set to a draft before publishing the stable release.
+- Automatically fall back to a complete download when the base/cache or map is unavailable, range requests fail, reconstruction does not verify, savings are under 10%, or more than 128 separate ranges are needed. Sources, presets and installation behavior are unchanged.
+- Upgrading from v1.71.1 or earlier requires one full download to install this updater. Savings apply to later compatible releases and vary with the actual changes. This is not pause/resume or an engine-only updater.
+
 # v1.71.1 — Grouped Photo Booth object selection
 
 - Group both object pickers by Ped / tubuh, Kendaraan, Outfit mandiri and Prop / bagian mandiri, showing counts only for populated groups. Attached outfit and vehicle parts continue to follow their owner rather than duplicating scene objects.

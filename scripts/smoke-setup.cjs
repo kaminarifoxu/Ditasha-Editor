@@ -3,6 +3,7 @@ const fs = require('node:fs/promises'),
   path = require('node:path'),
   os = require('node:os');
 const { spawn } = require('node:child_process');
+const { fileHash } = require('../electron/differential-update.cjs');
 async function run(exe, args, env = process.env) {
   await new Promise((resolve, reject) => {
     const child = spawn(exe, args, { env, windowsHide: true, stdio: 'inherit' });
@@ -32,6 +33,13 @@ async function run(exe, args, env = process.env) {
   for (let iteration = 0; iteration < 2; iteration++) {
     await run(setup, ['/S', '/D=' + destination]);
     await fs.access(executable);
+    const cachedInstaller = path.join(
+      process.env.LOCALAPPDATA,
+      'ganomabi-asset-studio-updater',
+      'installer.exe',
+    );
+    if ((await fileHash(cachedInstaller)) !== (await fileHash(setup)))
+      throw Error('NSIS did not retain the matching installer for differential updates');
     await fs.rm(path.join(root, 'installed-ready.json'), { force: true });
     await run(executable, [], { ...process.env, DITASHA_SETUP_SMOKE_ROOT: root });
     const result = JSON.parse(await fs.readFile(path.join(root, 'installed-ready.json'), 'utf8'));
@@ -50,6 +58,7 @@ async function run(exe, args, env = process.env) {
     installedWorkspace: true,
     reinstall: true,
     userDataPreserved: true,
+    differentialInstallerCache: true,
   };
   await fs.mkdir('release/qa', { recursive: true });
   await fs.writeFile('release/qa/installer-result.json', JSON.stringify(report));

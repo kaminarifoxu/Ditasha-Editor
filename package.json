@@ -1,13 +1,13 @@
 {
   "name": "ganomabi-asset-studio",
-  "version": "1.71.1",
+  "version": "1.72.0",
   "description": "DITASHA Editor \u2014 editor tekstur YTD dan preview model YDD",
   "author": "Ditasha-Workshop",
   "license": "UNLICENSED",
   "main": "electron/main.cjs",
   "scripts": {
     "start": "electron .",
-    "build:win": "npm run prepare:ide && npm run prepare:craft && npm run build:ui && electron-builder --win nsis portable --x64 --publish never",
+    "build:win": "npm run prepare:ide && npm run prepare:craft && npm run build:ui && electron-builder --win nsis portable --x64 --publish never && node scripts/update-blockmaps.cjs",
     "prepare:ide": "node scripts/prepare-ide.cjs",
     "test": "node --test tests/*.test.cjs tests/*.test.mjs",
     "build:ui": "node scripts/build-ui.cjs",

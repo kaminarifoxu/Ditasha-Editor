@@ -5,6 +5,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { Readable, Transform } = require('node:stream');
 const { pipeline } = require('node:stream/promises');
+const { downloadDifferential } = require('./differential-update.cjs');
 const REPOSITORY = 'kaminarifoxu/Ditasha-Editor';
 const RELEASE_REPOSITORIES = [REPOSITORY, 'kaminarifoxu/FIVEM-YDD-YTD-EDITOR'];
 const API = `https://api.github.com/repos/${REPOSITORY}/releases/latest`;
@@ -62,6 +63,9 @@ function releaseInfo(release, local, { installed = false } = {}) {
     (a) => a.name === `${name}.sha256` && a.state === 'uploaded',
   );
   const digest = /^sha256:([a-f0-9]{64})$/i.exec(asset.digest || '')?.[1]?.toLowerCase();
+  const blockmap = release.assets.find(
+    (a) => a.name === `${name}.blockmap` && a.state === 'uploaded',
+  );
   if (!digest && !checksum) throw Error('Rilis belum menyertakan checksum SHA-256.');
   return {
     version,
@@ -70,6 +74,10 @@ function releaseInfo(release, local, { installed = false } = {}) {
     url: trustedURL(asset.browser_download_url, true),
     sha256: digest,
     checksumURL: checksum ? trustedURL(checksum.browser_download_url, true) : null,
+    blockmapURL:
+      blockmap && blockmap.browser_download_url === asset.browser_download_url + '.blockmap'
+        ? trustedURL(blockmap.browser_download_url, true)
+        : null,
     notes: String(release.body || '').slice(0, 4000),
   };
 }
@@ -78,6 +86,7 @@ function createPortableUpdater({
   directory,
   fetcher,
   installed = false,
+  baseFile = null,
   onState = () => {},
 }) {
   let state = {
@@ -127,6 +136,9 @@ function createPortableUpdater({
       final = path.join(stage, 'update.exe');
       emit({
         status: 'downloading',
+        mode: 'full',
+        reusedBytes: 0,
+        fullBytes: release.size,
         progress: 0,
         downloadedBytes: 0,
         totalBytes: release.size,
@@ -141,38 +153,75 @@ function createPortableUpdater({
         expected = /^([a-f0-9]{64})(?:\s|$)/i.exec(text.trim())?.[1]?.toLowerCase();
         if (!expected) throw Error('Checksum tidak valid.');
       }
-      const response = await request(release.url, {
-        timeout: 15 * 60 * 1000,
-        headers: { Accept: 'application/octet-stream' },
-      });
-      if (!response.ok || !response.body) throw Error('File update gagal diunduh.');
-      let total = 0,
-        last = 0;
-      const hash = crypto.createHash('sha256');
-      const meter = new Transform({
-        transform(chunk, _encoding, callback) {
-          total += chunk.length;
-          if (total > release.size) {
-            callback(Error('Ukuran unduhan melebihi rilis.'));
-            return;
-          }
-          hash.update(chunk);
-          const progress = Math.floor((total / release.size) * 100);
-          if (progress !== last) {
-            last = progress;
-            emit({ progress, downloadedBytes: total, message: `Mengunduh update… ${progress}%` });
-          }
-          callback(null, chunk);
-        },
-      });
-      const source =
-        typeof response.body.getReader === 'function'
-          ? Readable.fromWeb(response.body)
-          : response.body;
-      await pipeline(source, meter, fs.createWriteStream(partial, { flags: 'w' }));
-      emit({ status: 'verifying', message: 'Memverifikasi SHA-256…' });
-      if (total !== release.size || hash.digest('hex') !== expected)
-        throw Error('Verifikasi update gagal. File tidak akan dipasang.');
+      let differential = null;
+      if (baseFile && release.blockmapURL) {
+        emit({ message: 'Membandingkan blok update dengan versi terpasang…' });
+        try {
+          const response = await request(
+            `https://api.github.com/repos/${REPOSITORY}/releases/tags/v${version}`,
+          );
+          if (!response.ok) throw Error('Acuan update tidak tersedia.');
+          const old = await response.json();
+          if (old.tag_name !== `v${version}`) throw Error('Versi acuan berbeda.');
+          const baseRelease = releaseInfo(old, '0.0.0', { installed });
+          differential = await downloadDifferential({
+            baseFile,
+            baseRelease,
+            release,
+            expected,
+            request,
+            destination: partial,
+            onProgress: (s) =>
+              emit({ ...s, message: `Mengunduh bagian yang berubah… ${s.progress}%` }),
+          });
+        } catch {
+          // A corrupt cache, unavailable blockmap, failed ranges or hash mismatch
+          // must never install a partial patch. Retry the complete trusted EXE.
+        }
+        if (!differential)
+          emit({
+            mode: 'full',
+            reusedBytes: 0,
+            downloadedBytes: 0,
+            totalBytes: release.size,
+            progress: 0,
+            message: 'Memakai unduhan penuh; pembaruan bagian belum dapat digunakan.',
+          });
+      }
+      if (!differential) {
+        const response = await request(release.url, {
+          timeout: 15 * 60 * 1000,
+          headers: { Accept: 'application/octet-stream' },
+        });
+        if (!response.ok || !response.body) throw Error('File update gagal diunduh.');
+        let total = 0,
+          last = 0;
+        const hash = crypto.createHash('sha256');
+        const meter = new Transform({
+          transform(chunk, _encoding, callback) {
+            total += chunk.length;
+            if (total > release.size) {
+              callback(Error('Ukuran unduhan melebihi rilis.'));
+              return;
+            }
+            hash.update(chunk);
+            const progress = Math.floor((total / release.size) * 100);
+            if (progress !== last) {
+              last = progress;
+              emit({ progress, downloadedBytes: total, message: `Mengunduh update… ${progress}%` });
+            }
+            callback(null, chunk);
+          },
+        });
+        const source =
+          typeof response.body.getReader === 'function'
+            ? Readable.fromWeb(response.body)
+            : response.body;
+        await pipeline(source, meter, fs.createWriteStream(partial, { flags: 'w' }));
+        if (total !== release.size || hash.digest('hex') !== expected)
+          throw Error('Verifikasi update gagal. File tidak akan dipasang.');
+      }
+      emit({ status: 'verifying', message: 'Memverifikasi hasil update…' });
       const handle = await fsp.open(partial, 'r');
       const magic = Buffer.alloc(2);
       await handle.read(magic, 0, 2, 0);
