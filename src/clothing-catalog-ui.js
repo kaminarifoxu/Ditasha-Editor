@@ -10,7 +10,7 @@ export function mountClothingCatalog({ openPreview } = {}) {
   root.setAttribute('aria-label','DITASHA Clothing Catalog');
   root.innerHTML = `<header class="cl-head"><strong>◈ DITASHA <span>Clothing</span></strong><div class="cl-actions"><button data-import>+ Import file</button><button data-import-folder>+ Import folder</button><button data-close aria-label="Tutup katalog">✕</button></div></header>
   <div class="cl-toolbar"><div class="cl-genders"><button class="active" data-gender="all">Semua</button><button data-gender="male">Cowok</button><button data-gender="female">Cewek</button></div><input data-search placeholder="Cari pakaian, nama file atau pack..." aria-label="Cari pakaian"/><select data-pack aria-label="Pilih pack"><option value="all">Semua pack</option></select></div>
-  <div class="cl-pack-actions"><button data-save-outfit>Simpan Outfit</button><button data-show-outfits>Outfit Saya</button><button data-rename-pack>Ubah nama pack</button><button data-delete-pack>Hapus pack</button></div><div class="cl-cats" data-cats></div><p class="cl-count" data-count></p><div class="cl-grid" data-grid></div><p class="cl-feedback" data-feedback role="status"></p>`;
+  <div class="cl-pack-actions"><button data-save-outfit>Simpan Outfit</button><button data-show-outfits>Outfit Saya</button><button data-to-booth>Kirim ke Photo Booth</button><button data-rename-pack>Ubah nama pack</button><button data-delete-pack>Hapus pack</button></div><div class="cl-cats" data-cats></div><p class="cl-count" data-count></p><div class="cl-grid" data-grid></div><p class="cl-feedback" data-feedback role="status"></p>`;
   document.body.append(root);
   const $ = s => root.querySelector(s);
   let items = [], gender = 'all', category = 'all';
@@ -146,9 +146,55 @@ export function mountClothingCatalog({ openPreview } = {}) {
   $('[data-show-outfits]').onclick=async()=>{
     try {
       const outfits=await window.ditashaClothing.listOutfits();
-      const labels=outfits.map(o=>o.name+' ('+o.gender+', '+o.slots.length+' komponen)').join(' • ');
-      $('[data-feedback]').textContent=outfits.length ? 'Outfit tersimpan: '+labels : 'Belum ada outfit tersimpan.';
+      if (!outfits.length) { $('[data-feedback]').textContent='Belum ada outfit tersimpan.'; return; }
+      const selection=window.prompt('Pilih nomor outfit untuk dimuat:\\n'+outfits.map((o,i)=>(i+1)+'. '+o.name+' ('+o.gender+')').join('\\n'),'1');
+      if(selection===null)return;
+      const index=Number(selection)-1;
+      if(!Number.isInteger(index)||!outfits[index])throw Error('Nomor outfit tidak tersedia.');
+      const outfit=outfits[index];
+      const packs=await window.ditashaClothing.list();
+      for(const slot of outfit.slots) {
+        if(!packs.some(p=>p.id===slot.packId&&p.files.some(f=>f.relativePath===slot.relativePath)))throw Error('Outfit menggunakan pakaian yang sudah dihapus.');
+      }
+      outfitSlots.clear();
+      outfitGender=outfit.gender;
+      for(const slot of outfit.slots)outfitSlots.set(slot.component,slot);
+      gender=outfit.gender;
+      root.querySelectorAll('[data-gender]').forEach(b=>b.classList.toggle('active',b.dataset.gender===gender));
+      draw();
+      $('[data-feedback]').textContent='Outfit '+outfit.name+' dimuat ('+outfit.slots.length+' komponen).';
     }catch(e){$('[data-feedback]').textContent='Gagal membaca outfit: '+e.message;}
+  };
+  async function outfitFiles(slots) {
+    const packs = await window.ditashaClothing.list();
+    const files = [];
+    for (const slot of slots) {
+      const pack = packs.find(p => p.id === slot.packId);
+      const model = pack?.files.find(f => f.relativePath === slot.relativePath);
+      if (!model) throw Error('File outfit tidak ditemukan di library.');
+      const related = pack.files.filter(entry => /\\.ytd$/i.test(entry.name) &&
+        entry.component === model.component && entry.drawable === model.drawable &&
+        (!slot.textureVariant || entry.textureVariant === slot.textureVariant));
+      for (const entry of [model, ...related]) {
+        const loaded = await window.ditashaClothing.previewRead(pack.id, entry.relativePath);
+        files.push(new File([loaded.bytes], loaded.name));
+      }
+    }
+    return files;
+  }
+  $('[data-to-booth]').onclick=async()=>{
+    const slots=[...outfitSlots.values()];
+    if(!slots.length){$('[data-feedback]').textContent='Pilih item dari katalog atau muat outfit tersimpan terlebih dahulu.';return;}
+    try {
+      const files=await outfitFiles(slots);
+      const result=await new Promise(resolve=>{
+        window.dispatchEvent(new CustomEvent('ditasha:clothing-outfit-to-booth',{
+          detail:{files,onComplete:resolve}
+        }));
+      });
+      if(!result.success) throw Error(result.error);
+      root.hidden=true;
+    }catch(e){$('[data-feedback]').textContent='Photo Booth: '+e.message;}
   };
   $('[data-search]').oninput=draw;
   $('[data-pack]').onchange=e=>{selectedPack=e.target.value;draw();};
