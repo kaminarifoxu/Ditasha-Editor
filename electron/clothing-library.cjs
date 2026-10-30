@@ -10,9 +10,18 @@ const MAX_IMPORT_FILES = 5000;
 function metadataFor(filename) {
   const basename = path.basename(filename);
   const gender = /mp_m_freemode_01/i.test(filename) ? 'male' : /mp_f_freemode_01/i.test(filename) ? 'female' : 'unknown';
-  const match = basename.match(/(?:\^|^)((?:p_)?[a-z]+)_(?:diff_)?(\d{3})(?:_|\.)/i);
+  // GTA textures are named jbib_diff_003_a_uni.ytd, models jbib_003_u.ydd.
+  const match = basename.match(/(?:\^|^)((?:p_)?[a-z]+)_(diff_)?(\d{3})(?:_|\.)(?:.*)?$/i);
   const component = match?.[1]?.toLowerCase() || 'unknown';
-  return { gender, component: COMPONENTS.has(component) ? component : 'unknown', drawable: match ? Number(match[2]) : null };
+  const textureVariant = match?.[2]
+    ? basename.match(/_diff_\d{3}_([a-z])(?:_|\.|$)/i)?.[1]?.toLowerCase() || null
+    : null;
+  return {
+    gender,
+    component: COMPONENTS.has(component) ? component : 'unknown',
+    drawable: match ? Number(match[3]) : null,
+    textureVariant,
+  };
 }
 function safeLabel(value, fallback) {
   const label = String(value || fallback).trim().replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').slice(0, 96);
