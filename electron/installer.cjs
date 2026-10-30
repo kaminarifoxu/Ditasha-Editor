@@ -4,6 +4,7 @@ const fs = require('node:fs/promises'),
 const { spawn } = require('node:child_process');
 const { randomUUID } = require('node:crypto');
 const { replacementScript } = require('./updater.cjs');
+const { setupScript } = require('./setup-updater.cjs');
 async function startReplacement({
   target,
   staged,
@@ -12,6 +13,7 @@ async function startReplacement({
   directory,
   expectedVersion,
   confirmRestart = true,
+  installer = false,
 }) {
   if (process.platform !== 'win32') throw Error('Pemasangan otomatis tersedia pada EXE Windows.');
   await fs.mkdir(directory, { recursive: true });
@@ -23,7 +25,7 @@ async function startReplacement({
     logPath = path.join(directory, 'install.json'),
     readyPath = confirmRestart ? path.join(directory, 'restart-ready.json') : null;
   await fs.rm(handshakePath, { force: true });
-  const script = replacementScript({
+  const script = (installer ? setupScript : replacementScript)({
     target,
     staged,
     parentPid,

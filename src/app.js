@@ -1,3 +1,4 @@
+import { mountWorkspacePolish } from './workspace-polish.js';
 import { defaultDrawableSelection, drawableView } from './drawable-selection.js';
 import { resolveModelTexture, modelAlphaMode, modelPreviewAlpha } from './model-material.js';
 import { resolveEditorDiffuse, editorTextureMatches } from './editor-material.js';
@@ -691,7 +692,10 @@ function fitCanvas() {
   if (!current) return;
   let area = $('canvasarea');
   let ratio =
-    Math.min((area.clientWidth - 40) / current.w, (area.clientHeight - 40) / current.h, 1) * zoom;
+    Math.max(
+      0.001,
+      Math.min((area.clientWidth - 40) / current.w, (area.clientHeight - 40) / current.h, 1),
+    ) * zoom;
   for (const c of [canvas, $('uvCanvas'), $('selectionCanvas')]) {
     c.style.width = current.w * ratio + 'px';
     c.style.height = current.h * ratio + 'px';
@@ -2568,4 +2572,10 @@ mountPerformance();
 mountMinimalUi();
 mountWorkspaceShell({ toast });
 mountAssetWorkshopUi();
+mountWorkspacePolish();
+let canvasFitFrame;
+new ResizeObserver(() => {
+  cancelAnimationFrame(canvasFitFrame);
+  canvasFitFrame = requestAnimationFrame(fitCanvas);
+}).observe($('canvasarea'));
 window.ditashaDesktop?.ready?.();

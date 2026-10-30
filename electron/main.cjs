@@ -45,6 +45,10 @@ else {
     }
   });
   app.whenReady().then(async () => {
+    if (process.env.DITASHA_SETUP_SMOKE_ROOT) {
+      await require('./setup-probe.cjs').run(app);
+      return;
+    }
     if (process.env.DITASHA_UPDATE_SMOKE_ROOT) {
       await require('./update-probe.cjs').run(app, net);
       return;
@@ -162,6 +166,7 @@ else {
     });
     updater = createPortableUpdater({
       version: app.getVersion(),
+      installed: app.isPackaged && !process.env.PORTABLE_EXECUTABLE_FILE,
       directory: path.join(app.getPath('userData'), 'updates'),
       fetcher: (...args) => net.fetch(...args),
       onState: (state) => {
@@ -291,9 +296,10 @@ else {
     });
     const installUpdate = async (event, downloadFirst = false) => {
       trusted(event);
-      const target = process.env.PORTABLE_EXECUTABLE_FILE;
+      const installed = app.isPackaged && !process.env.PORTABLE_EXECUTABLE_FILE;
+      const target = process.env.PORTABLE_EXECUTABLE_FILE || (installed ? process.execPath : null);
       if (process.platform !== 'win32' || !target)
-        throw Error('Gunakan EXE portable Windows untuk memasang update.');
+        throw Error('Gunakan aplikasi Windows terinstal atau portable untuk memasang update.');
       const choice = await win.webContents.executeJavaScript(
         "window.ditashaWorkspace.confirmDiscard('update')",
       );
@@ -306,6 +312,7 @@ else {
       const staged = updater.getReadyPath();
       if (!staged) throw Error('Unduh update terlebih dahulu.');
       await startReplacement({
+        installer: installed,
         target,
         staged,
         parentPid: process.pid,

@@ -24,6 +24,9 @@ jobs:
       - name: Check homepage, themes and existing editor tools
         run: npx electron scripts/smoke-tools.cjs
         timeout-minutes: 5
+      - name: Check resized 2D and 3D workspaces, panel minimization and choice buttons
+        run: npx electron scripts/smoke-workspace-polish.cjs
+        timeout-minutes: 3
       - name: Check File Manager and native asset sorting
         shell: pwsh
         run: |
@@ -62,6 +65,9 @@ jobs:
       - name: Build Windows studio preview
         # build:win also verifies the engine before packaging it.
         run: npm run build:win
+      - name: Install and reinstall Windows Setup with preserved user data
+        run: node scripts/smoke-setup.cjs
+        timeout-minutes: 8
       - name: Verify packaged engine dependencies and workbench
         shell: pwsh
         run: |
@@ -78,7 +84,13 @@ jobs:
           name: DITASHA-Studio-Windows-Preview
           path: |
             release/DITASHA-Editor.exe
-            release/*.sha256
+            release/DITASHA-Editor.exe.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DITASHA-Installer-Windows
+          path: |
+            release/DITASHA-Setup.exe
+            release/DITASHA-Setup.exe.sha256
       - uses: actions/upload-artifact@v4
         if: always()
         with:

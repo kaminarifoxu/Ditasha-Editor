@@ -1,0 +1,308 @@
+/* DITASHA desktop workbench: content first, stable controls, bounded panels. */
+.workspace-shell {
+  --work-radius: 12px;
+  --work-gap: 12px;
+}
+.workspace-shell button {
+  cursor: pointer;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
+}
+.workspace-shell button:disabled {
+  cursor: default;
+}
+.workspace-shell :is(button, input, select, textarea):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.workspace-shell :is(h1, h2, h3, .sectiontitle, summary, label) {
+  overflow-wrap: anywhere;
+}
+.workspace-shell
+  :is(.pb-panel, .tool-sidebar, .tool-details, .fm-sidebar, .fm-inspector, .inspector) {
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+}
+.workspace-shell
+  :is(.pb-panel, .tool-sidebar, .tool-details, .fm-sidebar, .fm-inspector)
+  > :is(button, label, details, section, div) {
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.workspace-shell :is(.pb-panel, .tool-sidebar, .tool-details) button {
+  white-space: normal;
+  line-height: 1.45;
+  min-height: 36px;
+}
+.workspace-shell :is(.pb-panel, .tool-sidebar, .tool-details) select {
+  text-overflow: ellipsis;
+}
+.workspace-shell details > summary {
+  min-height: 32px;
+  align-content: center;
+  line-height: 1.5;
+  cursor: pointer;
+}
+.workspace-shell details[open] > summary {
+  color: var(--accent);
+}
+.workspace-shell .workspace-panel-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin: 0 0 18px;
+  padding: 10px 12px;
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 650;
+  text-align: left;
+}
+.workspace-shell .workspace-panel-toggle > span:last-child {
+  color: var(--accent);
+  font-size: 18px;
+}
+.workspace-shell .workspace-panel-collapsed {
+  padding: 10px 5px !important;
+  overflow: hidden !important;
+}
+.workspace-shell .workspace-panel-collapsed > :not(.workspace-panel-toggle) {
+  display: none !important;
+}
+.workspace-shell .workspace-panel-collapsed > .workspace-panel-toggle {
+  padding: 8px;
+  margin: 0;
+  flex-direction: column-reverse;
+  width: 100%;
+}
+.workspace-shell .workspace-panel-collapsed > .workspace-panel-toggle > span:first-child {
+  writing-mode: vertical-rl;
+  white-space: nowrap;
+  max-height: 240px;
+  overflow: hidden;
+}
+.workspace-shell .workspace-group-toggle {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  padding: 3px 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+.workspace-group-toggle::after {
+  content: '−';
+  color: var(--accent);
+}
+.workspace-group-toggle[aria-expanded='false']::after {
+  content: '+';
+}
+.workspace-shell .workspace-group-collapsed > :not(h3, .sectiontitle) {
+  display: none !important;
+}
+.workspace-shell .workspace-group-collapsed > :is(h3, .sectiontitle) {
+  margin: 0;
+}
+.workspace-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+  width: 100%;
+}
+.workspace-choice-grid > button {
+  min-width: 0;
+  padding: 9px 8px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+}
+.workspace-choice-grid > button[aria-pressed='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--text);
+}
+.workspace-choice-source {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  clip-path: inset(50%);
+  overflow: hidden;
+}
+/* Both modes use the same two-row preview: title, then viewport. No obsolete empty grid tracks. */
+.workspace-shell > main {
+  --files-track: 190px;
+  --detail-track: 310px;
+  grid-template-columns: var(--files-track) minmax(0, 1fr) var(--detail-track);
+}
+.workspace-shell > main.texture-mode-3d {
+  grid-template-columns: var(--files-track) minmax(0, 1fr) var(--detail-track);
+}
+.workspace-shell > main:has(> .files.workspace-panel-collapsed) {
+  --files-track: 48px;
+}
+.workspace-shell main > .editor {
+  grid-column: 2;
+  grid-row: 3;
+  min-height: 0;
+  min-width: 0;
+}
+.workspace-shell main.texture-mode-3d > .editor {
+  grid-column: 3;
+  grid-row: 3;
+}
+.workspace-shell main > .right:not(.expanded-3d),
+.workspace-shell main.texture-mode-3d > .right:not(.expanded-3d) {
+  display: flex;
+  flex-direction: column;
+  grid-column: 3;
+  grid-row: 3;
+  gap: 0;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 12px 12px;
+}
+.workspace-shell main.texture-mode-3d > .right:not(.expanded-3d) {
+  grid-column: 2;
+}
+.workspace-shell main > .right:not(.expanded-3d) > .panelhead {
+  flex: 0 0 auto;
+  min-height: 46px;
+  height: auto;
+  padding: 12px 0;
+}
+.workspace-shell main > .right:not(.expanded-3d) #viewport {
+  width: 100%;
+  flex: 1 0 230px;
+  height: auto;
+  min-height: 230px;
+  overflow: hidden;
+}
+.workspace-shell main.texture-mode-3d > .right:not(.expanded-3d) #viewport {
+  flex-basis: 320px;
+  min-height: 320px;
+}
+.workspace-shell main > .right:not(.expanded-3d) .inspector {
+  flex: 0 0 auto;
+  max-height: 42vh;
+  overflow: auto;
+  min-width: 0;
+}
+.workspace-shell main.texture-mode-3d > .right:not(.expanded-3d) .inspector {
+  max-height: 28vh;
+}
+.workspace-shell .canvasarea {
+  min-width: 0;
+  min-height: 100px;
+  overflow: auto;
+  align-content: safe center;
+  justify-content: safe center;
+}
+.workspace-shell #canvasStack {
+  flex: 0 0 auto;
+  margin: auto;
+}
+.workspace-shell .texturestrip {
+  flex: 0 0 auto;
+  max-height: 120px;
+  overflow: auto;
+}
+.workspace-shell .editor footer {
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.workspace-shell main > .editor-commandbar {
+  min-height: 82px;
+  max-height: 180px;
+  gap: 8px;
+}
+.workspace-shell .editor-commandbar .workshop-tool-cluster {
+  padding-top: 23px;
+  gap: 7px;
+}
+.workspace-shell .editor-commandbar button.workspace-explicit-action {
+  width: auto;
+  font-size: 11px !important;
+  gap: 6px;
+}
+.workspace-shell .editor-commandbar button.workspace-explicit-action::after {
+  content: attr(data-action-label);
+}
+.workspace-shell .editor-commandbar button.workspace-explicit-action .control-label {
+  display: none;
+}
+.pb-layout:has(> .pb-panel:first-child.workspace-panel-collapsed) {
+  grid-template-columns: 48px minmax(0, 1fr) 255px;
+}
+.pb-layout:has(> .pb-panel:last-child.workspace-panel-collapsed) {
+  grid-template-columns: 245px minmax(0, 1fr) 48px;
+}
+.pb-layout:has(> .pb-panel:first-child.workspace-panel-collapsed):has(
+    > .pb-panel:last-child.workspace-panel-collapsed
+  ) {
+  grid-template-columns: 48px minmax(0, 1fr) 48px;
+}
+.workspace-shell .tool-workspace:has(> .tool-sidebar.workspace-panel-collapsed) {
+  grid-template-columns: 48px minmax(0, 1fr) 260px;
+}
+.workspace-shell .tool-workspace:has(> .tool-details.workspace-panel-collapsed) {
+  grid-template-columns: 240px minmax(0, 1fr) 48px;
+}
+.workspace-shell
+  .tool-workspace:has(> .tool-sidebar.workspace-panel-collapsed):has(
+    > .tool-details.workspace-panel-collapsed
+  ) {
+  grid-template-columns: 48px minmax(0, 1fr) 48px;
+}
+.workspace-shell .asset-viewer.model-viewer:has(> .tool-sidebar.workspace-panel-collapsed) {
+  grid-template-columns: 48px minmax(0, 1fr);
+}
+.workspace-shell .archive-workspace:has(> .tool-sidebar.workspace-panel-collapsed) {
+  grid-template-columns: 48px minmax(0, 1fr) 260px;
+}
+.workspace-shell .file-manager:has(> .fm-sidebar.workspace-panel-collapsed) {
+  grid-template-columns: 48px minmax(0, 1fr) 290px;
+}
+.workspace-shell .file-manager:has(> .fm-inspector.workspace-panel-collapsed) {
+  grid-template-columns: 210px minmax(0, 1fr) 48px;
+}
+.workspace-shell
+  .file-manager:has(> .fm-sidebar.workspace-panel-collapsed):has(
+    > .fm-inspector.workspace-panel-collapsed
+  ) {
+  grid-template-columns: 48px minmax(0, 1fr) 48px;
+}
+@media (max-width: 1250px) {
+  .workspace-shell > main {
+    --files-track: 160px;
+    --detail-track: 270px;
+  }
+  .workspace-shell .pb-layout {
+    grid-template-columns: 215px minmax(0, 1fr) 225px;
+    gap: 12px;
+  }
+  .workspace-shell .photo-booth-workspace {
+    padding: 16px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-shell button {
+    transition: none;
+  }
+}
+.workspace-shell[data-motion='reduced'] button {
+  transition: none;
+}
