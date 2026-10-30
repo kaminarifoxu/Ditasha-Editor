@@ -113,6 +113,65 @@ class ClothingLibrary {
     if (file.bytes > 64 * 1024 * 1024 && !/\.ytd$/i.test(file.name)) throw new Error('Preview model too large');
     return { name: file.name, bytes: await fs.readFile(ensureInside(this.root, file.relativePath)) };
   }
+  async listOutfits() {
+    const file = path.join(this.root, 'outfits.json');
+    try {
+      const data = JSON.parse(await fs.readFile(file, 'utf8'));
+      if (!Array.isArray(data.items)) throw new Error('Invalid outfits index');
+      return data.items;
+    } catch (error) {
+      if (error.code === 'ENOENT') return [];
+      throw error;
+    }
+  }
+  async saveOutfit({ name, gender, slots }) {
+    if (typeof name !== 'string' || !name.trim() || name.length > 96)
+      throw new Error('Invalid outfit name');
+    if (!['male', 'female'].includes(gender)) throw new Error('Invalid gender');
+    if (!Array.isArray(slots) || slots.length === 0 || slots.length > 16)
+      throw new Error('Invalid outfit slots');
+    const packs = await this.list();
+    const seen = new Set();
+    const normalized = [];
+    for (const slot of slots) {
+      if (!slot || !/^[0-9a-f-]{36}$/i.test(slot.packId) || typeof slot.relativePath !== 'string')
+        throw new Error('Invalid outfit reference');
+      const pack = packs.find(p => p.id === slot.packId);
+      const file = pack?.files.find(f => f.relativePath === slot.relativePath && /\.ydd$/i.test(f.name));
+      if (!file || !COMPONENTS.has(file.component) || (file.gender !== 'unknown' && file.gender !== gender))
+        throw new Error('Missing or incompatible outfit model');
+      if (seen.has(file.component)) throw new Error('Duplicate outfit component');
+      seen.add(file.component);
+      const variant = slot.textureVariant === null || slot.textureVariant === undefined
+        ? null : String(slot.textureVariant).toLowerCase();
+      if (variant !== null && !/^[a-z]$/.test(variant))
+        throw new Error('Invalid texture variant');
+      if (variant !== null && !pack.files.some(f => /\.ytd$/i.test(f.name) &&
+        f.component === file.component && f.drawable === file.drawable && f.textureVariant === variant))
+        throw new Error('Texture variant missing');
+      normalized.push({ packId: slot.packId, relativePath: file.relativePath, component: file.component, textureVariant: variant });
+    }
+    const items = await this.listOutfits();
+    const outfit = { id: crypto.randomUUID(), name: safeLabel(name, 'Outfit'), gender, slots: normalized, createdAt: new Date().toISOString() };
+    items.push(outfit);
+    await this.writeOutfits(items);
+    return outfit;
+  }
+  async writeOutfits(items) {
+    await fs.mkdir(this.root, { recursive: true });
+    const target = path.join(this.root, 'outfits.json');
+    const temp = target + '.' + crypto.randomUUID() + '.tmp';
+    await fs.writeFile(temp, JSON.stringify({ version: 1, items }, null, 2), 'utf8');
+    await fs.rename(temp, target);
+  }
+  async removeOutfit(id) {
+    if (!/^[0-9a-f-]{36}$/i.test(id)) throw new Error('Invalid outfit ID');
+    const items = await this.listOutfits();
+    const next = items.filter(item => item.id !== id);
+    if (next.length === items.length) return false;
+    await this.writeOutfits(next);
+    return true;
+  }
   async rename(id, label) {
     if (!/^[0-9a-f-]{36}$/i.test(id)) throw new Error('Invalid ID');
     if (typeof label !== 'string' || !label.trim() || label.length > 96)
