@@ -11,7 +11,7 @@ test('rigging selects original skeleton when safely indexed', () => {
 });
 test('rigging remaps by name instead of assuming same index', () => {
   const target = [bone('head',3),bone('root',1),bone('spine',2)];
-  const result = selectBoothRig(own,skin([1,2,0,0],[0.8,0.2,0,0]),[{rig:target,label:'Target'}],{choice:'reference',family:'male'});
+  const result = selectBoothRig(own,skin([1,2,0,0],[0.8,0.2,0,0]),[{rig:target,label:'Target',referenceOnly:true}],{choice:'reference',family:'male'});
   assert.equal(result.warning,null);
   assert.deepEqual(Array.from(result.indices.slice(0,2)),[2,0]);
 });
