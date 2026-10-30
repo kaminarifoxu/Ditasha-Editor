@@ -102,3 +102,9 @@ contextBridge.exposeInMainWorld('ditashaGtaTools', {
     return () => ipcRenderer.removeListener('ditasha:gta-tools-progress', listener);
   },
 });
+
+contextBridge.exposeInMainWorld('ditashaClothing', Object.freeze({
+  list: () => ipcRenderer.invoke('ditasha:clothing-list'),
+  import: (pack) => ipcRenderer.invoke('ditasha:clothing-import', pack),
+  remove: (id) => ipcRenderer.invoke('ditasha:clothing-remove', id),
+}));
