@@ -2578,7 +2578,10 @@ mountMinimalUi();
 mountWorkspaceShell({ toast });
 mountAssetWorkshopUi();
 mountWorkspacePolish();
-mountClothingCatalog();
+mountClothingCatalog({ openPreview: async (modelFiles) => {
+  tools.activate('editor');
+  await loadFiles(modelFiles);
+}});
 let canvasFitFrame;
 new ResizeObserver(() => {
   cancelAnimationFrame(canvasFitFrame);
