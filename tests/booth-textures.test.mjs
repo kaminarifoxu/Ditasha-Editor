@@ -75,3 +75,21 @@ test('Vehicle diffuse matching prefers exact maps and resolves a unique separato
     null,
   );
 });
+
+test('Vehicle parts prefer their owner maps over identically named global dictionaries and retain parent relationships', () => {
+  const ownerMap = { name: 'black', dictionary: 'car.ytd', boothOwner: 4 },
+    otherCar = { name: 'black', dictionary: 'other.ytd', boothOwner: 9 },
+    globalMap = { name: 'black', dictionary: 'shared.ytd' },
+    inherited = { name: 'detail', dictionary: 'parent.ytd' },
+    ambiguous = { name: 'detail', dictionary: 'unrelated.ytd' };
+  assert.equal(
+    resolveBoothTexture('black', [ownerMap, otherCar, globalMap], [], 5, 4, 'car_spoiler.yft'),
+    ownerMap,
+  );
+  assert.equal(
+    resolveBoothTexture('detail', [inherited, ambiguous], [], 5, 4, 'car_spoiler.yft', [
+      { child: 'car_spoiler', parent: 'parent' },
+    ]),
+    inherited,
+  );
+});

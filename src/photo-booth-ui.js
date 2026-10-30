@@ -1,6 +1,6 @@
 import { createEmoteCatalog } from './emote-catalog.js';
 import { parseTextureParents, isTextureParentFile } from './texture-parents.js';
-import { resolveVehicleLivery, setVehicleLivery, liveryReference } from './vehicle-livery.js';
+import { setVehicleLivery, liveryReference } from './vehicle-livery.js';
 import { mountBoothMovie } from './booth-movie-ui.js';
 import { MOVIE_DEFAULTS } from './booth-movie.js';
 import { createBoothFisheye } from './booth-fisheye.js';
@@ -47,13 +47,8 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { decodeResource } from './resource-client.js';
 import { defaultDrawableSelection } from './drawable-selection.js';
-import {
-  createModelMaterial,
-  resolveSurfaceMaps,
-  surfaceReferences,
-  setSurfaceMaps,
-} from './vehicle-surface.js';
-import { resolveModelTexture, modelPreviewAlpha, modelAlphaMode } from './model-material.js';
+import { createModelMaterial, surfaceReferences, setSurfaceMaps } from './vehicle-surface.js';
+import { modelPreviewAlpha, modelAlphaMode } from './model-material.js';
 import {
   loadVehicleTextures,
   modelTextureReferences,
@@ -1139,15 +1134,15 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
             );
           const t =
             override ||
-            (owner.kind === 'ped'
-              ? resolveBoothTexture(g.diffuseTexture, textures, embedded, a.id, owner.id, a.name)
-              : resolveModelTexture(
-                  g.diffuseTexture,
-                  ownTextures,
-                  embedded,
-                  a.name,
-                  owner.textureParents || [],
-                ));
+            resolveBoothTexture(
+              g.diffuseTexture,
+              textures,
+              embedded,
+              a.id,
+              owner.id,
+              a.name,
+              owner.textureParents || [],
+            );
           if (g.diffuseTexture)
             a.textureReport.push({
               name: g.diffuseTexture,
@@ -1171,21 +1166,29 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           });
           setSurfaceMaps(
             material,
-            owner.kind === 'ped'
-              ? Object.fromEntries(
-                  Object.entries(surfaceReferences(g)).map(([role, name]) => [
-                    role,
-                    resolveBoothTexture(name, textures, embedded, a.id, owner.id, a.name),
-                  ]),
-                )
-              : resolveSurfaceMaps(g, ownTextures, embedded, a.name, owner.textureParents || []),
+            Object.fromEntries(
+              Object.entries(surfaceReferences(g)).map(([role, name]) => [
+                role,
+                resolveBoothTexture(
+                  name,
+                  textures,
+                  embedded,
+                  a.id,
+                  owner.id,
+                  a.name,
+                  owner.textureParents || [],
+                ),
+              ]),
+            ),
             textureMap,
           );
           if (owner.kind === 'vehicle') {
-            const livery = resolveVehicleLivery(
-              g,
-              ownTextures,
+            const livery = resolveBoothTexture(
+              liveryReference(g),
+              textures,
               embedded,
+              a.id,
+              owner.id,
               a.name,
               owner.textureParents || [],
             );
