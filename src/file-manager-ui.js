@@ -150,6 +150,54 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
   };
   let modelController = null;
   let characterReference = null;
+  // Virtual IDs are resolved through the existing local Clothing Library.
+  // No second import and no duplicate freemode storage is required.
+  const libraryReferenceCache = new Map();
+  const libraryPrefix = 'ditasha-library:';
+  const referenceGender = file => {
+    const name = String(file?.name || '');
+    if (/mp_f_freemode_01/i.test(name)) return 'female';
+    if (/mp_m_freemode_01/i.test(name)) return 'male';
+    return activeGender === 'female' ? 'female' : 'male';
+  };
+  async function findLibraryReference(file) {
+    if (!window.ditashaClothing?.list || !window.ditashaClothing?.previewRead) return null;
+    const gender = referenceGender(file);
+    const packs = await window.ditashaClothing.list();
+    const candidates = [];
+    for (const pack of packs) {
+      for (const entry of pack.files || []) {
+        if (entry.gender !== gender || entry.component !== 'head' || !/\.ydd$/i.test(entry.name)) continue;
+        candidates.push({pack, entry});
+      }
+    }
+    candidates.sort((a,b) =>
+      Number(b.pack.pack === 'DITASHA Freemode Library') - Number(a.pack.pack === 'DITASHA Freemode Library') ||
+      Number(b.pack.pack === 'DITASHA Built-in Freemode') - Number(a.pack.pack === 'DITASHA Built-in Freemode') ||
+      String(a.entry.name).localeCompare(String(b.entry.name)));
+    const chosen = candidates[0];
+    if (!chosen) return null;
+    const encode = entry => libraryPrefix + encodeURIComponent(chosen.pack.id) + ':' + encodeURIComponent(entry.relativePath);
+    for (const entry of chosen.pack.files || []) {
+      libraryReferenceCache.set(encode(entry), {packId:chosen.pack.id, entry, files:chosen.pack.files});
+    }
+    return {id:encode(chosen.entry), name:chosen.entry.name, gender};
+  }
+  const previewReadProxy = () => ({
+    ...api(),
+    read: async id => {
+      const record = libraryReferenceCache.get(id);
+      if (!record) return api().read(id);
+      const data = await window.ditashaClothing.previewRead(record.packId,record.entry.relativePath);
+      const companion = record.files.find(item =>
+        item.gender === record.entry.gender &&
+        item.component === record.entry.component &&
+        item.drawable === record.entry.drawable &&
+        /\.ytd$/i.test(item.name));
+      return {data:data.bytes, name:record.entry.name,
+        companion:companion ? {id:libraryPrefix+encodeURIComponent(record.packId)+':'+encodeURIComponent(companion.relativePath),name:companion.name} : null};
+    }
+  });
   let withCharacter = false;
   let pendingCharacter = 0;
   let activeTextureVariant = null;
@@ -484,12 +532,22 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
         if (current === serial) $('fmImage').textContent = e.message;
       }
     } else if (/\.(ydd|ydr|yft|ytd|dds)$/i.test(file.name)) {
-      const previewController = await assetPreview.show(file, api(), {textureId:activeTextureVariant || file.textures?.[0]?.id || null});
+      const previewController = await assetPreview.show(file, previewReadProxy(), {textureId:activeTextureVariant || file.textures?.[0]?.id || null});
       if(current!==serial)return;
       modelController = previewController?.setTextureVariant ? previewController : null;
       if(activeTextureVariant && modelController)await modelController.setTextureVariant(activeTextureVariant);
-      if(modelController && withCharacter && characterReference && characterReference.id!==file.id)
-        await modelController.setCharacterModel(characterReference);
+      if(modelController && withCharacter) {
+        const gender = referenceGender(file);
+        if (!characterReference || (characterReference.gender && characterReference.gender !== gender)) {
+          characterReference = await findLibraryReference(file);
+        }
+        if (current !== serial) return;
+        if (characterReference && characterReference.id !== file.id)
+          await modelController.setCharacterModel(characterReference);
+        else if (!characterReference)
+          characterTools.querySelector('[data-character-hint]').textContent =
+            'Model kepala freemode ' + (gender === 'female' ? 'cewek' : 'cowok') + ' belum ada di Clothing Library lokal.';
+      }
     }
     else $('fmImage').innerHTML = icon('document');
   }
@@ -848,7 +906,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
   const characterHint=characterTools.querySelector('[data-character-hint]');
   const showCharacterStatus=()=>{
     if(!withCharacter){characterHint.textContent='Item saja';return;}
-    if(!characterReference){characterHint.textContent='Belum ada karakter referensi. Pilih YDD tubuh/freemode terlebih dahulu, lalu klik Jadikan referensi badan.';return;}
+    if(!characterReference){characterHint.textContent='Menggunakan referensi freemode dari Clothing Library jika tersedia.';return;}
     characterHint.textContent='Referensi badan: '+characterReference.name;
   };
   const applyCharacter=async()=>{
@@ -856,7 +914,9 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
     showCharacterStatus();
     if(!modelController?.setCharacterModel)return;
     try{
-      if(!withCharacter||!characterReference){await modelController.setCharacterModel(null);return;}
+      if(!withCharacter){await modelController.setCharacterModel(null);return;}
+      if(!characterReference) characterReference=await findLibraryReference(picked);
+      if(!characterReference){characterHint.textContent='Tidak ditemukan YDD head freemode untuk gender terpilih di Clothing Library lokal.';return;}
       if(picked?.id===characterReference.id)return;
       await modelController.setCharacterModel(characterReference);
       if(ticket===pendingCharacter)showCharacterStatus();
@@ -878,7 +938,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
       characterHint.textContent='Ini item pakaian, bukan karakter. Pilih YDD model badan/freemode dulu.';
       return;
     }
-    characterReference={id:picked.id,name:picked.name};
+    characterReference={id:picked.id,name:picked.name,gender:referenceGender(picked)};
     showCharacterStatus();
     if(withCharacter)applyCharacter();
   };
