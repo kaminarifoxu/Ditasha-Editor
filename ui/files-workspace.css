@@ -819,3 +819,18 @@
 .fm-explorer .fm-ytd-variants{display:flex;flex-direction:column;gap:5px;max-height:190px;overflow:auto;min-width:0;}
 .fm-explorer .fm-ytd-variants button{width:100%;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .fm-explorer .fm-ytd-variants button[aria-pressed="true"]{border-color:#d5b444;color:#d5b444;background:#d5b44419;}
+
+/* Internal SMB configuration, never opens Files Community or a browser. */
+.fm-explorer .fm-network-settings[hidden]{display:none!important}
+.fm-explorer .fm-network-settings{
+  position:fixed;z-index:1600;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:min(520px,calc(100vw - 32px));box-sizing:border-box;
+  padding:20px;background:var(--panel,#1a2230);color:var(--text,#eef2f7);
+  border:1px solid var(--line,#39465a);border-radius:14px;box-shadow:0 24px 100px #000c;
+}
+.fm-explorer .fm-network-settings header{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:18px}
+.fm-explorer .fm-network-settings label{display:grid;gap:8px;font-size:12px}
+.fm-explorer .fm-network-settings input{width:100%;box-sizing:border-box;padding:11px;background:var(--bg,#111824);color:inherit;border:1px solid var(--line,#39465a);border-radius:8px}
+.fm-explorer .fm-network-settings p{font-size:12px;line-height:1.5;opacity:.8}
+.fm-explorer .fm-network-actions{display:flex;gap:10px;flex-wrap:wrap}
+.fm-explorer #fmModelOnly[aria-pressed="true"]{color:#d5b444;border-color:#d5b444;background:#d5b4441b}
