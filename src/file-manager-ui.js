@@ -53,7 +53,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
   <div id="fmList" class="fm-list" aria-label="File dan folder"><div class="fm-empty">${icon('folder-open')}<h3>Ruang untuk semua asetmu</h3><p>Buka folder, telusuri model dan tekstur, lalu atur hasil sorting.</p></div></div>
   <div class="fm-pagination"><button id="fmPrevious" aria-label="Halaman sebelumnya">${icon('arrow-left')}</button><span id="fmPage">0 file</span><button id="fmNext" aria-label="Halaman berikutnya">${icon('arrow-right')}</button></div>
 </section>
-<aside class="fm-inspector"><div class="fm-inspector-head"><span class="eyebrow">DETAIL & PREVIEW</span><span>${icon('eye')}</span></div><div id="fmImage" class="fm-preview"><span>Pilih file untuk melihat detail.</span></div><h3 id="fmName">Belum ada file dipilih</h3><p id="fmDetails" class="muted"></p><p id="fmNote" class="muted"></p><div class="fm-open-actions"><button id="fmOpen" class="primary">${icon('cube')} Buka di editor</button><button id="fmReveal">${icon('folder-open')} Lihat lokasi file</button></div><div class="fm-sort-actions"><span class="eyebrow">SORTING SCOPE</span><p id="fmScope">Sorting mengikuti folder, pencarian, dan kategori aktif.</p><button id="fmShowOutput" hidden>${icon('folder-open')} Buka hasil sorting</button></div></aside>
+<aside class="fm-inspector"><div class="fm-inspector-head"><span class="eyebrow">DETAIL & PREVIEW</span><button id="fmExpandPreview" type="button" aria-pressed="false" title="Perbesar atau kecilkan preview 3D">⛶ Perbesar 3D</button></div><div id="fmImage" class="fm-preview"><span>Pilih file untuk melihat detail.</span></div><h3 id="fmName">Belum ada file dipilih</h3><p id="fmDetails" class="muted"></p><p id="fmNote" class="muted"></p><div class="fm-open-actions"><button id="fmOpen" class="primary">${icon('cube')} Buka di editor</button><button id="fmReveal">${icon('folder-open')} Lihat lokasi file</button></div><div class="fm-sort-actions"><span class="eyebrow">SORTING SCOPE</span><p id="fmScope">Sorting mengikuti folder, pencarian, dan kategori aktif.</p><button id="fmShowOutput" hidden>${icon('folder-open')} Buka hasil sorting</button></div></aside>
 <section id="fmPlanPanel" class="fm-plan" hidden><div class="fm-heading"><div><span class="eyebrow">RENCANA SORTING</span><h2 id="fmPlanTitle"></h2></div><button id="fmPlanClose" aria-label="Tutup pratinjau">${icon('cross')}</button></div><p class="muted">Periksa tujuan salinan. Nama dan struktur sumber dipertahankan di dalam kategori. Maksimal 100 contoh file ditampilkan.</p><div id="fmPlanCounts" class="fm-counts"></div><div id="fmPlanEntries" class="fm-plan-entries"></div><div class="fm-plan-footer"><span class="muted">Pilih output di luar sumber. Setiap proses membuat folder hasil baru.</span><button id="fmCopy" class="primary">${icon('copy')} Pilih output & salin</button></div></section>
 <footer class="fm-status"><span id="fmStatus" role="status">Buka folder aset untuk memulai.</span><button id="fmCancel" hidden>Batalkan proses</button></footer>
 `;
@@ -651,6 +651,14 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
       $('fmPlanPanel').hidden = false;
     });
   $('fmPlanClose').onclick = forgetPlan;
+  $('fmPlanPanel').addEventListener('keydown', (event) => { if (event.key === 'Escape') forgetPlan(); });
+  root.addEventListener('keydown', (event) => { if (event.key === 'Escape') { forgetPlan(); root.classList.remove('fm-preview-expanded'); } });
+  $('fmExpandPreview').onclick = () => {
+    const enlarged = root.classList.toggle('fm-preview-expanded');
+    $('fmExpandPreview').setAttribute('aria-pressed', String(enlarged));
+    $('fmExpandPreview').textContent = enlarged ? '✕ Kecilkan preview' : '⛶ Perbesar 3D';
+    window.dispatchEvent(new Event('resize'));
+  };
   $('fmCopy').onclick = () =>
     run(async () => {
       const result = await api().sort(plan.id);
