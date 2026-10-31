@@ -149,6 +149,16 @@ export function createFilePreview(container) {
             depthWrite: solidFabric || !map || (alpha ? alpha.mode !== 'blend' : opaque),
           }),
         );
+        // Freemode body sections often overlap back-facing triangles. With DoubleSide,
+        // the internal faces may compete with the outer skin and produce jagged holes.
+        // Cull backfaces for ordinary opaque skin/body geometry; keep intentional cutouts two-sided.
+        if (solidFabric && !/hair|eyelash/i.test(g.diffuseTexture || '')) {
+          mesh.material.side = THREE.FrontSide;
+          mesh.material.depthWrite = true;
+          mesh.material.transparent = false;
+          mesh.material.alphaTest = 0;
+          mesh.material.needsUpdate = true;
+        }
         setSurfaceMaps(
           mesh.material,
           g.uvs ? resolveSurfaceMaps(g, external, embedded, file.name) : {},
