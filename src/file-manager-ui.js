@@ -40,7 +40,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
     .map(([key, label]) => `<option value="${key}">${label}</option>`)
     .join(
       '',
-    )}</select></label><label class="check"><input id="fmRecursive" type="checkbox">Semua subfolder</label></details>
+    )}</select></label><label class="check"><input id="fmRecursive" type="checkbox" checked>Semua subfolder</label></details>
   <div class="fm-tree-head"><span class="eyebrow">FOLDERS</span><button id="fmNewTab" title="Tab folder baru" aria-label="Tab folder baru">${icon('plus')}</button></div><nav id="fmTree" class="fm-tree" aria-label="Navigasi folder"><p class="muted">Buka folder untuk mulai.</p></nav>
   <details class="fm-note"><summary>Tentang sorting & Files</summary><p>Sorting menyalin ke folder baru dengan nama asli. Pasangan pakaian dan kendaraan tetap dikelompokkan. Hasil belum menjadi resource siap ensure.</p><p>Browser ini dibuat untuk DITASHA dengan pola navigasi Files. Tombol Buka di Files menjalankan aplikasi Files Community asli dalam jendela Windows sendiri.</p><p id="fmNativeState" role="status">Memeriksa aplikasi Files…</p><p id="fmRoot">Pilih folder aset di komputer.</p></details>
 </aside>
