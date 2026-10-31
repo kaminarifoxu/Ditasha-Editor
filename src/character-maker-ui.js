@@ -1,3 +1,4 @@
+import { createFilePreview } from './file-preview.js';
 import { resolveOutfitEntries, freemodeImportName } from './clothing-outfit-files.js';
 export function mountCharacterMaker() {
   if (!window.ditashaCharacters || !window.ditashaClothing) return;
@@ -16,6 +17,8 @@ export function mountCharacterMaker() {
         <div class="cm-actions"><button data-new>Baru</button><button data-save>Simpan</button><button data-remove>Hapus</button></div>
       </aside>
       <main>
+        <div class="cm-preview-head"><strong>Preview model freemode</strong><span>Putar / zoom model dengan mouse</span></div>
+        <div data-preview class="cm-model-preview" role="img" aria-label="Pratinjau 3D freemode">Pilih model dasar freemode untuk menampilkan preview 3D.</div>
         <p class="cm-notice">Pengaturan wajah disimpan sebagai preset data freemode. Head blend, fitur wajah dan overlay belum dirender secara fisik oleh Photo Booth offline. Untuk preview penuh, impor model freemode asli terlebih dahulu.</p>
         <div class="cm-sliders"></div>
         <div class="cm-actions"><button data-send>Kirim ke Photo Booth</button></div>
@@ -29,6 +32,28 @@ export function mountCharacterMaker() {
   let desiredOutfit=null;
   let desiredBase=null;
   let baseRefs=new Map();
+  const modelPreview=createFilePreview($('[data-preview]'));
+  let previewSerial=0;
+  async function updatePreview() {
+    const version=++previewSerial;
+    modelPreview.clear();
+    const selected=baseRefs.get($('[data-base]').value);
+    if(!selected){$('[data-preview]').textContent='Pilih model YDD dasar dari Clothing Library.';return;}
+    const packs=await window.ditashaClothing.list();
+    const pack=packs.find(p=>p.id===selected.packId);
+    const entry=pack?.files.find(f=>f.relativePath===selected.relativePath);
+    if(!entry)throw Error('Model dasar tidak ada dalam Library.');
+    const data=await window.ditashaClothing.previewRead(pack.id,entry.relativePath);
+    if(version!==previewSerial)return;
+    const related=pack.files.find(f=>/\.ytd$/i.test(f.name) && f.component===entry.component && f.drawable===entry.drawable);
+    const model={id:'base',name:data.name};
+    const companion=related?{id:'texture',name:related.name}:null;
+    const api={read:async id => id==='base'?{data:data.bytes,companion}: {
+      data:(await window.ditashaClothing.previewRead(pack.id,related.relativePath)).bytes
+    }};
+    await modelPreview.show(model,api);
+  }
+  $('[data-base]').onchange=()=>updatePreview().catch(e=>{$('[data-preview]').textContent='Preview gagal: '+e.message;});
   const features=[
     ['shapeFirst','Wajah ayah',0,45,1,0],['shapeSecond','Wajah ibu',0,45,1,0],
     ['skinFirst','Kulit ayah',0,45,1,0],['skinSecond','Kulit ibu',0,45,1,0],
@@ -94,6 +119,7 @@ export function mountCharacterMaker() {
     const match=[...baseRefs].find(([,v])=>v.packId===previousBase?.packId && v.relativePath===previousBase?.relativePath);
     baseSelect.value=match?.[0]||'';
     desiredBase=null;
+    updatePreview().catch(e=>{$('[data-preview]').textContent='Preview gagal: '+e.message;});
     const outfits=await window.ditashaClothing.listOutfits();
     const outfit=$('[data-outfit]'), old=desiredOutfit??outfit.value;
     outfit.replaceChildren(new Option('Tanpa outfit',''));
@@ -109,7 +135,7 @@ export function mountCharacterMaker() {
     fill(presets.find(p=>p.id===id));
     await refresh();
   }
-  $('[data-close]').onclick=()=>{host.hidden=true;};
+  $('[data-close]').onclick=()=>{host.hidden=true;modelPreview.clear();};
   $('[data-new]').onclick=async()=>{fill(null);await refresh();};
   $('[data-presets]').onchange=async()=>{
     const presets=await window.ditashaCharacters.list();
@@ -157,7 +183,7 @@ export function mountCharacterMaker() {
       host.hidden=true;
     }catch(e){$('[data-status]').textContent='Photo Booth: '+e.message;}
   };
-  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!host.hidden)host.hidden=true;});
+  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!host.hidden){host.hidden=true;modelPreview.clear();}});
   const nav=document.querySelector('.workspace-nav .workshop-nav');
   const button=document.createElement('button');
   button.type='button';button.className='cm-launch';
