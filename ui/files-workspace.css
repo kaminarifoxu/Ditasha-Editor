@@ -813,3 +813,9 @@
   .fm-explorer.fm-preview-expanded #fmImage {grid-column:1;grid-row:2;}
   .fm-explorer.fm-preview-expanded .fm-inspector-meta {grid-column:1;grid-row:3;overflow:visible;}
 }
+
+/* A YDD is the primary grid item; its matching YTD variants live in the inspector. */
+.fm-explorer .fm-ytd-count{font-size:10px;color:var(--muted,#9faabe);white-space:nowrap;}
+.fm-explorer .fm-ytd-variants{display:flex;flex-direction:column;gap:5px;max-height:190px;overflow:auto;min-width:0;}
+.fm-explorer .fm-ytd-variants button{width:100%;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.fm-explorer .fm-ytd-variants button[aria-pressed="true"]{border-color:#d5b444;color:#d5b444;background:#d5b44419;}
