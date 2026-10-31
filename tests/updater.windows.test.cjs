@@ -6,6 +6,19 @@ const fs = require('node:fs/promises'),
   os = require('node:os');
 const { spawn } = require('node:child_process');
 const { replacementScript } = require('../electron/updater.cjs');
+test('install report retries transient Windows sharing violations during polling', () => {
+  const script = replacementScript({
+    target: 'C:\\DITASHA\\editor.exe',
+    staged: 'C:\\DITASHA\\update.exe',
+    parentPid: 1234,
+    logPath: 'C:\\DITASHA\\install.json',
+    restart: false,
+  });
+  assert.match(script, /function Report\(\$status, \$message\)/);
+  assert.match(script, /for \(\$attempt = 0; \$attempt -lt 30; \$attempt\+\+\)/);
+  assert.match(script, /Set-Content -LiteralPath \$log -Encoding UTF8 -ErrorAction Stop/);
+  assert.match(script, /Start-Sleep -Milliseconds 100/);
+});
 for (const mode of ['success', 'staging-failure', 'launch-failure', 'ready-failure'])
   test(
     `Windows helper ${mode}`,
