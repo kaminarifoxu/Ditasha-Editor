@@ -303,8 +303,11 @@ else {
       if (!trustedClothingEvent(event)) throw new Error('Untrusted caller');
       return clothingLibrary.rename(id, label);
     });
-    ipcMain.handle('ditasha:clothing-remove', (event, id) => {
+    ipcMain.handle('ditasha:clothing-remove', async (event, id) => {
       if (!trustedClothingEvent(event)) throw new Error('Untrusted caller');
+      const characters=await characterPresets.list();
+      const dependent=characters.find(c=>c.baseModel?.packId===id);
+      if(dependent)throw Error('Pack masih digunakan karakter tersimpan: '+dependent.name+'. Hapus/ubah karakter terlebih dahulu.');
       return clothingLibrary.remove(id);
     });
     ipcMain.handle('ditasha:open-icon-credits', async (event) => {
