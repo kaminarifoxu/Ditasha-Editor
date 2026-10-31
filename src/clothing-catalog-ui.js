@@ -84,8 +84,8 @@ export function mountClothingCatalog({ openPreview } = {}) {
               const data = await window.ditashaClothing.previewRead(id, entry.relativePath);
               modelFiles.push(new File([data.bytes], data.name));
             }
-            root.hidden = true;
             await openPreview(modelFiles);
+            root.hidden = true;
           } catch (error) {
             $('[data-feedback]').textContent = 'Gagal membuka preview: ' + error.message;
           } finally { button.disabled = false; }
