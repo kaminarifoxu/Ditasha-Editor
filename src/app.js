@@ -1,4 +1,5 @@
 import { mountClothingCatalog } from './clothing-catalog-ui.js';
+import { mountCharacterMaker } from './character-maker-ui.js';
 import { mountWorkspacePolish } from './workspace-polish.js';
 import { defaultDrawableSelection, drawableView } from './drawable-selection.js';
 import { resolveModelTexture, modelAlphaMode, modelPreviewAlpha } from './model-material.js';
@@ -2578,6 +2579,7 @@ mountMinimalUi();
 mountWorkspaceShell({ toast });
 mountAssetWorkshopUi();
 mountWorkspacePolish();
+mountCharacterMaker();
 mountClothingCatalog({ openPreview: async (modelFiles) => {
   tools.activate('editor');
   await loadFiles(modelFiles);
