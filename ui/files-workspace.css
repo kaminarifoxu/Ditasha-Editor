@@ -861,3 +861,23 @@
 .fm-explorer .fm-preview-settings label{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;white-space:nowrap}
 .fm-explorer .fm-preview-settings select{min-width:75px;background:#17202f;border:1px solid #39465a;border-radius:5px;color:#f0f3f9;padding:4px}
 .fm-explorer .fm-preview-settings input[type=checkbox]{width:16px;height:16px;flex:none;accent-color:#d5b444}
+
+/* File Manager asset-focused sidebar */
+.fm-explorer .fm-asset-filter-panel{display:flex;flex-direction:column;gap:10px;padding:4px 3px 14px;min-width:0}
+.fm-explorer .fm-filter-title{font-size:11px;font-weight:700;color:#c6cfdb;margin-top:9px}
+.fm-explorer .fm-gender-switch{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.fm-explorer .fm-slot-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.fm-explorer .fm-gender-switch button,.fm-explorer .fm-slot-grid button{padding:7px 5px;min-width:0;min-height:31px;font-size:11px;line-height:1.25;border:1px solid #354258;border-radius:8px;color:#abb7c9;background:#1b2331}
+.fm-explorer .fm-gender-switch button[aria-pressed=true],.fm-explorer .fm-slot-grid button[aria-pressed=true]{color:#e9c56f;border-color:#d5b444;background:#d5b44420}
+.fm-explorer .fm-folder-switch{margin-top:8px;font-size:11px;border:1px solid #344258;background:transparent;color:#ced7e4}
+.fm-explorer .fm-sidebar.fm-filters-active .fm-tree-head,.fm-explorer .fm-sidebar.fm-filters-active .fm-tree{display:none!important}
+.fm-explorer .fm-gender-badge{display:inline-block;margin-left:6px;padding:1px 5px;border:1px solid #3b5265;border-radius:5px;color:#b6d2ee;font-size:10px}
+.fm-explorer .fm-preview-settings{position:relative;padding:0!important;border:0!important;background:none!important;z-index:20}
+.fm-explorer .fm-preview-settings>summary{min-height:34px;display:flex;align-items:center;gap:7px;padding:7px 12px;border:1px solid #354258;border-radius:8px;list-style:none;font-size:11px;white-space:nowrap;cursor:pointer}
+.fm-explorer .fm-preview-settings>summary::-webkit-details-marker{display:none}
+.fm-explorer .fm-preview-settings .fm-preview-settings-body{display:none;position:absolute;right:0;top:calc(100% + 8px);width:254px;max-width:calc(100vw - 36px);padding:14px;background:#1b2433;border:1px solid #3a485d;border-radius:12px;box-shadow:0 14px 40px #0009;box-sizing:border-box;z-index:200;flex-direction:column;gap:9px}
+.fm-explorer .fm-preview-settings[open] .fm-preview-settings-body{display:flex}
+.fm-explorer .fm-preview-settings .fm-preview-settings-title{font-weight:700;font-size:12px;padding-bottom:8px;border-bottom:1px solid #364154}
+.fm-explorer .fm-preview-settings .fm-preview-settings-body label{margin:0;display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:11px}
+.fm-explorer .fm-preview-settings .fm-preview-settings-body select{width:85px;min-width:85px}
+.fm-explorer .fm-preview-settings .fm-gpu-toggle input[type=checkbox]{width:17px;height:17px;min-width:17px;accent-color:#d5b444;margin:0}
