@@ -1,3 +1,4 @@
+import { applyMorphPack } from './freemode-morph-pack.js';
 import { deformFacePositions } from './offline-face-deform.js';
 import { defaultDrawableSelection, drawableView } from './drawable-selection.js';
 import * as THREE from 'three';
@@ -18,7 +19,7 @@ export function createFilePreview(container) {
     release();
     release = () => {};
   }
-  async function show(file, api, { snapshot = false, facePreview = false } = {}) {
+  async function show(file, api, { snapshot = false, facePreview = false, morphPack = null } = {}) {
     clear();
     const version = generation;
     container.textContent = 'Memuat preview…';
@@ -178,7 +179,11 @@ export function createFilePreview(container) {
       const applyFace = (appearance) => {
         if (!faceMeshes.length) return false;
         for (const item of faceMeshes) {
-          const altered=deformFacePositions(item.original, appearance?.features, appearance?.shapeMix);
+          let altered;
+          if(morphPack){
+            try { altered=applyMorphPack(item.original,morphPack,appearance); }
+            catch { altered=null; }
+          }else altered=deformFacePositions(item.original, appearance?.features, appearance?.shapeMix);
           if(!altered)continue;
           const attribute=item.geometry.getAttribute('position');
           attribute.array.set(altered); attribute.needsUpdate=true;
