@@ -17,3 +17,13 @@ export function resolveOutfitEntries(packs, slots) {
   }
   return selected;
 }
+
+/** Preserve freemode identity for archives whose files live in gender folders. */
+export function freemodeImportName(entry) {
+  if (!entry || typeof entry.name !== 'string') throw Error('Nama aset tidak valid.');
+  if (/^mp_[mf]_freemode_01(?:\^|\.)/i.test(entry.name)) return entry.name;
+  if (!['male', 'female'].includes(entry.gender)) return entry.name;
+  if (!/^(?:p_)?[a-z]+_(?:diff_)?\d{3}[_\.]/i.test(entry.name)) return entry.name;
+  const prefix = entry.gender === 'male' ? 'mp_m_freemode_01' : 'mp_f_freemode_01';
+  return prefix + '^' + entry.name;
+}
