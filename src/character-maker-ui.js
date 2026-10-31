@@ -18,11 +18,11 @@ export function mountCharacterMaker() {
         <button data-import-freemode type="button">+ Impor folder mp_freemode</button>
         <label>Model dasar freemode (YDD)<select data-base><option value="">Pilih model dasar</option></select></label>
         <label>Outfit dari Clothing Library<select data-outfit><option value="">Tanpa outfit</option></select></label>
-        <div class="cm-actions"><button data-new>Baru</button><button data-save>Simpan</button><button data-remove>Hapus</button><button data-export>Ekspor JSON FiveM</button><button data-import-json>Impor JSON FiveM</button><input data-json-file type="file" accept=".json,application/json" hidden></div>
+        <div class="cm-actions"><button data-new>Baru</button><button data-save>Simpan karakter</button><button data-remove>Hapus</button><button data-export>Ekspor JSON FiveM</button><button data-import-json>Impor JSON FiveM</button><input data-json-file type="file" accept=".json,application/json" hidden></div>
       </aside>
       <main>
         <div class="cm-preview-head"><strong>Preview model freemode</strong><span>Putar / zoom model dengan mouse</span></div>
-        <div class="cm-actions"><button data-generate-morph type="button">Buat Morph Pack dari 2 YDD</button><input data-neutral-ydd type="file" accept=".ydd" hidden><input data-target-ydd type="file" accept=".ydd" hidden><select data-morph-channel aria-label="Channel morph"><option value="feature:0">Hidung (feature 0)</option><option value="parent:first">Wajah orang tua 1</option><option value="parent:second">Wajah orang tua 2</option></select><button data-load-morph type="button">Muat morph target offline</button><button data-clear-morph type="button" hidden>Hapus morph target</button><input data-morph-file type="file" accept=".json,application/json" hidden></div><div data-preview class="cm-model-preview" role="img" aria-label="Pratinjau 3D freemode">Pilih model dasar freemode untuk menampilkan preview 3D.</div>
+        <details class="cm-advanced"><summary>Advanced · Morph Pack & referensi wajah</summary><div class="cm-actions"><button data-generate-morph type="button">Buat Morph Pack dari 2 YDD</button><input data-neutral-ydd type="file" accept=".ydd" hidden><input data-target-ydd type="file" accept=".ydd" hidden><select data-morph-channel aria-label="Channel morph"><option value="feature:0">Hidung (feature 0)</option><option value="parent:first">Wajah orang tua 1</option><option value="parent:second">Wajah orang tua 2</option></select><button data-load-morph type="button">Muat morph target offline</button><button data-clear-morph type="button" hidden>Hapus morph target</button><input data-morph-file type="file" accept=".json,application/json" hidden></div></div></details><div data-preview class="cm-model-preview" role="img" aria-label="Pratinjau 3D freemode">Pilih model dasar freemode untuk menampilkan preview 3D.</div>
         <label class="cm-face-preview-toggle"><input data-live-face type="checkbox" checked> Tampilkan perkiraan deformasi wajah langsung</label><small data-face-state>Preview wajah menunggu model YDD kepala.</small>
         <p class="cm-notice">Preview desktop menggunakan pendekatan deformasi geometri non-destruktif, bukan head blend native GTA V. Hasil wajah yang akurat tersedia melalui ekspor JSON ke FiveM. Model YDD asli tidak diubah.</p>
         <div class="cm-sliders"></div>
@@ -176,7 +176,7 @@ export function mountCharacterMaker() {
     const packs=await window.ditashaClothing.list();
     const bundled=packs.some(p=>p.pack==='DITASHA Built-in Freemode');
     $('[data-import-freemode]').hidden=bundled;
-    if(bundled) $('[data-status]').textContent='Referensi freemode bawaan cowok dan cewek siap dipakai. Tidak perlu impor folder.';
+    if(bundled) $('[data-status]').textContent='Referensi freemode bawaan tersedia. Karakter otomatis memilih model kepala.';
     const baseSelect=$('[data-base]');
     const previousBase=desiredBase || baseRefs.get(baseSelect.value);
     baseRefs=new Map();
