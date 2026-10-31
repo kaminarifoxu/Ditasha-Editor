@@ -98,6 +98,10 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
   modelOnlyButton.id='fmModelOnly';modelOnlyButton.type='button';
   modelOnlyButton.textContent='3D saja: Aktif';
   bar.append(modelOnlyButton);
+  const previewSettings = document.createElement('details');
+  previewSettings.className = 'fm-preview-settings';
+  previewSettings.innerHTML = '<summary>Pengaturan preview</summary><label>Jumlah thumbnail<select data-limit><option>50</option><option>100</option><option>250</option></select></label><label>Batch render<select data-batch><option>8</option><option>12</option><option>16</option></select></label><label><input type="checkbox" data-gpu> GPU high-performance</label>';
+  bar.append(previewSettings);
   bar.append(more);
   side.prepend(root.querySelector('.fm-tree-head'));
   side.querySelector('.fm-tree-head .eyebrow').textContent = 'Navigasi';
@@ -143,6 +147,13 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
     activeTab = tabs[0];
   let thumbnailGeneration = 0;
   const thumbnails = [];
+  let currentPageFiles=[];
+  const previewOptions = { limit: 250, batch: 12, gpu: true };
+  try { Object.assign(previewOptions, JSON.parse(localStorage.getItem('ditasha-file-preview-options') || '{}')); } catch {}
+  previewOptions.limit = [50,100,250].includes(previewOptions.limit) ? previewOptions.limit : 250;
+  previewOptions.batch = [8,12,16].includes(previewOptions.batch) ? previewOptions.batch : 12;
+  previewOptions.gpu = previewOptions.gpu !== false;
+  const savePreviewOptions = () => localStorage.setItem('ditasha-file-preview-options',JSON.stringify(previewOptions));
   function clearThumbnails() {
     thumbnailGeneration++;
     thumbnails.splice(0).forEach((url) => URL.revokeObjectURL(url));
@@ -536,12 +547,14 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
         ),
         true,
       );
+    currentPageFiles=data.files;
     if (view === 'grid') loadThumbnails(data.files, thumbnailGeneration);
   }
   async function loadThumbnails(files, version) {
     // Images are cheap; YDD/YDR/YFT need the existing GTA decoder and WebGL renderer.
     const candidates = files.filter(f => /\.(png|jpe?g|webp|gif|bmp|ydd|ydr|yft)$/i.test(f.name) &&
-      f.size <= 64 * 1024 * 1024).slice(0, 100);
+      f.size <= 64 * 1024 * 1024).slice(0, previewOptions.limit);
+    let rendered = 0;
     for (const file of candidates) {
       if (version !== thumbnailGeneration || view !== 'grid') return;
       const row = [...$('fmList').querySelectorAll('[data-file-id]')].find(r => r.dataset.fileId === file.id);
@@ -553,7 +566,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
           host.className = 'fm-thumbnail-render-host';
           document.body.append(host);
           const preview = createFilePreview(host);
-          try { blob = await preview.show(file, api(), {snapshot:true}); }
+          try { blob = await preview.show(file, api(), {snapshot:true, highPerformance:previewOptions.gpu}); }
           finally { preview.clear(); host.remove(); }
         } else {
           const data = await api().read(file.id);
@@ -574,6 +587,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
       } catch {
         // Invalid or unsupported RSC assets retain the normal icon.
       }
+      if (++rendered % previewOptions.batch === 0) await new Promise(resolve => setTimeout(resolve,0));
     }
   }
   async function choose(refresh = false) {
@@ -614,6 +628,22 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
       run(()=>choose({networkPath:saved.networkPath}));
     }catch(e){smbFeedback.textContent=e.message;}
   };
+  const limitSelect=previewSettings.querySelector('[data-limit]');
+  const batchSelect=previewSettings.querySelector('[data-batch]');
+  const gpuCheck=previewSettings.querySelector('[data-gpu]');
+  limitSelect.value=String(previewOptions.limit);
+  batchSelect.value=String(previewOptions.batch);
+  gpuCheck.checked=previewOptions.gpu;
+  const updatePreviewSettings=()=>{
+    previewOptions.limit=Number(limitSelect.value);
+    previewOptions.batch=Number(batchSelect.value);
+    previewOptions.gpu=gpuCheck.checked;
+    savePreviewOptions();
+    if(rootInfo && view==='grid') { clearThumbnails(); loadThumbnails([...currentPageFiles],thumbnailGeneration); }
+  };
+  limitSelect.onchange=updatePreviewSettings;
+  batchSelect.onchange=updatePreviewSettings;
+  gpuCheck.onchange=updatePreviewSettings;
   $('fmModelOnly').onclick=()=>run(async()=>{
     modelOnly=!modelOnly;
     $('fmModelOnly').textContent='3D saja: '+(modelOnly?'Aktif':'Nonaktif');
