@@ -13,6 +13,7 @@ export function mountCharacterMaker() {
         <label>Karakter tersimpan<select data-presets><option value="">Karakter baru</option></select></label>
         <label>Nama karakter<input data-name maxlength="80" value="New Character"></label>
         <label>Gender<select data-gender><option value="male">Cowok · mp_m_freemode_01</option><option value="female">Cewek · mp_f_freemode_01</option></select></label>
+        <button data-import-freemode type="button">+ Impor folder mp_freemode</button>
         <label>Model dasar freemode (YDD)<select data-base><option value="">Pilih model dasar</option></select></label>
         <label>Outfit dari Clothing Library<select data-outfit><option value="">Tanpa outfit</option></select></label>
         <div class="cm-actions"><button data-new>Baru</button><button data-save>Simpan</button><button data-remove>Hapus</button><button data-export>Ekspor JSON FiveM</button><button data-import-json>Impor JSON FiveM</button><input data-json-file type="file" accept=".json,application/json" hidden></div>
@@ -136,6 +137,18 @@ export function mountCharacterMaker() {
     fill(presets.find(p=>p.id===id));
     await refresh();
   }
+  $('[data-import-freemode]').onclick=async()=>{
+    const button=$('[data-import-freemode]');
+    button.disabled=true;
+    try {
+      const result=await window.ditashaClothing.importFolder('Freemode Character References');
+      if(result){
+        await refresh();
+        $('[data-status]').textContent='Impor '+result.files.length+' file freemode berhasil. Pilih gender dan model dasar.';
+      }
+    }catch(error){$('[data-status]').textContent='Impor freemode gagal: '+error.message;}
+    finally{button.disabled=false;}
+  };
   $('[data-close]').onclick=()=>{host.hidden=true;modelPreview.clear();};
   $('[data-new]').onclick=async()=>{fill(null);await refresh();};
   $('[data-presets]').onchange=async()=>{
