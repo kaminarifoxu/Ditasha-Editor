@@ -2434,12 +2434,20 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       const outfit=(await window.ditashaClothing.listOutfits()).find(o=>o.id===selected.outfitId);
       const packs=await window.ditashaClothing.list();
       const files=[];
+      let baseFile=null;
+      if(selected.baseModel){
+        const pack=packs.find(p=>p.id===selected.baseModel.packId);
+        const entry=pack?.files.find(f=>f.relativePath===selected.baseModel.relativePath);
+        if(!entry)throw Error('Model dasar karakter sudah tidak tersedia dalam Clothing Library.');
+        const data=await window.ditashaClothing.previewRead(pack.id,entry.relativePath);
+        baseFile=new File([data.bytes],freemodeImportName(entry));
+      }
       if(outfit)for(const {packId,entry} of resolveOutfitEntries(packs,outfit.slots)){
         const data=await window.ditashaClothing.previewRead(packId,entry.relativePath);
         files.push(new File([data.bytes],freemodeImportName(entry)));
       }
       const result=await new Promise(resolve=>window.dispatchEvent(new CustomEvent(
-        'ditasha:character-to-booth',{detail:{preset:selected,files,onComplete:resolve}})));
+        'ditasha:character-to-booth',{detail:{preset:selected,files,baseFile,onComplete:resolve}})));
       if(!result.success)throw Error(result.error);
     }catch(error){setStatus('Karakter tersimpan: '+error.message);}
   };
@@ -2450,9 +2458,12 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     if (!detail?.preset || !Array.isArray(detail.files)) return;
     try {
       activate('photobooth');
+      // When the preset contains an actual source YDD, create a new ped without
+      // requiring the user to re-import a freemode reference each session.
+      if (detail.baseFile) await importFiles([detail.baseFile], 'ped', 'auto', {singleActor:true});
       const owner=currentActor();
       if (!owner || owner.kind !== 'ped')
-        throw Error('Import ped freemode '+(detail.preset.gender === 'female' ? 'cewek' : 'cowok')+' terlebih dahulu di Photo Booth.');
+        throw Error('Pilih model YDD kepala/tubuh dalam Character Maker atau impor ped freemode dahulu.');
       const actual=freemodeFamily(owner.name);
       if (actual && actual !== detail.preset.gender)
         throw Error('Gender ped tidak sama dengan preset. Pilih ped '+detail.preset.gender+'.');
