@@ -11,6 +11,7 @@ export function mountCharacterMaker() {
         <label>Karakter tersimpan<select data-presets><option value="">Karakter baru</option></select></label>
         <label>Nama karakter<input data-name maxlength="80" value="New Character"></label>
         <label>Gender<select data-gender><option value="male">Cowok · mp_m_freemode_01</option><option value="female">Cewek · mp_f_freemode_01</option></select></label>
+        <label>Model dasar freemode (YDD)<select data-base><option value="">Pilih model dasar</option></select></label>
         <label>Outfit dari Clothing Library<select data-outfit><option value="">Tanpa outfit</option></select></label>
         <div class="cm-actions"><button data-new>Baru</button><button data-save>Simpan</button><button data-remove>Hapus</button></div>
       </aside>
@@ -26,6 +27,8 @@ export function mountCharacterMaker() {
   const $ = selector => host.querySelector(selector);
   let id=null;
   let desiredOutfit=null;
+  let desiredBase=null;
+  let baseRefs=new Map();
   const features=[
     ['shapeFirst','Wajah ayah',0,45,1,0],['shapeSecond','Wajah ibu',0,45,1,0],
     ['skinFirst','Kulit ayah',0,45,1,0],['skinSecond','Kulit ibu',0,45,1,0],
@@ -53,13 +56,15 @@ export function mountCharacterMaker() {
       else appearance[key]=Number(input.value);
     }
     return {id,name:$('[data-name]').value,gender:$('[data-gender]').value,
-      outfitId:$('[data-outfit]').value||null,appearance};
+      outfitId:$('[data-outfit]').value||null,
+      baseModel:baseRefs.get($('[data-base]').value)||null,appearance};
   };
   const fill=preset=>{
     id=preset?.id||null;
     $('[data-name]').value=preset?.name||'New Character';
     $('[data-gender]').value=preset?.gender||'male';
     desiredOutfit=preset?.outfitId||null;
+    desiredBase=preset?.baseModel||null;
     for(const [key,,min,max,step,initial] of features) {
       const value=key.startsWith('feature')?preset?.appearance?.features?.[Number(key.slice(7))]
         :key.startsWith('overlay')?preset?.appearance?.overlays?.[Number(key.slice(7))]
@@ -74,6 +79,21 @@ export function mountCharacterMaker() {
     list.replaceChildren(new Option('Karakter baru',''));
     for(const preset of presets)list.add(new Option(preset.name+' · '+preset.gender,preset.id));
     list.value=id||'';
+    const packs=await window.ditashaClothing.list();
+    const baseSelect=$('[data-base]');
+    const previousBase=desiredBase || baseRefs.get(baseSelect.value);
+    baseRefs=new Map();
+    baseSelect.replaceChildren(new Option('Pilih model kepala/tubuh YDD',''));
+    for(const pack of packs) for(const file of pack.files) {
+      if(file.gender!==$('[data-gender]').value || !/\\.ydd$/i.test(file.name))continue;
+      if(!['head','uppr','jbib'].includes(file.component))continue;
+      const key=pack.id+'|'+file.relativePath;
+      baseRefs.set(key,{packId:pack.id,relativePath:file.relativePath});
+      baseSelect.add(new Option(pack.pack+' · '+file.name,key));
+    }
+    const match=[...baseRefs].find(([,v])=>v.packId===previousBase?.packId && v.relativePath===previousBase?.relativePath);
+    baseSelect.value=match?.[0]||'';
+    desiredBase=null;
     const outfits=await window.ditashaClothing.listOutfits();
     const outfit=$('[data-outfit]'), old=desiredOutfit??outfit.value;
     outfit.replaceChildren(new Option('Tanpa outfit',''));
@@ -114,6 +134,14 @@ export function mountCharacterMaker() {
       const outfit=outfits.find(x=>x.id===preset.outfitId);
       const packs=await window.ditashaClothing.list();
       const files=[];
+      const base=preset.baseModel;
+      if(base){
+        const pack=packs.find(p=>p.id===base.packId);
+        const entry=pack?.files.find(f=>f.relativePath===base.relativePath);
+        if(!entry)throw Error('Model freemode tidak ditemukan. Pilih model dasar yang tersedia.');
+        const data=await window.ditashaClothing.previewRead(pack.id,entry.relativePath);
+        files.push(new File([data.bytes],freemodeImportName(entry)));
+      }
       if(outfit){
         for(const {packId,entry} of resolveOutfitEntries(packs,outfit.slots)){
           const data=await window.ditashaClothing.previewRead(packId,entry.relativePath);
