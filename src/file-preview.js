@@ -190,6 +190,13 @@ export function createFilePreview(container) {
         const kind = reference.name.split('.').at(-1).toLowerCase();
         if (!['ydd','ydr'].includes(kind)) throw Error('Referensi karakter harus YDD atau YDR.');
         const parsed = await decodeResource(kind, new Uint8Array(bytes.data).buffer);
+        let referenceTextures = [];
+        if(bytes.companion) {
+          try {
+            const ytd=await api.read(bytes.companion.id);
+            referenceTextures=(await decodeResource('ytd',new Uint8Array(ytd.data).buffer)).textures;
+          }catch { /* Preserve reference geometry if the YTD is missing. */ }
+        }
         if (version !== generation) return false;
         const refDrawable=drawableView(parsed,defaultDrawableSelection(parsed));
         const refLevel=refDrawable?.lods?.[0];
@@ -204,7 +211,7 @@ export function createFilePreview(container) {
           if(g.normals)geometry.setAttribute('normal',new THREE.BufferAttribute(g.normals,3));
           else geometry.computeVertexNormals();
           const embedded = g.sourceEmbeddedTextures || refDrawable.embeddedTextures || [];
-          const tex=resolveModelTexture(g.diffuseTexture,[],embedded,reference.name);
+          const tex=resolveModelTexture(g.diffuseTexture,referenceTextures,embedded,reference.name);
           const map=tex?new THREE.DataTexture(tex.out,tex.w,tex.h,THREE.RGBAFormat):null;
           if(map){map.flipY=false;map.colorSpace=THREE.SRGBColorSpace;map.needsUpdate=true;maps.push(map);}
           const material=new THREE.MeshStandardMaterial({map,color:map?0xffffff:0xb9b6ad,roughness:.9,side:THREE.FrontSide,depthWrite:true});
