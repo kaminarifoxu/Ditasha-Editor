@@ -25,3 +25,16 @@
 .ditasha-character-maker .cm-sliders input{grid-column:1/-1;width:100%;accent-color:#d5b444}
 .ditasha-character-maker [data-status]{min-height:24px;margin:0;padding:0 20px 18px}
 @media(max-width:720px){.ditasha-character-maker{padding:8px}.ditasha-character-maker .cm-layout{grid-template-columns:1fr}.ditasha-character-maker .cm-sliders{grid-template-columns:1fr}}
+
+/* Live model preview on the Character Maker canvas. Facial sliders stay metadata-only. */
+.ditasha-character-maker .cm-preview-head { display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap; }
+.ditasha-character-maker .cm-preview-head span { color:#9faab9;font-size:11px; }
+.ditasha-character-maker .cm-model-preview {
+  position:relative; width:100%; height:320px; min-height:320px;
+  overflow:hidden; border:1px solid #344055; border-radius:12px;
+  background:radial-gradient(ellipse at 55% 30%,#2b3746,#0c111a);
+  display:grid;place-items:center;color:#abb9c8;
+}
+.ditasha-character-maker .cm-model-preview .fm-model-preview {height:100%;width:100%;min-height:0;}
+.ditasha-character-maker .cm-model-preview canvas {display:block;width:100%;height:100%;touch-action:none;}
+@media(max-width:720px){.ditasha-character-maker .cm-model-preview{height:240px;min-height:240px;}}
