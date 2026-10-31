@@ -225,7 +225,8 @@ export function createFilePreview(container) {
         const variant = (await decodeResource('ytd', new Uint8Array(selected.data).buffer)).textures;
         if (version !== generation || request !== textureRequest) return false;
         for (const { mesh, g, embedded } of materialBindings) {
-          const diffuse = resolveModelTexture(g.diffuseTexture, variant, embedded, file.name);
+          const diffuse = resolveModelTexture(g.diffuseTexture, variant, embedded, file.name) ||
+            (variant.length === 1 && g.uvs ? variant[0] : null);
           // Keep the current diffuse if the selected dictionary lacks a match.
           if (!diffuse) continue;
           const texture = textureMapForVariant(diffuse);
