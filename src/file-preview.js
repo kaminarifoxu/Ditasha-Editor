@@ -128,8 +128,8 @@ export function createFilePreview(container) {
         // GTA clothing often carries alpha bytes in nominally opaque fabrics.
         // Treat clothing fabric as solid unless its shader explicitly identifies cutout/blend.
         const alpha = modelPreviewAlpha(g);
-        const clothing = /(?:^|[\\^])(jbib|uppr|lowr|hand|feet|accs|task|decl|hair|head)_(?:diff_)?\\d/i.test(file.name);
-        const outerGarment = /(?:^|[\\\\^])(jbib|uppr|lowr|accs|task)_(?:diff_)?\\\\d/i.test(file.name);
+        const clothing = /(?:^|[\\^])(jbib|uppr|lowr|hand|feet|accs|task|decl|hair|head)_(?:diff_)?\d/i.test(file.name);
+        const outerGarment = /(?:^|[\\^])(jbib|uppr|lowr|accs|task)_(?:diff_)?\d/i.test(file.name);
         // Opaque garments should never retain an accidental alpha-blend shader.
         // Hair, skin and intentional cutouts keep their original alpha behavior.
         const solidFabric = outerGarment || (clothing && (!alpha || alpha.mode === 'opaque'));
