@@ -44,7 +44,7 @@ export function mountCharacterMaker() {
   const updateFace=()=>{
     if(!livePreviewEnabled||!faceController)return;
     const applied=faceController.applyFace(read().appearance);
-    $('[data-face-state]').textContent=applied ? (activeMorphPack ? 'Morph targets diterapkan; perlu kalibrasi terhadap GTA V.' : 'Preview perkiraan deformasi wajah (bukan GTA native)') : 'Tidak ditemukan geometri wajah pada model ini.';
+    $('[data-face-state]').textContent=applied ? (activeMorphPack ? 'Morph targets diterapkan; perlu kalibrasi terhadap GTA V.' : 'Preview perkiraan deformasi wajah (bukan GTA native)') : (activeMorphPack ? 'Morph pack tidak sesuai topologi model kepala.' : 'Tidak ditemukan geometri wajah pada model ini.');
   };
   async function updatePreview() {
     const version=++previewSerial;
