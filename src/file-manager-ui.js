@@ -510,7 +510,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
       const label = document.createElement('span');
       label.textContent = file.name;
       const genderMatch=file.relative.toLowerCase();
-      const genderLabel=/mp_f_freemode|(?:^|\\/)(?:female|cewek)(?:\\/|$)/.test(genderMatch)?'Cewek':/mp_m_freemode|(?:^|\\/)(?:male|cowok)(?:\\/|$)/.test(genderMatch)?'Cowok':null;
+      const genderLabel=/mp_f_freemode|(?:^|\/)(?:female|cewek)(?:\/|$)/.test(genderMatch)?'Cewek':/mp_m_freemode|(?:^|\/)(?:male|cowok)(?:\/|$)/.test(genderMatch)?'Cowok':null;
       if(genderLabel){const badge=document.createElement('small');badge.className='fm-gender-badge';badge.textContent=genderLabel;label.append(badge);}
       if(file.textures?.length){const badge=document.createElement('small');badge.className='fm-ytd-count';badge.textContent=' · '+file.textures.length+' YTD';label.append(badge);}
       const relative = document.createElement('small');
