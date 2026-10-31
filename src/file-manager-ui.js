@@ -541,7 +541,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
   async function loadThumbnails(files, version) {
     // Images are cheap; YDD/YDR/YFT need the existing GTA decoder and WebGL renderer.
     const candidates = files.filter(f => /\.(png|jpe?g|webp|gif|bmp|ydd|ydr|yft)$/i.test(f.name) &&
-      f.size <= 32 * 1024 * 1024).slice(0, 42);
+      f.size <= 64 * 1024 * 1024).slice(0, 100);
     for (const file of candidates) {
       if (version !== thumbnailGeneration || view !== 'grid') return;
       const row = [...$('fmList').querySelectorAll('[data-file-id]')].find(r => r.dataset.fileId === file.id);
