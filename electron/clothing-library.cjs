@@ -188,6 +188,8 @@ class ClothingLibrary {
     const items = await this.list();
     const next = items.filter(item => item.id !== id);
     if (next.length === items.length) return false;
+    const dependent = (await this.listOutfits()).find(outfit => outfit.slots.some(slot => slot.packId === id));
+    if (dependent) throw new Error('Pack is used by saved outfit: ' + dependent.name + '. Remove the outfit first.');
     await this.writeIndex(next);
     await fs.rm(path.join(this.root, 'packs', id), { recursive: true, force: true });
     return true;
