@@ -246,24 +246,30 @@ export function createFilePreview(container) {
       // not a synthetic GTA freemode character or a guessed skeleton.
       let bodyReference = null;
       let characterRequest = 0;
+      let bodyMaps = [];
+      const disposeBody = (node, textures = []) => {
+        node?.traverse(o => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
+        textures.forEach(texture => texture.dispose());
+      };
       const setCharacterModel = async (reference) => {
         const request = ++characterRequest;
         if (bodyReference) {
           group.remove(bodyReference);
-          bodyReference.traverse(o => {
-            if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); }
-          });
+          disposeBody(bodyReference, bodyMaps);
+          bodyMaps = [];
           bodyReference = null;
         }
         if (!reference || version !== generation) { draw(); return false; }
         const nextReference = new THREE.Group();
+        const nextMaps = [];
+        const discardNext = () => disposeBody(nextReference, nextMaps);
         nextReference.name = 'body-reference';
         const parts = Array.isArray(reference.parts) && reference.parts.length
           ? reference.parts : [reference];
         const failures = [];
         for (const part of parts) {
           try {
-            if (version !== generation || request !== characterRequest) return false;
+            if (version !== generation || request !== characterRequest) { discardNext(); return false; }
             const bytes = await api.read(part.id);
             const kind = part.name.split('.').at(-1).toLowerCase();
             if (!['ydd','ydr'].includes(kind)) continue;
@@ -275,7 +281,7 @@ export function createFilePreview(container) {
                 referenceTextures = (await decodeResource('ytd', new Uint8Array(ytd.data).buffer)).textures;
               } catch { /* A missing YTD must not discard readable geometry. */ }
             }
-            if (version !== generation || request !== characterRequest) return false;
+            if (version !== generation || request !== characterRequest) { discardNext(); return false; }
             const refDrawable = drawableView(parsed, defaultDrawableSelection(parsed));
             const refLevel = refDrawable?.lods?.[0];
             if (!refLevel?.geometries?.length) { failures.push(part.name); continue; }
@@ -291,7 +297,7 @@ export function createFilePreview(container) {
               const embedded = g.sourceEmbeddedTextures || refDrawable.embeddedTextures || [];
               const tex = resolveModelTexture(g.diffuseTexture, referenceTextures, embedded, part.name);
               const map = tex ? new THREE.DataTexture(tex.out, tex.w, tex.h, THREE.RGBAFormat) : null;
-              if (map) { map.flipY = false; map.colorSpace = THREE.SRGBColorSpace; map.needsUpdate = true; maps.push(map); }
+              if (map) { map.flipY = false; map.colorSpace = THREE.SRGBColorSpace; map.needsUpdate = true; nextMaps.push(map); }
               const material = new THREE.MeshStandardMaterial({
                 map, color: map ? 0xffffff : 0xb9b6ad, roughness: .9,
                 side: THREE.FrontSide, depthWrite: true
@@ -302,11 +308,14 @@ export function createFilePreview(container) {
           } catch (error) { failures.push(part.name + ': ' + error.message); }
         }
         if (version !== generation || request !== characterRequest) {
-          nextReference.traverse(o => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
+          discardNext();
           return false;
         }
-        if (!nextReference.children.length)
+        if (!nextReference.children.length) {
+          discardNext();
           throw Error('Tidak ada mesh freemode yang dapat dibaca. ' + failures.slice(0, 2).join('; '));
+        }
+        bodyMaps = nextMaps;
         bodyReference = nextReference;
         group.add(bodyReference);
         const bounds = new THREE.Box3().setFromObject(group);
