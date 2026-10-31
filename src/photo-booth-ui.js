@@ -1,3 +1,4 @@
+import { transferSkinWeights } from './booth-weight-transfer.js';
 import { resolveOutfitEntries, freemodeImportName } from './clothing-outfit-files.js';
 import { mountFreemodeCharacter } from './freemode-character.js';
 import { outfitLayerWarnings } from './booth-clipping-check.js';
@@ -1239,6 +1240,16 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           (a, b) =>
             Number(!!b.referenceOnly) - Number(!!a.referenceOnly) || b.rig.length - a.rig.length,
         );
+      // Only the selected ped's own weighted body/reference mesh may donate bone weights.
+      // Both meshes must share GTA model coordinates; out-of-range vertices remain static.
+      const weightSources = assets
+        .filter(b => b !== a && actorForAsset(assets, b) === owner &&
+          (b.kind === 'ped' || b.referenceOnly) &&
+          (!freemodeFamily(b.name) || !family || freemodeFamily(b.name) === family))
+        .flatMap(b => (b.drawables || []).flatMap(d =>
+          (d.lods.find(l => l.name === 'High') || d.lods[0])?.geometries
+            ?.filter(g => g.skin && d.rig?.length)
+            .map(g => ({ positions:g.positions, skin:g.skin, rig:d.rig, label:b.name })) || []));
       if (a.referenceOnly) continue;
       if (a.gltf) {
         a.root.add(a.gltf.scene);
@@ -1253,12 +1264,22 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         a.root.add(part);
         const rigCache = new Map();
         for (const g of (d.lods.find((l) => l.name === 'High') || d.lods[0]).geometries) {
-          const selection = isRigidBoothProp(a)
-            ? { rig: [], indices: null }
-            : selectBoothRig(d.rig, g.skin, candidates, {
-                family,
-                choice: owner.rigChoice || 'auto',
-              });
+          let transfer = null;
+          if (!g.skin && a.kind === 'clothing' && owner.kind === 'ped') {
+            for (const source of weightSources) {
+              transfer = transferSkinWeights(g.positions, source);
+              if (transfer) break;
+            }
+          }
+          const effectiveSkin = transfer ? { indices:transfer.indices, weights:transfer.weights } : g.skin;
+          const selection = transfer
+            ? selectBoothRig(transfer.rig, effectiveSkin, [], { family, choice:'auto' })
+            : isRigidBoothProp(a)
+              ? { rig: [], indices: null }
+              : selectBoothRig(d.rig, g.skin, candidates, {
+                  family,
+                  choice: owner.rigChoice || 'auto',
+                });
           let rig = selection.rig.length ? rigCache.get(selection.rig) : null;
           if (!rig && selection.rig.length) {
             rig = nativeRig(selection.rig);
@@ -1355,10 +1376,10 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
               warnings.push(a.name + ': livery ' + liveryReference(g) + ' belum ditemukan');
           }
           let mesh;
-          const valid = g.skin && rig && selection.indices;
+          const valid = effectiveSkin && rig && selection.indices;
           if (valid) {
             geom.setAttribute('skinIndex', new THREE.BufferAttribute(selection.indices, 4));
-            geom.setAttribute('skinWeight', new THREE.BufferAttribute(g.skin.weights, 4));
+            geom.setAttribute('skinWeight', new THREE.BufferAttribute(effectiveSkin.weights, 4));
             mesh = new THREE.SkinnedMesh(geom, material);
             part.add(mesh);
             part.updateMatrixWorld(true);
@@ -1366,6 +1387,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
             mesh.frustumCulled = false;
             skinned++;
             owner.rigReport.skinned++;
+            if (transfer) owner.rigReport.sources.add('Auto weight transfer (referensi ped)');
           } else {
             mesh = new THREE.Mesh(geom, material);
             part.add(mesh);
