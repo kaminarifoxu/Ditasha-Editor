@@ -1,3 +1,4 @@
+import { resolveOutfitEntries } from './clothing-outfit-files.js';
 import { mountFreemodeCharacter } from './freemode-character.js';
 import { outfitLayerWarnings } from './booth-clipping-check.js';
 import { createEmoteVault } from './emote-vault.js';
@@ -2381,17 +2382,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       if (!Number.isInteger(index) || !outfits[index]) throw Error('Nomor outfit tidak valid.');
       const outfit = outfits[index];
       const packs = await library.list();
-      const selected = [];
-      for (const slot of outfit.slots) {
-        const pack = packs.find(p => p.id === slot.packId);
-        const model = pack?.files.find(f => f.relativePath === slot.relativePath);
-        if (!model) throw Error('Model outfit hilang dari library: ' + slot.component);
-        selected.push({ packId: pack.id, entry: model });
-        const textures = pack.files.filter(f => /\.ytd$/i.test(f.name) &&
-          f.component === model.component && f.drawable === model.drawable &&
-          (slot.textureVariant == null || f.textureVariant === slot.textureVariant));
-        for (const entry of textures) selected.push({ packId: pack.id, entry });
-      }
+      const selected = resolveOutfitEntries(packs, outfit.slots);
       const owner = currentActor();
       if (!owner || owner.kind !== 'ped') throw Error('Pilih atau import ped freemode terlebih dahulu agar outfit menempel pada karakter.');
       const files = [];
