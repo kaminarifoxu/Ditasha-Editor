@@ -38,3 +38,11 @@
 .ditasha-character-maker .cm-model-preview .fm-model-preview {height:100%;width:100%;min-height:0;}
 .ditasha-character-maker .cm-model-preview canvas {display:block;width:100%;height:100%;touch-action:none;}
 @media(max-width:720px){.ditasha-character-maker .cm-model-preview{height:240px;min-height:240px;}}
+
+/* Character Maker offline facial mesh preview controls */
+.ditasha-character-maker .cm-face-preview-toggle {
+  display:flex;flex-direction:row;align-items:center;gap:9px;
+  padding:9px 11px;border:1px solid #344055;border-radius:9px;
+}
+.ditasha-character-maker .cm-face-preview-toggle input {accent-color:#d5b444;}
+.ditasha-character-maker [data-face-state] {color:#d8c58b;font-size:11px;}
