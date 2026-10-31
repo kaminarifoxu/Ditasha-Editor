@@ -10,7 +10,7 @@ export function mountClothingCatalog({ openPreview } = {}) {
   root.setAttribute('aria-label','DITASHA Clothing Catalog');
   root.innerHTML = `<header class="cl-head"><strong>◈ DITASHA <span>Clothing</span></strong><div class="cl-actions"><button data-import>+ Import file</button><button data-import-folder>+ Import folder</button><button data-close aria-label="Tutup katalog">✕</button></div></header>
   <div class="cl-toolbar"><div class="cl-genders"><button class="active" data-gender="all">Semua</button><button data-gender="male">Cowok</button><button data-gender="female">Cewek</button></div><input data-search placeholder="Cari pakaian, nama file atau pack..." aria-label="Cari pakaian"/><select data-pack aria-label="Pilih pack"><option value="all">Semua pack</option></select></div>
-  <div class="cl-pack-actions"><button data-save-outfit>Simpan Outfit</button><button data-show-outfits>Outfit Saya</button><button data-to-booth>Kirim ke Photo Booth</button><button data-rename-pack>Ubah nama pack</button><button data-delete-pack>Hapus pack</button></div><div class="cl-cats" data-cats></div><p class="cl-count" data-count></p><div class="cl-grid" data-grid></div><p class="cl-feedback" data-feedback role="status"></p>`;
+  <div class="cl-pack-actions"><button data-save-outfit>Simpan Outfit</button><button data-show-outfits>Outfit Saya</button><button data-remove-outfit>Hapus Outfit</button><button data-to-booth>Kirim ke Photo Booth</button><button data-rename-pack>Ubah nama pack</button><button data-delete-pack>Hapus pack</button></div><div class="cl-cats" data-cats></div><p class="cl-count" data-count></p><div class="cl-grid" data-grid></div><p class="cl-feedback" data-feedback role="status"></p>`;
   document.body.append(root);
   const $ = s => root.querySelector(s);
   let items = [], gender = 'all', category = 'all';
@@ -173,6 +173,20 @@ export function mountClothingCatalog({ openPreview } = {}) {
       draw();
       $('[data-feedback]').textContent='Outfit '+outfit.name+' dimuat ('+outfit.slots.length+' komponen).';
     }catch(e){$('[data-feedback]').textContent='Gagal membaca outfit: '+e.message;}
+  };
+  $('[data-remove-outfit]').onclick=async()=>{
+    try {
+      const outfits=await window.ditashaClothing.listOutfits();
+      if(!outfits.length){$('[data-feedback]').textContent='Belum ada outfit untuk dihapus.';return;}
+      const answer=window.prompt('Nomor outfit yang akan dihapus:\n'+outfits.map((o,i)=>(i+1)+'. '+o.name).join('\n'),'1');
+      if(answer===null)return;
+      const index=Number(answer)-1;
+      if(!Number.isInteger(index)||!outfits[index])throw Error('Nomor outfit tidak tersedia.');
+      const selected=outfits[index];
+      if(!window.confirm('Hapus preset outfit '+selected.name+'? File pakaian dalam pack tetap disimpan.'))return;
+      await window.ditashaClothing.removeOutfit(selected.id);
+      $('[data-feedback]').textContent='Outfit '+selected.name+' telah dihapus. Pack pakaian tetap tersedia.';
+    }catch(e){$('[data-feedback]').textContent='Gagal menghapus outfit: '+e.message;}
   };
   async function outfitFiles(slots) {
     const packs = await window.ditashaClothing.list();
