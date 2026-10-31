@@ -1,0 +1,40 @@
+name: DITASHA V2 Windows package smoke test
+on:
+  push:
+    branches: [feature/clothing-library-v2]
+    paths:
+      - 'src/**'
+      - 'electron/**'
+      - 'tests/**'
+      - 'scripts/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/ditasha-v2-package.yml'
+  workflow_dispatch:
+jobs:
+  windows-package:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build:win
+      - name: Verify generated Windows packages
+        shell: pwsh
+        run: |
+          if (!(Test-Path 'release/DITASHA-Editor.exe')) { throw 'Portable EXE missing' }
+          if (!(Test-Path 'release/DITASHA-Setup.exe')) { throw 'Installer EXE missing' }
+          Get-Item release/DITASHA-Editor.exe,release/DITASHA-Setup.exe | Select-Object Name,Length
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ditasha-v2-windows-test-build
+          path: |
+            release/DITASHA-Editor.exe
+            release/DITASHA-Setup.exe
+          if-no-files-found: error
+          retention-days: 7
