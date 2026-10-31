@@ -2434,20 +2434,24 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       const outfit=(await window.ditashaClothing.listOutfits()).find(o=>o.id===selected.outfitId);
       const packs=await window.ditashaClothing.list();
       const files=[];
-      let baseFile=null;
+      const baseFiles=[];
       if(selected.baseModel){
         const pack=packs.find(p=>p.id===selected.baseModel.packId);
         const entry=pack?.files.find(f=>f.relativePath===selected.baseModel.relativePath);
         if(!entry)throw Error('Model dasar karakter sudah tidak tersedia dalam Clothing Library.');
         const data=await window.ditashaClothing.previewRead(pack.id,entry.relativePath);
-        baseFile=new File([data.bytes],freemodeImportName(entry));
+        baseFiles.push(new File([data.bytes],freemodeImportName(entry)));
+        for(const related of pack.files.filter(f=>/\.ytd$/i.test(f.name) && f.component===entry.component && f.drawable===entry.drawable)){
+          const texture=await window.ditashaClothing.previewRead(pack.id,related.relativePath);
+          baseFiles.push(new File([texture.bytes],freemodeImportName(related)));
+        }
       }
       if(outfit)for(const {packId,entry} of resolveOutfitEntries(packs,outfit.slots)){
         const data=await window.ditashaClothing.previewRead(packId,entry.relativePath);
         files.push(new File([data.bytes],freemodeImportName(entry)));
       }
       const result=await new Promise(resolve=>window.dispatchEvent(new CustomEvent(
-        'ditasha:character-to-booth',{detail:{preset:selected,files,baseFile,onComplete:resolve}})));
+        'ditasha:character-to-booth',{detail:{preset:selected,files,baseFiles,onComplete:resolve}})));
       if(!result.success)throw Error(result.error);
     }catch(error){setStatus('Karakter tersimpan: '+error.message);}
   };
@@ -2460,7 +2464,8 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       activate('photobooth');
       // When the preset contains an actual source YDD, create a new ped without
       // requiring the user to re-import a freemode reference each session.
-      if (detail.baseFile) await importFiles([detail.baseFile], 'ped', 'auto', {singleActor:true});
+      const sourceFiles=Array.isArray(detail.baseFiles)?detail.baseFiles:(detail.baseFile?[detail.baseFile]:[]);
+      if (sourceFiles.length) await importFiles(sourceFiles, 'ped', 'auto', {singleActor:true});
       const owner=currentActor();
       if (!owner || owner.kind !== 'ped')
         throw Error('Pilih model YDD kepala/tubuh dalam Character Maker atau impor ped freemode dahulu.');
