@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveOutfitEntries } from '../src/clothing-outfit-files.js';
+import { resolveOutfitEntries, freemodeImportName } from '../src/clothing-outfit-files.js';
 const pack={id:'pack-1',files:[
   {name:'mp_f_freemode_01^jbib_001_u.ydd',relativePath:'model',component:'jbib',drawable:1},
   {name:'mp_f_freemode_01^jbib_diff_001_a_uni.ytd',relativePath:'texture-a',component:'jbib',drawable:1,textureVariant:'a'},
@@ -18,4 +18,11 @@ test('saved outfits reject deleted models or references to textures instead of Y
 test('saved outfits resolve independent components without matching texture of wrong component',()=>{
  const result=resolveOutfitEntries([pack],[{packId:'pack-1',relativePath:'model'},{packId:'pack-1',relativePath:'pants'}]);
  assert.deepEqual(result.map(x=>x.entry.relativePath),['model','texture-a','texture-b','pants']);
+});
+
+test('freemode folders preserve gender when original file name has no mp prefix',()=>{
+  assert.equal(freemodeImportName({name:'head_000_r.ydd', gender:'female'}), 'mp_f_freemode_01^head_000_r.ydd');
+  assert.equal(freemodeImportName({name:'accs_diff_001_b_uni.ytd',gender:'male'}),'mp_m_freemode_01^accs_diff_001_b_uni.ytd');
+  assert.equal(freemodeImportName({name:'mp_f_freemode_01^head_000_r.ydd',gender:'female'}),'mp_f_freemode_01^head_000_r.ydd');
+  assert.equal(freemodeImportName({name:'unknown.ydd',gender:'female'}),'unknown.ydd');
 });
