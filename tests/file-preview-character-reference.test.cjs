@@ -20,3 +20,11 @@ test('automatic freemode reference follows the selected asset while manual refer
  assert.match(ui,/characterReferenceIsAutomatic=false/);
  assert.match(ui,/item\.textureVariant === 'a'/);
 });
+
+test('switching model reference cannot commit an out-of-date async body',()=>{
+ const engine=read('src/file-preview.js');
+ assert.match(engine,/let characterRequest = 0/);
+ assert.match(engine,/const request = \+\+characterRequest/);
+ assert.match(engine,/request !== characterRequest/);
+ assert.match(engine,/bodyReference = nextReference/);
+});
