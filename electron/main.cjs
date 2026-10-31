@@ -235,6 +235,20 @@ else {
     });
     const clothingLibrary = new ClothingLibrary(path.join(app.getPath('userData'), 'clothing-library-v2'));
     const trustedClothingEvent = (event) => event.sender === win?.webContents && !event.sender.isDestroyed();
+    const { CharacterPresets } = require('./character-presets.cjs');
+    const characterPresets = new CharacterPresets(path.join(app.getPath('userData'), 'clothing-library-v2'));
+    ipcMain.handle('ditasha:characters-list', event => {
+      if (!trustedClothingEvent(event)) throw new Error('Untrusted caller');
+      return characterPresets.list();
+    });
+    ipcMain.handle('ditasha:characters-save', (event, preset) => {
+      if (!trustedClothingEvent(event)) throw new Error('Untrusted caller');
+      return characterPresets.save(preset);
+    });
+    ipcMain.handle('ditasha:characters-remove', (event, id) => {
+      if (!trustedClothingEvent(event)) throw new Error('Untrusted caller');
+      return characterPresets.remove(id);
+    });
     ipcMain.handle('ditasha:outfits-list', event => {
       if (!trustedClothingEvent(event)) throw new Error('Untrusted caller');
       return clothingLibrary.listOutfits();
