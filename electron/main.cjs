@@ -234,11 +234,20 @@ else {
       WebContentsView,
     });
     const clothingLibrary = new ClothingLibrary(path.join(app.getPath('userData'), 'clothing-library-v2'));
+    const { ensureBundledFreemode } = require('./bundled-freemode.cjs');
+    let freemodeAttempt=null;
+    const registerBuiltInFreemode=()=> {
+      if(!freemodeAttempt) freemodeAttempt=ensureBundledFreemode(clothingLibrary,
+        app.isPackaged ? process.resourcesPath : path.join(__dirname,'..','assets'))
+        .catch(error=>({available:false,reason:String(error.message||error)}));
+      return freemodeAttempt;
+    };
     const trustedClothingEvent = (event) => event.sender === win?.webContents && !event.sender.isDestroyed();
     const { CharacterPresets } = require('./character-presets.cjs');
     const characterPresets = new CharacterPresets(path.join(app.getPath('userData'), 'clothing-library-v2'));
-    ipcMain.handle('ditasha:characters-list', event => {
+    ipcMain.handle('ditasha:characters-list', async event => {
       if (!trustedClothingEvent(event)) throw new Error('Untrusted caller');
+      await registerBuiltInFreemode();
       return characterPresets.list();
     });
     ipcMain.handle('ditasha:characters-save', async (event, preset) => {
@@ -275,8 +284,9 @@ else {
       if(dependent)throw Error('Outfit digunakan karakter tersimpan: '+dependent.name+'. Ubah/hapus karakter dahulu.');
       return clothingLibrary.removeOutfit(id);
     });
-    ipcMain.handle('ditasha:clothing-list', (event) => {
+    ipcMain.handle('ditasha:clothing-list', async (event) => {
       if (!trustedClothingEvent(event)) throw new Error('Untrusted caller');
+      await registerBuiltInFreemode();
       return clothingLibrary.list();
     });
     ipcMain.handle('ditasha:clothing-import', async (event, pack) => {
