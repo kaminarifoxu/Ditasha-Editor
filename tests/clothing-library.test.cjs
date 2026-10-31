@@ -140,3 +140,18 @@ test('prevents removing clothing packs referenced by saved outfit presets', asyn
     assert.deepEqual(await library.list(),[]);
   } finally { await fs.rm(root,{recursive:true,force:true}); }
 });
+
+test('freemode import retains actual ped reference file types (YFT and YDR) alongside YDD', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'ditasha-freemode-reference-'));
+  try {
+    const folder = path.join(root, 'mp_f_freemode_01');
+    await fs.mkdir(folder);
+    for (const name of ['head_000_r.ydd', 'micro_brow_up.ydr', 'mp_f_freemode_01.yft']) {
+      await fs.writeFile(path.join(folder, name), 'RSC7');
+    }
+    const library = new ClothingLibrary(path.join(root, 'library'));
+    const pack = await library.importDirectory({directory: folder, pack: 'Freemode reference'});
+    assert.deepEqual(pack.files.map(f => path.extname(f.name)).sort(), ['.ydd','.ydr','.yft']);
+    assert.equal(pack.files.find(f => f.name.endsWith('.ydd')).gender,'female');
+  } finally { await fs.rm(root,{recursive:true,force:true}); }
+});
