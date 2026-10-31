@@ -358,21 +358,38 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
     $('fmCompanion').hidden = true;
     $('fmCompanion').replaceChildren();
     if (/\.(ydd|ydr|yft)$/i.test(file.name)) {
-      api().read(file.id).then(data => {
-        if (current !== serial || !data.companion) return;
-        const box = $('fmCompanion');
-        const title = document.createElement('strong'); title.textContent = 'YTD pendamping';
-        const name = document.createElement('span'); name.textContent = data.companion.name;
-        const button = document.createElement('button'); button.type = 'button';
-        button.textContent = 'Lihat YTD di kanan';
-        button.onclick = () => { $('fmYtdPreview').scrollIntoView({block:'nearest',behavior:'smooth'}); };
-        box.replaceChildren(title,name,button); box.hidden = false;
-        $('fmYtdName').textContent = data.companion.name;
-        $('fmYtdPreview').hidden = false;
-        ytdPreview.show({id:data.companion.id,name:data.companion.name},api()).catch(error => {
-          if (current === serial) $('fmYtdCanvas').textContent = 'YTD gagal dimuat: '+error.message;
-        });
-      }).catch(() => {});
+      const current = serial;
+      const grouped = file.textures || [];
+      const presentTextures = textures => {
+        if(current!==serial || !textures.length)return;
+        const box=$('fmCompanion');
+        const title=document.createElement('strong');
+        title.textContent='Tekstur terkait · '+textures.length+' YTD';
+        const buttons=document.createElement('div');buttons.className='fm-ytd-variants';
+        const show=texture=>{
+          if(current!==serial)return;
+          $('fmYtdName').textContent=texture.name;
+          $('fmYtdPreview').hidden=false;
+          buttons.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.textureId===String(texture.id))));
+          ytdPreview.show({id:texture.id,name:texture.name},api()).catch(error=>{
+            if(current===serial)$('fmYtdCanvas').textContent='YTD gagal dimuat: '+error.message;
+          });
+        };
+        for(const texture of textures){
+          const button=document.createElement('button');
+          button.type='button';button.dataset.textureId=texture.id;
+          button.textContent=texture.name;button.title=texture.name;
+          button.onclick=()=>show(texture);
+          buttons.append(button);
+        }
+        box.replaceChildren(title,buttons);box.hidden=false;
+        show(textures[0]);
+      };
+      if(grouped.length)presentTextures(grouped);
+      else api().read(file.id).then(data=>{
+        if(current!==serial || !data.companion)return;
+        presentTextures([data.companion]);
+      }).catch(()=>{});
     }
     $('fmOpen').innerHTML =
       icon(/\.(ydd|ydr|yft)$/i.test(file.name) ? 'cube' : 'picture') +
@@ -439,6 +456,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
       );
       const label = document.createElement('span');
       label.textContent = file.name;
+      if(file.textures?.length){const badge=document.createElement('small');badge.className='fm-ytd-count';badge.textContent=' · '+file.textures.length+' YTD';label.append(badge);}
       const relative = document.createElement('small');
       relative.textContent = file.relative;
       const title = document.createElement('span');
