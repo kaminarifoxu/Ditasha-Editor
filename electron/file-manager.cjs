@@ -106,7 +106,16 @@ function createFileManager({
     }),
     async choose(refresh = false) {
       idle();
-      let root = refresh === true ? ready().root : null;
+      // SMB is accessed through Windows' authenticated UNC filesystem provider.
+      // No passwords or SMB credentials are handled or stored by the Editor.
+      const networkPath = refresh && typeof refresh === 'object' ? refresh.networkPath : null;
+      if (networkPath !== null && (process.platform !== 'win32' ||
+          typeof networkPath !== 'string' ||
+          !/^\\\\[^\\/]+\\[^\\/]+(?:\\.*)?$/.test(networkPath) ||
+          networkPath.includes('..') || networkPath.length > 1024)) {
+        throw Error('SMB harus berupa path Windows \\\\server\\share tanpa kredensial.');
+      }
+      let root = networkPath || (refresh === true ? ready().root : null);
       if (!root) {
         const picked = await dialog.showOpenDialog(win, {
           title: 'Buka folder aset',
@@ -115,6 +124,7 @@ function createFileManager({
         if (picked.canceled || !picked.filePaths[0]) return null;
         root = await fs.realpath(picked.filePaths[0]);
       }
+      if (networkPath) root = await fs.realpath(root);
       return job(async (signal) => {
         emit({ message: 'Memindai folder…' });
         const files = [],
