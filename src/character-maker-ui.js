@@ -110,7 +110,7 @@ export function mountCharacterMaker() {
     baseRefs=new Map();
     baseSelect.replaceChildren(new Option('Pilih model kepala/tubuh YDD',''));
     for(const pack of packs) for(const file of pack.files) {
-      if(file.gender!==$('[data-gender]').value || !/\\.ydd$/i.test(file.name))continue;
+      if(file.gender!==$('[data-gender]').value || !/\.ydd$/i.test(file.name))continue;
       if(!['head','uppr','jbib'].includes(file.component))continue;
       const key=pack.id+'|'+file.relativePath;
       baseRefs.set(key,{packId:pack.id,relativePath:file.relativePath});
