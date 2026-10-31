@@ -103,7 +103,7 @@ function createFileManager({
       const lower = f.relative.toLowerCase();
       const fileGender = /mp_f_freemode|(?:^|[\\/])(?:female|cewek)(?:[\\/]|$)/.test(lower) ? 'female'
         : /mp_m_freemode|(?:^|[\\/])(?:male|cowok)(?:[\\/]|$)/.test(lower) ? 'male' : 'unknown';
-      const component = f.name.toLowerCase().match(/(?:^|\\^)((?:p_)?[a-z]+)_(?:diff_)?\\d{3,4}(?:_|\\.|$)/);
+      const component = f.name.toLowerCase().match(/(?:^|\^)((?:p_)?[a-z]+)_(?:diff_)?\d{3,4}(?:_|\.|$)/);
       return {fileGender, fileSlot:component?.[1] || ''};
     };
     return current.files.filter(
