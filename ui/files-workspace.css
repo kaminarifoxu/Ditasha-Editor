@@ -744,3 +744,21 @@
 .fm-explorer .fm-companion strong { font-size: 12px; }
 .fm-explorer .fm-companion span { overflow-wrap: anywhere; font-size: 11px; opacity: .85; }
 .fm-explorer .fm-companion button { border: 1px solid var(--line); border-radius: 8px; padding: 9px; cursor: pointer; }
+
+/* The YTD texture inspector occupies unused space below the 3D canvas. */
+.fm-explorer .fm-ytd-preview[hidden] { display: none !important; }
+.fm-explorer .fm-ytd-preview {
+  border: 1px solid var(--line); border-radius: 12px;
+  padding: 12px; display: grid; gap: 10px; min-height: 170px;
+  background: var(--panel); margin: 8px 0 12px;
+}
+.fm-explorer .fm-ytd-heading { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.fm-explorer .fm-ytd-heading strong { font-size: 12px; }
+.fm-explorer .fm-ytd-heading span { font-size: 11px; opacity: .75; overflow-wrap: anywhere; }
+.fm-explorer .fm-ytd-canvas { min-height: 150px; height: 170px; width: 100%; overflow: hidden; }
+.fm-explorer .fm-ytd-canvas .fm-texture-preview { min-height: 150px; }
+.fm-explorer .fm-ytd-canvas .fm-texture-preview canvas { max-height: 125px; width: auto; }
+.fm-explorer.fm-preview-expanded .fm-preview { flex: 0 0 auto; height: min(42vh, 460px) !important; min-height: 240px; }
+.fm-explorer.fm-preview-expanded .fm-ytd-preview { grid-template-columns: minmax(0, 1fr); min-height: 220px; }
+.fm-explorer.fm-preview-expanded .fm-ytd-canvas { min-height: 195px; height: 215px; }
+.fm-explorer.fm-preview-expanded .fm-ytd-canvas .fm-texture-preview canvas { max-height: 168px; }
