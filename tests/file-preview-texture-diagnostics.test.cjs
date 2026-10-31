@@ -13,7 +13,7 @@ test('missing YTD names are diagnosed instead of silently grey with no explanati
 });
 
 test('external variants are scored independently from embedded textures', () => {
-  const score = viewer.match(/const textureScore = textures =>[\s\S]*?\n      };/)?.[0] || '';
+  const score = viewer.match(/const textureScore = textures =>[\s\S]*?\n      }, 0\);/)?.[0] || '';
   assert.match(score, /textures\.some\(/);
   assert.doesNotMatch(score, /embedded/);
 });
