@@ -301,6 +301,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
     orderBy,
     descending,
     modelOnly,
+    previewPageSize: previewOptions.limit === 250 ? 250 : 100,
   });
   function controls() {
     root.querySelectorAll('button,input,select').forEach((e) => {
@@ -324,7 +325,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
         b.setAttribute('aria-pressed', String(b.dataset.category === $('fmCategory').value));
       });
     $('fmPrevious').disabled = offset === 0;
-    $('fmNext').disabled = offset + 100 >= total;
+    $('fmNext').disabled = offset + (previewOptions.limit === 250 ? 250 : 100) >= total;
     $('fmPlan').disabled = !matchingFiles;
     $('fmOpen').disabled =
       !picked ||
@@ -526,7 +527,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
       $('fmList').append(empty);
     }
     $('fmPage').textContent =
-      `${total ? offset + 1 : 0}–${Math.min(offset + 100, total)} / ${total.toLocaleString('id-ID')} entri · ${size(data.bytes)}`;
+      `${total ? offset + 1 : 0}–${Math.min(offset + (previewOptions.limit === 250 ? 250 : 100), total)} / ${total.toLocaleString('id-ID')} entri · ${size(data.bytes)}`;
     $('fmBreadcrumb').textContent = rootInfo.name + (location ? ' / ' + location : '');
     $('fmFolderName').textContent = location.split('/').at(-1) || rootInfo.name;
     counts($('fmCounts'), data.counts);
@@ -639,7 +640,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
     previewOptions.batch=Number(batchSelect.value);
     previewOptions.gpu=gpuCheck.checked;
     savePreviewOptions();
-    if(rootInfo && view==='grid') { clearThumbnails(); loadThumbnails([...currentPageFiles],thumbnailGeneration); }
+    if(rootInfo) { offset=0; run(()=>list()); }
   };
   limitSelect.onchange=updatePreviewSettings;
   batchSelect.onchange=updatePreviewSettings;
@@ -739,12 +740,12 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
   };
   $('fmPrevious').onclick = () =>
     run(async () => {
-      offset -= 100;
+      offset -= (previewOptions.limit === 250 ? 250 : 100);
       await list();
     });
   $('fmNext').onclick = () =>
     run(async () => {
-      offset += 100;
+      offset += (previewOptions.limit === 250 ? 250 : 100);
       await list();
     });
   $('fmReveal').onclick = () => run(() => api().reveal(picked.id));
