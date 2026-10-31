@@ -242,13 +242,14 @@ function createFileManager({
               .map((relative) => ({ relative, name: path.posix.basename(relative) }));
       const counts = {};
       for (const file of files) counts[file.category] = (counts[file.category] || 0) + 1;
-      const pageFolders = folders.slice(offset, offset + 100);
+      const pageSize = value.previewPageSize === 250 ? 250 : 100;
+      const pageFolders = folders.slice(offset, offset + pageSize);
       const fileOffset = Math.max(0, offset - folders.length);
       return {
         files:
-          offset + 100 > folders.length
+          offset + pageSize > folders.length
             ? files
-                .slice(fileOffset, fileOffset + 100 - pageFolders.length)
+                .slice(fileOffset, fileOffset + pageSize - pageFolders.length)
                 .map(({ ino, ...file }) => ({...file, textures:paired.groups.get(file.id)||[]}))
             : [],
         folders: pageFolders,
