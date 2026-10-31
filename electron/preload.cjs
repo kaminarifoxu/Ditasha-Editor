@@ -103,6 +103,11 @@ contextBridge.exposeInMainWorld('ditashaGtaTools', {
   },
 });
 
+contextBridge.exposeInMainWorld('ditashaCharacters', Object.freeze({
+  list: () => ipcRenderer.invoke('ditasha:characters-list'),
+  save: (character) => ipcRenderer.invoke('ditasha:characters-save', character),
+  remove: (id) => ipcRenderer.invoke('ditasha:characters-remove', id),
+}));
 contextBridge.exposeInMainWorld('ditashaClothing', Object.freeze({
   list: () => ipcRenderer.invoke('ditasha:clothing-list'),
   listOutfits: () => ipcRenderer.invoke('ditasha:outfits-list'),
