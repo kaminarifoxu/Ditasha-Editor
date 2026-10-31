@@ -310,7 +310,12 @@ else {
         pack: 'DITASHA Freemode Library',
         directory: selection.filePaths[0],
       });
-      return { id: imported.id, count: imported.files.length, files: imported.files };
+      const heads=imported.files.filter(file => file.component === 'head' && file.name.toLowerCase().endsWith('.ydd'));
+      if (!heads.some(file => file.gender === 'male' || file.gender === 'female')) {
+        await clothingLibrary.remove(imported.id);
+        throw Error('Tidak ada head YDD freemode pria/wanita dalam folder terpilih.');
+      }
+      return { id: imported.id, count: imported.files.length, genders: [...new Set(heads.map(file => file.gender))] };
     });
     ipcMain.handle('ditasha:clothing-import-folder', async (event, pack) => {
       if (!trustedClothingEvent(event)) throw new Error('Untrusted caller');
