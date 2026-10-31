@@ -125,11 +125,15 @@ export function createFilePreview(container) {
         };
         const map = textureMap(t),
           livery = resolveVehicleLivery(g, external, embedded, file.name);
+        // GTA clothing often carries alpha bytes in nominally opaque fabrics.
+        // Treat clothing fabric as solid unless its shader explicitly identifies cutout/blend.
         const alpha = modelPreviewAlpha(g);
-        const opaque = alpha
+        const clothing = /(?:^|[\\^])(jbib|uppr|lowr|hand|feet|accs|task|decl|hair|head)_(?:diff_)?\\d/i.test(file.name);
+        const solidFabric = clothing && (!alpha || alpha.mode === 'opaque');
+        const opaque = solidFabric || (alpha
           ? alpha.mode === 'opaque'
           : modelAlphaMode(g) === 'opaque' ||
-            /^(sbase|head_diff|uppr_diff|body_diff)/i.test(g.diffuseTexture || '');
+            /^(sbase|head_diff|uppr_diff|body_diff)/i.test(g.diffuseTexture || ''));
         const mesh = new THREE.Mesh(
           geometry,
           createModelMaterial(g, {
@@ -137,9 +141,9 @@ export function createFilePreview(container) {
             color: map ? 0xffffff : 0xb6bfcc,
             roughness: 0.8,
             side: THREE.DoubleSide,
-            transparent: !!map && (alpha ? alpha.mode === 'blend' : !opaque),
+            transparent: !!map && !solidFabric && (alpha ? alpha.mode === 'blend' : !opaque),
             alphaTest: opaque ? 0 : (alpha?.cutoff ?? 0.01),
-            depthWrite: !map || (alpha ? alpha.mode !== 'blend' : opaque),
+            depthWrite: solidFabric || !map || (alpha ? alpha.mode !== 'blend' : opaque),
           }),
         );
         setSurfaceMaps(
