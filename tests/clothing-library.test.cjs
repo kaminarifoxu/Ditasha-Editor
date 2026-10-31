@@ -124,3 +124,19 @@ test('saves freemode outfit with multiple drawable parts across restart', async 
     assert.deepEqual(await reopened.listOutfits(),[]);
   } finally { await fs.rm(root,{recursive:true,force:true}); }
 });
+
+test('prevents removing clothing packs referenced by saved outfit presets', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'ditasha-outfit-guard-'));
+  try {
+    const source = path.join(root, 'mp_m_freemode_01^jbib_001_u.ydd');
+    await fs.writeFile(source, 'model');
+    const library = new ClothingLibrary(path.join(root, 'library'));
+    const pack = await library.importFiles({files:[source]});
+    const outfit = await library.saveOutfit({name:'Protected outfit',gender:'male',slots:[{packId:pack.id,relativePath:pack.files[0].relativePath}]});
+    await assert.rejects(library.remove(pack.id), /Protected outfit/);
+    assert.equal((await library.list()).length, 1);
+    await library.removeOutfit(outfit.id);
+    assert.equal(await library.remove(pack.id),true);
+    assert.deepEqual(await library.list(),[]);
+  } finally { await fs.rm(root,{recursive:true,force:true}); }
+});
