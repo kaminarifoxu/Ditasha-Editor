@@ -225,9 +225,10 @@ function createFileManager({
                 .map(({ ino, ...file }) => ({...file, textures:paired.groups.get(file.id)||[]}))
             : [],
         folders: pageFolders,
-        total: files.length,
+        // Raw count stays stable for reporting and sorting; the UI paginates grouped rows.
+        total: queried.length,
         totalItems: files.length + folders.length,
-        bytes: files.reduce((n, f) => n + f.size, 0),
+        bytes: queried.reduce((n, f) => n + f.size, 0),
         counts,
         navigationFolders: [...ready().folders]
           .filter((f) => f && path.posix.dirname(f) === (value.folder || '.'))
