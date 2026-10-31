@@ -189,7 +189,16 @@ export function mountCharacterMaker() {
       baseSelect.add(new Option(pack.pack+' · '+file.name,key));
     }
     const match=[...baseRefs].find(([,v])=>v.packId===previousBase?.packId && v.relativePath===previousBase?.relativePath);
-    baseSelect.value=match?.[0]||'';
+    // Select a usable head by default for new characters, prioritising the built-in pack.
+    const defaults=[...baseRefs.keys()].filter(key=>{
+      const [packId,relativePath]=key.split('|');
+      return packs.some(pack=>pack.id===packId && pack.files.some(file=>file.relativePath===relativePath && file.component==='head'));
+    });
+    const builtin=defaults.find(key=>packs.some(pack=>pack.id===key.split('|')[0] && pack.pack==='DITASHA Built-in Freemode'));
+    baseSelect.value=match?.[0]||builtin||defaults[0]||'';
+    if(!baseSelect.value){
+      $('[data-status]').textContent='Model freemode belum ditemukan. Build ini mungkin tidak menyertakan YDD/YTD bawaan. Gunakan build dengan assets/mp_freemode.zip atau impor folder sekali.';
+    }
     desiredBase=null;
     updatePreview().catch(e=>{$('[data-preview]').textContent='Preview gagal: '+e.message;});
     const outfits=await window.ditashaClothing.listOutfits();
