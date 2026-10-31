@@ -15,7 +15,7 @@ export function mountCharacterMaker() {
         <label>Karakter tersimpan<select data-presets><option value="">Karakter baru</option></select></label>
         <label>Nama karakter<input data-name maxlength="80" value="New Character"></label>
         <label>Gender<select data-gender><option value="male">Cowok · mp_m_freemode_01</option><option value="female">Cewek · mp_f_freemode_01</option></select></label>
-        <button data-import-freemode type="button">+ Impor folder mp_freemode</button>
+        <button data-import-freemode type="button">+ Simpan folder freemode ke aplikasi</button>
         <label>Model dasar freemode (YDD)<select data-base><option value="">Pilih model dasar</option></select></label>
         <label>Outfit dari Clothing Library<select data-outfit><option value="">Tanpa outfit</option></select></label>
         <div class="cm-actions"><button data-new>Baru</button><button data-save>Simpan karakter</button><button data-remove>Hapus</button><button data-export>Ekspor JSON FiveM</button><button data-import-json>Impor JSON FiveM</button><input data-json-file type="file" accept=".json,application/json" hidden></div>
@@ -175,7 +175,7 @@ export function mountCharacterMaker() {
     list.value=id||'';
     const packs=await window.ditashaClothing.list();
     const bundled=packs.some(p=>p.pack==='DITASHA Built-in Freemode');
-    $('[data-import-freemode]').hidden=bundled;
+    $('[data-import-freemode]').hidden=false;
     if(bundled) $('[data-status]').textContent='Referensi freemode bawaan tersedia. Karakter otomatis memilih model kepala.';
     const baseSelect=$('[data-base]');
     const previousBase=desiredBase || baseRefs.get(baseSelect.value);
@@ -194,10 +194,10 @@ export function mountCharacterMaker() {
       const [packId,relativePath]=key.split('|');
       return packs.some(pack=>pack.id===packId && pack.files.some(file=>file.relativePath===relativePath && file.component==='head'));
     });
-    const builtin=defaults.find(key=>packs.some(pack=>pack.id===key.split('|')[0] && pack.pack==='DITASHA Built-in Freemode'));
+    const builtin=defaults.find(key=>packs.some(pack=>pack.id===key.split('|')[0] && pack.pack==='DITASHA Freemode Library')) || defaults.find(key=>packs.some(pack=>pack.id===key.split('|')[0] && pack.pack==='DITASHA Built-in Freemode'));
     baseSelect.value=match?.[0]||builtin||defaults[0]||'';
     if(!baseSelect.value){
-      $('[data-status]').textContent='Model freemode belum ditemukan. Build ini mungkin tidak menyertakan YDD/YTD bawaan. Gunakan build dengan assets/mp_freemode.zip atau impor folder sekali.';
+      $('[data-status]').textContent='Model freemode belum ditemukan. Build ini mungkin tidak menyertakan YDD/YTD bawaan. Klik Simpan folder freemode ke aplikasi, lalu pilih folder yang berisi model.';
     }
     desiredBase=null;
     updatePreview().catch(e=>{$('[data-preview]').textContent='Preview gagal: '+e.message;});
@@ -220,10 +220,10 @@ export function mountCharacterMaker() {
     const button=$('[data-import-freemode]');
     button.disabled=true;
     try {
-      const result=await window.ditashaClothing.importFolder('Freemode Character References');
+      const result=await window.ditashaClothing.importFreemodeFolder();
       if(result){
         await refresh();
-        $('[data-status]').textContent='Impor '+result.files.length+' file freemode berhasil. Pilih gender dan model dasar.';
+        $('[data-status]').textContent='Tersimpan '+result.count+' file permanen di penyimpanan DITASHA. Sumber asli boleh dipindahkan.';
       }
     }catch(error){$('[data-status]').textContent='Impor freemode gagal: '+error.message;}
     finally{button.disabled=false;}
