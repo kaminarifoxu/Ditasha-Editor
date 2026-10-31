@@ -453,7 +453,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
         if (current === serial) $('fmImage').textContent = e.message;
       }
     } else if (/\.(ydd|ydr|yft|ytd|dds)$/i.test(file.name)) {
-      const previewController = await assetPreview.show(file, api());
+      const previewController = await assetPreview.show(file, api(), {textureId:activeTextureVariant || file.textures?.[0]?.id || null});
       if(current!==serial)return;
       modelController = previewController?.setTextureVariant ? previewController : null;
       if(activeTextureVariant && modelController)await modelController.setTextureVariant(activeTextureVariant);
@@ -567,7 +567,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
           host.className = 'fm-thumbnail-render-host';
           document.body.append(host);
           const preview = createFilePreview(host);
-          try { blob = await preview.show(file, api(), {snapshot:true, highPerformance:previewOptions.gpu}); }
+          try { blob = await preview.show(file, api(), {snapshot:true, highPerformance:previewOptions.gpu, textureId:file.textures?.[0]?.id || null}); }
           finally { preview.clear(); host.remove(); }
         } else {
           const data = await api().read(file.id);
