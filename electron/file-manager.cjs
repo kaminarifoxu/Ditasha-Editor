@@ -5,6 +5,7 @@ const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { pipeline } = require('node:stream/promises');
 const { CATEGORIES, classifyAssets } = require('./asset-sort.cjs');
+const { pairTextureGroups } = require('./ytd-groups.cjs');
 const { createFilesApp } = require('./files-app.cjs');
 const MAX_ENTRIES = 100000;
 const within = (root, target) => {
@@ -191,7 +192,9 @@ function createFileManager({
         ? value.orderBy
         : 'name';
       const direction = value.descending === true ? -1 : 1;
-      const files = query(value).sort((a, b) => {
+      const queried = query(value);
+      const paired = pairTextureGroups(queried);
+      const files = paired.visible.sort((a, b) => {
         const order =
           key === 'size' || key === 'modified'
             ? a[key] - b[key]
@@ -219,7 +222,7 @@ function createFileManager({
           offset + 100 > folders.length
             ? files
                 .slice(fileOffset, fileOffset + 100 - pageFolders.length)
-                .map(({ ino, ...file }) => file)
+                .map(({ ino, ...file }) => ({...file, textures:paired.groups.get(file.id)||[]}))
             : [],
         folders: pageFolders,
         total: files.length,
