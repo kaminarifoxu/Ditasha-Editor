@@ -1,3 +1,4 @@
+import { resolveCharacterBodyEntries } from './freemode-character-source.js';
 import { transferSkinWeights } from './booth-weight-transfer.js';
 import { resolveOutfitEntries, freemodeImportName } from './clothing-outfit-files.js';
 import { mountFreemodeCharacter } from './freemode-character.js';
@@ -2435,16 +2436,9 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       const packs=await window.ditashaClothing.list();
       const files=[];
       const baseFiles=[];
-      if(selected.baseModel){
-        const pack=packs.find(p=>p.id===selected.baseModel.packId);
-        const entry=pack?.files.find(f=>f.relativePath===selected.baseModel.relativePath);
-        if(!entry)throw Error('Model dasar karakter sudah tidak tersedia dalam Clothing Library.');
-        const data=await window.ditashaClothing.previewRead(pack.id,entry.relativePath);
+      if(selected.baseModel)for(const {packId,entry} of resolveCharacterBodyEntries(packs,selected.baseModel,selected.gender)){
+        const data=await window.ditashaClothing.previewRead(packId,entry.relativePath);
         baseFiles.push(new File([data.bytes],freemodeImportName(entry)));
-        for(const related of pack.files.filter(f=>/\.ytd$/i.test(f.name) && f.component===entry.component && f.drawable===entry.drawable)){
-          const texture=await window.ditashaClothing.previewRead(pack.id,related.relativePath);
-          baseFiles.push(new File([texture.bytes],freemodeImportName(related)));
-        }
       }
       if(outfit)for(const {packId,entry} of resolveOutfitEntries(packs,outfit.slots)){
         const data=await window.ditashaClothing.previewRead(packId,entry.relativePath);
