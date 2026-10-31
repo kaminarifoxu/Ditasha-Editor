@@ -498,7 +498,14 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
           buttons.append(button);
         }
         box.replaceChildren(title,buttons);box.hidden=false;
-        show(textures[0]);
+        // Show the first YTD in the texture inspector, but do not force
+        // it onto the model. The 3D preview now chooses the best-matching
+        // variant until the user explicitly selects one.
+        $('fmYtdName').textContent=textures[0].name;
+        $('fmYtdPreview').hidden=false;
+        ytdPreview.show({id:textures[0].id,name:textures[0].name},api()).catch(error=>{
+          if(current===serial)$('fmYtdCanvas').textContent='YTD gagal dimuat: '+error.message;
+        });
       };
       if(grouped.length)presentTextures(grouped);
       else api().read(file.id).then(data=>{
@@ -532,7 +539,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
         if (current === serial) $('fmImage').textContent = e.message;
       }
     } else if (/\.(ydd|ydr|yft|ytd|dds)$/i.test(file.name)) {
-      const previewController = await assetPreview.show(file, previewReadProxy(), {textureId:activeTextureVariant || file.textures?.[0]?.id || null});
+      const previewController = await assetPreview.show(file, previewReadProxy(), {textureId:activeTextureVariant || null});
       if(current!==serial)return;
       modelController = previewController?.setTextureVariant ? previewController : null;
       if(activeTextureVariant && modelController)await modelController.setTextureVariant(activeTextureVariant);
@@ -661,7 +668,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
           host.className = 'fm-thumbnail-render-host';
           document.body.append(host);
           const preview = createFilePreview(host);
-          try { blob = await preview.show(file, api(), {snapshot:true, highPerformance:previewOptions.gpu, textureId:file.textures?.[0]?.id || null}); }
+          try { blob = await preview.show(file, api(), {snapshot:true, highPerformance:previewOptions.gpu}); }
           finally { preview.clear(); host.remove(); }
         } else {
           const data = await api().read(file.id);
