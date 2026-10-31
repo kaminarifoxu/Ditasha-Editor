@@ -1,3 +1,4 @@
+import { deformFacePositions } from './offline-face-deform.js';
 import { defaultDrawableSelection, drawableView } from './drawable-selection.js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -17,7 +18,7 @@ export function createFilePreview(container) {
     release();
     release = () => {};
   }
-  async function show(file, api, { snapshot = false } = {}) {
+  async function show(file, api, { snapshot = false, facePreview = false } = {}) {
     clear();
     const version = generation;
     container.textContent = 'Memuat preview…';
@@ -97,6 +98,7 @@ export function createFilePreview(container) {
       light.position.set(3, 5, 4);
       scene.add(light);
       const mapCache = new Map();
+      const faceMeshes = [];
       for (const g of level.geometries) {
         const embedded = g.sourceEmbeddedTextures || drawable.embeddedTextures || [];
         const geometry = new THREE.BufferGeometry();
@@ -148,6 +150,9 @@ export function createFilePreview(container) {
           setVehicleLivery(mesh.material, textureMap(livery));
         }
         group.add(mesh);
+        if (facePreview && /head|face|skin/i.test(file.name+' '+(g.diffuseTexture||''))) {
+          faceMeshes.push({ geometry, original: new Float32Array(g.positions) });
+        }
       }
       const box = new THREE.Box3().setFromObject(group),
         center = box.getCenter(new THREE.Vector3()),
@@ -170,6 +175,19 @@ export function createFilePreview(container) {
         camera.updateProjectionMatrix();
         renderer.render(scene, camera);
       };
+      const applyFace = (appearance) => {
+        if (!faceMeshes.length) return false;
+        for (const item of faceMeshes) {
+          const altered=deformFacePositions(item.original, appearance?.features, appearance?.shapeMix);
+          if(!altered)continue;
+          const attribute=item.geometry.getAttribute('position');
+          attribute.array.set(altered); attribute.needsUpdate=true;
+          item.geometry.computeVertexNormals();
+          item.geometry.computeBoundingSphere();
+        }
+        draw();
+        return true;
+      };
       controls.addEventListener('change', draw);
       const observer = new ResizeObserver(draw);
       observer.observe(host);
@@ -189,7 +207,7 @@ export function createFilePreview(container) {
         renderer.forceContextLoss();
         host.remove();
       };
-      return thumbnail;
+      return facePreview ? { applyFace, supported:faceMeshes.length>0 } : thumbnail;
     } catch (error) {
       if (version === generation) {
         clear();
