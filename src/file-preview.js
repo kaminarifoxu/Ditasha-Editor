@@ -174,6 +174,56 @@ export function createFilePreview(container) {
           faceMeshes.push({ geometry, original: new Float32Array(g.positions), indices: g.indices });
         }
       }
+      // Optional body reference uses actual user-supplied YDD/ YDR geometry,
+      // not a synthetic GTA freemode character or a guessed skeleton.
+      let bodyReference = null;
+      const setCharacterModel = async (reference) => {
+        if (bodyReference) {
+          group.remove(bodyReference);
+          bodyReference.traverse(o => {
+            if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); }
+          });
+          bodyReference = null;
+        }
+        if (!reference || version !== generation) { draw(); return false; }
+        const bytes = await api.read(reference.id);
+        const kind = reference.name.split('.').at(-1).toLowerCase();
+        if (!['ydd','ydr'].includes(kind)) throw Error('Referensi karakter harus YDD atau YDR.');
+        const parsed = await decodeResource(kind, new Uint8Array(bytes.data).buffer);
+        if (version !== generation) return false;
+        const refDrawable=drawableView(parsed,defaultDrawableSelection(parsed));
+        const refLevel=refDrawable?.lods?.[0];
+        if(!refLevel?.geometries?.length)throw Error('Mesh karakter tidak ditemukan pada referensi.');
+        bodyReference = new THREE.Group();
+        bodyReference.name='body-reference';
+        for(const g of refLevel.geometries){
+          const geometry=new THREE.BufferGeometry();
+          geometry.setAttribute('position',new THREE.BufferAttribute(g.positions,3));
+          if(g.uvs) geometry.setAttribute('uv',new THREE.BufferAttribute(g.uvs,2));
+          geometry.setIndex(new THREE.BufferAttribute(g.indices,1));
+          if(g.normals)geometry.setAttribute('normal',new THREE.BufferAttribute(g.normals,3));
+          else geometry.computeVertexNormals();
+          const embedded = g.sourceEmbeddedTextures || refDrawable.embeddedTextures || [];
+          const tex=resolveModelTexture(g.diffuseTexture,[],embedded,reference.name);
+          const map=tex?new THREE.DataTexture(tex.out,tex.w,tex.h,THREE.RGBAFormat):null;
+          if(map){map.flipY=false;map.colorSpace=THREE.SRGBColorSpace;map.needsUpdate=true;maps.push(map);}
+          const material=new THREE.MeshStandardMaterial({map,color:map?0xffffff:0xb9b6ad,roughness:.9,side:THREE.FrontSide,depthWrite:true});
+          bodyReference.add(new THREE.Mesh(geometry,material));
+        }
+        group.add(bodyReference);
+        const bounds = new THREE.Box3().setFromObject(group);
+        const midpoint=bounds.getCenter(new THREE.Vector3());
+        const extent=bounds.getSize(new THREE.Vector3());
+        const diameter=Math.max(extent.x,extent.y,extent.z,.01);
+        camera.near=diameter/1000;
+        camera.far=diameter*1000;
+        camera.position.copy(midpoint).add(new THREE.Vector3(diameter*.85,diameter*.4,diameter*1.8));
+        controls.target.copy(midpoint);
+        controls.update();
+        camera.updateProjectionMatrix();
+        draw();
+        return true;
+      };
       const box = new THREE.Box3().setFromObject(group),
         center = box.getCenter(new THREE.Vector3()),
         size = box.getSize(new THREE.Vector3()),
@@ -265,7 +315,7 @@ export function createFilePreview(container) {
         renderer.forceContextLoss();
         host.remove();
       };
-      return snapshot ? thumbnail : { applyFace, supported:faceMeshes.length>0, setTextureVariant };
+      return snapshot ? thumbnail : { applyFace, supported:faceMeshes.length>0, setTextureVariant, setCharacterModel };
     } catch (error) {
       if (version === generation) {
         clear();
