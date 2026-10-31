@@ -108,6 +108,9 @@ export function mountCharacterMaker() {
     for(const preset of presets)list.add(new Option(preset.name+' · '+preset.gender,preset.id));
     list.value=id||'';
     const packs=await window.ditashaClothing.list();
+    const bundled=packs.some(p=>p.pack==='DITASHA Built-in Freemode');
+    $('[data-import-freemode]').hidden=bundled;
+    if(bundled) $('[data-status]').textContent='Referensi freemode bawaan cowok dan cewek siap dipakai. Tidak perlu impor folder.';
     const baseSelect=$('[data-base]');
     const previousBase=desiredBase || baseRefs.get(baseSelect.value);
     baseRefs=new Map();
