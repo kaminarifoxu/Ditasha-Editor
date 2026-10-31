@@ -289,7 +289,7 @@ function createFileManager({
         !/\.(png|jpe?g|webp|gif|bmp|ytd|dds|ydd|ydr|yft|rpf|zip|oiv)$/i.test(entry.name)
       )
         throw Error('Format ini belum memiliki preview internal.');
-      const previewLimit = /\.ytd$/i.test(entry.name) ? 256 : 64;
+      const previewLimit = /\.ytd$/i.test(entry.name) ? 384 : /\.(ydd|ydr|yft)$/i.test(entry.name) ? 128 : 64;
       if (entry.size > previewLimit * 1024 * 1024)
         throw Error(
           'Preview maksimum ' +
