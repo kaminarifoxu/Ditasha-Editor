@@ -150,6 +150,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
   };
   let modelController = null;
   let characterReference = null;
+  let characterReferenceIsAutomatic = false;
   // Virtual IDs are resolved through the existing local Clothing Library.
   // No second import and no duplicate freemode storage is required.
   const libraryReferenceCache = new Map();
@@ -207,7 +208,8 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
         item.gender === record.entry.gender &&
         item.component === record.entry.component &&
         item.drawable === record.entry.drawable &&
-        /\.ytd$/i.test(item.name));
+        /\.ytd$/i.test(item.name) &&
+        (!item.textureVariant || item.textureVariant === 'a'));
       return {data:data.bytes, name:record.entry.name,
         companion:companion ? {id:libraryPrefix+encodeURIComponent(record.packId)+':'+encodeURIComponent(companion.relativePath),name:companion.name} : null};
     }
@@ -559,8 +561,9 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
       if(activeTextureVariant && modelController)await modelController.setTextureVariant(activeTextureVariant);
       if(modelController && withCharacter) {
         const gender = referenceGender(file);
-        if (!characterReference || (characterReference.gender && characterReference.gender !== gender)) {
+        if (!characterReference || characterReferenceIsAutomatic || (characterReference.gender && characterReference.gender !== gender)) {
           characterReference = await findLibraryReference(file);
+          characterReferenceIsAutomatic = true;
         }
         if (current !== serial) return;
         if (characterReference && characterReference.id !== file.id)
@@ -936,7 +939,10 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
     if(!modelController?.setCharacterModel)return;
     try{
       if(!withCharacter){await modelController.setCharacterModel(null);return;}
-      if(!characterReference) characterReference=await findLibraryReference(picked);
+      if(!characterReference || characterReferenceIsAutomatic){
+        characterReference=await findLibraryReference(picked);
+        characterReferenceIsAutomatic=true;
+      }
       if(!characterReference){characterHint.textContent='Tidak ditemukan YDD head freemode untuk gender terpilih di Clothing Library lokal.';return;}
       if(picked?.id===characterReference.id)return;
       await modelController.setCharacterModel(characterReference);
@@ -960,6 +966,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
       return;
     }
     characterReference={id:picked.id,name:picked.name,gender:referenceGender(picked)};
+    characterReferenceIsAutomatic=false;
     showCharacterStatus();
     if(withCharacter)applyCharacter();
   };
