@@ -46,3 +46,17 @@
 }
 .ditasha-character-maker .cm-face-preview-toggle input {accent-color:#d5b444;}
 .ditasha-character-maker [data-face-state] {color:#d8c58b;font-size:11px;}
+
+/* Character Maker fixes for global form styles seen in the desktop build */
+.ditasha-character-maker .cm-face-preview-toggle input[type=checkbox]{
+  appearance:auto!important;inline-size:18px!important;block-size:18px!important;
+  width:18px!important;height:18px!important;min-height:0!important;
+  flex:0 0 18px;padding:0!important;margin:0!important;
+  background:transparent!important;border:0!important;
+}
+.ditasha-character-maker .cm-advanced{border:1px solid #354358;border-radius:10px;padding:10px 12px;}
+.ditasha-character-maker .cm-advanced>summary{cursor:pointer;color:#c1cbda;font-size:12px;}
+.ditasha-character-maker .cm-advanced .cm-actions{margin-top:12px;align-items:center;}
+.ditasha-character-maker .cm-advanced select{width:auto;max-width:100%;}
+.ditasha-character-maker .cm-layout>main>.cm-model-preview{min-height:340px;}
+.ditasha-character-maker [data-save]{font-weight:700;}
