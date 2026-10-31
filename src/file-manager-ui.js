@@ -104,6 +104,8 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
     api = () => window.ditashaFiles;
   const assetPreview = createFilePreview($('fmImage'));
   const ytdPreview = createFilePreview($('fmYtdCanvas'));
+  let modelController = null;
+  let activeTextureVariant = null;
   let location = '',
     offset = 0,
     total = 0,
@@ -325,6 +327,8 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
   function clearPreview() {
     assetPreview.clear();
     ytdPreview.clear();
+    modelController = null;
+    activeTextureVariant = null;
     serial++;
     $('fmYtdPreview').hidden = true;
     $('fmYtdName').textContent = '';
@@ -369,6 +373,10 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
         const show=texture=>{
           if(current!==serial)return;
           $('fmYtdName').textContent=texture.name;
+          activeTextureVariant = texture.id;
+          if(modelController?.setTextureVariant)modelController.setTextureVariant(texture.id).catch(error=>{
+            if(current===serial)$('fmNote').textContent='Gagal mengganti tekstur 3D: '+error.message;
+          });
           $('fmYtdPreview').hidden=false;
           buttons.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.textureId===String(texture.id))));
           ytdPreview.show({id:texture.id,name:texture.name},api()).catch(error=>{
@@ -416,7 +424,12 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
       } catch (e) {
         if (current === serial) $('fmImage').textContent = e.message;
       }
-    } else if (/\.(ydd|ydr|yft|ytd|dds)$/i.test(file.name)) await assetPreview.show(file, api());
+    } else if (/\.(ydd|ydr|yft|ytd|dds)$/i.test(file.name)) {
+      const previewController = await assetPreview.show(file, api());
+      if(current!==serial)return;
+      modelController = previewController?.setTextureVariant ? previewController : null;
+      if(activeTextureVariant && modelController)await modelController.setTextureVariant(activeTextureVariant);
+    }
     else $('fmImage').innerHTML = icon('document');
   }
   async function list() {
