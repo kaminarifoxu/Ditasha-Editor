@@ -1,4 +1,4 @@
-import { resolveOutfitEntries } from './clothing-outfit-files.js';
+import { resolveOutfitEntries, freemodeImportName } from './clothing-outfit-files.js';
 import { mountFreemodeCharacter } from './freemode-character.js';
 import { outfitLayerWarnings } from './booth-clipping-check.js';
 import { createEmoteVault } from './emote-vault.js';
@@ -2388,7 +2388,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       const files = [];
       for (const {packId, entry} of selected) {
         const data = await library.previewRead(packId, entry.relativePath);
-        files.push(new File([data.bytes], data.name));
+        files.push(new File([data.bytes], freemodeImportName(entry)));
       }
       await importFiles(files, 'clothing', 'auto', { targetActorId: owner.id });
       const risks = outfitLayerWarnings(assets, owner.id);
