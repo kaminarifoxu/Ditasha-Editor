@@ -153,5 +153,8 @@ test('freemode import retains actual ped reference file types (YFT and YDR) alon
     const pack = await library.importDirectory({directory: folder, pack: 'Freemode reference'});
     assert.deepEqual(pack.files.map(f => path.extname(f.name)).sort(), ['.ydd','.ydr','.yft']);
     assert.equal(pack.files.find(f => f.name.endsWith('.ydd')).gender,'female');
+    const yft = pack.files.find(f => f.name.endsWith('.yft'));
+    const binary = await library.readAsset(pack.id, yft.relativePath);
+    assert.equal(Buffer.from(binary.bytes).toString(), 'RSC7');
   } finally { await fs.rm(root,{recursive:true,force:true}); }
 });
