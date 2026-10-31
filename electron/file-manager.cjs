@@ -23,6 +23,20 @@ function createFileManager({
   filesApp = createFilesApp({ app, shell }),
   onState = () => {},
 }) {
+  const settingsPath=path.join(app.getPath('userData'),'file-manager-network.json');
+  async function networkSettings(next) {
+    if(next===undefined){
+      try {const v=JSON.parse(await fs.readFile(settingsPath,'utf8'));return {networkPath:typeof v.networkPath==='string'?v.networkPath:''};}
+      catch(e){if(e.code==='ENOENT')return {networkPath:''};throw e;}
+    }
+    if(typeof next.networkPath!=='string'||next.networkPath.length>1024)throw Error('Alamat SMB tidak valid.');
+    const networkPath=next.networkPath.trim();
+    if(networkPath && (process.platform!=='win32'||!/^\\\\[^\\/]+\\[^\\/]+(?:\\.*)?$/.test(networkPath)||networkPath.split('\\').includes('..')))
+      throw Error('Masukkan path SMB Windows seperti \\\\NAS\\Assets.');
+    await fs.mkdir(path.dirname(settingsPath),{recursive:true});
+    await fs.writeFile(settingsPath,JSON.stringify({networkPath},null,2),'utf8');
+    return {networkPath};
+  }
   let session, plan, controller, lastOutput;
   let state = { busy: false, message: 'Buka folder aset untuk memulai.', processed: 0 };
   function emit(patch) {
@@ -92,6 +106,7 @@ function createFileManager({
     );
   }
   const api = {
+    networkSettings,
     state: () => ({
       ...state,
       root: session
@@ -203,8 +218,10 @@ function createFileManager({
         : 'name';
       const direction = value.descending === true ? -1 : 1;
       const queried = query(value);
+      const modelOnly=value.modelOnly===true;
+      const visibleQuery=modelOnly?queried.filter(f=>/\\.(ydd|ydr|yft)$/i.test(f.name)):queried;
       const paired = pairTextureGroups(queried);
-      const files = paired.visible.sort((a, b) => {
+      const files = (modelOnly?visibleQuery:paired.visible).sort((a, b) => {
         const order =
           key === 'size' || key === 'modified'
             ? a[key] - b[key]
@@ -452,6 +469,7 @@ function registerFileManager({ ipcMain, trusted, win, ...options }) {
     'cancel',
     'reveal',
     'filesApp',
+    'networkSettings',
   ]) {
     ipcMain.handle('ditasha:files-' + name, (event, value) => {
       trusted(event);
