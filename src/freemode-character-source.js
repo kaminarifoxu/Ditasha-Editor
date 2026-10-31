@@ -28,5 +28,8 @@ export function resolveCharacterBodyEntries(packs, baseModel, gender) {
       if(!seen.has(entry.relativePath)){seen.add(entry.relativePath);result.push({packId:pack.id,entry});}
     }
   }
+  // The matching freemode YFT supplies the original GTA skeleton when available.
+  const skeleton=pack.files.find(f=>/\.yft$/i.test(f.name) && f.gender===gender);
+  if(skeleton && !seen.has(skeleton.relativePath))result.push({packId:pack.id,entry:skeleton});
   return result;
 }
