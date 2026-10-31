@@ -57,6 +57,16 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
 <section id="fmPlanPanel" class="fm-plan" hidden><div class="fm-heading"><div><span class="eyebrow">RENCANA SORTING</span><h2 id="fmPlanTitle"></h2></div><button id="fmPlanClose" aria-label="Tutup pratinjau">${icon('cross')}</button></div><p class="muted">Periksa tujuan salinan. Nama dan struktur sumber dipertahankan di dalam kategori. Maksimal 100 contoh file ditampilkan.</p><div id="fmPlanCounts" class="fm-counts"></div><div id="fmPlanEntries" class="fm-plan-entries"></div><div class="fm-plan-footer"><span class="muted">Pilih output di luar sumber. Setiap proses membuat folder hasil baru.</span><button id="fmCopy" class="primary">${icon('copy')} Pilih output & salin</button></div></section>
 <footer class="fm-status"><span id="fmStatus" role="status">Buka folder aset untuk memulai.</span><button id="fmCancel" hidden>Batalkan proses</button></footer>
 `;
+  // Inspector has two stable columns in expanded mode: 3D on the left,
+  // details and companion YTD on the right. Keep texture out of the 3D canvas.
+  const inspector = root.querySelector('.fm-inspector');
+  const meta = document.createElement('div');
+  meta.className = 'fm-inspector-meta';
+  for (const selector of ['#fmName','#fmDetails','#fmNote','.fm-open-actions','#fmYtdPreview','#fmCompanion','.fm-sort-actions']) {
+    const item = inspector.querySelector(selector);
+    if (item) meta.append(item);
+  }
+  inspector.append(meta);
   root.classList.add('fm-explorer');
   const side = root.querySelector('.fm-sidebar'),
     bar = root.querySelector('.fm-commandbar');
@@ -354,8 +364,8 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
         const title = document.createElement('strong'); title.textContent = 'YTD pendamping';
         const name = document.createElement('span'); name.textContent = data.companion.name;
         const button = document.createElement('button'); button.type = 'button';
-        button.textContent = 'Lihat tekstur YTD';
-        button.onclick = () => assetPreview.show({id:data.companion.id,name:data.companion.name}, api());
+        button.textContent = 'Lihat YTD di kanan';
+        button.onclick = () => { $('fmYtdPreview').scrollIntoView({block:'nearest',behavior:'smooth'}); };
         box.replaceChildren(title,name,button); box.hidden = false;
         $('fmYtdName').textContent = data.companion.name;
         $('fmYtdPreview').hidden = false;
