@@ -91,9 +91,13 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
   const smbButton = document.createElement('button');
   smbButton.type = 'button';
   smbButton.id = 'fmSmb';
-  smbButton.textContent = 'SMB / Jaringan';
+  smbButton.textContent = 'Pengaturan SMB';
   smbButton.title = 'Buka folder jaringan Windows menggunakan \\\\server\\share';
   more.querySelector('div').prepend(smbButton);
+  const modelOnlyButton=document.createElement('button');
+  modelOnlyButton.id='fmModelOnly';modelOnlyButton.type='button';
+  modelOnlyButton.textContent='3D saja: Aktif';
+  bar.append(modelOnlyButton);
   bar.append(more);
   side.prepend(root.querySelector('.fm-tree-head'));
   side.querySelector('.fm-tree-head .eyebrow').textContent = 'Navigasi';
@@ -108,6 +112,10 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
   nav.after(root);
   const $ = (id) => root.querySelector('#' + id),
     api = () => window.ditashaFiles;
+  const settings=document.createElement('section');
+  settings.className='fm-network-settings';settings.hidden=true;
+  settings.innerHTML='<header><strong>Pengaturan SMB / Jaringan</strong><button type="button" data-close aria-label="Tutup">✕</button></header><label>Alamat folder jaringan (UNC)<input data-path type="text" spellcheck="false" placeholder="\\\\NAS\\Assets" /></label><p>Gunakan share yang sudah bisa diakses melalui Windows. Tidak menyimpan username atau password.</p><div class="fm-network-actions"><button type="button" data-save>Simpan alamat</button><button type="button" data-connect>Buka di File Manager</button></div><p data-feedback role="status"></p>';
+  root.append(settings);
   const assetPreview = createFilePreview($('fmImage'));
   const ytdPreview = createFilePreview($('fmYtdCanvas'));
   let modelController = null;
@@ -126,7 +134,8 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
   let orderBy = 'name',
     descending = false,
     view = 'list',
-    detailsOpen = true;
+    detailsOpen = true,
+    modelOnly = true;
   let history = [''],
     historyIndex = 0,
     tabSerial = 1;
@@ -280,6 +289,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
     offset,
     orderBy,
     descending,
+    modelOnly,
   });
   function controls() {
     root.querySelectorAll('button,input,select').forEach((e) => {
@@ -584,11 +594,34 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
     setProject('files', rootInfo.name);
     await list();
   }
-  $('fmSmb').onclick = () => {
-    const networkPath = window.prompt('Alamat SMB Windows (contoh: \\\\NAS\\Assets). Gunakan login Windows yang sudah terhubung:', '\\\\');
-    if (!networkPath || networkPath === '\\\\') return;
-    run(() => choose({networkPath:networkPath.trim()}));
+  const smbInput=settings.querySelector('[data-path]');
+  const smbFeedback=settings.querySelector('[data-feedback]');
+  const loadSmb=async()=>{const stored=await api().networkSettings();smbInput.value=stored.networkPath||'';};
+  $('fmSmb').onclick=()=>{
+    more.open=false;settings.hidden=false;
+    loadSmb().catch(e=>{smbFeedback.textContent=e.message;});
   };
+  settings.querySelector('[data-close]').onclick=()=>{settings.hidden=true;};
+  settings.querySelector('[data-save]').onclick=async()=>{
+    try{await api().networkSettings({networkPath:smbInput.value.trim()});smbFeedback.textContent='Alamat SMB tersimpan permanen.';}
+    catch(e){smbFeedback.textContent=e.message;}
+  };
+  settings.querySelector('[data-connect]').onclick=async()=>{
+    try{
+      const saved=await api().networkSettings({networkPath:smbInput.value.trim()});
+      if(!saved.networkPath)throw Error('Isi alamat SMB terlebih dahulu.');
+      settings.hidden=true;
+      run(()=>choose({networkPath:saved.networkPath}));
+    }catch(e){smbFeedback.textContent=e.message;}
+  };
+  $('fmModelOnly').onclick=()=>run(async()=>{
+    modelOnly=!modelOnly;
+    $('fmModelOnly').textContent='3D saja: '+(modelOnly?'Aktif':'Nonaktif');
+    $('fmModelOnly').setAttribute('aria-pressed',String(modelOnly));
+    offset=0;
+    if(rootInfo)await list();
+  });
+  $('fmModelOnly').setAttribute('aria-pressed','true');
   $('fmChoose').onclick = () => run(() => choose());
   $('fmRefresh').onclick = () => run(() => choose(true));
   $('fmHome').onclick = () => run(() => navigate(''));
