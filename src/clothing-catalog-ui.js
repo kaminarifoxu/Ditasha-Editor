@@ -1,4 +1,4 @@
-import { resolveOutfitEntries } from './clothing-outfit-files.js';
+import { resolveOutfitEntries, freemodeImportName } from './clothing-outfit-files.js';
 export function mountClothingCatalog({ openPreview } = {}) {
   if (!window.ditashaClothing) return;
   const tab = document.createElement('button');
@@ -83,7 +83,7 @@ export function mountClothingCatalog({ openPreview } = {}) {
             const modelFiles = [];
             for (const entry of selected) {
               const data = await window.ditashaClothing.previewRead(id, entry.relativePath);
-              modelFiles.push(new File([data.bytes], data.name));
+              modelFiles.push(new File([data.bytes], freemodeImportName(entry)));
             }
             await openPreview(modelFiles);
             root.hidden = true;
@@ -194,7 +194,7 @@ export function mountClothingCatalog({ openPreview } = {}) {
     const files = [];
     for (const {packId, entry} of resolveOutfitEntries(packs, slots)) {
       const loaded = await window.ditashaClothing.previewRead(packId, entry.relativePath);
-      files.push(new File([loaded.bytes], loaded.name));
+      files.push(new File([loaded.bytes], freemodeImportName(entry)));
     }
     return files;
   }
