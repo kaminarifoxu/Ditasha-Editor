@@ -2422,6 +2422,31 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       setStatus('Gagal memuat outfit: ' + error.message);
     } finally { button.disabled = false; }
   };
+  // Character Maker hands off saved freemode appearance metadata and optional outfit.
+  // Face blend and facial morphs are NOT applied to the offline GTA mesh yet.
+  window.addEventListener('ditasha:character-to-booth', async (event) => {
+    const detail=event.detail;
+    if (!detail?.preset || !Array.isArray(detail.files)) return;
+    try {
+      activate('photobooth');
+      const owner=currentActor();
+      if (!owner || owner.kind !== 'ped')
+        throw Error('Import ped freemode '+(detail.preset.gender === 'female' ? 'cewek' : 'cowok')+' terlebih dahulu di Photo Booth.');
+      const actual=freemodeFamily(owner.name);
+      if (actual && actual !== detail.preset.gender)
+        throw Error('Gender ped tidak sama dengan preset. Pilih ped '+detail.preset.gender+'.');
+      if (detail.files.length)
+        await importFiles(detail.files,'clothing','auto',{targetActorId:owner.id});
+      owner.characterPresetId=detail.preset.id;
+      owner.characterAppearance=detail.preset.appearance;
+      setStatus('Karakter '+detail.preset.name+' ditautkan ke '+owner.name+
+        '. Outfit berhasil dimuat. Head blend/wajah belum divisualisasikan offline.');
+      detail.onComplete?.({success:true});
+    } catch(error) {
+      setStatus('Character Maker: '+error.message);
+      detail.onComplete?.({success:false,error:error.message});
+    }
+  });
   // Clothing Library V2 sends actual persisted YDD/YTD files to the existing booth importer.
   // This imports outfit parts into the stage; it does not invent a freemode body or morphs.
   window.addEventListener('ditasha:clothing-outfit-to-booth', async (event) => {
