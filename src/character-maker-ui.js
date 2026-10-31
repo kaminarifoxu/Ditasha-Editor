@@ -21,7 +21,7 @@ export function mountCharacterMaker() {
       </aside>
       <main>
         <div class="cm-preview-head"><strong>Preview model freemode</strong><span>Putar / zoom model dengan mouse</span></div>
-        <div data-preview class="cm-model-preview" role="img" aria-label="Pratinjau 3D freemode">Pilih model dasar freemode untuk menampilkan preview 3D.</div>
+        <div class="cm-actions"><button data-load-morph type="button">Muat morph target offline</button><button data-clear-morph type="button" hidden>Hapus morph target</button><input data-morph-file type="file" accept=".json,application/json" hidden></div><div data-preview class="cm-model-preview" role="img" aria-label="Pratinjau 3D freemode">Pilih model dasar freemode untuk menampilkan preview 3D.</div>
         <label class="cm-face-preview-toggle"><input data-live-face type="checkbox" checked> Tampilkan perkiraan deformasi wajah langsung</label><small data-face-state>Preview wajah menunggu model YDD kepala.</small>
         <p class="cm-notice">Preview desktop menggunakan pendekatan deformasi geometri non-destruktif, bukan head blend native GTA V. Hasil wajah yang akurat tersedia melalui ekspor JSON ke FiveM. Model YDD asli tidak diubah.</p>
         <div class="cm-sliders"></div>
@@ -38,12 +38,13 @@ export function mountCharacterMaker() {
   let baseRefs=new Map();
   const modelPreview=createFilePreview($('[data-preview]'));
   let previewSerial=0;
+  let activeMorphPack=null;
   let faceController=null;
   let livePreviewEnabled=true;
   const updateFace=()=>{
     if(!livePreviewEnabled||!faceController)return;
     const applied=faceController.applyFace(read().appearance);
-    $('[data-face-state]').textContent=applied ? 'Preview perkiraan deformasi wajah (bukan GTA native)' : 'Tidak ditemukan geometri wajah pada model ini.';
+    $('[data-face-state]').textContent=applied ? (activeMorphPack ? 'Morph targets diterapkan; perlu kalibrasi terhadap GTA V.' : 'Preview perkiraan deformasi wajah (bukan GTA native)') : 'Tidak ditemukan geometri wajah pada model ini.';
   };
   async function updatePreview() {
     const version=++previewSerial;
@@ -63,12 +64,35 @@ export function mountCharacterMaker() {
     const api={read:async id => id==='base'?{data:data.bytes,companion}: {
       data:(await window.ditashaClothing.previewRead(pack.id,related.relativePath)).bytes
     }};
-    const controller=await modelPreview.show(model,api,{facePreview:true});
+    const controller=await modelPreview.show(model,api,{facePreview:true,morphPack:activeMorphPack});
     if(version!==previewSerial)return;
     faceController=controller?.applyFace?controller:null;
     updateFace();
   }
   $('[data-base]').onchange=()=>updatePreview().catch(e=>{$('[data-preview]').textContent='Preview gagal: '+e.message;});
+  $('[data-load-morph]').onclick=()=>$('[data-morph-file]').click();
+  $('[data-clear-morph]').onclick=()=>{
+    activeMorphPack=null;
+    $('[data-clear-morph]').hidden=true;
+    updatePreview().catch(e=>{$('[data-preview]').textContent=e.message;});
+  };
+  $('[data-morph-file]').onchange=async event=>{
+    const file=event.target.files?.[0];
+    if(!file)return;
+    try{
+      if(file.size>16*1024*1024)throw Error('Morph pack maksimum 16 MB.');
+      const pack=JSON.parse(await file.text());
+      if(pack?.version!==1||!Array.isArray(pack.targets)||pack.targets.length>128||
+        !Number.isInteger(pack.vertexCount)||pack.vertexCount<=0)throw Error('Format morph pack tidak valid.');
+      // Full per-vertex delta and finite-value validation is performed at render time.
+      activeMorphPack=pack;
+      $('[data-clear-morph]').hidden=false;
+      await updatePreview();
+      $('[data-status]').textContent='Morph target pack dimuat. Pastikan topologi model sama dengan pack.';
+    }catch(error){$('[data-status]').textContent='Gagal memuat morph target: '+error.message;}
+    finally{event.target.value='';}
+  };
+
   const features=[
     ['shapeFirst','Wajah ayah',0,45,1,0],['shapeSecond','Wajah ibu',0,45,1,0],
     ['skinFirst','Kulit ayah',0,45,1,0],['skinSecond','Kulit ibu',0,45,1,0],
