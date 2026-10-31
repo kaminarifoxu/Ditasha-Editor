@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { decodeResource } from './resource-client.js';
 import { readDds } from './asset-tools.js';
-import { resolveModelTexture, modelAlphaMode, modelPreviewAlpha } from './model-material.js';
+import { resolveModelTexture, textureNameMatches, modelAlphaMode, modelPreviewAlpha } from './model-material.js';
 import { resolveVehicleLivery, setVehicleLivery } from './vehicle-livery.js';
 import { createModelMaterial, resolveSurfaceMaps, setSurfaceMaps } from './vehicle-surface.js';
 
@@ -88,8 +88,10 @@ export function createFilePreview(container) {
       // without replacing exact-name/hash matching with unreliable guesses.
       const textureScore = textures => level.geometries.reduce((score, geometry) => {
         if (!geometry.diffuseTexture) return score;
-        const embedded = geometry.sourceEmbeddedTextures || drawable.embeddedTextures || [];
-        return score + (resolveModelTexture(geometry.diffuseTexture, textures, embedded, file.name) ? 1 : 0);
+        // Count YTD coverage only: embedded YDD textures should not make every
+        // candidate look equally good and prevent a better YTD from being chosen.
+        return score + Number(textures.some(texture =>
+          textureNameMatches(geometry.diffuseTexture, texture)));
       }, 0);
       if (!textureId && Array.isArray(file.textures) && file.textures.length > 1) {
         let bestScore = textureScore(external);
