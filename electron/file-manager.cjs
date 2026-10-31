@@ -97,11 +97,22 @@ function createFileManager({
     if (category && !Object.hasOwn(CATEGORIES, category)) throw Error('Kategori tidak valid.');
     const search = typeof value.search === 'string' ? value.search.slice(0, 250).toLowerCase() : '';
     const recursive = value.recursive === true || !!search;
+    const gender = ['male','female','unknown'].includes(value.gender) ? value.gender : '';
+    const slot = /^(?:JBIB|ACCS|LOWR|FEET|TEEF|TASK|BERD|HAND|DECL|HEAD|HAIR|UPPR|P_HEAD|P_EYES|P_EARS|P_LWRIST|P_RWRIST)$/.test(value.slot || '') ? value.slot.toLowerCase() : '';
+    const assetMeta = f => {
+      const lower = f.relative.toLowerCase();
+      const fileGender = /mp_f_freemode|(?:^|[\\/])(?:female|cewek)(?:[\\/]|$)/.test(lower) ? 'female'
+        : /mp_m_freemode|(?:^|[\\/])(?:male|cowok)(?:[\\/]|$)/.test(lower) ? 'male' : 'unknown';
+      const component = f.name.toLowerCase().match(/(?:^|\\^)((?:p_)?[a-z]+)_(?:diff_)?\\d{3,4}(?:_|\\.|$)/);
+      return {fileGender, fileSlot:component?.[1] || ''};
+    };
     return current.files.filter(
       (f) =>
         (!folder || f.relative.startsWith(folder + '/')) &&
         (recursive || path.posix.dirname(f.relative) === (folder || '.')) &&
         (!category || f.category === category) &&
+        (!gender || assetMeta(f).fileGender === gender) &&
+        (!slot || assetMeta(f).fileSlot === slot) &&
         (!search || f.relative.toLowerCase().includes(search)),
     );
   }
