@@ -109,7 +109,7 @@ class ClothingLibrary {
     const pack = packs.find(item => item.id === packId);
     const file = pack?.files.find(item => item.relativePath === relativePath);
     if (!file) throw new Error('Asset not found');
-    if (!/\.(ydd|ytd)$/i.test(file.name)) throw new Error('Asset cannot be previewed');
+    if (!/\.(ydd|ydr|yft|ytd)$/i.test(file.name)) throw new Error('Asset cannot be previewed');
     if (file.bytes > 64 * 1024 * 1024 && !/\.ytd$/i.test(file.name)) throw new Error('Preview model too large');
     return { name: file.name, bytes: await fs.readFile(ensureInside(this.root, file.relativePath)) };
   }
