@@ -1,3 +1,4 @@
+import { topologySignature } from './freemode-morph-pack.js';
 import { decodeResource } from './resource-client.js';
 import { defaultDrawableSelection, drawableView } from './drawable-selection.js';
 const validChannel=key=>/^feature:(?:[0-9]|1[0-9])$/.test(key)||/^parent:(?:first|second)$/.test(key);
@@ -26,5 +27,5 @@ export function makeMorphTarget(base,target,key,{tolerance=1e-7}={}){
    if(deltas[i])changes++;
  }
  if(!changes)throw Error('Tidak ditemukan perubahan bentuk antara dua model.');
- return {version:1,vertexCount:base.positions.length/3,targets:[{key,deltas}],details:{base:base.name,target:target.name,changedCoordinates:changes}};
+ return {version:1,vertexCount:base.positions.length/3,indexSignature:topologySignature(base.indices),targets:[{key,deltas}],details:{base:base.name,target:target.name,changedCoordinates:changes}};
 }
