@@ -15,6 +15,9 @@ class CharacterPresets {
   async save(data) {
     if (!data || !GENDERS.has(data.gender) || typeof data.name !== 'string' ||
         !data.name.trim() || data.name.length > 80) throw Error('Invalid character name or gender');
+    if (data.baseModel != null && (!/^[0-9a-f-]{36}$/i.test(data.baseModel.packId || '') ||
+        typeof data.baseModel.relativePath !== 'string' || data.baseModel.relativePath.length > 512 ||
+        !/\.ydd$/i.test(data.baseModel.relativePath))) throw Error('Invalid freemode base model');
     if (data.outfitId != null && !/^[0-9a-f-]{36}$/i.test(data.outfitId)) throw Error('Invalid outfit reference');
     const clamp = (n,min,max) => Number.isFinite(Number(n)) ? Math.max(min,Math.min(max,Number(n))) : 0;
     const appearance = data.appearance || {};
@@ -24,6 +27,7 @@ class CharacterPresets {
       id: /^[0-9a-f-]{36}$/i.test(data.id || '') ? data.id : crypto.randomUUID(),
       name:data.name.trim(),gender:data.gender,
       outfitId:data.outfitId || null,
+      baseModel:data.baseModel || null,
       appearance:{
         shapeFirst:clamp(appearance.shapeFirst||0,0,45),
         shapeSecond:clamp(appearance.shapeSecond||0,0,45),
