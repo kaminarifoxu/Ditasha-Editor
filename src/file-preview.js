@@ -83,6 +83,28 @@ export function createFilePreview(container) {
       const drawable = drawableView(drawables, defaultDrawableSelection(drawables)),
         level = drawable?.lods?.[0];
       if (!level?.geometries.length) throw Error('Geometri model tidak tersedia.');
+      // A drawable may have many YTD variants. The first sorted YTD is not
+      // necessarily the one containing its diffuse textures. Probe alternatives
+      // without replacing exact-name/hash matching with unreliable guesses.
+      const textureScore = textures => level.geometries.reduce((score, geometry) => {
+        if (!geometry.diffuseTexture) return score;
+        const embedded = geometry.sourceEmbeddedTextures || drawable.embeddedTextures || [];
+        return score + (resolveModelTexture(geometry.diffuseTexture, textures, embedded, file.name) ? 1 : 0);
+      }, 0);
+      if (!textureId && Array.isArray(file.textures) && file.textures.length > 1) {
+        let bestScore = textureScore(external);
+        // Bounded scanning avoids blocking large libraries or thousands of variants.
+        for (const candidate of file.textures.slice(0, 16)) {
+          if (version !== generation || bestScore >= level.geometries.length) break;
+          if (candidate.id === data.companion?.id) continue;
+          try {
+            const result = await api.read(candidate.id);
+            const textures = (await decodeResource('ytd', new Uint8Array(result.data).buffer)).textures;
+            const score = textureScore(textures);
+            if (score > bestScore) { external = textures; bestScore = score; }
+          } catch { /* Keep the usable variation and original mesh. */ }
+        }
+      }
       const host = document.createElement('div');
       host.className = 'fm-model-preview';
       container.replaceChildren(host);
