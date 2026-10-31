@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('ditashaFiles', {
   state: () => ipcRenderer.invoke('ditasha:files-state'),
   filesApp: (value) => ipcRenderer.invoke('ditasha:files-filesApp', value),
   choose: (refresh = false) => ipcRenderer.invoke('ditasha:files-choose', refresh),
+  networkSettings: (value) => ipcRenderer.invoke('ditasha:files-networkSettings', value),
   list: (query) => ipcRenderer.invoke('ditasha:files-list', query),
   read: (id) => ipcRenderer.invoke('ditasha:files-read', id),
   plan: (query) => ipcRenderer.invoke('ditasha:files-plan', query),
