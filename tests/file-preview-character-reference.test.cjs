@@ -11,3 +11,12 @@ test('expanded preview has optional user-supplied character reference model',()=
  assert.match(engine,/await decodeResource\(kind, new Uint8Array\(bytes\.data\)\.buffer\)/);
  assert.match(engine,/setTextureVariant, setCharacterModel/);
 });
+
+test('automatic freemode reference follows the selected asset while manual reference stays pinned',()=>{
+ const ui=read('src/file-manager-ui.js');
+ assert.match(ui,/let characterReferenceIsAutomatic = false/);
+ assert.match(ui,/characterReferenceIsAutomatic \|\|/);
+ assert.match(ui,/characterReferenceIsAutomatic=true/);
+ assert.match(ui,/characterReferenceIsAutomatic=false/);
+ assert.match(ui,/item\.textureVariant === 'a'/);
+});
