@@ -134,13 +134,14 @@ export function mountCharacterMaker() {
       const outfit=outfits.find(x=>x.id===preset.outfitId);
       const packs=await window.ditashaClothing.list();
       const files=[];
+      let baseFile=null;
       const base=preset.baseModel;
       if(base){
         const pack=packs.find(p=>p.id===base.packId);
         const entry=pack?.files.find(f=>f.relativePath===base.relativePath);
         if(!entry)throw Error('Model freemode tidak ditemukan. Pilih model dasar yang tersedia.');
         const data=await window.ditashaClothing.previewRead(pack.id,entry.relativePath);
-        files.push(new File([data.bytes],freemodeImportName(entry)));
+        baseFile=new File([data.bytes],freemodeImportName(entry));
       }
       if(outfit){
         for(const {packId,entry} of resolveOutfitEntries(packs,outfit.slots)){
@@ -150,7 +151,7 @@ export function mountCharacterMaker() {
       }
       const result=await new Promise(resolve=>{
         window.dispatchEvent(new CustomEvent('ditasha:character-to-booth',
-          {detail:{preset,files,onComplete:resolve}}));
+          {detail:{preset,files,baseFile,onComplete:resolve}}));
       });
       if(!result?.success)throw Error(result?.error||'Photo Booth tidak tersedia.');
       host.hidden=true;
