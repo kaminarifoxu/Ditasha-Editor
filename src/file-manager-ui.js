@@ -832,31 +832,46 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
   root.addEventListener('keydown', (event) => { if (event.key === 'Escape') { forgetPlan(); root.classList.remove('fm-preview-expanded'); } });
   const characterCheckbox=characterTools.querySelector('[data-with-character]');
   const characterHint=characterTools.querySelector('[data-character-hint]');
+  const showCharacterStatus=()=>{
+    if(!withCharacter){characterHint.textContent='Item saja';return;}
+    if(!characterReference){characterHint.textContent='Belum ada karakter referensi. Pilih YDD tubuh/freemode terlebih dahulu, lalu klik Jadikan referensi badan.';return;}
+    characterHint.textContent='Referensi badan: '+characterReference.name;
+  };
   const applyCharacter=async()=>{
     const ticket=++pendingCharacter;
+    showCharacterStatus();
     if(!modelController?.setCharacterModel)return;
     try{
       if(!withCharacter||!characterReference){await modelController.setCharacterModel(null);return;}
-      if(picked?.id===characterReference.id) return;
+      if(picked?.id===characterReference.id)return;
       await modelController.setCharacterModel(characterReference);
-      if(ticket===pendingCharacter)characterHint.textContent='Referensi: '+characterReference.name;
+      if(ticket===pendingCharacter)showCharacterStatus();
     }catch(error){if(ticket===pendingCharacter)characterHint.textContent='Referensi gagal: '+error.message;}
   };
   characterCheckbox.onchange=()=>{
     withCharacter=characterCheckbox.checked;
-    characterHint.textContent=withCharacter?'Mencari model badan referensi…':'Item saja';
+    showCharacterStatus();
     applyCharacter();
   };
   characterTools.querySelector('[data-use-base]').onclick=()=>{
-    if(!picked || !/\\.(ydd|ydr)$/i.test(picked.name))return;
+    if(!picked || !/\.(ydd|ydr)$/i.test(picked.name)){
+      characterHint.textContent='Pilih file YDD/YDR karakter terlebih dahulu.';
+      return;
+    }
+    // A clothing drawable is not a freemode body. Avoid silently saving
+    // clothing as a reference model that can never display a character.
+    if(/(?:^|[\\/\\^])(?:jbib|accs|lowr|feet|teef|task|berd|hand|decl|uppr|hair|p_head|p_eyes|p_ears)_\d{3,4}/i.test(picked.name)){
+      characterHint.textContent='Ini item pakaian, bukan karakter. Pilih YDD model badan/freemode dulu.';
+      return;
+    }
     characterReference={id:picked.id,name:picked.name};
-    characterHint.textContent='Referensi tersimpan untuk folder ini: '+picked.name;
+    showCharacterStatus();
     if(withCharacter)applyCharacter();
   };
   $('fmExpandPreview').onclick = () => {
     const enlarged = root.classList.toggle('fm-preview-expanded');
     characterTools.hidden=!enlarged;
-    if(enlarged && withCharacter)applyCharacter();
+    if(enlarged){showCharacterStatus();if(withCharacter)applyCharacter();}
     $('fmExpandPreview').setAttribute('aria-pressed', String(enlarged));
     $('fmExpandPreview').textContent = enlarged ? '✕ Kecilkan preview' : '⛶ Perbesar 3D';
     window.dispatchEvent(new Event('resize'));
