@@ -1,0 +1,1 @@
+Bundled user-supplied GTA freemode references are placed here by npm run prepare:freemode.\nThe GTA binaries are intentionally not tracked in Git.\n
