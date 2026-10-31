@@ -2453,7 +2453,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         files.push(new File([data.bytes],freemodeImportName(entry)));
       }
       const result=await new Promise(resolve=>window.dispatchEvent(new CustomEvent(
-        'ditasha:character-to-booth',{detail:{preset:selected,files,baseFiles,onComplete:resolve}})));
+        'ditasha:character-to-booth',{detail:{preset:selected,files,baseFiles,morphPack:selected.morphPack,onComplete:resolve}})));
       if(!result.success)throw Error(result.error);
     }catch(error){setStatus('Karakter tersimpan: '+error.message);}
   };
