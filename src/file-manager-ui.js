@@ -184,10 +184,10 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
     // Build a neutral freemode body from a coherent single pack, not arbitrary
     // clothing found in unrelated collections. Keep one drawable per component.
     const slots = ['head','uppr','lowr','hand','feet'];
-    const selectedComponent = String(file?.name || '').match(/(?:^|\\^)(head|uppr|lowr|hand|feet)_\\d{3,4}/i)?.[1]?.toLowerCase();
+    const selectedComponent = String(file?.name || '').match(/(?:^|\^)(head|uppr|lowr|hand|feet)_\d{3,4}/i)?.[1]?.toLowerCase();
     const parts = slots.filter(slot => slot !== selectedComponent).map(slot => {
       const entries = chosen.pack.files.filter(entry =>
-        entry.gender === gender && entry.component === slot && /\\.ydd$/i.test(entry.name));
+        entry.gender === gender && entry.component === slot && /\.ydd$/i.test(entry.name));
       entries.sort((a,b) =>
         Number(a.drawable !== 0) - Number(b.drawable !== 0) ||
         String(a.name).localeCompare(String(b.name)));
