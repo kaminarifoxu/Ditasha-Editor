@@ -727,3 +727,20 @@
 @media (max-width: 850px) {
   .workspace-shell .fm-modern.fm-preview-expanded .fm-inspector { inset: 6vh 3vw !important; }
 }
+
+/* Compact offscreen renderer uses the actual native YDD+YTD model preview to render grid thumbnails. */
+.fm-thumbnail-render-host {
+  position: fixed; left: -10000px; top: 0; width: 188px; height: 168px;
+  opacity: 1; overflow: hidden; pointer-events: none; z-index: -1;
+}
+.fm-thumbnail-render-host .fm-model-preview { width: 188px; height: 168px; min-height: 168px; }
+.fm-thumbnail-render-host canvas { width: 100%; height: 100%; display: block; }
+.fm-explorer .fm-grid .fm-thumbnail {
+  display: block; width: 100%; height: 98px; max-height: 98px; object-fit: contain;
+  border-radius: 8px; background: radial-gradient(ellipse at top, #252c35, #10141b);
+}
+.fm-explorer .fm-companion { margin-top: 12px; border: 1px solid var(--line); border-radius: 10px; padding: 11px; display: grid; gap: 8px; }
+.fm-explorer .fm-companion[hidden] { display: none !important; }
+.fm-explorer .fm-companion strong { font-size: 12px; }
+.fm-explorer .fm-companion span { overflow-wrap: anywhere; font-size: 11px; opacity: .85; }
+.fm-explorer .fm-companion button { border: 1px solid var(--line); border-radius: 8px; padding: 9px; cursor: pointer; }
