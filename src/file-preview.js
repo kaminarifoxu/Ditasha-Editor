@@ -199,12 +199,14 @@ export function createFilePreview(container) {
       };
       // Switch YTD variants in-place: materials update without recreating model,
       // camera, controls or renderer. Source files remain untouched.
+      let textureRequest = 0;
       const setTextureVariant = async (textureId) => {
+        const request = ++textureRequest;
         if (version !== generation) return false;
         const selected = await api.read(textureId);
-        if (version !== generation) return false;
+        if (version !== generation || request !== textureRequest) return false;
         const variant = (await decodeResource('ytd', new Uint8Array(selected.data).buffer)).textures;
-        if (version !== generation) return false;
+        if (version !== generation || request !== textureRequest) return false;
         for (const { mesh, g, embedded } of materialBindings) {
           const diffuse = resolveModelTexture(g.diffuseTexture, variant, embedded, file.name);
           // Keep the current diffuse if the selected dictionary lacks a match.
