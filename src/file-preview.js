@@ -208,37 +208,54 @@ export function createFilePreview(container) {
           bodyReference = null;
         }
         if (!reference || version !== generation) { draw(); return false; }
-        const bytes = await api.read(reference.id);
-        const kind = reference.name.split('.').at(-1).toLowerCase();
-        if (!['ydd','ydr'].includes(kind)) throw Error('Referensi karakter harus YDD atau YDR.');
-        const parsed = await decodeResource(kind, new Uint8Array(bytes.data).buffer);
-        let referenceTextures = [];
-        if(bytes.companion) {
+        bodyReference = new THREE.Group();
+        bodyReference.name = 'body-reference';
+        const parts = Array.isArray(reference.parts) && reference.parts.length
+          ? reference.parts : [reference];
+        const failures = [];
+        for (const part of parts) {
           try {
-            const ytd=await api.read(bytes.companion.id);
-            referenceTextures=(await decodeResource('ytd',new Uint8Array(ytd.data).buffer)).textures;
-          }catch { /* Preserve reference geometry if the YTD is missing. */ }
+            if (version !== generation) return false;
+            const bytes = await api.read(part.id);
+            const kind = part.name.split('.').at(-1).toLowerCase();
+            if (!['ydd','ydr'].includes(kind)) continue;
+            const parsed = await decodeResource(kind, new Uint8Array(bytes.data).buffer);
+            let referenceTextures = [];
+            if (bytes.companion) {
+              try {
+                const ytd = await api.read(bytes.companion.id);
+                referenceTextures = (await decodeResource('ytd', new Uint8Array(ytd.data).buffer)).textures;
+              } catch { /* A missing YTD must not discard readable geometry. */ }
+            }
+            if (version !== generation) return false;
+            const refDrawable = drawableView(parsed, defaultDrawableSelection(parsed));
+            const refLevel = refDrawable?.lods?.[0];
+            if (!refLevel?.geometries?.length) { failures.push(part.name); continue; }
+            const section = new THREE.Group();
+            section.name = part.slot || part.name;
+            for (const g of refLevel.geometries) {
+              const geometry = new THREE.BufferGeometry();
+              geometry.setAttribute('position', new THREE.BufferAttribute(g.positions, 3));
+              if (g.uvs) geometry.setAttribute('uv', new THREE.BufferAttribute(g.uvs, 2));
+              geometry.setIndex(new THREE.BufferAttribute(g.indices, 1));
+              if (g.normals) geometry.setAttribute('normal', new THREE.BufferAttribute(g.normals, 3));
+              else geometry.computeVertexNormals();
+              const embedded = g.sourceEmbeddedTextures || refDrawable.embeddedTextures || [];
+              const tex = resolveModelTexture(g.diffuseTexture, referenceTextures, embedded, part.name);
+              const map = tex ? new THREE.DataTexture(tex.out, tex.w, tex.h, THREE.RGBAFormat) : null;
+              if (map) { map.flipY = false; map.colorSpace = THREE.SRGBColorSpace; map.needsUpdate = true; maps.push(map); }
+              const material = new THREE.MeshStandardMaterial({
+                map, color: map ? 0xffffff : 0xb9b6ad, roughness: .9,
+                side: THREE.FrontSide, depthWrite: true
+              });
+              section.add(new THREE.Mesh(geometry, material));
+            }
+            bodyReference.add(section);
+          } catch (error) { failures.push(part.name + ': ' + error.message); }
         }
         if (version !== generation) return false;
-        const refDrawable=drawableView(parsed,defaultDrawableSelection(parsed));
-        const refLevel=refDrawable?.lods?.[0];
-        if(!refLevel?.geometries?.length)throw Error('Mesh karakter tidak ditemukan pada referensi.');
-        bodyReference = new THREE.Group();
-        bodyReference.name='body-reference';
-        for(const g of refLevel.geometries){
-          const geometry=new THREE.BufferGeometry();
-          geometry.setAttribute('position',new THREE.BufferAttribute(g.positions,3));
-          if(g.uvs) geometry.setAttribute('uv',new THREE.BufferAttribute(g.uvs,2));
-          geometry.setIndex(new THREE.BufferAttribute(g.indices,1));
-          if(g.normals)geometry.setAttribute('normal',new THREE.BufferAttribute(g.normals,3));
-          else geometry.computeVertexNormals();
-          const embedded = g.sourceEmbeddedTextures || refDrawable.embeddedTextures || [];
-          const tex=resolveModelTexture(g.diffuseTexture,referenceTextures,embedded,reference.name);
-          const map=tex?new THREE.DataTexture(tex.out,tex.w,tex.h,THREE.RGBAFormat):null;
-          if(map){map.flipY=false;map.colorSpace=THREE.SRGBColorSpace;map.needsUpdate=true;maps.push(map);}
-          const material=new THREE.MeshStandardMaterial({map,color:map?0xffffff:0xb9b6ad,roughness:.9,side:THREE.FrontSide,depthWrite:true});
-          bodyReference.add(new THREE.Mesh(geometry,material));
-        }
+        if (!bodyReference.children.length)
+          throw Error('Tidak ada mesh freemode yang dapat dibaca. ' + failures.slice(0, 2).join('; '));
         group.add(bodyReference);
         const bounds = new THREE.Box3().setFromObject(group);
         const midpoint=bounds.getCenter(new THREE.Vector3());
