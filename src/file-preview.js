@@ -152,7 +152,7 @@ export function createFilePreview(container) {
         }
         group.add(mesh);
         if (facePreview && /head|face|skin/i.test(file.name+' '+(g.diffuseTexture||''))) {
-          faceMeshes.push({ geometry, original: new Float32Array(g.positions) });
+          faceMeshes.push({ geometry, original: new Float32Array(g.positions), indices: g.indices });
         }
       }
       const box = new THREE.Box3().setFromObject(group),
@@ -182,7 +182,7 @@ export function createFilePreview(container) {
         for (const item of faceMeshes) {
           let altered;
           if(morphPack){
-            try { altered=applyMorphPack(item.original,morphPack,appearance); }
+            try { altered=applyMorphPack(item.original,morphPack,appearance,item.indices); }
             catch { altered=null; }
           }else altered=deformFacePositions(item.original, appearance?.features, appearance?.shapeMix);
           if(!altered)continue;
