@@ -94,17 +94,39 @@ export function createFilePreview(container) {
           textureNameMatches(geometry.diffuseTexture, texture)));
       }, 0);
       if (!textureId && Array.isArray(file.textures) && file.textures.length > 1) {
+        // Keep one coherent primary variant. Supplement only missing diffuse
+        // names that have exactly one alternative match across other YTD files.
+        // Never combine conflicting texture variants or choose by array order.
         let bestScore = textureScore(external);
-        // Bounded scanning avoids blocking large libraries or thousands of variants.
+        const alternate = [];
         for (const candidate of file.textures.slice(0, 16)) {
-          if (version !== generation || bestScore >= level.geometries.length) break;
+          if (version !== generation) return;
           if (candidate.id === data.companion?.id) continue;
           try {
             const result = await api.read(candidate.id);
             const textures = (await decodeResource('ytd', new Uint8Array(result.data).buffer)).textures;
+            alternate.push({id:candidate.id, textures});
             const score = textureScore(textures);
             if (score > bestScore) { external = textures; bestScore = score; }
-          } catch { /* Keep the usable variation and original mesh. */ }
+          } catch { /* A corrupt YTD cannot hide the drawable. */ }
+        }
+        const requiredNames = [...new Set(level.geometries
+          .map(g => g.diffuseTexture).filter(Boolean))];
+        // The original companion may supply a texture missing from the chosen
+        // primary variant, so include it in the conflict check too.
+        const allDictionaries = [...alternate.map(item => item.textures)];
+        if (data.companion && data.companion.id !== alternate.find(item => item.textures === external)?.id) {
+          try {
+            const original = await api.read(data.companion.id);
+            allDictionaries.push((await decodeResource('ytd', new Uint8Array(original.data).buffer)).textures);
+          } catch { /* Optional companion. */ }
+        }
+        for (const name of requiredNames) {
+          if (external.some(texture => textureNameMatches(name, texture))) continue;
+          const matches = allDictionaries.flatMap(textures =>
+            textures.filter(texture => textureNameMatches(name, texture)));
+          // Different dictionaries with the same material name are ambiguous.
+          if (matches.length === 1) external = [...external, matches[0]];
         }
       }
       // Report the exact unresolved diffuse names instead of silently showing grey.
