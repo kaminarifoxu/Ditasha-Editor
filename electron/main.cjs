@@ -241,8 +241,19 @@ else {
       if (!trustedClothingEvent(event)) throw new Error('Untrusted caller');
       return characterPresets.list();
     });
-    ipcMain.handle('ditasha:characters-save', (event, preset) => {
+    ipcMain.handle('ditasha:characters-save', async (event, preset) => {
       if (!trustedClothingEvent(event)) throw new Error('Untrusted caller');
+      if (!preset || !['male', 'female'].includes(preset.gender)) throw Error('Gender karakter tidak valid.');
+      if (preset.baseModel) {
+        const packs = await clothingLibrary.list();
+        const pack = packs.find(p => p.id === preset.baseModel.packId);
+        const file = pack?.files.find(f => f.relativePath === preset.baseModel.relativePath && /\.ydd$/i.test(f.name));
+        if (!file || file.gender !== preset.gender) throw Error('Model dasar tidak ditemukan atau gender tidak cocok.');
+      }
+      if (preset.outfitId) {
+        const outfit = (await clothingLibrary.listOutfits()).find(o => o.id === preset.outfitId);
+        if (!outfit || outfit.gender !== preset.gender) throw Error('Outfit tidak tersedia atau gender tidak cocok.');
+      }
       return characterPresets.save(preset);
     });
     ipcMain.handle('ditasha:characters-remove', (event, id) => {
