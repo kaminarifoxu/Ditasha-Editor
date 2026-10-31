@@ -23,8 +23,8 @@ function createFileManager({
   filesApp = createFilesApp({ app, shell }),
   onState = () => {},
 }) {
-  const settingsPath=path.join(app.getPath('userData'),'file-manager-network.json');
   async function networkSettings(next) {
+    const settingsPath=path.join(app.getPath('userData'),'file-manager-network.json');
     if(next===undefined){
       try {const v=JSON.parse(await fs.readFile(settingsPath,'utf8'));return {networkPath:typeof v.networkPath==='string'?v.networkPath:''};}
       catch(e){if(e.code==='ENOENT')return {networkPath:''};throw e;}
