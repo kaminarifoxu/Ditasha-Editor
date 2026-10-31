@@ -1209,7 +1209,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       stage.add(frame);
     }
     const warnings = [];
-    for (const a of actors()) a.rigReport = { skinned: 0, static: 0, sources: new Set() };
+    for (const a of actors()) a.rigReport = { skinned: 0, static: 0, transfers: 0, sources: new Set() };
     let skinned = 0,
       staticMeshes = 0;
     for (const a of assets) {
@@ -1387,7 +1387,10 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
             mesh.frustumCulled = false;
             skinned++;
             owner.rigReport.skinned++;
-            if (transfer) owner.rigReport.sources.add('Auto weight transfer (referensi ped)');
+            if (transfer) {
+              owner.rigReport.transfers++;
+              owner.rigReport.sources.add('Auto weight transfer (referensi ped)');
+            }
           } else {
             mesh = new THREE.Mesh(geom, material);
             part.add(mesh);
@@ -1634,7 +1637,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     const selected = currentActor(),
       report = selected?.rigReport;
     $('pbRigStatus').textContent = report
-      ? `${report.skinned} mesh GTA skinned · ${report.static} mesh statis/rigid. ${[...report.sources].slice(0, 2).join(' · ')}`
+      ? `${report.skinned} mesh GTA skinned · ${report.static} mesh statis/rigid · ${report.transfers || 0} transfer otomatis. ${[...report.sources].slice(0, 2).join(' · ')} (Periksa animasi dan clipping secara visual.)`
       : 'Pilih ped untuk mengatur emote.';
     const selectedEmote = selected && clipsFor(selected).find((c) => c.id === selected.motion.clip);
     if (selected?.motion.pose === 'clip' && (selectedEmote?.ycd || selectedEmote?.nativeYcd)) {
