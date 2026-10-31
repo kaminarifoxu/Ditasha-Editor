@@ -97,7 +97,7 @@ export function mountClothingCatalog({ openPreview } = {}) {
     }
     if (!rows.length) {
       const empty=document.createElement('p');empty.className='cl-empty';
-      empty.textContent = items.length ? 'Tidak ada item untuk filter ini.' : 'Library kosong. Klik Import pakaian untuk menyimpan file YDD/YTD.';
+      empty.textContent = items.length ? 'Tidak ada model sesuai filter. Coba Semua, atau cek apakah pack memiliki YDD.' : 'File Manager dan Clothing Catalog menggunakan penyimpanan berbeda. File yang terlihat di File Manager belum masuk ke library. Klik + Import folder, lalu pilih folder clothing cowok/cewek agar model YDD dan tekstur YTD muncul di sini.';
       grid.append(empty);
     }
   }
@@ -111,7 +111,7 @@ export function mountClothingCatalog({ openPreview } = {}) {
       draw();
     }catch(e){$('[data-feedback]').textContent='Gagal memuat library: '+e.message;}
   }
-  tab.onclick=()=>{root.hidden=false;refresh();};
+  tab.onclick=()=>{root.hidden=false;gender='all';category='all';root.querySelectorAll('[data-gender]').forEach(b=>b.classList.toggle('active',b.dataset.gender==='all'));refresh();};
   $('[data-close]').onclick=()=>{root.hidden=true;};
   $('[data-import]').onclick=async()=>{
     const name=window.prompt('Nama pack pakaian:', 'My Custom Pack');
