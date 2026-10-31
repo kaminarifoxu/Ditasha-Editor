@@ -83,7 +83,10 @@ export function mountCharacterMaker() {
     try{
       const base=await extractHeadGeometry(neutral),sculpt=await extractHeadGeometry(target);
       const pack=makeMorphTarget(base,sculpt,morphChannel.value);
-      activeMorphPack=pack;
+      if(activeMorphPack && activeMorphPack.vertexCount===pack.vertexCount){
+        const merged=activeMorphPack.targets.filter(x=>x.key!==morphChannel.value);
+        activeMorphPack={version:1,vertexCount:pack.vertexCount,targets:[...merged,...pack.targets]};
+      }else activeMorphPack=pack;
       $('[data-clear-morph]').hidden=false;
       await updatePreview();
       const blob=new Blob([JSON.stringify(pack)],{type:'application/json'});
@@ -146,10 +149,12 @@ export function mountCharacterMaker() {
     }
     return {id,name:$('[data-name]').value,gender:$('[data-gender]').value,
       outfitId:$('[data-outfit]').value||null,
-      baseModel:baseRefs.get($('[data-base]').value)||null,appearance};
+      baseModel:baseRefs.get($('[data-base]').value)||null,morphPack:activeMorphPack,appearance};
   };
   const fill=preset=>{
     id=preset?.id||null;
+    activeMorphPack=preset?.morphPack||null;
+    $('[data-clear-morph]').hidden=!activeMorphPack;
     $('[data-name]').value=preset?.name||'New Character';
     $('[data-gender]').value=preset?.gender||'male';
     desiredOutfit=preset?.outfitId||null;
@@ -277,7 +282,7 @@ export function mountCharacterMaker() {
       }
       const result=await new Promise(resolve=>{
         window.dispatchEvent(new CustomEvent('ditasha:character-to-booth',
-          {detail:{preset,files,baseFiles,morphPack:activeMorphPack,onComplete:resolve}}));
+          {detail:{preset,files,baseFiles,morphPack:preset.morphPack,onComplete:resolve}}));
       });
       if(!result?.success)throw Error(result?.error||'Photo Booth tidak tersedia.');
       host.hidden=true;
