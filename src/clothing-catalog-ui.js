@@ -156,7 +156,7 @@ export function mountClothingCatalog({ openPreview } = {}) {
     try {
       const outfits=await window.ditashaClothing.listOutfits();
       if (!outfits.length) { $('[data-feedback]').textContent='Belum ada outfit tersimpan.'; return; }
-      const selection=window.prompt('Pilih nomor outfit untuk dimuat:\\n'+outfits.map((o,i)=>(i+1)+'. '+o.name+' ('+o.gender+')').join('\\n'),'1');
+      const selection=window.prompt('Pilih nomor outfit untuk dimuat:\n'+outfits.map((o,i)=>(i+1)+'. '+o.name+' ('+o.gender+')').join('\n'),'1');
       if(selection===null)return;
       const index=Number(selection)-1;
       if(!Number.isInteger(index)||!outfits[index])throw Error('Nomor outfit tidak tersedia.');
@@ -195,7 +195,7 @@ export function mountClothingCatalog({ openPreview } = {}) {
       const pack = packs.find(p => p.id === slot.packId);
       const model = pack?.files.find(f => f.relativePath === slot.relativePath);
       if (!model) throw Error('File outfit tidak ditemukan di library.');
-      const related = pack.files.filter(entry => /\\.ytd$/i.test(entry.name) &&
+      const related = pack.files.filter(entry => /\.ytd$/i.test(entry.name) &&
         entry.component === model.component && entry.drawable === model.drawable &&
         (!slot.textureVariant || entry.textureVariant === slot.textureVariant));
       for (const entry of [model, ...related]) {
