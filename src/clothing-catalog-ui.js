@@ -1,3 +1,4 @@
+import { resolveOutfitEntries } from './clothing-outfit-files.js';
 export function mountClothingCatalog({ openPreview } = {}) {
   if (!window.ditashaClothing) return;
   const tab = document.createElement('button');
@@ -191,17 +192,9 @@ export function mountClothingCatalog({ openPreview } = {}) {
   async function outfitFiles(slots) {
     const packs = await window.ditashaClothing.list();
     const files = [];
-    for (const slot of slots) {
-      const pack = packs.find(p => p.id === slot.packId);
-      const model = pack?.files.find(f => f.relativePath === slot.relativePath);
-      if (!model) throw Error('File outfit tidak ditemukan di library.');
-      const related = pack.files.filter(entry => /\.ytd$/i.test(entry.name) &&
-        entry.component === model.component && entry.drawable === model.drawable &&
-        (!slot.textureVariant || entry.textureVariant === slot.textureVariant));
-      for (const entry of [model, ...related]) {
-        const loaded = await window.ditashaClothing.previewRead(pack.id, entry.relativePath);
-        files.push(new File([loaded.bytes], loaded.name));
-      }
+    for (const {packId, entry} of resolveOutfitEntries(packs, slots)) {
+      const loaded = await window.ditashaClothing.previewRead(packId, entry.relativePath);
+      files.push(new File([loaded.bytes], loaded.name));
     }
     return files;
   }
