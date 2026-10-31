@@ -1,3 +1,4 @@
+import { applyMorphPack } from './freemode-morph-pack.js';
 import { resolveCharacterBodyEntries } from './freemode-character-source.js';
 import { transferSkinWeights } from './booth-weight-transfer.js';
 import { resolveOutfitEntries, freemodeImportName } from './clothing-outfit-files.js';
@@ -1295,7 +1296,14 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
               : g.indices;
           if (!previewIndices.length) continue;
           const geom = new THREE.BufferGeometry();
-          geom.setAttribute('position', new THREE.BufferAttribute(g.positions, 3));
+          // Morph target applies to the matching actor head, never to clothing/body meshes.
+          let headPositions=g.positions;
+          if(owner.kind==='ped' && owner.characterMorphPack &&
+            /head|face/i.test(a.name+' '+(g.name||'')+' '+(g.diffuseTexture||''))){
+            try {headPositions=applyMorphPack(g.positions,owner.characterMorphPack,owner.characterAppearance);}
+            catch(error){warnings.push('Morph wajah '+a.name+': '+error.message);}
+          }
+          geom.setAttribute('position', new THREE.BufferAttribute(headPositions, 3));
           if (g.uvs) geom.setAttribute('uv', new THREE.BufferAttribute(g.uvs, 2));
           if (g.uvs2) geom.setAttribute('uv1', new THREE.BufferAttribute(g.uvs2, 2));
           geom.setIndex(new THREE.BufferAttribute(previewIndices, 1));
@@ -2470,8 +2478,10 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         await importFiles(detail.files,'clothing','auto',{targetActorId:owner.id});
       owner.characterPresetId=detail.preset.id;
       owner.characterAppearance=detail.preset.appearance;
+      owner.characterMorphPack=detail.morphPack||null;
+      rebuild({fitCamera:false});
       setStatus('Karakter '+detail.preset.name+' ditautkan ke '+owner.name+
-        '. Outfit berhasil dimuat. Head blend/wajah belum divisualisasikan offline.');
+        '. Outfit dimuat; morph wajah '+(owner.characterMorphPack ? 'diproses jika topologi kepala sesuai.' : 'tidak tersedia tanpa morph pack.'));
       detail.onComplete?.({success:true});
     } catch(error) {
       setStatus('Character Maker: '+error.message);
