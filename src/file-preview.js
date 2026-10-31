@@ -17,7 +17,7 @@ export function createFilePreview(container) {
     release();
     release = () => {};
   }
-  async function show(file, api) {
+  async function show(file, api, { snapshot = false } = {}) {
     clear();
     const version = generation;
     container.textContent = 'Memuat preview…';
@@ -84,7 +84,7 @@ export function createFilePreview(container) {
       const host = document.createElement('div');
       host.className = 'fm-model-preview';
       container.replaceChildren(host);
-      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: snapshot });
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
       host.append(renderer.domElement);
@@ -174,6 +174,7 @@ export function createFilePreview(container) {
       const observer = new ResizeObserver(draw);
       observer.observe(host);
       draw();
+      const thumbnail = snapshot ? await new Promise(resolve => renderer.domElement.toBlob(resolve, 'image/png')) : null;
       release = () => {
         observer.disconnect();
         controls.dispose();
@@ -188,6 +189,7 @@ export function createFilePreview(container) {
         renderer.forceContextLoss();
         host.remove();
       };
+      return thumbnail;
     } catch (error) {
       if (version === generation) {
         clear();
