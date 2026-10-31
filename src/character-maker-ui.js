@@ -1,3 +1,4 @@
+import { resolveCharacterBodyEntries } from './freemode-character-source.js';
 import { toIlleniumAppearance, fromIlleniumAppearance, faceFeatureNames, overlayNames } from './character-appearance.js';
 import { createFilePreview } from './file-preview.js';
 import { resolveOutfitEntries, freemodeImportName } from './clothing-outfit-files.js';
@@ -200,17 +201,9 @@ export function mountCharacterMaker() {
       const packs=await window.ditashaClothing.list();
       const files=[];
       const baseFiles=[];
-      const base=preset.baseModel;
-      if(base){
-        const pack=packs.find(p=>p.id===base.packId);
-        const entry=pack?.files.find(f=>f.relativePath===base.relativePath);
-        if(!entry)throw Error('Model freemode tidak ditemukan. Pilih model dasar yang tersedia.');
-        const data=await window.ditashaClothing.previewRead(pack.id,entry.relativePath);
+      if(preset.baseModel)for(const {packId,entry} of resolveCharacterBodyEntries(packs,preset.baseModel,preset.gender)){
+        const data=await window.ditashaClothing.previewRead(packId,entry.relativePath);
         baseFiles.push(new File([data.bytes],freemodeImportName(entry)));
-        for(const related of pack.files.filter(f=>/\.ytd$/i.test(f.name) && f.component===entry.component && f.drawable===entry.drawable)){
-          const texture=await window.ditashaClothing.previewRead(pack.id,related.relativePath);
-          baseFiles.push(new File([texture.bytes],freemodeImportName(related)));
-        }
       }
       if(outfit){
         for(const {packId,entry} of resolveOutfitEntries(packs,outfit.slots)){
