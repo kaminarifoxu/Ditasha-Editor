@@ -105,9 +105,31 @@ export function createFilePreview(container) {
           } catch { /* Keep the usable variation and original mesh. */ }
         }
       }
+      // Report the exact unresolved diffuse names instead of silently showing grey.
+      // The same strict material matching used by the main texture-search pipeline
+      // is used here; ambiguous names are never assigned an arbitrary YTD image.
+      const missingTextures = [...new Set(level.geometries
+        .filter(geometry => geometry.diffuseTexture && !resolveModelTexture(
+          geometry.diffuseTexture, external,
+          geometry.sourceEmbeddedTextures || drawable.embeddedTextures || [], file.name))
+        .map(geometry => geometry.diffuseTexture))];
       const host = document.createElement('div');
       host.className = 'fm-model-preview';
       container.replaceChildren(host);
+      if (missingTextures.length && !snapshot) {
+        const notice = document.createElement('details');
+        notice.className = 'fm-missing-textures';
+        notice.style.cssText = 'position:absolute;left:8px;bottom:8px;z-index:2;max-width:calc(100% - 16px);padding:6px 9px;background:rgba(14,19,30,.92);color:#f8d9aa;border:1px solid #8b6843;border-radius:8px;font-size:11px;line-height:1.4;overflow-wrap:anywhere';
+        const label = document.createElement('summary');
+        label.textContent = missingTextures.length + ' nama tekstur belum ditemukan · detail';
+        const content = document.createElement('div');
+        content.textContent = missingTextures.slice(0, 24).join(', ') +
+          (missingTextures.length > 24 ? ' …' : '') +
+          '. Pilih variasi YTD lain atau pastikan dictionary tekstur asli tersedia.';
+        notice.append(label, content);
+        host.style.position = 'relative';
+        host.append(notice);
+      }
       const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: snapshot, powerPreference: highPerformance ? 'high-performance' : 'default' });
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
