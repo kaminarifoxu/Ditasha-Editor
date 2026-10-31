@@ -1,3 +1,4 @@
+import { toIlleniumAppearance, fromIlleniumAppearance, faceFeatureNames, overlayNames } from './character-appearance.js';
 import { createFilePreview } from './file-preview.js';
 import { resolveOutfitEntries, freemodeImportName } from './clothing-outfit-files.js';
 export function mountCharacterMaker() {
@@ -14,7 +15,7 @@ export function mountCharacterMaker() {
         <label>Gender<select data-gender><option value="male">Cowok · mp_m_freemode_01</option><option value="female">Cewek · mp_f_freemode_01</option></select></label>
         <label>Model dasar freemode (YDD)<select data-base><option value="">Pilih model dasar</option></select></label>
         <label>Outfit dari Clothing Library<select data-outfit><option value="">Tanpa outfit</option></select></label>
-        <div class="cm-actions"><button data-new>Baru</button><button data-save>Simpan</button><button data-remove>Hapus</button></div>
+        <div class="cm-actions"><button data-new>Baru</button><button data-save>Simpan</button><button data-remove>Hapus</button><button data-export>Ekspor JSON FiveM</button><button data-import-json>Impor JSON FiveM</button><input data-json-file type="file" accept=".json,application/json" hidden></div>
       </aside>
       <main>
         <div class="cm-preview-head"><strong>Preview model freemode</strong><span>Putar / zoom model dengan mouse</span></div>
@@ -60,8 +61,8 @@ export function mountCharacterMaker() {
     ['shapeMix','Campuran bentuk wajah',0,1,.01,.5],
     ['skinMix','Campuran warna kulit',0,1,.01,.5],
     ['eyeColor','Warna mata',0,31,1,0],['hairColor','Warna rambut',0,63,1,0],
-    ...Array.from({length:20},(_,i)=>['feature'+i,'Fitur wajah '+(i+1),-1,1,.01,0]),
-    ...Array.from({length:13},(_,i)=>['overlay'+i,'Overlay '+(i+1),0,255,1,0])
+    ...Array.from({length:20},(_,i)=>['feature'+i,faceFeatureNames[i],-1,1,.01,0]),
+    ...Array.from({length:13},(_,i)=>['overlay'+i,overlayNames[i]||'Overlay 13',0,255,1,0])
   ];
   const sliders = new Map();
   for (const [key,label,min,max,step,initial] of features){
@@ -152,6 +153,31 @@ export function mountCharacterMaker() {
     try {await window.ditashaCharacters.remove(id);fill(null);await refresh();
       $('[data-status]').textContent='Karakter dihapus. Asset pakaian tetap ada.';
     }catch(e){$('[data-status]').textContent=e.message;}
+  };
+  $('[data-export]').onclick=()=>{
+    try {
+      const payload=toIlleniumAppearance(read());
+      const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+      const url=URL.createObjectURL(blob);
+      const link=document.createElement('a');link.href=url;
+      link.download='ditasha-'+$('[data-name]').value.replace(/[^a-z0-9_-]/gi,'_').slice(0,50)+'-illenium.json';
+      document.body.append(link);link.click();link.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),1000);
+      $('[data-status]').textContent='Appearance JSON FiveM diekspor. Skinning/mesh YDD tidak disertakan.';
+    } catch(error){$('[data-status]').textContent='Ekspor gagal: '+error.message;}
+  };
+  $('[data-import-json]').onclick=()=>$('[data-json-file]').click();
+  $('[data-json-file]').onchange=async(event)=>{
+    const file=event.target.files?.[0];
+    if(!file)return;
+    try {
+      if(file.size>1024*1024)throw Error('JSON lebih besar dari 1 MB.');
+      const parsed=fromIlleniumAppearance(JSON.parse(await file.text()));
+      fill({name:file.name.replace(/\.json$/i,''),...parsed});
+      await refresh();
+      $('[data-status]').textContent='Data appearance diimpor. Simpan untuk mempertahankan karakter.';
+    } catch(error){$('[data-status]').textContent='Impor gagal: '+error.message;}
+    finally {event.target.value='';}
   };
   $('[data-send]').onclick=async()=>{
     try {
