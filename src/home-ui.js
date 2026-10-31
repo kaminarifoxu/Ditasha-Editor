@@ -1,3 +1,4 @@
+import { creativeArtwork } from './home-creative-art.js';
 import { homeWorkshopIllustration } from './home-workshop-art.js';
 import { craftWorkspaces } from './craft-ui.js';
 import { ICON_CODES } from './ui-icons.js';
@@ -125,7 +126,7 @@ export function mountHome({
     card.className = 'home-suite-card';
     card.dataset.homePage = 'craft-' + id;
     card.dataset.studioGroup = group;
-    card.innerHTML = `<span class="suite-mark">${mark}</span><div><strong>${title}</strong><span>${description}</span></div><small>${group}</small>${icon('arrow-right')}`;
+    card.innerHTML = `<span class="creative-banner-copy"><span class="creative-banner-kicker">${group} / DITASHA</span><strong>${title}</strong><span class="creative-banner-description">${description}</span><span class="creative-banner-cta">Buka studio ${icon('arrow-right')}</span></span><span class="creative-banner-image">${creativeArtwork(id)}</span><span class="creative-banner-mark" aria-hidden="true">${mark}</span>`;
     card.onclick = () => activate('craft-' + id);
     root.querySelector('.home-suite-grid').append(card);
   }
