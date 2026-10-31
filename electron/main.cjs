@@ -268,8 +268,11 @@ else {
       if (!trustedClothingEvent(event)) throw new Error('Untrusted caller');
       return clothingLibrary.saveOutfit(outfit);
     });
-    ipcMain.handle('ditasha:outfits-remove', (event, id) => {
+    ipcMain.handle('ditasha:outfits-remove', async (event, id) => {
       if (!trustedClothingEvent(event)) throw new Error('Untrusted caller');
+      const characters=await characterPresets.list();
+      const dependent=characters.find(c=>c.outfitId===id);
+      if(dependent)throw Error('Outfit digunakan karakter tersimpan: '+dependent.name+'. Ubah/hapus karakter dahulu.');
       return clothingLibrary.removeOutfit(id);
     });
     ipcMain.handle('ditasha:clothing-list', (event) => {
