@@ -219,7 +219,7 @@ function createFileManager({
       const direction = value.descending === true ? -1 : 1;
       const queried = query(value);
       const modelOnly=value.modelOnly===true;
-      const visibleQuery=modelOnly?queried.filter(f=>/\\.(ydd|ydr|yft)$/i.test(f.name)):queried;
+      const visibleQuery=modelOnly?queried.filter(f=>/\.(ydd|ydr|yft)$/i.test(f.name)):queried;
       const paired = pairTextureGroups(queried);
       const files = (modelOnly?visibleQuery:paired.visible).sort((a, b) => {
         const order =
