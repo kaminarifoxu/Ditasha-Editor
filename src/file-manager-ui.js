@@ -100,9 +100,16 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
   bar.append(modelOnlyButton);
   const previewSettings = document.createElement('details');
   previewSettings.className = 'fm-preview-settings';
-  previewSettings.innerHTML = '<summary>Pengaturan preview</summary><label>Jumlah thumbnail<select data-limit><option>50</option><option>100</option><option>250</option></select></label><label>Batch render<select data-batch><option>8</option><option>12</option><option>16</option></select></label><label><input type="checkbox" data-gpu> GPU high-performance</label>';
+  previewSettings.innerHTML = '<summary>Preview <span aria-hidden="true">⚙</span></summary><div class="fm-preview-settings-body"><div class="fm-preview-settings-title">Performa preview</div><label><span>Thumbnail / halaman</span><select data-limit><option>50</option><option>100</option><option>250</option></select></label><label><span>Batch render</span><select data-batch><option>8</option><option>12</option><option>16</option></select></label><label class="fm-gpu-toggle"><span>GPU high-performance</span><input type="checkbox" data-gpu></label></div>';
   bar.append(previewSettings);
   bar.append(more);
+  const filterPanel=document.createElement('section');
+  filterPanel.className='fm-asset-filter-panel';
+  filterPanel.innerHTML='<div class="fm-filter-title">Filter aset</div><div class="fm-gender-switch" role="group" aria-label="Filter gender"><button type="button" data-gender="" aria-pressed="true">Semua</button><button type="button" data-gender="male">Cowok</button><button type="button" data-gender="female">Cewek</button><button type="button" data-gender="unknown">Lainnya</button></div><div class="fm-filter-title">Komponen pakaian</div><div class="fm-slot-grid" role="group" aria-label="Filter komponen"></div><button class="fm-folder-switch" type="button">Lihat folder</button>';
+  const slots=['SEMUA','JBIB','ACCS','LOWR','FEET','TEEF','TASK','BERD','HAND','DECL','HEAD','HAIR','UPPR','P_HEAD','P_EYES','P_EARS'];
+  for(const slot of slots){const b=document.createElement('button');b.type='button';b.dataset.slot=slot==='SEMUA'?'':slot;b.textContent=slot;b.setAttribute('aria-pressed',String(slot==='SEMUA'));filterPanel.querySelector('.fm-slot-grid').append(b);}
+  side.prepend(filterPanel);
+  side.classList.add('fm-filters-active');
   side.prepend(root.querySelector('.fm-tree-head'));
   side.querySelector('.fm-tree-head .eyebrow').textContent = 'Navigasi';
   side.querySelector(':scope > .eyebrow')?.remove();
@@ -122,6 +129,9 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
   root.append(settings);
   const assetPreview = createFilePreview($('fmImage'));
   const ytdPreview = createFilePreview($('fmYtdCanvas'));
+  let activeGender='';
+  let activeSlot='';
+  let folderPanelVisible=false;
   let modelController = null;
   let activeTextureVariant = null;
   let location = '',
@@ -301,6 +311,8 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
     orderBy,
     descending,
     modelOnly,
+    gender:activeGender,
+    slot:activeSlot,
     previewPageSize: previewOptions.limit === 250 ? 250 : 100,
   });
   function controls() {
@@ -497,6 +509,9 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
       );
       const label = document.createElement('span');
       label.textContent = file.name;
+      const genderMatch=file.relative.toLowerCase();
+      const genderLabel=/mp_f_freemode|(?:^|\\/)(?:female|cewek)(?:\\/|$)/.test(genderMatch)?'Cewek':/mp_m_freemode|(?:^|\\/)(?:male|cowok)(?:\\/|$)/.test(genderMatch)?'Cowok':null;
+      if(genderLabel){const badge=document.createElement('small');badge.className='fm-gender-badge';badge.textContent=genderLabel;label.append(badge);}
       if(file.textures?.length){const badge=document.createElement('small');badge.className='fm-ytd-count';badge.textContent=' · '+file.textures.length+' YTD';label.append(badge);}
       const relative = document.createElement('small');
       relative.textContent = file.relative;
@@ -609,6 +624,17 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
     setProject('files', rootInfo.name);
     await list();
   }
+  const syncAssetButtons=()=>{
+    filterPanel.querySelectorAll('[data-gender]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.gender===activeGender)));
+    filterPanel.querySelectorAll('[data-slot]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.slot===activeSlot)));
+  };
+  filterPanel.querySelectorAll('[data-gender]').forEach(b=>b.onclick=()=>run(async()=>{activeGender=b.dataset.gender;offset=0;syncAssetButtons();if(rootInfo)await list();}));
+  filterPanel.querySelectorAll('[data-slot]').forEach(b=>b.onclick=()=>run(async()=>{activeSlot=b.dataset.slot;offset=0;syncAssetButtons();if(rootInfo)await list();}));
+  filterPanel.querySelector('.fm-folder-switch').onclick=()=>{
+    folderPanelVisible=!folderPanelVisible;
+    side.classList.toggle('fm-filters-active',!folderPanelVisible);
+    filterPanel.querySelector('.fm-folder-switch').textContent=folderPanelVisible?'Sembunyikan folder':'Lihat folder';
+  };
   const smbInput=settings.querySelector('[data-path]');
   const smbFeedback=settings.querySelector('[data-feedback]');
   const loadSmb=async()=>{const stored=await api().networkSettings();smbInput.value=stored.networkPath||'';};
