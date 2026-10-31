@@ -13,5 +13,5 @@ test('right-side YTD selection updates the existing 3D preview controller',()=>{
  assert.match(viewer,/const setTextureVariant = async \(textureId\)/);
  assert.match(viewer,/mesh\.material\.map = texture/);
  assert.match(viewer,/request !== textureRequest/);
- assert.match(viewer,/return snapshot \? thumbnail : \{ applyFace, supported:faceMeshes\.length>0, setTextureVariant \}/);
+ assert.match(viewer,/return snapshot \? thumbnail : \{ applyFace, supported:faceMeshes\.length>0, setTextureVariant, setCharacterModel \}/);
 });
