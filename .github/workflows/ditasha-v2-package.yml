@@ -1,15 +1,7 @@
 name: DITASHA V2 Windows package smoke test
 on:
-  push:
-    branches: [feature/clothing-library-v2]
-    paths:
-      - 'src/**'
-      - 'electron/**'
-      - 'tests/**'
-      - 'scripts/**'
-      - 'package.json'
-      - 'package-lock.json'
-      - '.github/workflows/ditasha-v2-package.yml'
+  # Windows packaging is paused during code stabilization.
+  # Trigger manually only after the user requests a new EXE.
   workflow_dispatch:
 jobs:
   windows-package:
