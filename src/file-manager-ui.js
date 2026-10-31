@@ -53,7 +53,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
   <div id="fmList" class="fm-list" aria-label="File dan folder"><div class="fm-empty">${icon('folder-open')}<h3>Ruang untuk semua asetmu</h3><p>Buka folder, telusuri model dan tekstur, lalu atur hasil sorting.</p></div></div>
   <div class="fm-pagination"><button id="fmPrevious" aria-label="Halaman sebelumnya">${icon('arrow-left')}</button><span id="fmPage">0 file</span><button id="fmNext" aria-label="Halaman berikutnya">${icon('arrow-right')}</button></div>
 </section>
-<aside class="fm-inspector"><div class="fm-inspector-head"><span class="eyebrow">DETAIL & PREVIEW</span><button id="fmExpandPreview" type="button" aria-pressed="false" title="Perbesar atau kecilkan preview 3D">⛶ Perbesar 3D</button></div><div id="fmImage" class="fm-preview"><span>Pilih file untuk melihat detail.</span></div><h3 id="fmName">Belum ada file dipilih</h3><p id="fmDetails" class="muted"></p><p id="fmNote" class="muted"></p><div class="fm-open-actions"><button id="fmOpen" class="primary">${icon('cube')} Buka di editor</button><button id="fmReveal">${icon('folder-open')} Lihat lokasi file</button></div><div class="fm-sort-actions"><span class="eyebrow">SORTING SCOPE</span><p id="fmScope">Sorting mengikuti folder, pencarian, dan kategori aktif.</p><button id="fmShowOutput" hidden>${icon('folder-open')} Buka hasil sorting</button></div></aside>
+<aside class="fm-inspector"><div class="fm-inspector-head"><span class="eyebrow">DETAIL & PREVIEW</span><button id="fmExpandPreview" type="button" aria-pressed="false" title="Perbesar atau kecilkan preview 3D">⛶ Perbesar 3D</button></div><div id="fmImage" class="fm-preview"><span>Pilih file untuk melihat detail.</span></div><h3 id="fmName">Belum ada file dipilih</h3><p id="fmDetails" class="muted"></p><p id="fmNote" class="muted"></p><div class="fm-open-actions"><button id="fmOpen" class="primary">${icon('cube')} Buka di editor</button><button id="fmReveal">${icon('folder-open')} Lihat lokasi file</button></div><div id="fmCompanion" class="fm-companion" hidden></div><div class="fm-sort-actions"><span class="eyebrow">SORTING SCOPE</span><p id="fmScope">Sorting mengikuti folder, pencarian, dan kategori aktif.</p><button id="fmShowOutput" hidden>${icon('folder-open')} Buka hasil sorting</button></div></aside>
 <section id="fmPlanPanel" class="fm-plan" hidden><div class="fm-heading"><div><span class="eyebrow">RENCANA SORTING</span><h2 id="fmPlanTitle"></h2></div><button id="fmPlanClose" aria-label="Tutup pratinjau">${icon('cross')}</button></div><p class="muted">Periksa tujuan salinan. Nama dan struktur sumber dipertahankan di dalam kategori. Maksimal 100 contoh file ditampilkan.</p><div id="fmPlanCounts" class="fm-counts"></div><div id="fmPlanEntries" class="fm-plan-entries"></div><div class="fm-plan-footer"><span class="muted">Pilih output di luar sumber. Setiap proses membuat folder hasil baru.</span><button id="fmCopy" class="primary">${icon('copy')} Pilih output & salin</button></div></section>
 <footer class="fm-status"><span id="fmStatus" role="status">Buka folder aset untuk memulai.</span><button id="fmCancel" hidden>Batalkan proses</button></footer>
 `;
@@ -320,6 +320,8 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
     $('fmImage').textContent = 'Pilih file untuk melihat detail.';
     $('fmName').textContent = 'Belum ada file dipilih';
     $('fmDetails').textContent = $('fmNote').textContent = '';
+    $('fmCompanion').hidden = true;
+    $('fmCompanion').replaceChildren();
   }
   function counts(container, values) {
     container.replaceChildren();
@@ -339,6 +341,20 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
     $('fmDetails').textContent =
       `${categories[file.category]} · ${size(file.size)}\n${file.relative}\nTujuan: ${file.destination}`;
     $('fmNote').textContent = file.note || '';
+    $('fmCompanion').hidden = true;
+    $('fmCompanion').replaceChildren();
+    if (/\.(ydd|ydr|yft)$/i.test(file.name)) {
+      api().read(file.id).then(data => {
+        if (current !== serial || !data.companion) return;
+        const box = $('fmCompanion');
+        const title = document.createElement('strong'); title.textContent = 'YTD pendamping';
+        const name = document.createElement('span'); name.textContent = data.companion.name;
+        const button = document.createElement('button'); button.type = 'button';
+        button.textContent = 'Lihat tekstur YTD';
+        button.onclick = () => assetPreview.show({id:data.companion.id,name:data.companion.name}, api());
+        box.replaceChildren(title,name,button); box.hidden = false;
+      }).catch(() => {});
+    }
     $('fmOpen').innerHTML =
       icon(/\.(ydd|ydr|yft)$/i.test(file.name) ? 'cube' : 'picture') +
       (/\.(ydd|ydr|yft)$/i.test(file.name)
@@ -457,40 +473,40 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
     if (view === 'grid') loadThumbnails(data.files, thumbnailGeneration);
   }
   async function loadThumbnails(files, version) {
-    for (const file of files
-      .filter((f) => /\.(png|jpe?g|webp|gif|bmp)$/i.test(f.name) && f.size <= 8 * 1024 * 1024)
-      .slice(0, 40)) {
-      if (version !== thumbnailGeneration) return;
+    // Images are cheap; YDD/YDR/YFT need the existing GTA decoder and WebGL renderer.
+    const candidates = files.filter(f => /\\.(png|jpe?g|webp|gif|bmp|ydd|ydr|yft)$/i.test(f.name) &&
+      f.size <= 32 * 1024 * 1024).slice(0, 42);
+    for (const file of candidates) {
+      if (version !== thumbnailGeneration || view !== 'grid') return;
+      const row = [...$('fmList').querySelectorAll('[data-file-id]')].find(r => r.dataset.fileId === file.id);
+      if (!row) continue;
       try {
-        const data = await api().read(file.id);
-        const bitmap = await createImageBitmap(new Blob([data.data]), {
-          resizeWidth: 160,
-          resizeQuality: 'high',
-        });
-        if (version !== thumbnailGeneration) {
+        let blob;
+        if (/\\.(ydd|ydr|yft)$/i.test(file.name)) {
+          const host = document.createElement('div');
+          host.className = 'fm-thumbnail-render-host';
+          document.body.append(host);
+          const preview = createFilePreview(host);
+          try { blob = await preview.show(file, api(), {snapshot:true}); }
+          finally { preview.clear(); host.remove(); }
+        } else {
+          const data = await api().read(file.id);
+          const bitmap = await createImageBitmap(new Blob([data.data]), {resizeWidth:180,resizeQuality:'high'});
+          const canvas = document.createElement('canvas');
+          canvas.width = bitmap.width; canvas.height = bitmap.height;
+          canvas.getContext('2d').drawImage(bitmap,0,0);
           bitmap.close();
-          return;
+          blob = await new Promise(resolve => canvas.toBlob(resolve,'image/png'));
+          canvas.width = canvas.height = 1;
         }
-        const canvas = document.createElement('canvas');
-        canvas.width = bitmap.width;
-        canvas.height = bitmap.height;
-        canvas.getContext('2d').drawImage(bitmap, 0, 0);
-        bitmap.close();
-        const blob = await new Promise((resolve) => canvas.toBlob(resolve));
         if (!blob || version !== thumbnailGeneration) return;
-        const row = [...$('fmList').querySelectorAll('[data-file-id]')].find(
-          (r) => r.dataset.fileId === file.id,
-        );
-        if (!row) continue;
         const url = URL.createObjectURL(blob);
         thumbnails.push(url);
         const img = document.createElement('img');
-        img.className = 'fm-thumbnail';
-        img.alt = '';
-        img.src = url;
+        img.className = 'fm-thumbnail'; img.alt = 'Preview 3D '+file.name; img.src = url;
         row.querySelector('span').prepend(img);
       } catch {
-        /* A damaged image keeps its file icon and remains sortable. */
+        // Invalid or unsupported RSC assets retain the normal icon.
       }
     }
   }
