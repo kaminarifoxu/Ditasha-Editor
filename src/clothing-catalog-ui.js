@@ -2,10 +2,18 @@ import { resolveOutfitEntries, freemodeImportName } from './clothing-outfit-file
 export function mountClothingCatalog({ openPreview } = {}) {
   if (!window.ditashaClothing) return;
   const tab = document.createElement('button');
-  tab.type = 'button'; tab.className = 'clothing-launch';
+  tab.type = 'button';
+  tab.className = 'fm-clothing-launch';
   tab.textContent = 'Clothing Catalog';
-  tab.title = 'Custom clothing library (saved locally)';
-  document.body.append(tab);
+  tab.title = 'Buka Clothing Library';
+  tab.setAttribute('aria-label', 'Buka Clothing Catalog');
+  // Integrate with the File Manager commandbar instead of a floating corner button.
+  const toolbar = document.querySelector('.file-manager .fm-commandbar');
+  if (toolbar) toolbar.append(tab);
+  else {
+    const fallback = document.querySelector('.workspace-shell') || document.body;
+    fallback.prepend(tab);
+  }
   const root = document.createElement('section');
   root.className = 'clothing-catalog'; root.hidden = true;
   root.setAttribute('aria-label','DITASHA Clothing Catalog');
