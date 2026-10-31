@@ -418,6 +418,8 @@ export function createFilePreview(container) {
           }
         });
         maps.forEach((m) => m.dispose());
+        bodyMaps.forEach((m) => m.dispose());
+        bodyMaps = [];
         renderer.dispose();
         renderer.forceContextLoss();
         host.remove();
