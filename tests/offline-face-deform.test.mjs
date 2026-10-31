@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { deformFacePositions } from '../src/offline-face-deform.js';
-const coords=new Float32Array([]);
+const coords=[];
 for(let z=0;z<5;z++)for(let y=0;y<5;y++)for(let x=0;x<5;x++)coords.push((x/4),y/4,z/4);
 test('neutral input preserves the source mesh exactly and does not mutate it',()=>{
  const source=Float32Array.from(coords);
