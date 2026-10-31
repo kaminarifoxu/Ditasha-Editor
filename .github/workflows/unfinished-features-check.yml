@@ -34,6 +34,6 @@ jobs:
       - name: Installer and updater validations (6)
         run: node --test tests/setup-updater.test.cjs tests/updater.test.cjs tests/updater-differential.test.cjs tests/updater.windows.test.cjs
       - name: Asset Workshop structural coverage (7)
-        run: node scripts/character-workshop-ui-checks.cjs
+        run: node --test tests/character-workshops.test.mjs
       - name: Compile renderer and detect bundling failures
         run: npm run build:ui
