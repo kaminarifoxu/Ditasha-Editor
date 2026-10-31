@@ -245,7 +245,9 @@ export function createFilePreview(container) {
       // Optional body reference uses actual user-supplied YDD/ YDR geometry,
       // not a synthetic GTA freemode character or a guessed skeleton.
       let bodyReference = null;
+      let characterRequest = 0;
       const setCharacterModel = async (reference) => {
+        const request = ++characterRequest;
         if (bodyReference) {
           group.remove(bodyReference);
           bodyReference.traverse(o => {
@@ -254,14 +256,14 @@ export function createFilePreview(container) {
           bodyReference = null;
         }
         if (!reference || version !== generation) { draw(); return false; }
-        bodyReference = new THREE.Group();
-        bodyReference.name = 'body-reference';
+        const nextReference = new THREE.Group();
+        nextReference.name = 'body-reference';
         const parts = Array.isArray(reference.parts) && reference.parts.length
           ? reference.parts : [reference];
         const failures = [];
         for (const part of parts) {
           try {
-            if (version !== generation) return false;
+            if (version !== generation || request !== characterRequest) return false;
             const bytes = await api.read(part.id);
             const kind = part.name.split('.').at(-1).toLowerCase();
             if (!['ydd','ydr'].includes(kind)) continue;
@@ -273,7 +275,7 @@ export function createFilePreview(container) {
                 referenceTextures = (await decodeResource('ytd', new Uint8Array(ytd.data).buffer)).textures;
               } catch { /* A missing YTD must not discard readable geometry. */ }
             }
-            if (version !== generation) return false;
+            if (version !== generation || request !== characterRequest) return false;
             const refDrawable = drawableView(parsed, defaultDrawableSelection(parsed));
             const refLevel = refDrawable?.lods?.[0];
             if (!refLevel?.geometries?.length) { failures.push(part.name); continue; }
@@ -296,12 +298,16 @@ export function createFilePreview(container) {
               });
               section.add(new THREE.Mesh(geometry, material));
             }
-            bodyReference.add(section);
+            nextReference.add(section);
           } catch (error) { failures.push(part.name + ': ' + error.message); }
         }
-        if (version !== generation) return false;
-        if (!bodyReference.children.length)
+        if (version !== generation || request !== characterRequest) {
+          nextReference.traverse(o => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
+          return false;
+        }
+        if (!nextReference.children.length)
           throw Error('Tidak ada mesh freemode yang dapat dibaca. ' + failures.slice(0, 2).join('; '));
+        bodyReference = nextReference;
         group.add(bodyReference);
         const bounds = new THREE.Box3().setFromObject(group);
         const midpoint=bounds.getCenter(new THREE.Vector3());
