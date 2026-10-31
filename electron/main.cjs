@@ -299,6 +299,19 @@ else {
       if (selection.canceled || !selection.filePaths.length) return null;
       return clothingLibrary.importFiles({ pack, files: selection.filePaths });
     });
+    ipcMain.handle('ditasha:freemode-import-folder', async event => {
+      if (!trustedClothingEvent(event)) throw new Error('Untrusted caller');
+      const selection = await dialog.showOpenDialog(win, {
+        title: 'Pilih folder model freemode',
+        properties: ['openDirectory'],
+      });
+      if (selection.canceled || !selection.filePaths.length) return null;
+      const imported = await clothingLibrary.importDirectory({
+        pack: 'DITASHA Freemode Library',
+        directory: selection.filePaths[0],
+      });
+      return { id: imported.id, count: imported.files.length, files: imported.files };
+    });
     ipcMain.handle('ditasha:clothing-import-folder', async (event, pack) => {
       if (!trustedClothingEvent(event)) throw new Error('Untrusted caller');
       const selection = await dialog.showOpenDialog(win, {
