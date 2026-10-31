@@ -1300,7 +1300,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           let headPositions=g.positions;
           if(owner.kind==='ped' && owner.characterMorphPack &&
             /head|face/i.test(a.name+' '+(g.name||'')+' '+(g.diffuseTexture||''))){
-            try {headPositions=applyMorphPack(g.positions,owner.characterMorphPack,owner.characterAppearance);}
+            try {headPositions=applyMorphPack(g.positions,owner.characterMorphPack,owner.characterAppearance,g.indices);}
             catch(error){warnings.push('Morph wajah '+a.name+': '+error.message);}
           }
           geom.setAttribute('position', new THREE.BufferAttribute(headPositions, 3));
