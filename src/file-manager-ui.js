@@ -88,6 +88,12 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
       root.querySelector('#fmGetFiles'),
       root.querySelector('.fm-note'),
     );
+  const smbButton = document.createElement('button');
+  smbButton.type = 'button';
+  smbButton.id = 'fmSmb';
+  smbButton.textContent = 'SMB / Jaringan';
+  smbButton.title = 'Buka folder jaringan Windows menggunakan \\\\server\\share';
+  more.querySelector('div').prepend(smbButton);
   bar.append(more);
   side.prepend(root.querySelector('.fm-tree-head'));
   side.querySelector('.fm-tree-head .eyebrow').textContent = 'Navigasi';
@@ -578,6 +584,11 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
     setProject('files', rootInfo.name);
     await list();
   }
+  $('fmSmb').onclick = () => {
+    const networkPath = window.prompt('Alamat SMB Windows (contoh: \\\\NAS\\Assets). Gunakan login Windows yang sudah terhubung:', '\\\\');
+    if (!networkPath || networkPath === '\\\\') return;
+    run(() => choose({networkPath:networkPath.trim()}));
+  };
   $('fmChoose').onclick = () => run(() => choose());
   $('fmRefresh').onclick = () => run(() => choose(true));
   $('fmHome').onclick = () => run(() => navigate(''));
