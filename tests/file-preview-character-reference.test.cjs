@@ -28,3 +28,11 @@ test('switching model reference cannot commit an out-of-date async body',()=>{
  assert.match(engine,/request !== characterRequest/);
  assert.match(engine,/bodyReference = nextReference/);
 });
+
+test('File Manager reuses Character Maker body resolver and excludes edited clothing slot',()=>{
+ const ui=read('src/file-manager-ui.js');
+ assert.match(ui,/import \{ resolveCharacterBodyEntries \} from '\.\/freemode-character-source\.js'/);
+ assert.match(ui,/const resolved = resolveCharacterBodyEntries\(packs,/);
+ assert.match(ui,/entry\.component !== selectedComponent/);
+ assert.match(ui,/characterReferenceIsAutomatic/);
+});
