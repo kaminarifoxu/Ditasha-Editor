@@ -109,7 +109,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
   const slots=['SEMUA','JBIB','ACCS','LOWR','FEET','TEEF','TASK','BERD','HAND','DECL','HEAD','HAIR','UPPR','P_HEAD','P_EYES','P_EARS'];
   for(const slot of slots){const b=document.createElement('button');b.type='button';b.dataset.slot=slot==='SEMUA'?'':slot;b.textContent=slot;b.setAttribute('aria-pressed',String(slot==='SEMUA'));filterPanel.querySelector('.fm-slot-grid').append(b);}
   side.prepend(filterPanel);
-  side.classList.add('fm-filters-active');
+  side.classList.toggle('fm-filters-active', !folderPanelVisible);
   side.prepend(root.querySelector('.fm-tree-head'));
   side.querySelector('.fm-tree-head .eyebrow').textContent = 'Navigasi';
   side.querySelector(':scope > .eyebrow')?.remove();
@@ -134,9 +134,20 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
   root.querySelector('.fm-inspector-head').append(characterTools);
   const assetPreview = createFilePreview($('fmImage'));
   const ytdPreview = createFilePreview($('fmYtdCanvas'));
-  let activeGender='';
-  let activeSlot='';
-  let folderPanelVisible=false;
+  // Restore library filters without allowing obsolete values to break the file query.
+  let savedFilters = {};
+  try { savedFilters = JSON.parse(localStorage.getItem('ditasha-file-manager-filters') || '{}') || {}; } catch {}
+  const validGenders = ['', 'male', 'female', 'unknown'];
+  let activeGender = validGenders.includes(savedFilters.gender) ? savedFilters.gender : '';
+  let activeSlot = slots.includes(savedFilters.slot) && savedFilters.slot !== 'SEMUA' ? savedFilters.slot : '';
+  let folderPanelVisible = savedFilters.showFolders === true;
+  const saveLibraryFilters = () => {
+    try {
+      localStorage.setItem('ditasha-file-manager-filters', JSON.stringify({
+        gender: activeGender, slot: activeSlot, showFolders: folderPanelVisible
+      }));
+    } catch { /* File Manager remains usable when storage is unavailable. */ }
+  };
   let modelController = null;
   let characterReference = null;
   let withCharacter = false;
@@ -634,16 +645,19 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
     setProject('files', rootInfo.name);
     await list();
   }
+  filterPanel.querySelector('.fm-folder-switch').textContent = folderPanelVisible ? 'Sembunyikan folder' : 'Lihat folder';
   const syncAssetButtons=()=>{
     filterPanel.querySelectorAll('[data-gender]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.gender===activeGender)));
     filterPanel.querySelectorAll('[data-slot]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.slot===activeSlot)));
   };
-  filterPanel.querySelectorAll('[data-gender]').forEach(b=>b.onclick=()=>run(async()=>{activeGender=b.dataset.gender;offset=0;syncAssetButtons();if(rootInfo)await list();}));
-  filterPanel.querySelectorAll('[data-slot]').forEach(b=>b.onclick=()=>run(async()=>{activeSlot=b.dataset.slot;offset=0;syncAssetButtons();if(rootInfo)await list();}));
+  syncAssetButtons();
+  filterPanel.querySelectorAll('[data-gender]').forEach(b=>b.onclick=()=>run(async()=>{activeGender=b.dataset.gender;offset=0;saveLibraryFilters();syncAssetButtons();if(rootInfo)await list();}));
+  filterPanel.querySelectorAll('[data-slot]').forEach(b=>b.onclick=()=>run(async()=>{activeSlot=b.dataset.slot;offset=0;saveLibraryFilters();syncAssetButtons();if(rootInfo)await list();}));
   filterPanel.querySelector('.fm-folder-switch').onclick=()=>{
     folderPanelVisible=!folderPanelVisible;
     side.classList.toggle('fm-filters-active',!folderPanelVisible);
     filterPanel.querySelector('.fm-folder-switch').textContent=folderPanelVisible?'Sembunyikan folder':'Lihat folder';
+    saveLibraryFilters();
   };
   const smbInput=settings.querySelector('[data-path]');
   const smbFeedback=settings.querySelector('[data-feedback]');
