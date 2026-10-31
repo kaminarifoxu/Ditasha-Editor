@@ -762,3 +762,54 @@
 .fm-explorer.fm-preview-expanded .fm-ytd-preview { grid-template-columns: minmax(0, 1fr); min-height: 220px; }
 .fm-explorer.fm-preview-expanded .fm-ytd-canvas { min-height: 195px; height: 215px; }
 .fm-explorer.fm-preview-expanded .fm-ytd-canvas .fm-texture-preview canvas { max-height: 168px; }
+
+/* Right-hand texture inspector. Normal mode keeps the file grid untouched. */
+.fm-explorer .fm-inspector-meta {
+  display:flex; flex-direction:column; min-width:0; gap:8px;
+}
+.fm-explorer .fm-inspector-meta .fm-ytd-preview {
+  flex:0 0 auto; min-height:0; margin:10px 0 12px;
+}
+.fm-explorer .fm-inspector-meta .fm-ytd-canvas {
+  width:100%; min-height:155px; height:190px;
+}
+.fm-explorer .fm-inspector-meta .fm-ytd-canvas canvas {max-width:100%;}
+/* Expanded 3D view: left is the large model, right holds metadata and YTD textures. */
+.workspace-shell .fm-explorer.fm-preview-expanded .fm-inspector {
+  display:grid!important;
+  grid-template-columns:minmax(0, 7fr) minmax(235px, 3fr);
+  grid-template-rows:auto minmax(0,1fr);
+  column-gap:16px; row-gap:12px;
+  align-items:stretch;
+  overflow:hidden;
+}
+.fm-explorer.fm-preview-expanded .fm-inspector-head {
+  grid-column:1/-1; grid-row:1; min-width:0;
+}
+.fm-explorer.fm-preview-expanded #fmImage {
+  grid-column:1; grid-row:2;
+  height:100%!important; min-height:0!important; min-width:0; overflow:hidden;
+  flex:none!important;
+}
+.fm-explorer.fm-preview-expanded #fmImage .fm-model-preview {
+  min-height:0!important; width:100%; height:100%;
+}
+.fm-explorer.fm-preview-expanded .fm-inspector-meta {
+  grid-column:2; grid-row:2; overflow-y:auto; overflow-x:hidden;
+  min-height:0; min-width:0; padding-right:5px;
+}
+.fm-explorer.fm-preview-expanded .fm-inspector-meta .fm-ytd-preview {
+  min-height:0; width:100%; box-sizing:border-box;
+}
+.fm-explorer.fm-preview-expanded .fm-inspector-meta .fm-ytd-canvas {
+  height:230px; min-height:180px;
+}
+@media (max-width: 800px) {
+  .workspace-shell .fm-explorer.fm-preview-expanded .fm-inspector {
+    grid-template-columns:minmax(0,1fr);
+    grid-template-rows:auto minmax(220px,55vh) minmax(120px,1fr);
+    overflow-y:auto;
+  }
+  .fm-explorer.fm-preview-expanded #fmImage {grid-column:1;grid-row:2;}
+  .fm-explorer.fm-preview-expanded .fm-inspector-meta {grid-column:1;grid-row:3;overflow:visible;}
+}
