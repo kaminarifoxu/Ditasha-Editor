@@ -1,3 +1,4 @@
+import { extractHeadGeometry, makeMorphTarget } from './freemode-morph-generator.js';
 import { resolveCharacterBodyEntries } from './freemode-character-source.js';
 import { toIlleniumAppearance, fromIlleniumAppearance, faceFeatureNames, overlayNames } from './character-appearance.js';
 import { createFilePreview } from './file-preview.js';
@@ -21,7 +22,7 @@ export function mountCharacterMaker() {
       </aside>
       <main>
         <div class="cm-preview-head"><strong>Preview model freemode</strong><span>Putar / zoom model dengan mouse</span></div>
-        <div class="cm-actions"><button data-load-morph type="button">Muat morph target offline</button><button data-clear-morph type="button" hidden>Hapus morph target</button><input data-morph-file type="file" accept=".json,application/json" hidden></div><div data-preview class="cm-model-preview" role="img" aria-label="Pratinjau 3D freemode">Pilih model dasar freemode untuk menampilkan preview 3D.</div>
+        <div class="cm-actions"><button data-generate-morph type="button">Buat Morph Pack dari 2 YDD</button><input data-neutral-ydd type="file" accept=".ydd" hidden><input data-target-ydd type="file" accept=".ydd" hidden><select data-morph-channel aria-label="Channel morph"><option value="feature:0">Hidung (feature 0)</option><option value="parent:first">Wajah orang tua 1</option><option value="parent:second">Wajah orang tua 2</option></select><button data-load-morph type="button">Muat morph target offline</button><button data-clear-morph type="button" hidden>Hapus morph target</button><input data-morph-file type="file" accept=".json,application/json" hidden></div><div data-preview class="cm-model-preview" role="img" aria-label="Pratinjau 3D freemode">Pilih model dasar freemode untuk menampilkan preview 3D.</div>
         <label class="cm-face-preview-toggle"><input data-live-face type="checkbox" checked> Tampilkan perkiraan deformasi wajah langsung</label><small data-face-state>Preview wajah menunggu model YDD kepala.</small>
         <p class="cm-notice">Preview desktop menggunakan pendekatan deformasi geometri non-destruktif, bukan head blend native GTA V. Hasil wajah yang akurat tersedia melalui ekspor JSON ke FiveM. Model YDD asli tidak diubah.</p>
         <div class="cm-sliders"></div>
@@ -70,6 +71,29 @@ export function mountCharacterMaker() {
     updateFace();
   }
   $('[data-base]').onchange=()=>updatePreview().catch(e=>{$('[data-preview]').textContent='Preview gagal: '+e.message;});
+  const morphChannel=$('[data-morph-channel]');
+  for(let i=1;i<20;i++)morphChannel.add(new Option(faceFeatureNames[i]+' (feature '+i+')','feature:'+i));
+  $('[data-generate-morph]').onclick=()=>$('[data-neutral-ydd]').click();
+  $('[data-neutral-ydd]').onchange=()=>{if($('[data-neutral-ydd]').files?.[0])$('[data-target-ydd]').click();};
+  $('[data-target-ydd]').onchange=async()=>{
+    const neutral=$('[data-neutral-ydd]').files?.[0];
+    const target=$('[data-target-ydd]').files?.[0];
+    if(!neutral||!target)return;
+    const button=$('[data-generate-morph]');button.disabled=true;
+    try{
+      const base=await extractHeadGeometry(neutral),sculpt=await extractHeadGeometry(target);
+      const pack=makeMorphTarget(base,sculpt,morphChannel.value);
+      activeMorphPack=pack;
+      $('[data-clear-morph]').hidden=false;
+      await updatePreview();
+      const blob=new Blob([JSON.stringify(pack)],{type:'application/json'});
+      const url=URL.createObjectURL(blob),link=document.createElement('a');
+      link.href=url;link.download='ditasha-morph-'+morphChannel.value.replace(':','-')+'.json';
+      document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+      $('[data-status]').textContent='Morph Pack dibuat: '+pack.details.changedCoordinates+' koordinat berubah. File JSON diekspor.';
+    }catch(error){$('[data-status]').textContent='Generator morph: '+error.message;}
+    finally{button.disabled=false;$('[data-neutral-ydd]').value='';$('[data-target-ydd]').value='';}
+  };
   $('[data-load-morph]').onclick=()=>$('[data-morph-file]').click();
   $('[data-clear-morph]').onclick=()=>{
     activeMorphPack=null;
@@ -253,7 +277,7 @@ export function mountCharacterMaker() {
       }
       const result=await new Promise(resolve=>{
         window.dispatchEvent(new CustomEvent('ditasha:character-to-booth',
-          {detail:{preset,files,baseFiles,onComplete:resolve}}));
+          {detail:{preset,files,baseFiles,morphPack:activeMorphPack,onComplete:resolve}}));
       });
       if(!result?.success)throw Error(result?.error||'Photo Booth tidak tersedia.');
       host.hidden=true;
