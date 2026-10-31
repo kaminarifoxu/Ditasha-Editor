@@ -3,7 +3,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const crypto = require('node:crypto');
 
-const EXTENSIONS = new Set(['.ydd', '.ytd', '.ymt', '.yld', '.meta', '.png', '.jpg', '.jpeg', '.webp']);
+const EXTENSIONS = new Set(['.ydd', '.ydr', '.yft', '.ytd', '.ymt', '.yld', '.meta', '.png', '.jpg', '.jpeg', '.webp']);
 const COMPONENTS = new Set(['head', 'berd', 'hair', 'uppr', 'lowr', 'hand', 'feet', 'teef', 'accs', 'task', 'decl', 'jbib', 'p_head', 'p_eyes', 'p_ears', 'p_lwrist', 'p_rwrist']);
 const MAX_FILE_BYTES = 256 * 1024 * 1024;
 const MAX_IMPORT_FILES = 5000;
