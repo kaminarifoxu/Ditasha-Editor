@@ -7,7 +7,8 @@ export async function extractHeadGeometry(file){
  const data=await decodeResource('ydd',await file.arrayBuffer());
  const drawable=drawableView(data,defaultDrawableSelection(data));
  const high=drawable?.lods?.find(l=>l.name==='High')||drawable?.lods?.[0];
- const candidate=high?.geometries?.find(g=>/head|face|skin/i.test((g.name||'')+' '+(g.diffuseTexture||'')))||high?.geometries?.[0];
+ const candidate=high?.geometries?.find(g=>/head|face|skin/i.test((g.name||'')+' '+(g.diffuseTexture||'')));
+ if(!candidate)throw Error('Geometri kepala tidak dikenali. Generator menolak model non-kepala.');
  if(!candidate?.positions?.length)throw Error('File YDD tidak memiliki geometri terbaca.');
  return {positions:candidate.positions,indices:candidate.indices,name:candidate.name||'mesh'};
 }
