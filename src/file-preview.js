@@ -100,6 +100,7 @@ export function createFilePreview(container) {
       scene.add(light);
       const mapCache = new Map();
       const faceMeshes = [];
+      const materialBindings = [];
       for (const g of level.geometries) {
         const embedded = g.sourceEmbeddedTextures || drawable.embeddedTextures || [];
         const geometry = new THREE.BufferGeometry();
@@ -151,6 +152,7 @@ export function createFilePreview(container) {
           setVehicleLivery(mesh.material, textureMap(livery));
         }
         group.add(mesh);
+        materialBindings.push({ mesh, g, embedded });
         if (facePreview && /head|face|skin/i.test(file.name+' '+(g.diffuseTexture||''))) {
           faceMeshes.push({ geometry, original: new Float32Array(g.positions), indices: g.indices });
         }
@@ -195,6 +197,35 @@ export function createFilePreview(container) {
         draw();
         return updated>0;
       };
+      // Switch YTD variants in-place: materials update without recreating model,
+      // camera, controls or renderer. Source files remain untouched.
+      const setTextureVariant = async (textureId) => {
+        if (version !== generation) return false;
+        const selected = await api.read(textureId);
+        if (version !== generation) return false;
+        const variant = (await decodeResource('ytd', new Uint8Array(selected.data).buffer)).textures;
+        if (version !== generation) return false;
+        for (const { mesh, g, embedded } of materialBindings) {
+          const diffuse = resolveModelTexture(g.diffuseTexture, variant, embedded, file.name);
+          // Keep the current diffuse if the selected dictionary lacks a match.
+          if (!diffuse) continue;
+          const texture = textureMapForVariant(diffuse);
+          mesh.material.map = texture;
+          mesh.material.color.setHex(0xffffff);
+          mesh.material.needsUpdate = true;
+        }
+        draw();
+        return true;
+      };
+      function textureMapForVariant(t) {
+        const map = new THREE.DataTexture(t.out, t.w, t.h, THREE.RGBAFormat);
+        map.flipY = false;
+        map.wrapS = map.wrapT = THREE.RepeatWrapping;
+        map.colorSpace = THREE.SRGBColorSpace;
+        map.needsUpdate = true;
+        maps.push(map);
+        return map;
+      }
       controls.addEventListener('change', draw);
       const observer = new ResizeObserver(draw);
       observer.observe(host);
@@ -214,7 +245,7 @@ export function createFilePreview(container) {
         renderer.forceContextLoss();
         host.remove();
       };
-      return facePreview ? { applyFace, supported:faceMeshes.length>0 } : thumbnail;
+      return snapshot ? thumbnail : { applyFace, supported:faceMeshes.length>0, setTextureVariant };
     } catch (error) {
       if (version === generation) {
         clear();
