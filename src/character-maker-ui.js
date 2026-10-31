@@ -25,6 +25,7 @@ export function mountCharacterMaker() {
   document.body.append(host);
   const $ = selector => host.querySelector(selector);
   let id=null;
+  let desiredOutfit=null;
   const features=[
     ['shapeFirst','Wajah ayah',0,45,1,0],['shapeSecond','Wajah ibu',0,45,1,0],
     ['skinFirst','Kulit ayah',0,45,1,0],['skinSecond','Kulit ibu',0,45,1,0],
@@ -58,7 +59,7 @@ export function mountCharacterMaker() {
     id=preset?.id||null;
     $('[data-name]').value=preset?.name||'New Character';
     $('[data-gender]').value=preset?.gender||'male';
-    $('[data-outfit]').value=preset?.outfitId||'';
+    desiredOutfit=preset?.outfitId||null;
     for(const [key,,min,max,step,initial] of features) {
       const value=key.startsWith('feature')?preset?.appearance?.features?.[Number(key.slice(7))]
         :key.startsWith('overlay')?preset?.appearance?.overlays?.[Number(key.slice(7))]
@@ -74,11 +75,12 @@ export function mountCharacterMaker() {
     for(const preset of presets)list.add(new Option(preset.name+' · '+preset.gender,preset.id));
     list.value=id||'';
     const outfits=await window.ditashaClothing.listOutfits();
-    const outfit=$('[data-outfit]'), old=outfit.value;
+    const outfit=$('[data-outfit]'), old=desiredOutfit??outfit.value;
     outfit.replaceChildren(new Option('Tanpa outfit',''));
     for(const item of outfits.filter(x=>x.gender===$('[data-gender]').value))
       outfit.add(new Option(item.name,item.id));
-    outfit.value=outfits.some(x=>x.id===old)?old:'';
+    outfit.value=outfits.some(x=>x.id===old && x.gender===$('[data-gender]').value)?old:'';
+    desiredOutfit=null;
   }
   async function show(){
     host.hidden=false;
