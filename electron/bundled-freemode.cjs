@@ -4,7 +4,8 @@ const path=require('node:path');
 const crypto=require('node:crypto');
 // Bundled freemode data lives outside app.asar: extraResources/freemode-reference.
 async function ensureBundledFreemode(library, resourcesRoot) {
- const root=path.join(resourcesRoot,'freemode-reference');
+ let root=path.join(resourcesRoot,'freemode-reference');
+ try { await fs.access(path.join(root,'mp_freemode','mp_m_freemode_01')); root=path.join(root,'mp_freemode'); } catch {}
  const male=path.join(root,'mp_m_freemode_01');
  const female=path.join(root,'mp_f_freemode_01');
  try { await Promise.all([fs.access(male),fs.access(female)]); }
