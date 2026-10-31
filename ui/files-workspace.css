@@ -834,3 +834,23 @@
 .fm-explorer .fm-network-settings p{font-size:12px;line-height:1.5;opacity:.8}
 .fm-explorer .fm-network-actions{display:flex;gap:10px;flex-wrap:wrap}
 .fm-explorer #fmModelOnly[aria-pressed="true"]{color:#d5b444;border-color:#d5b444;background:#d5b4441b}
+
+/* Larger right-hand YTD atlas while 3D preview is expanded. */
+.workspace-shell .fm-explorer.fm-preview-expanded .fm-inspector{
+  grid-template-columns:minmax(0, 64fr) minmax(320px, 36fr);
+}
+.fm-explorer.fm-preview-expanded .fm-inspector-meta .fm-ytd-canvas{
+  height:370px!important; min-height:300px!important;
+}
+.fm-explorer.fm-preview-expanded .fm-inspector-meta .fm-ytd-canvas .fm-texture-preview{
+  height:100%;min-height:0;display:flex;flex-direction:column;align-items:center;gap:8px;
+}
+.fm-explorer.fm-preview-expanded .fm-inspector-meta .fm-ytd-canvas .fm-texture-preview canvas{
+  max-width:100%;max-height:310px!important;object-fit:contain;flex:1 1 auto;min-height:0;
+}
+.fm-explorer.fm-preview-expanded .fm-inspector-meta .fm-ytd-preview{
+  min-height:390px;overflow:visible;
+}
+@media(max-width:800px){
+  .workspace-shell .fm-explorer.fm-preview-expanded .fm-inspector{grid-template-columns:minmax(0,1fr);}
+}
