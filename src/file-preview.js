@@ -178,6 +178,7 @@ export function createFilePreview(container) {
       };
       const applyFace = (appearance) => {
         if (!faceMeshes.length) return false;
+        let updated=0;
         for (const item of faceMeshes) {
           let altered;
           if(morphPack){
@@ -185,13 +186,14 @@ export function createFilePreview(container) {
             catch { altered=null; }
           }else altered=deformFacePositions(item.original, appearance?.features, appearance?.shapeMix);
           if(!altered)continue;
+          updated++;
           const attribute=item.geometry.getAttribute('position');
           attribute.array.set(altered); attribute.needsUpdate=true;
           item.geometry.computeVertexNormals();
           item.geometry.computeBoundingSphere();
         }
         draw();
-        return true;
+        return updated>0;
       };
       controls.addEventListener('change', draw);
       const observer = new ResizeObserver(draw);
