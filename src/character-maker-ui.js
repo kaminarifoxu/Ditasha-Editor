@@ -22,7 +22,8 @@ export function mountCharacterMaker() {
       <main>
         <div class="cm-preview-head"><strong>Preview model freemode</strong><span>Putar / zoom model dengan mouse</span></div>
         <div data-preview class="cm-model-preview" role="img" aria-label="Pratinjau 3D freemode">Pilih model dasar freemode untuk menampilkan preview 3D.</div>
-        <p class="cm-notice">Pengaturan wajah disimpan sebagai preset data freemode. Head blend, fitur wajah dan overlay belum dirender secara fisik oleh Photo Booth offline. Untuk preview penuh, impor model freemode asli terlebih dahulu.</p>
+        <label class="cm-face-preview-toggle"><input data-live-face type="checkbox" checked> Tampilkan perkiraan deformasi wajah langsung</label><small data-face-state>Preview wajah menunggu model YDD kepala.</small>
+        <p class="cm-notice">Preview desktop menggunakan pendekatan deformasi geometri non-destruktif, bukan head blend native GTA V. Hasil wajah yang akurat tersedia melalui ekspor JSON ke FiveM. Model YDD asli tidak diubah.</p>
         <div class="cm-sliders"></div>
         <div class="cm-actions"><button data-send>Kirim ke Photo Booth</button></div>
       </main>
@@ -37,9 +38,17 @@ export function mountCharacterMaker() {
   let baseRefs=new Map();
   const modelPreview=createFilePreview($('[data-preview]'));
   let previewSerial=0;
+  let faceController=null;
+  let livePreviewEnabled=true;
+  const updateFace=()=>{
+    if(!livePreviewEnabled||!faceController)return;
+    const applied=faceController.applyFace(read().appearance);
+    $('[data-face-state]').textContent=applied ? 'Preview perkiraan deformasi wajah (bukan GTA native)' : 'Tidak ditemukan geometri wajah pada model ini.';
+  };
   async function updatePreview() {
     const version=++previewSerial;
     modelPreview.clear();
+    faceController=null;
     const selected=baseRefs.get($('[data-base]').value);
     if(!selected){$('[data-preview]').textContent='Pilih model YDD dasar dari Clothing Library.';return;}
     const packs=await window.ditashaClothing.list();
@@ -54,7 +63,10 @@ export function mountCharacterMaker() {
     const api={read:async id => id==='base'?{data:data.bytes,companion}: {
       data:(await window.ditashaClothing.previewRead(pack.id,related.relativePath)).bytes
     }};
-    await modelPreview.show(model,api);
+    const controller=await modelPreview.show(model,api,{facePreview:true});
+    if(version!==previewSerial)return;
+    faceController=controller?.applyFace?controller:null;
+    updateFace();
   }
   $('[data-base]').onchange=()=>updatePreview().catch(e=>{$('[data-preview]').textContent='Preview gagal: '+e.message;});
   const features=[
@@ -73,9 +85,10 @@ export function mountCharacterMaker() {
     const value=document.createElement('output'); value.textContent=String(initial);
     const input=document.createElement('input'); input.type='range';
     Object.assign(input,{min:String(min),max:String(max),step:String(step),value:String(initial)});
-    input.oninput=()=>{value.textContent=input.value;};
+    input.oninput=()=>{value.textContent=input.value;updateFace();};
     wrapper.append(name,value,input); $('.cm-sliders').append(wrapper);sliders.set(key,input);
   }
+  $('[data-live-face]').onchange=()=>{livePreviewEnabled=$('[data-live-face]').checked;updatePreview().catch(e=>{$('[data-preview]').textContent=e.message;});};
   const read=()=>{
     const appearance={features:[],overlays:[]};
     for(const [key,input] of sliders) {
