@@ -1,0 +1,39 @@
+name: DITASHA Remaining Features QA
+on:
+  push:
+    branches: [feature/clothing-library-v2]
+    paths:
+      - 'src/**'
+      - 'electron/**'
+      - 'ui/**'
+      - 'scripts/**'
+      - 'tests/**'
+      - '.github/workflows/unfinished-features-check.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  focused-regressions:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Freemode body, rig and skin integrity (1 and 3)
+        run: node --test tests/freemode-character-source.test.mjs tests/booth-rig.test.mjs tests/booth-rig-validation.test.mjs tests/booth-weight-transfer.test.mjs tests/file-preview-character-reference.test.cjs
+      - name: YTD material and texture diagnostics (2)
+        run: node --test tests/material-preview.test.mjs tests/texture-search.test.mjs tests/vehicle-textures.test.mjs tests/file-manager-preview-texture-initial.test.cjs tests/file-manager-live-ytd.test.cjs
+      - name: File Manager regression coverage (4)
+        run: node --test tests/file-manager*.test.cjs
+      - name: Photo Booth assets and scene persistence (5)
+        run: node --test tests/booth-actors.test.mjs tests/booth-outfits.test.mjs tests/booth-library.test.mjs tests/booth-textures.test.mjs tests/booth-movie.test.mjs
+      - name: Installer and updater validations (6)
+        run: node --test tests/setup-updater.test.cjs tests/updater.test.cjs tests/updater-differential.test.cjs tests/updater.windows.test.cjs
+      - name: Asset Workshop structural coverage (7)
+        run: node --test tests/character-workshops.test.mjs
+      - name: Compile renderer and detect bundling failures
+        run: npm run build:ui

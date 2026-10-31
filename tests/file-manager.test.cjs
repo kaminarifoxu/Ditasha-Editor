@@ -198,7 +198,7 @@ test('Every File Manager IPC route validates its caller', async () => {
     dialog: {},
     shell: {},
   });
-  assert.equal(handlers.size, 9);
+  assert.equal(handlers.size, 10);
   for (const handler of handlers.values())
     assert.throws(() => handler('wrong caller'), /Untrusted/);
 });

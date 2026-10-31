@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('ditashaFiles', {
   state: () => ipcRenderer.invoke('ditasha:files-state'),
   filesApp: (value) => ipcRenderer.invoke('ditasha:files-filesApp', value),
   choose: (refresh = false) => ipcRenderer.invoke('ditasha:files-choose', refresh),
+  networkSettings: (value) => ipcRenderer.invoke('ditasha:files-networkSettings', value),
   list: (query) => ipcRenderer.invoke('ditasha:files-list', query),
   read: (id) => ipcRenderer.invoke('ditasha:files-read', id),
   plan: (query) => ipcRenderer.invoke('ditasha:files-plan', query),
@@ -102,3 +103,21 @@ contextBridge.exposeInMainWorld('ditashaGtaTools', {
     return () => ipcRenderer.removeListener('ditasha:gta-tools-progress', listener);
   },
 });
+
+contextBridge.exposeInMainWorld('ditashaCharacters', Object.freeze({
+  list: () => ipcRenderer.invoke('ditasha:characters-list'),
+  save: (character) => ipcRenderer.invoke('ditasha:characters-save', character),
+  remove: (id) => ipcRenderer.invoke('ditasha:characters-remove', id),
+}));
+contextBridge.exposeInMainWorld('ditashaClothing', Object.freeze({
+  list: () => ipcRenderer.invoke('ditasha:clothing-list'),
+  listOutfits: () => ipcRenderer.invoke('ditasha:outfits-list'),
+  saveOutfit: (outfit) => ipcRenderer.invoke('ditasha:outfits-save', outfit),
+  removeOutfit: (id) => ipcRenderer.invoke('ditasha:outfits-remove', id),
+  import: (pack) => ipcRenderer.invoke('ditasha:clothing-import', pack),
+  remove: (id) => ipcRenderer.invoke('ditasha:clothing-remove', id),
+  rename: (id, label) => ipcRenderer.invoke('ditasha:clothing-rename', id, label),
+  importFolder: (pack) => ipcRenderer.invoke('ditasha:clothing-import-folder', pack),
+  importFreemodeFolder: () => ipcRenderer.invoke('ditasha:freemode-import-folder'),
+  previewRead: (id, relativePath) => ipcRenderer.invoke('ditasha:clothing-preview-read', id, relativePath),
+}));

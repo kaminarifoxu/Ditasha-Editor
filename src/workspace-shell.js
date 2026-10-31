@@ -72,7 +72,13 @@ export function mountWorkspaceShell({ toast }) {
     ['OFFICE', 'Documents & office', false],
   ];
   const fileItem = nav.querySelector('[data-page=files]');
-  if (fileItem) home.after(fileItem);
+  // Pin the two primary destinations above the scrollable workshop groups.
+  // Otherwise the File Manager can appear missing after the sidebar restores its scroll position.
+  const primaryNav = document.createElement('div');
+  primaryNav.className = 'nav-primary-pinned';
+  if (home) primaryNav.append(home);
+  if (fileItem) primaryNav.append(fileItem);
+  nav.prepend(primaryNav);
   const groupsHost = document.createElement('div');
   groupsHost.className = 'suite-nav-groups';
   nav.insertBefore(groupsHost, nav.querySelector('[data-page=editor]'));

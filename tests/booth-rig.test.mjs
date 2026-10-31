@@ -7,18 +7,19 @@ const skin = (i) => ({
   indices: new Uint16Array([i, 0, 0, 0]),
   weights: new Float32Array([1, 0, 0, 0]),
 });
-test('Freemode geometry missing its skeleton receives a complete reference, while unsupported custom indices stay diagnosed', () => {
+test('Freemode geometry missing its skeleton is diagnosed instead of binding unsafe reference', () => {
   const original = skin(124),
     before = original.indices.slice(),
     result = selectBoothRig([], original, [], {
       family: freemodeFamily('mp_m_freemode_01^head_002_r.ydd'),
     });
-  assert.equal(result.rig.length, 128);
-  assert.equal(result.indices[0], 124);
+  assert.equal(result.rig.length, 0);
+  assert.equal(result.indices, null);
+  assert.match(result.warning, /skeleton asli/);
   assert.deepEqual(original.indices, before);
-  assert.ok(result.rig.some((b) => b.name === 'SKEL_Head'));
+
   assert.equal(selectBoothRig([], skin(900), [], { family: 'male' }).rig.length, 0);
-  assert.ok(selectBoothRig([], skin(900), [], { family: 'male' }).warning.includes('901'));
+  assert.match(selectBoothRig([], skin(900), [], { family: 'male' }).warning, /skeleton asli/);
   assert.equal(selectBoothRig([], skin(124), [], {}).rig.length, 0);
 });
 test('Skeleton reference mapping matches bone identity without mutating native palette indices', () => {
@@ -34,7 +35,8 @@ test('Skeleton reference mapping matches bone identity without mutating native p
   assert.equal(result.indices[0], 1);
   assert.equal(original.indices[0], 0);
   const partial = selectBoothRig(own, skin(1), [{ rig: full, referenceOnly: true }], {});
-  assert.equal(partial.rig.length, 2);
+  assert.equal(partial.rig.length, 0);
+  assert.match(partial.warning, /Pemetaan bone gagal/);
 });
 test('Height and elevation edit actor transforms explicitly; source meshes and other actors are unchanged', () => {
   assert.equal(boothHeight([0, -0.8, 0, 0, 1, 0]), 1.8);

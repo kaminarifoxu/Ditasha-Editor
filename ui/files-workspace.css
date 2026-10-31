@@ -709,3 +709,183 @@
   height: 32px;
   font-size: 11px;
 }
+
+/* Ensure the sorting overlay obeys the hidden attribute across workspace themes. */
+.fm-modern #fmPlanPanel[hidden] { display: none !important; }
+.fm-modern #fmPlanPanel { z-index: 40; }
+.fm-modern #fmPlanClose { position: sticky; top: 0; flex: none; min-width: 38px; min-height: 38px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); cursor: pointer; }
+.fm-modern #fmPlanPanel .fm-heading { position: sticky; top: 0; z-index: 2; background: var(--panel); padding: 8px 0; }
+.fm-modern #fmExpandPreview { border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; font-size: 11px; cursor: pointer; }
+.workspace-shell .fm-modern.fm-preview-expanded .fm-inspector {
+  display: flex !important; position: fixed !important; z-index: 1200 !important;
+  inset: 10vh 9vw 9vh 13vw !important; width: auto !important; max-width: none !important;
+  border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 18px 90px #000b;
+  overflow: auto; background: var(--panel); flex-direction: column;
+}
+.fm-modern.fm-preview-expanded .fm-preview { height: min(62vh, 760px) !important; min-height: 330px; width: 100%; flex: 1 1 auto; }
+.fm-modern.fm-preview-expanded .fm-model-preview { min-height: 330px; }
+@media (max-width: 850px) {
+  .workspace-shell .fm-modern.fm-preview-expanded .fm-inspector { inset: 6vh 3vw !important; }
+}
+
+/* Compact offscreen renderer uses the actual native YDD+YTD model preview to render grid thumbnails. */
+.fm-thumbnail-render-host {
+  position: fixed; left: -10000px; top: 0; width: 188px; height: 168px;
+  opacity: 1; overflow: hidden; pointer-events: none; z-index: -1;
+}
+.fm-thumbnail-render-host .fm-model-preview { width: 188px; height: 168px; min-height: 168px; }
+.fm-thumbnail-render-host canvas { width: 100%; height: 100%; display: block; }
+.fm-explorer .fm-grid .fm-thumbnail {
+  display: block; width: 100%; height: 98px; max-height: 98px; object-fit: contain;
+  border-radius: 8px; background: radial-gradient(ellipse at top, #252c35, #10141b);
+}
+.fm-explorer .fm-companion { margin-top: 12px; border: 1px solid var(--line); border-radius: 10px; padding: 11px; display: grid; gap: 8px; }
+.fm-explorer .fm-companion[hidden] { display: none !important; }
+.fm-explorer .fm-companion strong { font-size: 12px; }
+.fm-explorer .fm-companion span { overflow-wrap: anywhere; font-size: 11px; opacity: .85; }
+.fm-explorer .fm-companion button { border: 1px solid var(--line); border-radius: 8px; padding: 9px; cursor: pointer; }
+
+/* The YTD texture inspector occupies unused space below the 3D canvas. */
+.fm-explorer .fm-ytd-preview[hidden] { display: none !important; }
+.fm-explorer .fm-ytd-preview {
+  border: 1px solid var(--line); border-radius: 12px;
+  padding: 12px; display: grid; gap: 10px; min-height: 170px;
+  background: var(--panel); margin: 8px 0 12px;
+}
+.fm-explorer .fm-ytd-heading { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.fm-explorer .fm-ytd-heading strong { font-size: 12px; }
+.fm-explorer .fm-ytd-heading span { font-size: 11px; opacity: .75; overflow-wrap: anywhere; }
+.fm-explorer .fm-ytd-canvas { min-height: 150px; height: 170px; width: 100%; overflow: hidden; }
+.fm-explorer .fm-ytd-canvas .fm-texture-preview { min-height: 150px; }
+.fm-explorer .fm-ytd-canvas .fm-texture-preview canvas { max-height: 125px; width: auto; }
+.fm-explorer.fm-preview-expanded .fm-preview { flex: 0 0 auto; height: min(42vh, 460px) !important; min-height: 240px; }
+.fm-explorer.fm-preview-expanded .fm-ytd-preview { grid-template-columns: minmax(0, 1fr); min-height: 220px; }
+.fm-explorer.fm-preview-expanded .fm-ytd-canvas { min-height: 195px; height: 215px; }
+.fm-explorer.fm-preview-expanded .fm-ytd-canvas .fm-texture-preview canvas { max-height: 168px; }
+
+/* Right-hand texture inspector. Normal mode keeps the file grid untouched. */
+.fm-explorer .fm-inspector-meta {
+  display:flex; flex-direction:column; min-width:0; gap:8px;
+}
+.fm-explorer .fm-inspector-meta .fm-ytd-preview {
+  flex:0 0 auto; min-height:0; margin:10px 0 12px;
+}
+.fm-explorer .fm-inspector-meta .fm-ytd-canvas {
+  width:100%; min-height:155px; height:190px;
+}
+.fm-explorer .fm-inspector-meta .fm-ytd-canvas canvas {max-width:100%;}
+/* Expanded 3D view: left is the large model, right holds metadata and YTD textures. */
+.workspace-shell .fm-explorer.fm-preview-expanded .fm-inspector {
+  display:grid!important;
+  grid-template-columns:minmax(0, 7fr) minmax(235px, 3fr);
+  grid-template-rows:auto minmax(0,1fr);
+  column-gap:16px; row-gap:12px;
+  align-items:stretch;
+  overflow:hidden;
+}
+.fm-explorer.fm-preview-expanded .fm-inspector-head {
+  grid-column:1/-1; grid-row:1; min-width:0;
+}
+.fm-explorer.fm-preview-expanded #fmImage {
+  grid-column:1; grid-row:2;
+  height:100%!important; min-height:0!important; min-width:0; overflow:hidden;
+  flex:none!important;
+}
+.fm-explorer.fm-preview-expanded #fmImage .fm-model-preview {
+  min-height:0!important; width:100%; height:100%;
+}
+.fm-explorer.fm-preview-expanded .fm-inspector-meta {
+  grid-column:2; grid-row:2; overflow-y:auto; overflow-x:hidden;
+  min-height:0; min-width:0; padding-right:5px;
+}
+.fm-explorer.fm-preview-expanded .fm-inspector-meta .fm-ytd-preview {
+  min-height:0; width:100%; box-sizing:border-box;
+}
+.fm-explorer.fm-preview-expanded .fm-inspector-meta .fm-ytd-canvas {
+  height:230px; min-height:180px;
+}
+@media (max-width: 800px) {
+  .workspace-shell .fm-explorer.fm-preview-expanded .fm-inspector {
+    grid-template-columns:minmax(0,1fr);
+    grid-template-rows:auto minmax(220px,55vh) minmax(120px,1fr);
+    overflow-y:auto;
+  }
+  .fm-explorer.fm-preview-expanded #fmImage {grid-column:1;grid-row:2;}
+  .fm-explorer.fm-preview-expanded .fm-inspector-meta {grid-column:1;grid-row:3;overflow:visible;}
+}
+
+/* A YDD is the primary grid item; its matching YTD variants live in the inspector. */
+.fm-explorer .fm-ytd-count{font-size:10px;color:var(--muted,#9faabe);white-space:nowrap;}
+.fm-explorer .fm-ytd-variants{display:flex;flex-direction:column;gap:5px;max-height:190px;overflow:auto;min-width:0;}
+.fm-explorer .fm-ytd-variants button{width:100%;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.fm-explorer .fm-ytd-variants button[aria-pressed="true"]{border-color:#d5b444;color:#d5b444;background:#d5b44419;}
+
+/* Internal SMB configuration, never opens Files Community or a browser. */
+.fm-explorer .fm-network-settings[hidden]{display:none!important}
+.fm-explorer .fm-network-settings{
+  position:fixed;z-index:1600;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:min(520px,calc(100vw - 32px));box-sizing:border-box;
+  padding:20px;background:var(--panel,#1a2230);color:var(--text,#eef2f7);
+  border:1px solid var(--line,#39465a);border-radius:14px;box-shadow:0 24px 100px #000c;
+}
+.fm-explorer .fm-network-settings header{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:18px}
+.fm-explorer .fm-network-settings label{display:grid;gap:8px;font-size:12px}
+.fm-explorer .fm-network-settings input{width:100%;box-sizing:border-box;padding:11px;background:var(--bg,#111824);color:inherit;border:1px solid var(--line,#39465a);border-radius:8px}
+.fm-explorer .fm-network-settings p{font-size:12px;line-height:1.5;opacity:.8}
+.fm-explorer .fm-network-actions{display:flex;gap:10px;flex-wrap:wrap}
+.fm-explorer #fmModelOnly[aria-pressed="true"]{color:#d5b444;border-color:#d5b444;background:#d5b4441b}
+
+/* Larger right-hand YTD atlas while 3D preview is expanded. */
+.workspace-shell .fm-explorer.fm-preview-expanded .fm-inspector{
+  grid-template-columns:minmax(0, 64fr) minmax(320px, 36fr);
+}
+.fm-explorer.fm-preview-expanded .fm-inspector-meta .fm-ytd-canvas{
+  height:370px!important; min-height:300px!important;
+}
+.fm-explorer.fm-preview-expanded .fm-inspector-meta .fm-ytd-canvas .fm-texture-preview{
+  height:100%;min-height:0;display:flex;flex-direction:column;align-items:center;gap:8px;
+}
+.fm-explorer.fm-preview-expanded .fm-inspector-meta .fm-ytd-canvas .fm-texture-preview canvas{
+  max-width:100%;max-height:310px!important;object-fit:contain;flex:1 1 auto;min-height:0;
+}
+.fm-explorer.fm-preview-expanded .fm-inspector-meta .fm-ytd-preview{
+  min-height:390px;overflow:visible;
+}
+@media(max-width:800px){
+  .workspace-shell .fm-explorer.fm-preview-expanded .fm-inspector{grid-template-columns:minmax(0,1fr);}
+}
+
+.fm-explorer .fm-preview-settings{position:relative;flex:0 0 auto;border:1px solid #39465a;border-radius:8px;padding:5px 9px;font-size:11px}
+.fm-explorer .fm-preview-settings summary{cursor:pointer;white-space:nowrap}
+.fm-explorer .fm-preview-settings[open]{z-index:180}
+.fm-explorer .fm-preview-settings label{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;white-space:nowrap}
+.fm-explorer .fm-preview-settings select{min-width:75px;background:#17202f;border:1px solid #39465a;border-radius:5px;color:#f0f3f9;padding:4px}
+.fm-explorer .fm-preview-settings input[type=checkbox]{width:16px;height:16px;flex:none;accent-color:#d5b444}
+
+/* File Manager asset-focused sidebar */
+.fm-explorer .fm-asset-filter-panel{display:flex;flex-direction:column;gap:10px;padding:4px 3px 14px;min-width:0}
+.fm-explorer .fm-filter-title{font-size:11px;font-weight:700;color:#c6cfdb;margin-top:9px}
+.fm-explorer .fm-gender-switch{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.fm-explorer .fm-slot-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.fm-explorer .fm-gender-switch button,.fm-explorer .fm-slot-grid button{padding:7px 5px;min-width:0;min-height:31px;font-size:11px;line-height:1.25;border:1px solid #354258;border-radius:8px;color:#abb7c9;background:#1b2331}
+.fm-explorer .fm-gender-switch button[aria-pressed=true],.fm-explorer .fm-slot-grid button[aria-pressed=true]{color:#e9c56f;border-color:#d5b444;background:#d5b44420}
+.fm-explorer .fm-folder-switch{margin-top:8px;font-size:11px;border:1px solid #344258;background:transparent;color:#ced7e4}
+.fm-explorer .fm-sidebar.fm-filters-active .fm-tree-head,.fm-explorer .fm-sidebar.fm-filters-active .fm-tree{display:none!important}
+.fm-explorer .fm-gender-badge{display:inline-block;margin-left:6px;padding:1px 5px;border:1px solid #3b5265;border-radius:5px;color:#b6d2ee;font-size:10px}
+.fm-explorer .fm-preview-settings{position:relative;padding:0!important;border:0!important;background:none!important;z-index:20}
+.fm-explorer .fm-preview-settings>summary{min-height:34px;display:flex;align-items:center;gap:7px;padding:7px 12px;border:1px solid #354258;border-radius:8px;list-style:none;font-size:11px;white-space:nowrap;cursor:pointer}
+.fm-explorer .fm-preview-settings>summary::-webkit-details-marker{display:none}
+.fm-explorer .fm-preview-settings .fm-preview-settings-body{display:none;position:absolute;right:0;top:calc(100% + 8px);width:254px;max-width:calc(100vw - 36px);padding:14px;background:#1b2433;border:1px solid #3a485d;border-radius:12px;box-shadow:0 14px 40px #0009;box-sizing:border-box;z-index:200;flex-direction:column;gap:9px}
+.fm-explorer .fm-preview-settings[open] .fm-preview-settings-body{display:flex}
+.fm-explorer .fm-preview-settings .fm-preview-settings-title{font-weight:700;font-size:12px;padding-bottom:8px;border-bottom:1px solid #364154}
+.fm-explorer .fm-preview-settings .fm-preview-settings-body label{margin:0;display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:11px}
+.fm-explorer .fm-preview-settings .fm-preview-settings-body select{width:85px;min-width:85px}
+.fm-explorer .fm-preview-settings .fm-gpu-toggle input[type=checkbox]{width:17px;height:17px;min-width:17px;accent-color:#d5b444;margin:0}
+
+/* Expanded garment preview offers a real local YDD reference body, never a fake GTA avatar. */
+.fm-explorer .fm-character-preview-tools[hidden]{display:none!important}
+.fm-explorer .fm-character-preview-tools{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-left:auto}
+.fm-explorer .fm-character-preview-tools label{display:flex;align-items:center;gap:7px;font-size:11px;white-space:nowrap}
+.fm-explorer .fm-character-preview-tools input[type=checkbox]{width:15px;height:15px;min-width:15px;accent-color:#d5b444}
+.fm-explorer .fm-character-preview-tools button{font-size:11px;padding:6px 9px;min-height:29px;border:1px solid #40516b}
+.fm-explorer .fm-character-preview-tools [data-character-hint]{font-size:10px;color:#9daabd;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
