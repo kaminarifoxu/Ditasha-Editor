@@ -19,7 +19,7 @@ export function createFilePreview(container) {
     release();
     release = () => {};
   }
-  async function show(file, api, { snapshot = false, facePreview = false, morphPack = null, highPerformance = false } = {}) {
+  async function show(file, api, { snapshot = false, facePreview = false, morphPack = null, highPerformance = false, textureId = null } = {}) {
     clear();
     const version = generation;
     container.textContent = 'Memuat preview…';
@@ -72,9 +72,9 @@ export function createFilePreview(container) {
       const ext = file.name.split('.').at(-1).toLowerCase();
       const drawables = await decodeResource(ext, buffer);
       let external = [];
-      if (data.companion)
+      if (textureId || data.companion)
         try {
-          const companion = await api.read(data.companion.id);
+          const companion = await api.read(textureId || data.companion.id);
           external = (await decodeResource('ytd', new Uint8Array(companion.data).buffer)).textures;
         } catch {
           /* An unavailable companion must not hide readable geometry. */
