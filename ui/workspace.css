@@ -1035,3 +1035,23 @@ body.workspace-shell {
   overflow: auto;
   overflow-wrap: anywhere;
 }
+
+/* Keep primary navigation visible even if the long tool list has been scrolled. */
+.workspace-shell .workspace-nav .nav-primary-pinned {
+  position: sticky;
+  top: -18px;
+  z-index: 30;
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 5px;
+  margin: -18px -12px 8px;
+  padding: 18px 12px 10px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+.workspace-shell .workspace-nav .nav-primary-pinned > button {
+  display: flex !important;
+  visibility: visible !important;
+  flex: 0 0 auto;
+}
