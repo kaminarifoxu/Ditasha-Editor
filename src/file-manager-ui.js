@@ -127,12 +127,20 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
   settings.className='fm-network-settings';settings.hidden=true;
   settings.innerHTML='<header><strong>Pengaturan SMB / Jaringan</strong><button type="button" data-close aria-label="Tutup">✕</button></header><label>Alamat folder jaringan (UNC)<input data-path type="text" spellcheck="false" placeholder="\\\\NAS\\Assets" /></label><p>Gunakan share yang sudah bisa diakses melalui Windows. Tidak menyimpan username atau password.</p><div class="fm-network-actions"><button type="button" data-save>Simpan alamat</button><button type="button" data-connect>Buka di File Manager</button></div><p data-feedback role="status"></p>';
   root.append(settings);
+  const characterTools=document.createElement('div');
+  characterTools.className='fm-character-preview-tools';
+  characterTools.hidden=true;
+  characterTools.innerHTML='<label><input type="checkbox" data-with-character> Di badan</label><button type="button" data-use-base title="Gunakan model terpilih sebagai karakter referensi">Jadikan referensi badan</button><span data-character-hint>Item saja · pilih referensi badan terlebih dahulu</span>';
+  root.querySelector('.fm-inspector-head').append(characterTools);
   const assetPreview = createFilePreview($('fmImage'));
   const ytdPreview = createFilePreview($('fmYtdCanvas'));
   let activeGender='';
   let activeSlot='';
   let folderPanelVisible=false;
   let modelController = null;
+  let characterReference = null;
+  let withCharacter = false;
+  let pendingCharacter = 0;
   let activeTextureVariant = null;
   let location = '',
     offset = 0,
@@ -469,6 +477,8 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
       if(current!==serial)return;
       modelController = previewController?.setTextureVariant ? previewController : null;
       if(activeTextureVariant && modelController)await modelController.setTextureVariant(activeTextureVariant);
+      if(modelController && withCharacter && characterReference && characterReference.id!==file.id)
+        await modelController.setCharacterModel(characterReference);
     }
     else $('fmImage').innerHTML = icon('document');
   }
@@ -820,8 +830,33 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
   $('fmPlanClose').onclick = forgetPlan;
   $('fmPlanPanel').addEventListener('keydown', (event) => { if (event.key === 'Escape') forgetPlan(); });
   root.addEventListener('keydown', (event) => { if (event.key === 'Escape') { forgetPlan(); root.classList.remove('fm-preview-expanded'); } });
+  const characterCheckbox=characterTools.querySelector('[data-with-character]');
+  const characterHint=characterTools.querySelector('[data-character-hint]');
+  const applyCharacter=async()=>{
+    const ticket=++pendingCharacter;
+    if(!modelController?.setCharacterModel)return;
+    try{
+      if(!withCharacter||!characterReference){await modelController.setCharacterModel(null);return;}
+      if(picked?.id===characterReference.id) return;
+      await modelController.setCharacterModel(characterReference);
+      if(ticket===pendingCharacter)characterHint.textContent='Referensi: '+characterReference.name;
+    }catch(error){if(ticket===pendingCharacter)characterHint.textContent='Referensi gagal: '+error.message;}
+  };
+  characterCheckbox.onchange=()=>{
+    withCharacter=characterCheckbox.checked;
+    characterHint.textContent=withCharacter?'Mencari model badan referensi…':'Item saja';
+    applyCharacter();
+  };
+  characterTools.querySelector('[data-use-base]').onclick=()=>{
+    if(!picked || !/\\.(ydd|ydr)$/i.test(picked.name))return;
+    characterReference={id:picked.id,name:picked.name};
+    characterHint.textContent='Referensi tersimpan untuk folder ini: '+picked.name;
+    if(withCharacter)applyCharacter();
+  };
   $('fmExpandPreview').onclick = () => {
     const enlarged = root.classList.toggle('fm-preview-expanded');
+    characterTools.hidden=!enlarged;
+    if(enlarged && withCharacter)applyCharacter();
     $('fmExpandPreview').setAttribute('aria-pressed', String(enlarged));
     $('fmExpandPreview').textContent = enlarged ? '✕ Kecilkan preview' : '⛶ Perbesar 3D';
     window.dispatchEvent(new Event('resize'));
