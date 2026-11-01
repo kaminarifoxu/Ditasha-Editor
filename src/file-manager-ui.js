@@ -98,7 +98,10 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
   const libraryCompanions = new Map();
   async function readWithClothingCompanion(id) {
     const virtual = libraryCompanions.get(id);
-    if (virtual) return window.ditashaClothing.previewRead(virtual.packId, virtual.relativePath);
+    if (virtual) {
+      const result = await window.ditashaClothing.previewRead(virtual.packId, virtual.relativePath);
+      return {name: result.name, data: result.bytes};
+    }
     const data = await api().read(id);
     if (data.companion || !/\.(ydd|ydr)$/i.test(data.name || '')) return data;
     const clothing = window.ditashaClothing;
