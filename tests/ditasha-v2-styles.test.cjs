@@ -100,3 +100,9 @@ test('choice synchronization timer is stopped when the shell is removed', () => 
   assert.match(js, /clearInterval\(choiceRefresh\)/);
   assert.match(js, /sync\.destroy\?\.\(\)/);
 });
+
+test('collapsible inspector groups expose an action label', () => {
+  const source = read('src/workspace-polish.js');
+  assert.match(source, /button\.setAttribute\('aria-label', \(closed \? 'Buka ' : 'Minimalkan '\) \+ label\)/);
+  assert.match(source, /button\.title = \(closed \? 'Buka ' : 'Minimalkan '\) \+ label/);
+});
