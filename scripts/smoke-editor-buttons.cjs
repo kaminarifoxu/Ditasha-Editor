@@ -13,7 +13,7 @@ app.whenReady().then(async () => {
     });
     win.webContents.on('did-fail-load',(_event,code,message)=>errors.push(code+': '+message));
     await win.loadFile(path.resolve('ui/index.html'));
-    const state = await win.webContents.executeJavaScript(`(async()=>{
+    const state = await win.webContents.executeJavaScript(`(async()=>{\n      if(document.body.dataset.workspace!=='home')throw Error('Expected Creative Suite Home at startup; actual='+document.body.dataset.workspace);\n      if(!document.querySelector('.home-hero'))throw Error('Creative Suite Home hero was not mounted');
       const $=id=>document.getElementById(id);
       const open=$('openTexture'),input=$('fileInput'),paint=$('brush');
       if(!open||!input||!paint)throw Error('Editor controls are missing');
@@ -26,7 +26,7 @@ app.whenReady().then(async () => {
       const nav=document.querySelector('[data-page="files"]');
       if(!nav)throw Error('File Manager navigation not mounted');
       nav.click();
-      if(!document.querySelector('.fm-explorer'))throw Error('File Manager failed to activate');
+      if(document.body.dataset.workspace!=='files')throw Error('File Manager page not active: '+document.body.dataset.workspace);\n      if(!document.querySelector('.file-manager'))throw Error('File Manager DOM missing');
       return {opened, fileManager:true, title:document.title};
     })()`);
     if(errors.length)throw Error('Renderer errors: '+errors.join(' | '));
