@@ -152,3 +152,128 @@ body.workspace-shell .workspace-panel-toggle {
     gap: 6px;
   }
 }
+
+/* Phase 3: home, navigation and editor surfaces. Existing IDs and handlers are preserved. */
+body.workspace-shell[data-theme="midnight"] {
+  --canvas-surround: #0c121a;
+}
+body.workspace-shell[data-theme="midnight"] .workspace-nav {
+  background: #121923;
+  border-right: 1px solid #2e3947;
+}
+body.workspace-shell[data-theme="midnight"] .workspace-nav button {
+  border-radius: 10px;
+  transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+body.workspace-shell[data-theme="midnight"] .workspace-nav button:hover:not(:disabled) {
+  background: #243041;
+  border-color: #344457;
+  color: #f1f4f8;
+}
+body.workspace-shell[data-theme="midnight"] .workspace-nav button.active {
+  background: #322c1e;
+  border-color: #66572d;
+  color: #f6db83;
+}
+body.workspace-shell[data-theme="midnight"] .nav-section-title {
+  color: #98a5b6;
+}
+body.workspace-shell[data-theme="midnight"] header {
+  border-bottom-color: #344050;
+}
+body.workspace-shell[data-theme="midnight"] .workspace-search {
+  background: #18212c;
+  border: 1px solid #344152;
+  border-radius: 10px;
+}
+body.workspace-shell[data-theme="midnight"] .home-workspace {
+  background: radial-gradient(ellipse at 74% 0%, #222c36 0%, #10151c 47%);
+}
+body.workspace-shell[data-theme="midnight"] .home-hero {
+  border-bottom-color: #33404e;
+}
+body.workspace-shell[data-theme="midnight"] .home-overline,
+body.workspace-shell[data-theme="midnight"] .home-kicker {
+  color: #b9c2ce;
+}
+body.workspace-shell[data-theme="midnight"] .home-hero h1 {
+  color: #f5f7fa;
+  letter-spacing: -.05em;
+}
+body.workspace-shell[data-theme="midnight"] .home-hero h1 em {
+  color: #e0c35c;
+}
+body.workspace-shell[data-theme="midnight"] .home-art-tile {
+  background: linear-gradient(145deg, #283341, #161d26 76%);
+  border-color: #455061;
+  box-shadow: 0 24px 70px #0006;
+}
+body.workspace-shell[data-theme="midnight"] .home-workspace-card {
+  background: #18212b;
+  border: 1px solid #344051;
+  border-radius: 14px;
+  box-shadow: 0 5px 24px #0002;
+}
+body.workspace-shell[data-theme="midnight"] .home-workspace-card:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background: #212d39;
+  border-color: #9f8742;
+}
+body.workspace-shell[data-theme="midnight"] .home-card-icon {
+  background: #3b3321;
+  color: #e4c65f;
+}
+body.workspace-shell[data-theme="midnight"] .home-session-file,
+body.workspace-shell[data-theme="midnight"] .home-session-empty {
+  background: #19232e;
+  border-color: #344051;
+  border-radius: 12px;
+}
+body.workspace-shell[data-theme="midnight"] :is(.files, .tool-sidebar, .tool-details, .right, .fm-sidebar, .fm-inspector) {
+  border-color: #344051;
+}
+body.workspace-shell[data-theme="midnight"] :is(.canvasarea, #viewport, #mvViewport) {
+  border: 1px solid #344253;
+  box-shadow: inset 0 1px 0 #ffffff08;
+}
+body.workspace-shell[data-theme="midnight"] .editor-commandbar {
+  background: #18212b;
+  border-bottom-color: #344051;
+}
+body.workspace-shell[data-theme="midnight"] .workspace-command-results > button:hover:not(:disabled) {
+  background: #293746;
+  border-color: #455468;
+}
+@media (max-width: 900px) {
+  body.workspace-shell .home-hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  body.workspace-shell .home-art {
+    min-height: 185px;
+  }
+  body.workspace-shell .home-workspace-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 620px) {
+  body.workspace-shell .home-inner {
+    padding: 16px;
+  }
+  body.workspace-shell .home-workspace-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  body.workspace-shell .home-hero h1 {
+    font-size: clamp(30px, 8vw, 40px);
+  }
+  body.workspace-shell .home-art {
+    display: none;
+  }
+  body.workspace-shell .home-session-file {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.workspace-shell[data-theme="midnight"] .home-workspace-card:hover:not(:disabled) {
+    transform: none;
+  }
+}
