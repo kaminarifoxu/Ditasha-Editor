@@ -71,3 +71,8 @@ test('choice buttons retain native selection and support teardown', () => {
   assert.match(js, /select\.removeEventListener\('change', sync\)/);
   assert.match(js, /delete select\.dataset\.workspaceChoices/);
 });
+
+test('detached choice controls do not receive stale updates', () => {
+  const js = read('src/workspace-choices.js');
+  assert.match(js, /if \(!box\.isConnected \|\| !select\.isConnected\) return/);
+});
