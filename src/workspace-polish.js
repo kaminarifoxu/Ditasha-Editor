@@ -115,6 +115,8 @@ export function mountWorkspacePolish() {
       const set = (closed) => {
         panel.classList.toggle('workspace-group-collapsed', closed);
         button.setAttribute('aria-expanded', String(!closed));
+        button.setAttribute('aria-label', (closed ? 'Buka ' : 'Minimalkan ') + label);
+        button.title = (closed ? 'Buka ' : 'Minimalkan ') + label;
         save(key, closed);
         window.dispatchEvent(new Event('resize'));
       };
