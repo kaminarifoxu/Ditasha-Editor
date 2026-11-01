@@ -106,6 +106,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
     const packs = await clothing.list();
     const gender = /mp_m_freemode_01/i.test(data.name) ? 'male'
       : /mp_f_freemode_01/i.test(data.name) ? 'female' : null;
+    if (!gender) return data; // Ambiguous gender must never select a different freemode atlas.
     const match = (data.name || '').match(/(?:\^|^)((?:p_)?[a-z]+)_(\d{3})(?:_|\.)/i);
     if (!match) return data;
     const component = match[1].toLowerCase(), drawable = Number(match[2]);
@@ -113,7 +114,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
     const candidates = packs.flatMap(pack => (pack.files || [])
       .filter(entry => /\.ytd$/i.test(entry.name) &&
         entry.component === component && entry.drawable === drawable &&
-        (!gender || entry.gender === gender) &&
+        entry.gender === gender &&
         (!entry.textureVariant || entry.textureVariant === 'a'))
       .map(entry => ({packId: pack.id, relativePath: entry.relativePath, name: entry.name})));
     if (candidates.length !== 1) return data;
