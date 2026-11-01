@@ -1,0 +1,62 @@
+.fm-clothing-launch { margin-left: auto; flex: 0 0 auto; white-space: nowrap; background: var(--panel, #202631); color: var(--text, #e7edf6); border: 1px solid var(--line, #394358); border-radius: 9px; padding: 8px 12px; font: inherit; font-weight: 650; cursor: pointer; }
+.fm-clothing-launch:hover, .fm-clothing-launch:focus-visible { border-color: #eec078; color: #eec078; }
+@media (max-width: 950px) { .fm-clothing-launch { margin-left: 0; } }
+.clothing-catalog[hidden]{display:none}.clothing-catalog{position:fixed;inset:0;z-index:9999;overflow:auto;background:radial-gradient(circle at 60% 0,#15271c,#0e1110 60%);color:#e9f2ec;font:14px system-ui,sans-serif;padding:24px clamp(16px,5vw,90px)}
+.cl-head,.cl-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}.cl-head{border-bottom:1px solid #28352c;padding-bottom:18px}.cl-head strong{font-size:19px}.cl-head span{color:#31d75e}.cl-actions{display:flex;gap:10px}.clothing-catalog button,.clothing-catalog select,.clothing-catalog input{background:#1b211d;border:1px solid #303c33;color:#eaf1eb;border-radius:11px;padding:11px 13px}.clothing-catalog button{cursor:pointer}.clothing-catalog button.active,.clothing-catalog [data-import]{background:#22ce53;color:#071b0c;border-color:#22ce53;font-weight:700}.cl-toolbar{padding:24px 0}.cl-toolbar input{flex:1;min-width:180px;max-width:500px}.cl-genders,.cl-cats{display:flex;gap:8px;flex-wrap:wrap}.cl-cats{padding:8px 0 24px}.cl-cats button{font-size:12px}.cl-count{color:#86a28e;margin-bottom:18px}.cl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:14px}.cl-card{min-width:0;background:#1b211e;border:1px solid #303b33;border-radius:15px;padding:11px;display:grid;gap:6px}.cl-card strong{font-size:13px}.cl-card small{font-size:11px;color:#9aad9e;overflow-wrap:anywhere}.cl-placeholder{height:135px;background:linear-gradient(145deg,#202b23,#111713);display:grid;place-items:center;border-radius:10px}.cl-placeholder span{font-size:48px;color:#50875f}.cl-empty{grid-column:1/-1;text-align:center;padding:60px;color:#9bb19f}.cl-feedback{color:#70db8e;margin-top:20px}
+
+/* Freemode Character Maker — integrated with the existing Asset Workshop sidebar. */
+.workspace-nav .cm-launch{width:100%;display:flex;justify-content:flex-start;align-items:center;text-align:left;min-height:34px;padding:8px 10px;border:0;border-radius:8px;background:transparent;color:inherit;cursor:pointer;font-size:12px}
+.workspace-nav .cm-launch:hover{background:var(--raised,#293140)}
+.ditasha-character-maker[hidden]{display:none!important}
+.ditasha-character-maker{position:fixed;inset:0;z-index:11000;display:grid;place-items:center;padding:24px;background:#05070ad9;color:#e7eaf0;font:13px system-ui,sans-serif}
+.ditasha-character-maker .cm-card{width:min(1080px,100%);max-height:92vh;overflow:auto;background:#171e2a;border:1px solid #384459;border-radius:16px;box-shadow:0 30px 100px #000a}
+.ditasha-character-maker header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 22px;border-bottom:1px solid #344055}
+.ditasha-character-maker header strong{font-size:17px}
+.ditasha-character-maker .cm-layout{display:grid;grid-template-columns:270px minmax(0,1fr);gap:20px;padding:20px}
+.ditasha-character-maker aside,.ditasha-character-maker main{min-width:0;display:flex;flex-direction:column;gap:15px}
+.ditasha-character-maker label{display:flex;flex-direction:column;gap:6px;font-size:12px}
+.ditasha-character-maker select,.ditasha-character-maker input:not([type=range]){width:100%;min-height:36px;padding:8px;background:#101722;border:1px solid #384459;border-radius:9px;color:inherit}
+.ditasha-character-maker button{padding:10px 14px;border-radius:9px;border:1px solid #49566a;background:#253145;color:#ecf1f8;cursor:pointer}
+.ditasha-character-maker button[data-save],.ditasha-character-maker button[data-send]{background:#d5b444;color:#151a21;border-color:#d5b444;font-weight:700}
+.ditasha-character-maker .cm-actions{display:flex;gap:8px;flex-wrap:wrap}
+.ditasha-character-maker .cm-notice{margin:0;padding:13px;border:1px solid #60573a;border-radius:10px;background:#252519;color:#e8d7a6;line-height:1.6}
+.ditasha-character-maker .cm-sliders{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;max-height:48vh;overflow:auto;padding-right:7px}
+.ditasha-character-maker .cm-sliders label{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;padding:10px;border:1px solid #344055;border-radius:9px}
+.ditasha-character-maker .cm-sliders input{grid-column:1/-1;width:100%;accent-color:#d5b444}
+.ditasha-character-maker [data-status]{min-height:24px;margin:0;padding:0 20px 18px}
+@media(max-width:720px){.ditasha-character-maker{padding:8px}.ditasha-character-maker .cm-layout{grid-template-columns:1fr}.ditasha-character-maker .cm-sliders{grid-template-columns:1fr}}
+
+/* Live model preview on the Character Maker canvas. Facial sliders stay metadata-only. */
+.ditasha-character-maker .cm-preview-head { display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap; }
+.ditasha-character-maker .cm-preview-head span { color:#9faab9;font-size:11px; }
+.ditasha-character-maker .cm-model-preview {
+  position:relative; width:100%; height:320px; min-height:320px;
+  overflow:hidden; border:1px solid #344055; border-radius:12px;
+  background:radial-gradient(ellipse at 55% 30%,#2b3746,#0c111a);
+  display:grid;place-items:center;color:#abb9c8;
+}
+.ditasha-character-maker .cm-model-preview .fm-model-preview {height:100%;width:100%;min-height:0;}
+.ditasha-character-maker .cm-model-preview canvas {display:block;width:100%;height:100%;touch-action:none;}
+@media(max-width:720px){.ditasha-character-maker .cm-model-preview{height:240px;min-height:240px;}}
+
+/* Character Maker offline facial mesh preview controls */
+.ditasha-character-maker .cm-face-preview-toggle {
+  display:flex;flex-direction:row;align-items:center;gap:9px;
+  padding:9px 11px;border:1px solid #344055;border-radius:9px;
+}
+.ditasha-character-maker .cm-face-preview-toggle input {accent-color:#d5b444;}
+.ditasha-character-maker [data-face-state] {color:#d8c58b;font-size:11px;}
+
+/* Character Maker fixes for global form styles seen in the desktop build */
+.ditasha-character-maker .cm-face-preview-toggle input[type=checkbox]{
+  appearance:auto!important;inline-size:18px!important;block-size:18px!important;
+  width:18px!important;height:18px!important;min-height:0!important;
+  flex:0 0 18px;padding:0!important;margin:0!important;
+  background:transparent!important;border:0!important;
+}
+.ditasha-character-maker .cm-advanced{border:1px solid #354358;border-radius:10px;padding:10px 12px;}
+.ditasha-character-maker .cm-advanced>summary{cursor:pointer;color:#c1cbda;font-size:12px;}
+.ditasha-character-maker .cm-advanced .cm-actions{margin-top:12px;align-items:center;}
+.ditasha-character-maker .cm-advanced select{width:auto;max-width:100%;}
+.ditasha-character-maker .cm-layout>main>.cm-model-preview{min-height:340px;}
+.ditasha-character-maker [data-save]{font-weight:700;}

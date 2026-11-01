@@ -319,7 +319,18 @@ $ready = ${readyPath ? quote(readyPath) : '$null'}
 $token = ${quote(readyToken)}
 $expectedVersion = ${quote(expectedVersion || '')}
 function Report($status, $message) {
- @{status=$status;message=$message;target=$target} | ConvertTo-Json -Compress | Set-Content -LiteralPath $log -Encoding UTF8
+ $payload = @{status=$status;message=$message;target=$target} | ConvertTo-Json -Compress
+ # Readers poll install.json while the helper runs. Windows can temporarily
+ # deny Set-Content if a reader has the file open, so retry sharing violations.
+ for ($attempt = 0; $attempt -lt 30; $attempt++) {
+  try {
+   $payload | Set-Content -LiteralPath $log -Encoding UTF8 -ErrorAction Stop
+   return
+  } catch {
+   if ($attempt -eq 29) { throw }
+   Start-Sleep -Milliseconds 100
+  }
+ }
 }
 function WaitForProcess($processId) {
  $deadline = (Get-Date).AddSeconds(120)

@@ -1,3 +1,4 @@
+import { resolveCharacterBodyEntries } from './freemode-character-source.js';
 import { createFilePreview } from './file-preview.js';
 import { ICON_CODES } from './ui-icons.js';
 import { setProject } from './project-context.js';
@@ -40,7 +41,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
     .map(([key, label]) => `<option value="${key}">${label}</option>`)
     .join(
       '',
-    )}</select></label><label class="check"><input id="fmRecursive" type="checkbox">Semua subfolder</label></details>
+    )}</select></label><label class="check"><input id="fmRecursive" type="checkbox" checked>Semua subfolder</label></details>
   <div class="fm-tree-head"><span class="eyebrow">FOLDERS</span><button id="fmNewTab" title="Tab folder baru" aria-label="Tab folder baru">${icon('plus')}</button></div><nav id="fmTree" class="fm-tree" aria-label="Navigasi folder"><p class="muted">Buka folder untuk mulai.</p></nav>
   <details class="fm-note"><summary>Tentang sorting & Files</summary><p>Sorting menyalin ke folder baru dengan nama asli. Pasangan pakaian dan kendaraan tetap dikelompokkan. Hasil belum menjadi resource siap ensure.</p><p>Browser ini dibuat untuk DITASHA dengan pola navigasi Files. Tombol Buka di Files menjalankan aplikasi Files Community asli dalam jendela Windows sendiri.</p><p id="fmNativeState" role="status">Memeriksa aplikasi Files…</p><p id="fmRoot">Pilih folder aset di komputer.</p></details>
 </aside>
@@ -53,10 +54,20 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
   <div id="fmList" class="fm-list" aria-label="File dan folder"><div class="fm-empty">${icon('folder-open')}<h3>Ruang untuk semua asetmu</h3><p>Buka folder, telusuri model dan tekstur, lalu atur hasil sorting.</p></div></div>
   <div class="fm-pagination"><button id="fmPrevious" aria-label="Halaman sebelumnya">${icon('arrow-left')}</button><span id="fmPage">0 file</span><button id="fmNext" aria-label="Halaman berikutnya">${icon('arrow-right')}</button></div>
 </section>
-<aside class="fm-inspector"><div class="fm-inspector-head"><span class="eyebrow">DETAIL & PREVIEW</span><span>${icon('eye')}</span></div><div id="fmImage" class="fm-preview"><span>Pilih file untuk melihat detail.</span></div><h3 id="fmName">Belum ada file dipilih</h3><p id="fmDetails" class="muted"></p><p id="fmNote" class="muted"></p><div class="fm-open-actions"><button id="fmOpen" class="primary">${icon('cube')} Buka di editor</button><button id="fmReveal">${icon('folder-open')} Lihat lokasi file</button></div><div class="fm-sort-actions"><span class="eyebrow">SORTING SCOPE</span><p id="fmScope">Sorting mengikuti folder, pencarian, dan kategori aktif.</p><button id="fmShowOutput" hidden>${icon('folder-open')} Buka hasil sorting</button></div></aside>
+<aside class="fm-inspector"><div class="fm-inspector-head"><span class="eyebrow">DETAIL & PREVIEW</span><button id="fmExpandPreview" type="button" aria-pressed="false" title="Perbesar atau kecilkan preview 3D">⛶ Perbesar 3D</button></div><div id="fmImage" class="fm-preview"><span>Pilih file untuk melihat detail.</span></div><section id="fmYtdPreview" class="fm-ytd-preview" hidden><div class="fm-ytd-heading"><strong>Preview tekstur YTD</strong><span id="fmYtdName"></span></div><div id="fmYtdCanvas" class="fm-ytd-canvas"></div></section><h3 id="fmName">Belum ada file dipilih</h3><p id="fmDetails" class="muted"></p><p id="fmNote" class="muted"></p><div class="fm-open-actions"><button id="fmOpen" class="primary">${icon('cube')} Buka di editor</button><button id="fmReveal">${icon('folder-open')} Lihat lokasi file</button></div><div id="fmCompanion" class="fm-companion" hidden></div><div class="fm-sort-actions"><span class="eyebrow">SORTING SCOPE</span><p id="fmScope">Sorting mengikuti folder, pencarian, dan kategori aktif.</p><button id="fmShowOutput" hidden>${icon('folder-open')} Buka hasil sorting</button></div></aside>
 <section id="fmPlanPanel" class="fm-plan" hidden><div class="fm-heading"><div><span class="eyebrow">RENCANA SORTING</span><h2 id="fmPlanTitle"></h2></div><button id="fmPlanClose" aria-label="Tutup pratinjau">${icon('cross')}</button></div><p class="muted">Periksa tujuan salinan. Nama dan struktur sumber dipertahankan di dalam kategori. Maksimal 100 contoh file ditampilkan.</p><div id="fmPlanCounts" class="fm-counts"></div><div id="fmPlanEntries" class="fm-plan-entries"></div><div class="fm-plan-footer"><span class="muted">Pilih output di luar sumber. Setiap proses membuat folder hasil baru.</span><button id="fmCopy" class="primary">${icon('copy')} Pilih output & salin</button></div></section>
 <footer class="fm-status"><span id="fmStatus" role="status">Buka folder aset untuk memulai.</span><button id="fmCancel" hidden>Batalkan proses</button></footer>
 `;
+  // Inspector has two stable columns in expanded mode: 3D on the left,
+  // details and companion YTD on the right. Keep texture out of the 3D canvas.
+  const inspector = root.querySelector('.fm-inspector');
+  const meta = document.createElement('div');
+  meta.className = 'fm-inspector-meta';
+  for (const selector of ['#fmName','#fmDetails','#fmNote','.fm-open-actions','#fmYtdPreview','#fmCompanion','.fm-sort-actions']) {
+    const item = inspector.querySelector(selector);
+    if (item) meta.append(item);
+  }
+  inspector.append(meta);
   root.classList.add('fm-explorer');
   const side = root.querySelector('.fm-sidebar'),
     bar = root.querySelector('.fm-commandbar');
@@ -78,7 +89,28 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
       root.querySelector('#fmGetFiles'),
       root.querySelector('.fm-note'),
     );
+  const smbButton = document.createElement('button');
+  smbButton.type = 'button';
+  smbButton.id = 'fmSmb';
+  smbButton.textContent = 'Pengaturan SMB';
+  smbButton.title = 'Buka folder jaringan Windows menggunakan \\\\server\\share';
+  more.querySelector('div').prepend(smbButton);
+  const modelOnlyButton=document.createElement('button');
+  modelOnlyButton.id='fmModelOnly';modelOnlyButton.type='button';
+  modelOnlyButton.textContent='3D saja: Aktif';
+  bar.append(modelOnlyButton);
+  const previewSettings = document.createElement('details');
+  previewSettings.className = 'fm-preview-settings';
+  previewSettings.innerHTML = '<summary>Preview <span aria-hidden="true">⚙</span></summary><div class="fm-preview-settings-body"><div class="fm-preview-settings-title">Performa preview</div><label><span>Thumbnail / halaman</span><select data-limit><option>50</option><option>100</option><option>250</option></select></label><label><span>Batch render</span><select data-batch><option>8</option><option>12</option><option>16</option></select></label><label class="fm-gpu-toggle"><span>GPU high-performance</span><input type="checkbox" data-gpu></label></div>';
+  bar.append(previewSettings);
   bar.append(more);
+  const filterPanel=document.createElement('section');
+  filterPanel.className='fm-asset-filter-panel';
+  filterPanel.innerHTML='<div class="fm-filter-title">Filter aset</div><div class="fm-gender-switch" role="group" aria-label="Filter gender"><button type="button" data-gender="" aria-pressed="true">Semua</button><button type="button" data-gender="male">Cowok</button><button type="button" data-gender="female">Cewek</button><button type="button" data-gender="unknown">Lainnya</button></div><div class="fm-filter-title">Komponen pakaian</div><div class="fm-slot-grid" role="group" aria-label="Filter komponen"></div><button class="fm-folder-switch" type="button">Lihat folder</button>';
+  const slots=['SEMUA','JBIB','ACCS','LOWR','FEET','TEEF','TASK','BERD','HAND','DECL','HEAD','HAIR','UPPR','P_HEAD','P_EYES','P_EARS'];
+  for(const slot of slots){const b=document.createElement('button');b.type='button';b.dataset.slot=slot==='SEMUA'?'':slot;b.textContent=slot;b.setAttribute('aria-pressed',String(slot==='SEMUA'));filterPanel.querySelector('.fm-slot-grid').append(b);}
+  side.prepend(filterPanel);
+  side.classList.toggle('fm-filters-active', !folderPanelVisible);
   side.prepend(root.querySelector('.fm-tree-head'));
   side.querySelector('.fm-tree-head .eyebrow').textContent = 'Navigasi';
   side.querySelector(':scope > .eyebrow')?.remove();
@@ -92,7 +124,99 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
   nav.after(root);
   const $ = (id) => root.querySelector('#' + id),
     api = () => window.ditashaFiles;
+  const settings=document.createElement('section');
+  settings.className='fm-network-settings';settings.hidden=true;
+  settings.innerHTML='<header><strong>Pengaturan SMB / Jaringan</strong><button type="button" data-close aria-label="Tutup">✕</button></header><label>Alamat folder jaringan (UNC)<input data-path type="text" spellcheck="false" placeholder="\\\\NAS\\Assets" /></label><p>Gunakan share yang sudah bisa diakses melalui Windows. Tidak menyimpan username atau password.</p><div class="fm-network-actions"><button type="button" data-save>Simpan alamat</button><button type="button" data-connect>Buka di File Manager</button></div><p data-feedback role="status"></p>';
+  root.append(settings);
+  const characterTools=document.createElement('div');
+  characterTools.className='fm-character-preview-tools';
+  characterTools.hidden=true;
+  characterTools.innerHTML='<label><input type="checkbox" data-with-character> Di badan</label><button type="button" data-use-base title="Gunakan model terpilih sebagai karakter referensi">Jadikan referensi badan</button><span data-character-hint>Item saja · pilih referensi badan terlebih dahulu</span>';
+  root.querySelector('.fm-inspector-head').append(characterTools);
   const assetPreview = createFilePreview($('fmImage'));
+  const ytdPreview = createFilePreview($('fmYtdCanvas'));
+  // Restore library filters without allowing obsolete values to break the file query.
+  let savedFilters = {};
+  try { savedFilters = JSON.parse(localStorage.getItem('ditasha-file-manager-filters') || '{}') || {}; } catch {}
+  const validGenders = ['', 'male', 'female', 'unknown'];
+  let activeGender = validGenders.includes(savedFilters.gender) ? savedFilters.gender : '';
+  let activeSlot = slots.includes(savedFilters.slot) && savedFilters.slot !== 'SEMUA' ? savedFilters.slot : '';
+  let folderPanelVisible = savedFilters.showFolders === true;
+  const saveLibraryFilters = () => {
+    try {
+      localStorage.setItem('ditasha-file-manager-filters', JSON.stringify({
+        gender: activeGender, slot: activeSlot, showFolders: folderPanelVisible
+      }));
+    } catch { /* File Manager remains usable when storage is unavailable. */ }
+  };
+  let modelController = null;
+  let characterReference = null;
+  let characterReferenceIsAutomatic = false;
+  // Virtual IDs are resolved through the existing local Clothing Library.
+  // No second import and no duplicate freemode storage is required.
+  const libraryReferenceCache = new Map();
+  const libraryPrefix = 'ditasha-library:';
+  const referenceGender = file => {
+    const name = String(file?.name || '');
+    if (/mp_f_freemode_01/i.test(name)) return 'female';
+    if (/mp_m_freemode_01/i.test(name)) return 'male';
+    return activeGender === 'female' ? 'female' : 'male';
+  };
+  async function findLibraryReference(file) {
+    if (!window.ditashaClothing?.list || !window.ditashaClothing?.previewRead) return null;
+    const gender = referenceGender(file);
+    const packs = await window.ditashaClothing.list();
+    const candidates = [];
+    for (const pack of packs) {
+      for (const entry of pack.files || []) {
+        if (entry.gender !== gender || entry.component !== 'head' || !/\.ydd$/i.test(entry.name)) continue;
+        candidates.push({pack, entry});
+      }
+    }
+    candidates.sort((a,b) =>
+      Number(b.pack.pack === 'DITASHA Freemode Library') - Number(a.pack.pack === 'DITASHA Freemode Library') ||
+      Number(b.pack.pack === 'DITASHA Built-in Freemode') - Number(a.pack.pack === 'DITASHA Built-in Freemode') ||
+      String(a.entry.name).localeCompare(String(b.entry.name)));
+    const chosen = candidates[0];
+    if (!chosen) return null;
+    const encode = entry => libraryPrefix + encodeURIComponent(chosen.pack.id) + ':' + encodeURIComponent(entry.relativePath);
+    for (const entry of chosen.pack.files || []) {
+      libraryReferenceCache.set(encode(entry), {packId:chosen.pack.id, entry, files:chosen.pack.files});
+    }
+    // Reuse Character Maker's validated body selection instead of maintaining
+    // a second, divergent freemode component resolver in File Manager.
+    const selectedComponent = String(file?.name || '').match(/(?:^|\^)(head|uppr|lowr|hand|feet)_\d{3,4}/i)?.[1]?.toLowerCase();
+    const resolved = resolveCharacterBodyEntries(packs, {
+      packId: chosen.pack.id,
+      relativePath: chosen.entry.relativePath
+    }, gender);
+    const parts = resolved.filter(({entry}) =>
+      /\.ydd$/i.test(entry.name) && entry.component !== selectedComponent
+    ).map(({entry}) => ({
+      id: encode(entry), name: entry.name, slot: entry.component
+    }));
+    if (!parts.length) return null;
+    return {...parts[0], gender, parts};
+  }
+  const previewReadProxy = () => ({
+    ...api(),
+    read: async id => {
+      const record = libraryReferenceCache.get(id);
+      if (!record) return api().read(id);
+      const data = await window.ditashaClothing.previewRead(record.packId,record.entry.relativePath);
+      const companion = record.files.find(item =>
+        item.gender === record.entry.gender &&
+        item.component === record.entry.component &&
+        item.drawable === record.entry.drawable &&
+        /\.ytd$/i.test(item.name) &&
+        (!item.textureVariant || item.textureVariant === 'a'));
+      return {data:data.bytes, name:record.entry.name,
+        companion:companion ? {id:libraryPrefix+encodeURIComponent(record.packId)+':'+encodeURIComponent(companion.relativePath),name:companion.name} : null};
+    }
+  });
+  let withCharacter = false;
+  let pendingCharacter = 0;
+  let activeTextureVariant = null;
   let location = '',
     offset = 0,
     total = 0,
@@ -107,7 +231,8 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
   let orderBy = 'name',
     descending = false,
     view = 'list',
-    detailsOpen = true;
+    detailsOpen = true,
+    modelOnly = true;
   let history = [''],
     historyIndex = 0,
     tabSerial = 1;
@@ -115,6 +240,13 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
     activeTab = tabs[0];
   let thumbnailGeneration = 0;
   const thumbnails = [];
+  let currentPageFiles=[];
+  const previewOptions = { limit: 250, batch: 12, gpu: true };
+  try { Object.assign(previewOptions, JSON.parse(localStorage.getItem('ditasha-file-preview-options') || '{}')); } catch {}
+  previewOptions.limit = [50,100,250].includes(previewOptions.limit) ? previewOptions.limit : 250;
+  previewOptions.batch = [8,12,16].includes(previewOptions.batch) ? previewOptions.batch : 12;
+  previewOptions.gpu = previewOptions.gpu !== false;
+  const savePreviewOptions = () => localStorage.setItem('ditasha-file-preview-options',JSON.stringify(previewOptions));
   function clearThumbnails() {
     thumbnailGeneration++;
     thumbnails.splice(0).forEach((url) => URL.revokeObjectURL(url));
@@ -261,6 +393,10 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
     offset,
     orderBy,
     descending,
+    modelOnly,
+    gender:activeGender,
+    slot:activeSlot,
+    previewPageSize: previewOptions.limit === 250 ? 250 : 100,
   });
   function controls() {
     root.querySelectorAll('button,input,select').forEach((e) => {
@@ -284,7 +420,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
         b.setAttribute('aria-pressed', String(b.dataset.category === $('fmCategory').value));
       });
     $('fmPrevious').disabled = offset === 0;
-    $('fmNext').disabled = offset + 100 >= total;
+    $('fmNext').disabled = offset + (previewOptions.limit === 250 ? 250 : 100) >= total;
     $('fmPlan').disabled = !matchingFiles;
     $('fmOpen').disabled =
       !picked ||
@@ -313,13 +449,20 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
   }
   function clearPreview() {
     assetPreview.clear();
+    ytdPreview.clear();
+    modelController = null;
+    activeTextureVariant = null;
     serial++;
+    $('fmYtdPreview').hidden = true;
+    $('fmYtdName').textContent = '';
     picked = null;
     if (imageURL) URL.revokeObjectURL(imageURL);
     imageURL = null;
     $('fmImage').textContent = 'Pilih file untuk melihat detail.';
     $('fmName').textContent = 'Belum ada file dipilih';
     $('fmDetails').textContent = $('fmNote').textContent = '';
+    $('fmCompanion').hidden = true;
+    $('fmCompanion').replaceChildren();
   }
   function counts(container, values) {
     container.replaceChildren();
@@ -339,6 +482,53 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
     $('fmDetails').textContent =
       `${categories[file.category]} · ${size(file.size)}\n${file.relative}\nTujuan: ${file.destination}`;
     $('fmNote').textContent = file.note || '';
+    $('fmCompanion').hidden = true;
+    $('fmCompanion').replaceChildren();
+    if (/\.(ydd|ydr|yft)$/i.test(file.name)) {
+      const current = serial;
+      const grouped = file.textures || [];
+      const presentTextures = textures => {
+        if(current!==serial || !textures.length)return;
+        const box=$('fmCompanion');
+        const title=document.createElement('strong');
+        title.textContent='Tekstur terkait · '+textures.length+' YTD';
+        const buttons=document.createElement('div');buttons.className='fm-ytd-variants';
+        const show=texture=>{
+          if(current!==serial)return;
+          $('fmYtdName').textContent=texture.name;
+          activeTextureVariant = texture.id;
+          if(modelController?.setTextureVariant)modelController.setTextureVariant(texture.id).catch(error=>{
+            if(current===serial)$('fmNote').textContent='Gagal mengganti tekstur 3D: '+error.message;
+          });
+          $('fmYtdPreview').hidden=false;
+          buttons.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.textureId===String(texture.id))));
+          ytdPreview.show({id:texture.id,name:texture.name},api()).catch(error=>{
+            if(current===serial)$('fmYtdCanvas').textContent='YTD gagal dimuat: '+error.message;
+          });
+        };
+        for(const texture of textures){
+          const button=document.createElement('button');
+          button.type='button';button.dataset.textureId=texture.id;
+          button.textContent=texture.name;button.title=texture.name;
+          button.onclick=()=>show(texture);
+          buttons.append(button);
+        }
+        box.replaceChildren(title,buttons);box.hidden=false;
+        // Show the first YTD in the texture inspector, but do not force
+        // it onto the model. The 3D preview now chooses the best-matching
+        // variant until the user explicitly selects one.
+        $('fmYtdName').textContent=textures[0].name;
+        $('fmYtdPreview').hidden=false;
+        ytdPreview.show({id:textures[0].id,name:textures[0].name},api()).catch(error=>{
+          if(current===serial)$('fmYtdCanvas').textContent='YTD gagal dimuat: '+error.message;
+        });
+      };
+      if(grouped.length)presentTextures(grouped);
+      else api().read(file.id).then(data=>{
+        if(current!==serial || !data.companion)return;
+        presentTextures([data.companion]);
+      }).catch(()=>{});
+    }
     $('fmOpen').innerHTML =
       icon(/\.(ydd|ydr|yft)$/i.test(file.name) ? 'cube' : 'picture') +
       (/\.(ydd|ydr|yft)$/i.test(file.name)
@@ -364,7 +554,25 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
       } catch (e) {
         if (current === serial) $('fmImage').textContent = e.message;
       }
-    } else if (/\.(ydd|ydr|yft|ytd|dds)$/i.test(file.name)) await assetPreview.show(file, api());
+    } else if (/\.(ydd|ydr|yft|ytd|dds)$/i.test(file.name)) {
+      const previewController = await assetPreview.show(file, previewReadProxy(), {textureId:activeTextureVariant || null});
+      if(current!==serial)return;
+      modelController = previewController?.setTextureVariant ? previewController : null;
+      if(activeTextureVariant && modelController)await modelController.setTextureVariant(activeTextureVariant);
+      if(modelController && withCharacter) {
+        const gender = referenceGender(file);
+        if (!characterReference || characterReferenceIsAutomatic || (characterReference.gender && characterReference.gender !== gender)) {
+          characterReference = await findLibraryReference(file);
+          characterReferenceIsAutomatic = true;
+        }
+        if (current !== serial) return;
+        if (characterReference && characterReference.id !== file.id)
+          await modelController.setCharacterModel(characterReference);
+        else if (!characterReference)
+          characterTools.querySelector('[data-character-hint]').textContent =
+            'Model kepala freemode ' + (gender === 'female' ? 'cewek' : 'cowok') + ' belum ada di Clothing Library lokal.';
+      }
+    }
     else $('fmImage').innerHTML = icon('document');
   }
   async function list() {
@@ -404,6 +612,10 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
       );
       const label = document.createElement('span');
       label.textContent = file.name;
+      const genderMatch=file.relative.toLowerCase();
+      const genderLabel=/mp_f_freemode|(?:^|\/)(?:female|cewek)(?:\/|$)/.test(genderMatch)?'Cewek':/mp_m_freemode|(?:^|\/)(?:male|cowok)(?:\/|$)/.test(genderMatch)?'Cowok':null;
+      if(genderLabel){const badge=document.createElement('small');badge.className='fm-gender-badge';badge.textContent=genderLabel;label.append(badge);}
+      if(file.textures?.length){const badge=document.createElement('small');badge.className='fm-ytd-count';badge.textContent=' · '+file.textures.length+' YTD';label.append(badge);}
       const relative = document.createElement('small');
       relative.textContent = file.relative;
       const title = document.createElement('span');
@@ -433,7 +645,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
       $('fmList').append(empty);
     }
     $('fmPage').textContent =
-      `${total ? offset + 1 : 0}–${Math.min(offset + 100, total)} / ${total.toLocaleString('id-ID')} entri · ${size(data.bytes)}`;
+      `${total ? offset + 1 : 0}–${Math.min(offset + (previewOptions.limit === 250 ? 250 : 100), total)} / ${total.toLocaleString('id-ID')} entri · ${size(data.bytes)}`;
     $('fmBreadcrumb').textContent = rootInfo.name + (location ? ' / ' + location : '');
     $('fmFolderName').textContent = location.split('/').at(-1) || rootInfo.name;
     counts($('fmCounts'), data.counts);
@@ -454,44 +666,47 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
         ),
         true,
       );
+    currentPageFiles=data.files;
     if (view === 'grid') loadThumbnails(data.files, thumbnailGeneration);
   }
   async function loadThumbnails(files, version) {
-    for (const file of files
-      .filter((f) => /\.(png|jpe?g|webp|gif|bmp)$/i.test(f.name) && f.size <= 8 * 1024 * 1024)
-      .slice(0, 40)) {
-      if (version !== thumbnailGeneration) return;
+    // Images are cheap; YDD/YDR/YFT need the existing GTA decoder and WebGL renderer.
+    const candidates = files.filter(f => /\.(png|jpe?g|webp|gif|bmp|ydd|ydr|yft)$/i.test(f.name) &&
+      f.size <= 64 * 1024 * 1024).slice(0, previewOptions.limit);
+    let rendered = 0;
+    for (const file of candidates) {
+      if (version !== thumbnailGeneration || view !== 'grid') return;
+      const row = [...$('fmList').querySelectorAll('[data-file-id]')].find(r => r.dataset.fileId === file.id);
+      if (!row) continue;
       try {
-        const data = await api().read(file.id);
-        const bitmap = await createImageBitmap(new Blob([data.data]), {
-          resizeWidth: 160,
-          resizeQuality: 'high',
-        });
-        if (version !== thumbnailGeneration) {
+        let blob;
+        if (/\.(ydd|ydr|yft)$/i.test(file.name)) {
+          const host = document.createElement('div');
+          host.className = 'fm-thumbnail-render-host';
+          document.body.append(host);
+          const preview = createFilePreview(host);
+          try { blob = await preview.show(file, api(), {snapshot:true, highPerformance:previewOptions.gpu}); }
+          finally { preview.clear(); host.remove(); }
+        } else {
+          const data = await api().read(file.id);
+          const bitmap = await createImageBitmap(new Blob([data.data]), {resizeWidth:180,resizeQuality:'high'});
+          const canvas = document.createElement('canvas');
+          canvas.width = bitmap.width; canvas.height = bitmap.height;
+          canvas.getContext('2d').drawImage(bitmap,0,0);
           bitmap.close();
-          return;
+          blob = await new Promise(resolve => canvas.toBlob(resolve,'image/png'));
+          canvas.width = canvas.height = 1;
         }
-        const canvas = document.createElement('canvas');
-        canvas.width = bitmap.width;
-        canvas.height = bitmap.height;
-        canvas.getContext('2d').drawImage(bitmap, 0, 0);
-        bitmap.close();
-        const blob = await new Promise((resolve) => canvas.toBlob(resolve));
         if (!blob || version !== thumbnailGeneration) return;
-        const row = [...$('fmList').querySelectorAll('[data-file-id]')].find(
-          (r) => r.dataset.fileId === file.id,
-        );
-        if (!row) continue;
         const url = URL.createObjectURL(blob);
         thumbnails.push(url);
         const img = document.createElement('img');
-        img.className = 'fm-thumbnail';
-        img.alt = '';
-        img.src = url;
+        img.className = 'fm-thumbnail'; img.alt = 'Preview 3D '+file.name; img.src = url;
         row.querySelector('span').prepend(img);
       } catch {
-        /* A damaged image keeps its file icon and remains sortable. */
+        // Invalid or unsupported RSC assets retain the normal icon.
       }
+      if (++rendered % previewOptions.batch === 0) await new Promise(resolve => setTimeout(resolve,0));
     }
   }
   async function choose(refresh = false) {
@@ -512,6 +727,64 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
     setProject('files', rootInfo.name);
     await list();
   }
+  filterPanel.querySelector('.fm-folder-switch').textContent = folderPanelVisible ? 'Sembunyikan folder' : 'Lihat folder';
+  const syncAssetButtons=()=>{
+    filterPanel.querySelectorAll('[data-gender]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.gender===activeGender)));
+    filterPanel.querySelectorAll('[data-slot]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.slot===activeSlot)));
+  };
+  syncAssetButtons();
+  filterPanel.querySelectorAll('[data-gender]').forEach(b=>b.onclick=()=>run(async()=>{activeGender=b.dataset.gender;offset=0;saveLibraryFilters();syncAssetButtons();if(rootInfo)await list();}));
+  filterPanel.querySelectorAll('[data-slot]').forEach(b=>b.onclick=()=>run(async()=>{activeSlot=b.dataset.slot;offset=0;saveLibraryFilters();syncAssetButtons();if(rootInfo)await list();}));
+  filterPanel.querySelector('.fm-folder-switch').onclick=()=>{
+    folderPanelVisible=!folderPanelVisible;
+    side.classList.toggle('fm-filters-active',!folderPanelVisible);
+    filterPanel.querySelector('.fm-folder-switch').textContent=folderPanelVisible?'Sembunyikan folder':'Lihat folder';
+    saveLibraryFilters();
+  };
+  const smbInput=settings.querySelector('[data-path]');
+  const smbFeedback=settings.querySelector('[data-feedback]');
+  const loadSmb=async()=>{const stored=await api().networkSettings();smbInput.value=stored.networkPath||'';};
+  $('fmSmb').onclick=()=>{
+    more.open=false;settings.hidden=false;
+    loadSmb().catch(e=>{smbFeedback.textContent=e.message;});
+  };
+  settings.querySelector('[data-close]').onclick=()=>{settings.hidden=true;};
+  settings.querySelector('[data-save]').onclick=async()=>{
+    try{await api().networkSettings({networkPath:smbInput.value.trim()});smbFeedback.textContent='Alamat SMB tersimpan permanen.';}
+    catch(e){smbFeedback.textContent=e.message;}
+  };
+  settings.querySelector('[data-connect]').onclick=async()=>{
+    try{
+      const saved=await api().networkSettings({networkPath:smbInput.value.trim()});
+      if(!saved.networkPath)throw Error('Isi alamat SMB terlebih dahulu.');
+      settings.hidden=true;
+      run(()=>choose({networkPath:saved.networkPath}));
+    }catch(e){smbFeedback.textContent=e.message;}
+  };
+  const limitSelect=previewSettings.querySelector('[data-limit]');
+  const batchSelect=previewSettings.querySelector('[data-batch]');
+  const gpuCheck=previewSettings.querySelector('[data-gpu]');
+  limitSelect.value=String(previewOptions.limit);
+  batchSelect.value=String(previewOptions.batch);
+  gpuCheck.checked=previewOptions.gpu;
+  const updatePreviewSettings=()=>{
+    previewOptions.limit=Number(limitSelect.value);
+    previewOptions.batch=Number(batchSelect.value);
+    previewOptions.gpu=gpuCheck.checked;
+    savePreviewOptions();
+    if(rootInfo) { offset=0; run(()=>list()); }
+  };
+  limitSelect.onchange=updatePreviewSettings;
+  batchSelect.onchange=updatePreviewSettings;
+  gpuCheck.onchange=updatePreviewSettings;
+  $('fmModelOnly').onclick=()=>run(async()=>{
+    modelOnly=!modelOnly;
+    $('fmModelOnly').textContent='3D saja: '+(modelOnly?'Aktif':'Nonaktif');
+    $('fmModelOnly').setAttribute('aria-pressed',String(modelOnly));
+    offset=0;
+    if(rootInfo)await list();
+  });
+  $('fmModelOnly').setAttribute('aria-pressed','true');
   $('fmChoose').onclick = () => run(() => choose());
   $('fmRefresh').onclick = () => run(() => choose(true));
   $('fmHome').onclick = () => run(() => navigate(''));
@@ -599,12 +872,12 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
   };
   $('fmPrevious').onclick = () =>
     run(async () => {
-      offset -= 100;
+      offset -= (previewOptions.limit === 250 ? 250 : 100);
       await list();
     });
   $('fmNext').onclick = () =>
     run(async () => {
-      offset += 100;
+      offset += (previewOptions.limit === 250 ? 250 : 100);
       await list();
     });
   $('fmReveal').onclick = () => run(() => api().reveal(picked.id));
@@ -651,6 +924,60 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
       $('fmPlanPanel').hidden = false;
     });
   $('fmPlanClose').onclick = forgetPlan;
+  $('fmPlanPanel').addEventListener('keydown', (event) => { if (event.key === 'Escape') forgetPlan(); });
+  root.addEventListener('keydown', (event) => { if (event.key === 'Escape') { forgetPlan(); root.classList.remove('fm-preview-expanded'); } });
+  const characterCheckbox=characterTools.querySelector('[data-with-character]');
+  const characterHint=characterTools.querySelector('[data-character-hint]');
+  const showCharacterStatus=()=>{
+    if(!withCharacter){characterHint.textContent='Item saja';return;}
+    if(!characterReference){characterHint.textContent='Menggunakan referensi freemode dari Clothing Library jika tersedia.';return;}
+    characterHint.textContent='Referensi badan: '+characterReference.name;
+  };
+  const applyCharacter=async()=>{
+    const ticket=++pendingCharacter;
+    showCharacterStatus();
+    if(!modelController?.setCharacterModel)return;
+    try{
+      if(!withCharacter){await modelController.setCharacterModel(null);return;}
+      if(!characterReference || characterReferenceIsAutomatic){
+        characterReference=await findLibraryReference(picked);
+        characterReferenceIsAutomatic=true;
+      }
+      if(!characterReference){characterHint.textContent='Tidak ditemukan YDD head freemode untuk gender terpilih di Clothing Library lokal.';return;}
+      if(picked?.id===characterReference.id)return;
+      await modelController.setCharacterModel(characterReference);
+      if(ticket===pendingCharacter)showCharacterStatus();
+    }catch(error){if(ticket===pendingCharacter)characterHint.textContent='Referensi gagal: '+error.message;}
+  };
+  characterCheckbox.onchange=()=>{
+    withCharacter=characterCheckbox.checked;
+    showCharacterStatus();
+    applyCharacter();
+  };
+  characterTools.querySelector('[data-use-base]').onclick=()=>{
+    if(!picked || !/\.(ydd|ydr)$/i.test(picked.name)){
+      characterHint.textContent='Pilih file YDD/YDR karakter terlebih dahulu.';
+      return;
+    }
+    // A clothing drawable is not a freemode body. Avoid silently saving
+    // clothing as a reference model that can never display a character.
+    if(/(?:^|[\\/\\^])(?:jbib|accs|lowr|feet|teef|task|berd|hand|decl|uppr|hair|p_head|p_eyes|p_ears)_\d{3,4}/i.test(picked.name)){
+      characterHint.textContent='Ini item pakaian, bukan karakter. Pilih YDD model badan/freemode dulu.';
+      return;
+    }
+    characterReference={id:picked.id,name:picked.name,gender:referenceGender(picked)};
+    characterReferenceIsAutomatic=false;
+    showCharacterStatus();
+    if(withCharacter)applyCharacter();
+  };
+  $('fmExpandPreview').onclick = () => {
+    const enlarged = root.classList.toggle('fm-preview-expanded');
+    characterTools.hidden=!enlarged;
+    if(enlarged){showCharacterStatus();if(withCharacter)applyCharacter();}
+    $('fmExpandPreview').setAttribute('aria-pressed', String(enlarged));
+    $('fmExpandPreview').textContent = enlarged ? '✕ Kecilkan preview' : '⛶ Perbesar 3D';
+    window.dispatchEvent(new Event('resize'));
+  };
   $('fmCopy').onclick = () =>
     run(async () => {
       const result = await api().sort(plan.id);

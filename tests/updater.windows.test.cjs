@@ -6,6 +6,19 @@ const fs = require('node:fs/promises'),
   os = require('node:os');
 const { spawn } = require('node:child_process');
 const { replacementScript } = require('../electron/updater.cjs');
+test('install report retries transient Windows sharing violations during polling', () => {
+  const script = replacementScript({
+    target: 'C:\\DITASHA\\editor.exe',
+    staged: 'C:\\DITASHA\\update.exe',
+    parentPid: 1234,
+    logPath: 'C:\\DITASHA\\install.json',
+    restart: false,
+  });
+  assert.match(script, /function Report\(\$status, \$message\)/);
+  assert.match(script, /for \(\$attempt = 0; \$attempt -lt 30; \$attempt\+\+\)/);
+  assert.match(script, /Set-Content -LiteralPath \$log -Encoding UTF8 -ErrorAction Stop/);
+  assert.match(script, /Start-Sleep -Milliseconds 100/);
+});
 for (const mode of ['success', 'staging-failure', 'launch-failure', 'ready-failure'])
   test(
     `Windows helper ${mode}`,
@@ -73,7 +86,7 @@ for (const mode of ['success', 'staging-failure', 'launch-failure', 'ready-failu
 
 test(
   'Windows production spawn starts helper and confirms handshake',
-  { skip: process.platform !== 'win32', timeout: 30000 },
+  { skip: process.platform !== 'win32', timeout: 45000 },
   async (t) => {
     const { startReplacement } = require('../electron/installer.cjs');
     const directory = await fs.mkdtemp(path.join(os.tmpdir(), "Ditasha's spawn "));
@@ -95,7 +108,10 @@ test(
       confirmRestart: false,
     });
     let report;
-    for (let i = 0; i < 80; i++) {
+    // Busy Windows CI runners may take longer than eight seconds to release the parent
+    // executable and finish the PowerShell installer. Poll for a bounded 25 seconds.
+    const deadline = Date.now() + 25000;
+    while (Date.now() < deadline) {
       try {
         report = JSON.parse(
           (await fs.readFile(path.join(directory, 'install.json'), 'utf8')).replace(/^\uFEFF/, ''),

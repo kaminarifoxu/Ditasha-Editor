@@ -5,6 +5,7 @@ const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { pipeline } = require('node:stream/promises');
 const { CATEGORIES, classifyAssets } = require('./asset-sort.cjs');
+const { pairTextureGroups } = require('./ytd-groups.cjs');
 const { createFilesApp } = require('./files-app.cjs');
 const MAX_ENTRIES = 100000;
 const within = (root, target) => {
@@ -22,6 +23,20 @@ function createFileManager({
   filesApp = createFilesApp({ app, shell }),
   onState = () => {},
 }) {
+  async function networkSettings(next) {
+    const settingsPath=path.join(app.getPath('userData'),'file-manager-network.json');
+    if(next===undefined){
+      try {const v=JSON.parse(await fs.readFile(settingsPath,'utf8'));return {networkPath:typeof v.networkPath==='string'?v.networkPath:''};}
+      catch(e){if(e.code==='ENOENT')return {networkPath:''};throw e;}
+    }
+    if(typeof next.networkPath!=='string'||next.networkPath.length>1024)throw Error('Alamat SMB tidak valid.');
+    const networkPath=next.networkPath.trim();
+    if(networkPath && (process.platform!=='win32'||!/^\\\\[^\\/]+\\[^\\/]+(?:\\.*)?$/.test(networkPath)||networkPath.split('\\').includes('..')))
+      throw Error('Masukkan path SMB Windows seperti \\\\NAS\\Assets.');
+    await fs.mkdir(path.dirname(settingsPath),{recursive:true});
+    await fs.writeFile(settingsPath,JSON.stringify({networkPath},null,2),'utf8');
+    return {networkPath};
+  }
   let session, plan, controller, lastOutput;
   let state = { busy: false, message: 'Buka folder aset untuk memulai.', processed: 0 };
   function emit(patch) {
@@ -82,15 +97,27 @@ function createFileManager({
     if (category && !Object.hasOwn(CATEGORIES, category)) throw Error('Kategori tidak valid.');
     const search = typeof value.search === 'string' ? value.search.slice(0, 250).toLowerCase() : '';
     const recursive = value.recursive === true || !!search;
+    const gender = ['male','female','unknown'].includes(value.gender) ? value.gender : '';
+    const slot = /^(?:JBIB|ACCS|LOWR|FEET|TEEF|TASK|BERD|HAND|DECL|HEAD|HAIR|UPPR|P_HEAD|P_EYES|P_EARS|P_LWRIST|P_RWRIST)$/.test(value.slot || '') ? value.slot.toLowerCase() : '';
+    const assetMeta = f => {
+      const lower = f.relative.toLowerCase();
+      const fileGender = /mp_f_freemode|(?:^|[\\/])(?:female|cewek)(?:[\\/]|$)/.test(lower) ? 'female'
+        : /mp_m_freemode|(?:^|[\\/])(?:male|cowok)(?:[\\/]|$)/.test(lower) ? 'male' : 'unknown';
+      const component = f.name.toLowerCase().match(/(?:^|\^)((?:p_)?[a-z]+)_(?:diff_)?\d{3,4}(?:_|\.|$)/);
+      return {fileGender, fileSlot:component?.[1] || ''};
+    };
     return current.files.filter(
       (f) =>
         (!folder || f.relative.startsWith(folder + '/')) &&
         (recursive || path.posix.dirname(f.relative) === (folder || '.')) &&
         (!category || f.category === category) &&
+        (!gender || assetMeta(f).fileGender === gender) &&
+        (!slot || assetMeta(f).fileSlot === slot) &&
         (!search || f.relative.toLowerCase().includes(search)),
     );
   }
   const api = {
+    networkSettings,
     state: () => ({
       ...state,
       root: session
@@ -105,7 +132,16 @@ function createFileManager({
     }),
     async choose(refresh = false) {
       idle();
-      let root = refresh === true ? ready().root : null;
+      // SMB is accessed through Windows' authenticated UNC filesystem provider.
+      // No passwords or SMB credentials are handled or stored by the Editor.
+      const networkPath = refresh && typeof refresh === 'object' ? refresh.networkPath : null;
+      if (networkPath !== null && (process.platform !== 'win32' ||
+          typeof networkPath !== 'string' ||
+          !/^\\\\[^\\/]+\\[^\\/]+(?:\\.*)?$/.test(networkPath) ||
+          networkPath.includes('..') || networkPath.length > 1024)) {
+        throw Error('SMB harus berupa path Windows \\\\server\\share tanpa kredensial.');
+      }
+      let root = networkPath || (refresh === true ? ready().root : null);
       if (!root) {
         const picked = await dialog.showOpenDialog(win, {
           title: 'Buka folder aset',
@@ -114,6 +150,7 @@ function createFileManager({
         if (picked.canceled || !picked.filePaths[0]) return null;
         root = await fs.realpath(picked.filePaths[0]);
       }
+      if (networkPath) root = await fs.realpath(root);
       return job(async (signal) => {
         emit({ message: 'Memindai folder…' });
         const files = [],
@@ -191,7 +228,11 @@ function createFileManager({
         ? value.orderBy
         : 'name';
       const direction = value.descending === true ? -1 : 1;
-      const files = query(value).sort((a, b) => {
+      const queried = query(value);
+      const modelOnly=value.modelOnly===true;
+      const visibleQuery=modelOnly?queried.filter(f=>/\.(ydd|ydr|yft)$/i.test(f.name)):queried;
+      const paired = pairTextureGroups(queried);
+      const files = (modelOnly?visibleQuery:paired.visible).sort((a, b) => {
         const order =
           key === 'size' || key === 'modified'
             ? a[key] - b[key]
@@ -212,19 +253,21 @@ function createFileManager({
               .map((relative) => ({ relative, name: path.posix.basename(relative) }));
       const counts = {};
       for (const file of files) counts[file.category] = (counts[file.category] || 0) + 1;
-      const pageFolders = folders.slice(offset, offset + 100);
+      const pageSize = value.previewPageSize === 250 ? 250 : 100;
+      const pageFolders = folders.slice(offset, offset + pageSize);
       const fileOffset = Math.max(0, offset - folders.length);
       return {
         files:
-          offset + 100 > folders.length
+          offset + pageSize > folders.length
             ? files
-                .slice(fileOffset, fileOffset + 100 - pageFolders.length)
-                .map(({ ino, ...file }) => file)
+                .slice(fileOffset, fileOffset + pageSize - pageFolders.length)
+                .map(({ ino, ...file }) => ({...file, textures:paired.groups.get(file.id)||[]}))
             : [],
         folders: pageFolders,
-        total: files.length,
+        // Raw count stays stable for reporting and sorting; the UI paginates grouped rows.
+        total: queried.length,
         totalItems: files.length + folders.length,
-        bytes: files.reduce((n, f) => n + f.size, 0),
+        bytes: queried.reduce((n, f) => n + f.size, 0),
         counts,
         navigationFolders: [...ready().folders]
           .filter((f) => f && path.posix.dirname(f) === (value.folder || '.'))
@@ -258,7 +301,7 @@ function createFileManager({
         !/\.(png|jpe?g|webp|gif|bmp|ytd|dds|ydd|ydr|yft|rpf|zip|oiv)$/i.test(entry.name)
       )
         throw Error('Format ini belum memiliki preview internal.');
-      const previewLimit = /\.ytd$/i.test(entry.name) ? 256 : 64;
+      const previewLimit = /\.ytd$/i.test(entry.name) ? 384 : /\.(ydd|ydr|yft)$/i.test(entry.name) ? 128 : 64;
       if (entry.size > previewLimit * 1024 * 1024)
         throw Error(
           'Preview maksimum ' +
@@ -438,6 +481,7 @@ function registerFileManager({ ipcMain, trusted, win, ...options }) {
     'cancel',
     'reveal',
     'filesApp',
+    'networkSettings',
   ]) {
     ipcMain.handle('ditasha:files-' + name, (event, value) => {
       trusted(event);

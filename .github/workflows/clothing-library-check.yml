@@ -1,0 +1,28 @@
+name: Clothing Library V2 checks
+on:
+  pull_request:
+    paths:
+      - 'electron/clothing-library.cjs'
+      - 'electron/main.cjs'
+      - 'electron/preload.cjs'
+      - 'src/clothing-catalog-ui.js'
+      - 'src/app.js'
+      - 'ui/clothing-catalog.css'
+      - 'ui/index.html'
+      - 'tests/clothing-library.test.cjs'
+      - '.github/workflows/clothing-library-check.yml'
+  push:
+    branches: [feature/clothing-library-v2]
+jobs:
+  tests:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node --test tests/clothing-library.test.cjs
+      - run: npm test
+      - run: npm run build:ui

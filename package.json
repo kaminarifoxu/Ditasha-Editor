@@ -7,14 +7,15 @@
   "main": "electron/main.cjs",
   "scripts": {
     "start": "electron .",
-    "build:win": "npm run prepare:ide && npm run prepare:craft && npm run build:ui && electron-builder --win nsis portable --x64 --publish never && node scripts/update-blockmaps.cjs",
+    "build:win": "npm run prepare:freemode && npm run prepare:ide && npm run prepare:craft && npm run build:ui && electron-builder --win nsis portable --x64 --publish never && node scripts/update-blockmaps.cjs",
     "prepare:ide": "node scripts/prepare-ide.cjs",
     "test": "node --test tests/*.test.cjs tests/*.test.mjs",
     "build:ui": "node scripts/build-ui.cjs",
     "prestart": "npm run build:ui",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare:craft": "node scripts/prepare-craft.cjs"
+    "prepare:craft": "node scripts/prepare-craft.cjs",
+    "prepare:freemode": "node scripts/prepare-freemode.cjs"
   },
   "build": {
     "appId": "com.ganomabi.assetstudio",
@@ -46,6 +47,13 @@
       {
         "from": "craft-runtime",
         "to": "craft-runtime",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "assets/freemode-reference",
+        "to": "freemode-reference",
         "filter": [
           "**/*"
         ]
