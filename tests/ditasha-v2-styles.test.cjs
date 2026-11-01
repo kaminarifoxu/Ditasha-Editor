@@ -61,3 +61,13 @@ test('panel key generation tolerates parentless elements', () => {
   const js = read('src/workspace-polish.js');
   assert.match(js, /panel\.parentElement\?\.id/);
 });
+
+test('choice buttons retain native selection and support teardown', () => {
+  const js = read('src/workspace-choices.js');
+  assert.match(js, /select\.selectedIndex = index/);
+  assert.match(js, /select\.dispatchEvent\(new Event\('change'/);
+  assert.match(js, /select\.closest\('\[hidden\]'\)/);
+  assert.match(js, /sync\.destroy = \(\) =>/);
+  assert.match(js, /select\.removeEventListener\('change', sync\)/);
+  assert.match(js, /delete select\.dataset\.workspaceChoices/);
+});
