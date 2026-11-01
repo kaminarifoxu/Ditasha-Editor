@@ -221,6 +221,7 @@ function mountPanelMenu(records, restore) {
     '<div class="workspace-panel-menu-head"><h2 id="workspacePanelsTitle">Panel workspace</h2><button type="button" aria-label="Tutup panel workspace">Tutup</button></div><p>Pilih panel yang ingin ditampilkan pada workspace ini.</p><div class="workspace-panel-menu-list"></div><button type="button" class="workspace-panels-restore">Pulihkan semua panel</button>';
   document.body.append(dialog);
   dialog.querySelector('.workspace-panel-menu-head button').onclick = () => dialog.close();
+  dialog.addEventListener('close', () => button?.focus());
   dialog.querySelector('.workspace-panels-restore').onclick = () => {
     restore();
     render();
@@ -252,6 +253,7 @@ function mountPanelMenu(records, restore) {
   button.textContent = 'Panel';
   button.title = 'Tampilkan, minimalkan atau pulihkan panel workspace';
   button.setAttribute('aria-haspopup', 'dialog');
+  button.setAttribute('aria-controls', dialog.id);
   button.onclick = () => {
     render();
     dialog.showModal();
