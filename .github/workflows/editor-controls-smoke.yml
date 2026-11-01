@@ -1,0 +1,25 @@
+name: Editor controls Electron smoke
+on:
+  push:
+    branches: [feature/main-ui-clothing-integration]
+    paths:
+      - 'scripts/smoke-editor-buttons.cjs'
+      - 'src/**'
+      - 'ui/index.html'
+      - '.github/workflows/editor-controls-smoke.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  editor-buttons:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run build:ui
+      - run: npx electron scripts/smoke-editor-buttons.cjs
