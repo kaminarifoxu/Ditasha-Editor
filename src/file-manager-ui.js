@@ -111,21 +111,35 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
   function matchingTextures(file) {
     const match = String(file.name).match(/(?:\\^|^)((?:p_)?[a-z]+)_(\\d{3})(?:_|\\.)/i);
     if (!match) return [];
-    const gender = /mp_m_freemode_01/i.test(file.name) ? 'male'
-      : /mp_f_freemode_01/i.test(file.name) ? 'female' : '';
-    return visibleTextures.filter(item => {
+    const gender = /mp_m_freemode_01/i.test(file.name)
+      ? 'male'
+      : /mp_f_freemode_01/i.test(file.name)
+        ? 'female'
+        : '';
+    return visibleTextures.filter((item) => {
       const texture = String(item.name);
       const matched = texture.match(/(?:\\^|^)((?:p_)?[a-z]+)_diff_(\\d{3})_/i);
-      if (!matched || matched[1].toLowerCase() !== match[1].toLowerCase() ||
-        matched[2] !== match[2]) return false;
-      if (gender === 'male') return /mp_m_freemode_01/i.test(texture) || !/mp_f_freemode_01/i.test(texture);
-      if (gender === 'female') return /mp_f_freemode_01/i.test(texture) || !/mp_m_freemode_01/i.test(texture);
+      if (
+        !matched ||
+        matched[1].toLowerCase() !== match[1].toLowerCase() ||
+        matched[2] !== match[2]
+      )
+        return false;
+      if (gender === 'male')
+        return /mp_m_freemode_01/i.test(texture) || !/mp_f_freemode_01/i.test(texture);
+      if (gender === 'female')
+        return /mp_f_freemode_01/i.test(texture) || !/mp_m_freemode_01/i.test(texture);
       return true;
     });
   }
   function showTextureVariants(file, generation) {
     const variants = matchingTextures(file);
-    if (!variants.length || !previewController?.setTextureVariant || generation !== selectionGeneration) return;
+    if (
+      !variants.length ||
+      !previewController?.setTextureVariant ||
+      generation !== selectionGeneration
+    )
+      return;
     const title = document.createElement('strong');
     title.textContent = 'Variasi YTD · ' + variants.length;
     textureVariants.append(title);
@@ -138,8 +152,12 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
         if (generation !== selectionGeneration) return;
         try {
           await previewController.setTextureVariant(variant.id);
-          textureVariants.querySelectorAll('button').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
-        } catch (error) { toast('Gagal mengganti tekstur: ' + error.message); }
+          textureVariants
+            .querySelectorAll('button')
+            .forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+        } catch (error) {
+          toast('Gagal mengganti tekstur: ' + error.message);
+        }
       };
       textureVariants.append(button);
     }
@@ -470,13 +488,12 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
         previewController = controller;
         if (/\.(ydd|ydr|yft)$/i.test(file.name)) showTextureVariants(file, generation);
       }
-    }
-    else $('fmImage').innerHTML = icon('document');
+    } else $('fmImage').innerHTML = icon('document');
   }
   async function list() {
     const previous = picked?.id;
     const data = await api().list(query());
-    visibleTextures = data.files.filter(file => /\.ytd$/i.test(file.name));
+    visibleTextures = data.files.filter((file) => /\.ytd$/i.test(file.name));
     clearThumbnails();
     total = data.totalItems;
     matchingFiles = data.total;
