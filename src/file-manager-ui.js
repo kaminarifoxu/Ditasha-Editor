@@ -1,4 +1,5 @@
 import { createFilePreview } from './file-preview.js';
+import { mountClothingLibraryBrowser } from './clothing-library-browser.js';
 import { ICON_CODES } from './ui-icons.js';
 import { setProject } from './project-context.js';
 const categories = {
@@ -790,6 +791,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
   api()?.subscribe((state) => {
     $('fmStatus').textContent = state.message;
   });
+  mountClothingLibraryBrowser({ root, toast, openFile });
   controls();
   renderTabs();
   nativeState().catch((error) => {
