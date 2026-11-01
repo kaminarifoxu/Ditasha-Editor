@@ -3,6 +3,10 @@ on:
   push:
     paths:
       - '.github/workflows/clothing-main-qa.yml'
+      - 'src/file-preview.js'
+      - 'src/freemode-character-source.js'
+      - 'src/freemode-morph-pack.js'
+      - 'src/offline-face-deform.js'
   workflow_dispatch:
 permissions:
   contents: write
@@ -20,7 +24,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Format only changed Clothing Library integration files
-        run: npx prettier --write electron/clothing-library.cjs electron/clothing-ipc.cjs electron/main.cjs electron/preload.cjs src/file-manager-ui.js tests/file-manager-clothing-fallback.test.cjs
+        run: npx prettier --write electron/clothing-library.cjs electron/clothing-ipc.cjs electron/main.cjs electron/preload.cjs src/file-manager-ui.js src/file-preview.js src/freemode-character-source.js src/freemode-morph-pack.js src/offline-face-deform.js tests/file-manager-clothing-fallback.test.cjs
       - name: Keep main source formatting consistent
         shell: pwsh
         run: |
