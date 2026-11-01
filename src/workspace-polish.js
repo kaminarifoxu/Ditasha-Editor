@@ -198,8 +198,14 @@ export function mountWorkspacePolish() {
     )
     .forEach((s) => selects.push(s));
   const choices = [...new Set(selects)].map(mountChoiceSelect).filter(Boolean);
-  // Preset restores may update values without DOM events; do not replace a focused button.
-  setInterval(() => {
+  // Presets can change native select values without emitting change events.
+  // Refresh only while the UI is visible and stop polling if the shell is detached.
+  const choiceRefresh = setInterval(() => {
+    if (!document.body.contains(document.getElementById('workspacePanelsDialog'))) {
+      clearInterval(choiceRefresh);
+      choices.forEach((sync) => sync.destroy?.());
+      return;
+    }
     if (!document.hidden) choices.forEach((sync) => sync());
   }, 300);
 }
