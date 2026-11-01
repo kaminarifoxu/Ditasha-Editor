@@ -1,0 +1,39 @@
+name: Editor 2.0 UI checks
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'ui/**'
+      - 'tests/**'
+      - 'scripts/build-ui.cjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/editor-v2-ui-checks.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-ui:
+    name: Node tests and UI bundle (no Windows installer)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Run repository tests
+        run: npm test
+      - name: Bundle renderer only
+        run: npm run build:ui
+      - name: Ensure CSS theme and UI entry exist
+        run: |
+          test -s ui/ditasha-v2.css
+          test -s ui/index.html
+          grep -q 'ditasha-v2.css' ui/index.html
