@@ -1,6 +1,7 @@
 import { mountChoiceSelect } from './workspace-choices.js';
 // Shared desktop UI. Retain original controls and listeners as the source of truth.
 export function mountWorkspacePolish() {
+  if (document.getElementById('workspacePanelsDialog')) return;
   const $ = (id) => document.getElementById(id);
   const read = (key, fallback) => {
     try {
@@ -33,7 +34,7 @@ export function mountWorkspacePolish() {
             : panel.classList.contains('files')
               ? 'File & layer'
               : panel.querySelector('h2,h3,.sectiontitle')?.textContent.trim() || 'Pengaturan';
-      const legacyKey = panel.id || panel.parentElement.id + ':' + panel.className + ':' + index;
+      const legacyKey = panel.id || (panel.parentElement?.id || 'workspace') + ':' + panel.className + ':' + index;
       const anchor = panel.querySelector('button[id],input[id],select[id],[role=status][id]')?.id;
       const key = panel.id || 'panel:' + (anchor || legacyKey);
       if (panel.matches('.archive-selection-details .tool-details, .gt-panel'))
@@ -114,6 +115,8 @@ export function mountWorkspacePolish() {
       const set = (closed) => {
         panel.classList.toggle('workspace-group-collapsed', closed);
         button.setAttribute('aria-expanded', String(!closed));
+        button.setAttribute('aria-label', (closed ? 'Buka ' : 'Minimalkan ') + label);
+        button.title = (closed ? 'Buka ' : 'Minimalkan ') + label;
         save(key, closed);
         window.dispatchEvent(new Event('resize'));
       };
@@ -132,7 +135,8 @@ export function mountWorkspacePolish() {
       d.open = true;
     });
   };
-  document.querySelector('.settings-section')?.append(reset);
+  const settingsSection = document.querySelector('.settings-section');
+  if (settingsSection) settingsSection.append(reset);
   mountPanelMenu(panelRecords, () => reset.click());
 
   const labels = {
@@ -196,8 +200,14 @@ export function mountWorkspacePolish() {
     )
     .forEach((s) => selects.push(s));
   const choices = [...new Set(selects)].map(mountChoiceSelect).filter(Boolean);
-  // Preset restores may update values without DOM events; do not replace a focused button.
-  setInterval(() => {
+  // Presets can change native select values without emitting change events.
+  // Refresh only while the UI is visible and stop polling if the shell is detached.
+  const choiceRefresh = setInterval(() => {
+    if (!document.body.contains(document.getElementById('workspacePanelsDialog'))) {
+      clearInterval(choiceRefresh);
+      choices.forEach((sync) => sync.destroy?.());
+      return;
+    }
     if (!document.hidden) choices.forEach((sync) => sync());
   }, 300);
 }
@@ -211,6 +221,7 @@ function mountPanelMenu(records, restore) {
     '<div class="workspace-panel-menu-head"><h2 id="workspacePanelsTitle">Panel workspace</h2><button type="button" aria-label="Tutup panel workspace">Tutup</button></div><p>Pilih panel yang ingin ditampilkan pada workspace ini.</p><div class="workspace-panel-menu-list"></div><button type="button" class="workspace-panels-restore">Pulihkan semua panel</button>';
   document.body.append(dialog);
   dialog.querySelector('.workspace-panel-menu-head button').onclick = () => dialog.close();
+  dialog.addEventListener('close', () => button?.focus());
   dialog.querySelector('.workspace-panels-restore').onclick = () => {
     restore();
     render();
@@ -242,9 +253,17 @@ function mountPanelMenu(records, restore) {
   button.textContent = 'Panel';
   button.title = 'Tampilkan, minimalkan atau pulihkan panel workspace';
   button.setAttribute('aria-haspopup', 'dialog');
+  button.setAttribute('aria-controls', dialog.id);
   button.onclick = () => {
     render();
     dialog.showModal();
   };
-  document.querySelector('body > header .workspace-search')?.after(button);
+  const triggerAnchor = document.querySelector('body > header .workspace-search');
+  const header = document.querySelector('body > header');
+  if (triggerAnchor) triggerAnchor.after(button);
+  else if (header) header.append(button);
+  else {
+    // Keep the panel launcher discoverable even if shell markup changes.
+    document.body.prepend(button);
+  }
 }

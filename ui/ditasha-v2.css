@@ -1,0 +1,277 @@
+/* DITASHA Editor 2.0 — visual foundation.
+   Presentation-only overrides: existing event handlers and control IDs stay intact. */
+body.workspace-shell[data-theme="midnight"] {
+  --bg: #10151c;
+  --panel: #171e27;
+  --raised: #202a36;
+  --field: #131b24;
+  --line: #303b48;
+  --text: #edf2f7;
+  --muted: #a5b0bf;
+  --accent: #d5b444;
+  --accent-soft: #3d3521;
+  --gold: #d5b444;
+  --orange: #d5b444;
+}
+body.workspace-shell[data-theme="midnight"] :is(button,.donation-button) {
+  border-radius: 9px;
+}
+body.workspace-shell[data-theme="midnight"] :is(button,.donation-button):hover:not(:disabled) {
+  background: #2a3745;
+  border-color: #637184;
+}
+body.workspace-shell[data-theme="midnight"] button.primary {
+  color: #14171c;
+  background: #d5b444;
+  border-color: #d5b444;
+}
+body.workspace-shell[data-theme="midnight"] button.primary:hover:not(:disabled) {
+  background: #e7cd68;
+  border-color: #e7cd68;
+}
+body.workspace-shell[data-theme="midnight"] button.active {
+  background: #393320;
+  border-color: #937b30;
+  color: #f9e7a0;
+}
+body.workspace-shell :is(button, [role="button"], summary) {
+  -webkit-tap-highlight-color: transparent;
+}
+body.workspace-shell :is(button, input, select, textarea, summary, a):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+body.workspace-shell .workspace-nav button,
+body.workspace-shell .suite-nav-group > summary {
+  min-height: 38px;
+}
+body.workspace-shell :is(.studio-dialog, .tool-sidebar, .tool-details, .fm-sidebar, .fm-inspector, .pb-panel, .inspector) {
+  min-width: 0;
+}
+body.workspace-shell :is(.tool-sidebar, .tool-details, .fm-sidebar, .fm-inspector, .pb-panel) button {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+body.workspace-shell :is(button, a, input, select, textarea):disabled {
+  cursor: not-allowed;
+}
+@media (prefers-reduced-motion: reduce) {
+  body.workspace-shell *, body.workspace-shell *::before, body.workspace-shell *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+  }
+}
+body.workspace-shell[data-motion="reduced"] *,
+body.workspace-shell[data-motion="reduced"] *::before,
+body.workspace-shell[data-motion="reduced"] *::after {
+  animation-duration: .01ms !important;
+  transition-duration: .01ms !important;
+}
+
+/* Phase 2: readable controls, bounded dialogs, and compact workspace layouts. */
+body.workspace-shell[data-theme="midnight"] {
+  color-scheme: dark;
+}
+body.workspace-shell[data-theme="light"],
+body.workspace-shell[data-theme="terang"] {
+  color-scheme: light;
+}
+body.workspace-shell :is(button, input, select, textarea) {
+  font: inherit;
+}
+body.workspace-shell :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), select, textarea) {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+body.workspace-shell :is(.fm-inspector, .tool-details, .inspector, .pb-panel) :is(label, .field, .form-row) {
+  min-width: 0;
+  max-width: 100%;
+}
+body.workspace-shell :is(.fm-inspector, .tool-details, .inspector, .pb-panel) :is(input, select, textarea) {
+  max-width: 100%;
+}
+body.workspace-shell :is(.tool-workspace, .archive-workspace, .pb-layout, .ac-layout, .debadge-layout, .native-build-layout) > * {
+  min-width: 0;
+}
+body.workspace-shell :is(.tool-sidebar, .tool-details, .fm-sidebar, .fm-inspector, .pb-panel, .inspector) {
+  overscroll-behavior: contain;
+}
+body.workspace-shell dialog {
+  box-sizing: border-box;
+  max-width: min(92vw, 720px);
+  max-height: min(88dvh, 900px);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+body.workspace-shell dialog::backdrop {
+  background: rgb(4 8 13 / 72%);
+}
+body.workspace-shell dialog :is(input, select, textarea) {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+body.workspace-shell :is(button, [role="button"]):disabled {
+  opacity: .55;
+}
+body.workspace-shell :is(button, summary) {
+  touch-action: manipulation;
+}
+body.workspace-shell .workspace-panel-toggle {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 900px) {
+  body.workspace-shell :is(.tool-workspace, .archive-workspace, .ac-layout, .debadge-layout, .native-build-layout) {
+    min-width: 0;
+  }
+  body.workspace-shell .editor-commandbar {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  body.workspace-shell .editor-commandbar :is(button, select, input) {
+    max-width: 100%;
+  }
+  body.workspace-shell .workspace-panels-dialog {
+    width: min(440px, 92vw);
+    padding: 16px;
+  }
+}
+@media (max-width: 600px) {
+  body.workspace-shell dialog {
+    max-width: 96vw;
+    max-height: 92dvh;
+  }
+  body.workspace-shell .workspace-choice-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  body.workspace-shell .workspace-panel-toggle {
+    gap: 6px;
+  }
+}
+
+/* Phase 3: home, navigation and editor surfaces. Existing IDs and handlers are preserved. */
+body.workspace-shell[data-theme="midnight"] {
+  --canvas-surround: #0c121a;
+}
+body.workspace-shell[data-theme="midnight"] .workspace-nav {
+  background: #121923;
+  border-right: 1px solid #2e3947;
+}
+body.workspace-shell[data-theme="midnight"] .workspace-nav button {
+  border-radius: 10px;
+  transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+body.workspace-shell[data-theme="midnight"] .workspace-nav button:hover:not(:disabled) {
+  background: #243041;
+  border-color: #344457;
+  color: #f1f4f8;
+}
+body.workspace-shell[data-theme="midnight"] .workspace-nav button.active {
+  background: #322c1e;
+  border-color: #66572d;
+  color: #f6db83;
+}
+body.workspace-shell[data-theme="midnight"] .nav-section-title {
+  color: #98a5b6;
+}
+body.workspace-shell[data-theme="midnight"] header {
+  border-bottom-color: #344050;
+}
+body.workspace-shell[data-theme="midnight"] .workspace-search {
+  background: #18212c;
+  border: 1px solid #344152;
+  border-radius: 10px;
+}
+body.workspace-shell[data-theme="midnight"] .home-workspace {
+  background: radial-gradient(ellipse at 74% 0%, #222c36 0%, #10151c 47%);
+}
+body.workspace-shell[data-theme="midnight"] .home-hero {
+  border-bottom-color: #33404e;
+}
+body.workspace-shell[data-theme="midnight"] .home-overline,
+body.workspace-shell[data-theme="midnight"] .home-kicker {
+  color: #b9c2ce;
+}
+body.workspace-shell[data-theme="midnight"] .home-hero h1 {
+  color: #f5f7fa;
+  letter-spacing: -.05em;
+}
+body.workspace-shell[data-theme="midnight"] .home-hero h1 em {
+  color: #e0c35c;
+}
+body.workspace-shell[data-theme="midnight"] .home-art-tile {
+  background: linear-gradient(145deg, #283341, #161d26 76%);
+  border-color: #455061;
+  box-shadow: 0 24px 70px #0006;
+}
+body.workspace-shell[data-theme="midnight"] .home-workspace-card {
+  background: #18212b;
+  border: 1px solid #344051;
+  border-radius: 14px;
+  box-shadow: 0 5px 24px #0002;
+}
+body.workspace-shell[data-theme="midnight"] .home-workspace-card:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background: #212d39;
+  border-color: #9f8742;
+}
+body.workspace-shell[data-theme="midnight"] .home-card-icon {
+  background: #3b3321;
+  color: #e4c65f;
+}
+body.workspace-shell[data-theme="midnight"] .home-session-file,
+body.workspace-shell[data-theme="midnight"] .home-session-empty {
+  background: #19232e;
+  border-color: #344051;
+  border-radius: 12px;
+}
+body.workspace-shell[data-theme="midnight"] :is(.files, .tool-sidebar, .tool-details, .right, .fm-sidebar, .fm-inspector) {
+  border-color: #344051;
+}
+body.workspace-shell[data-theme="midnight"] :is(.canvasarea, #viewport, #mvViewport) {
+  border: 1px solid #344253;
+  box-shadow: inset 0 1px 0 #ffffff08;
+}
+body.workspace-shell[data-theme="midnight"] .editor-commandbar {
+  background: #18212b;
+  border-bottom-color: #344051;
+}
+body.workspace-shell[data-theme="midnight"] .workspace-command-results > button:hover:not(:disabled) {
+  background: #293746;
+  border-color: #455468;
+}
+@media (max-width: 900px) {
+  body.workspace-shell .home-hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  body.workspace-shell .home-art {
+    min-height: 185px;
+  }
+  body.workspace-shell .home-workspace-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 620px) {
+  body.workspace-shell .home-inner {
+    padding: 16px;
+  }
+  body.workspace-shell .home-workspace-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  body.workspace-shell .home-hero h1 {
+    font-size: clamp(30px, 8vw, 40px);
+  }
+  body.workspace-shell .home-art {
+    display: none;
+  }
+  body.workspace-shell .home-session-file {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.workspace-shell[data-theme="midnight"] .home-workspace-card:hover:not(:disabled) {
+    transform: none;
+  }
+}

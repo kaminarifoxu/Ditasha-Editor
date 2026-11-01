@@ -14,6 +14,8 @@ export function mountChoiceSelect(select) {
   );
   select.after(box);
   select.classList.add('workspace-choice-source');
+  const originalTabIndex = select.getAttribute('tabindex');
+  const originalAriaHidden = select.getAttribute('aria-hidden');
   select.tabIndex = -1;
   select.setAttribute('aria-hidden', 'true');
   const unavailable = (option) =>
@@ -21,6 +23,7 @@ export function mountChoiceSelect(select) {
     option.disabled ||
     (option.parentElement?.tagName === 'OPTGROUP' && option.parentElement.disabled);
   function sync() {
+    if (!box.isConnected || !select.isConnected) return;
     const options = [...select.options];
     const signature = JSON.stringify(options.map((o) => [o.value, o.text, unavailable(o)]));
     if (box.dataset.options !== signature) {
@@ -42,7 +45,8 @@ export function mountChoiceSelect(select) {
         box.append(button);
       }
     }
-    box.hidden = select.hidden;
+    box.hidden = select.hidden || select.closest('[hidden]') !== null;
+    box.setAttribute('aria-disabled', String(select.disabled));
     [...box.children].forEach((button, index) => {
       button.disabled = unavailable(options[index]);
       button.setAttribute('aria-pressed', String(select.selectedIndex === index));
@@ -51,5 +55,16 @@ export function mountChoiceSelect(select) {
   select.addEventListener('input', sync);
   select.addEventListener('change', sync);
   sync();
+  sync.destroy = () => {
+    select.removeEventListener('input', sync);
+    select.removeEventListener('change', sync);
+    box.remove();
+    select.classList.remove('workspace-choice-source');
+    delete select.dataset.workspaceChoices;
+    if (originalTabIndex === null) select.removeAttribute('tabindex');
+    else select.setAttribute('tabindex', originalTabIndex);
+    if (originalAriaHidden === null) select.removeAttribute('aria-hidden');
+    else select.setAttribute('aria-hidden', originalAriaHidden);
+  };
   return sync;
 }

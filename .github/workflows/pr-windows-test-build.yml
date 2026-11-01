@@ -1,0 +1,47 @@
+name: DITASHA Editor PR Windows test build
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/pr-windows-test-build.yml'
+      - 'src/**'
+      - 'ui/**'
+      - 'electron/**'
+      - 'scripts/**'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-test-build:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Run tests
+        run: npm test
+      - name: Build portable Windows EXE and setup
+        run: npm run build:win
+      - name: Verify Windows binaries were generated
+        shell: pwsh
+        run: |
+          if (!(Test-Path 'release/DITASHA-Editor.exe')) { throw 'Portable EXE missing' }
+          if (!(Test-Path 'release/DITASHA-Setup.exe')) { throw 'Setup EXE missing' }
+      - name: Upload test builds (not a published release)
+        uses: actions/upload-artifact@v4
+        with:
+          name: DITASHA-Editor-PR14-Windows-Test
+          path: |
+            release/DITASHA-Editor.exe
+            release/DITASHA-Setup.exe
+          if-no-files-found: error
+          retention-days: 7
