@@ -29,3 +29,15 @@ test('Editor 2.0 retains explicit theme and accessibility rules', () => {
   assert.match(css, /\.home-workspace-card/);
   assert.match(css, /\.workspace-nav/);
 });
+
+test('Editor 2.0 primary button styling does not target unrelated elements', () => {
+  const css = read('ui/ditasha-v2.css');
+  assert.doesNotMatch(css, /data-theme="midnight"\]\s+\.primary\s*\{/);
+  assert.match(css, /data-theme="midnight"\]\s+button\.primary\s*\{/);
+});
+
+test('Editor 2.0 dark browser controls only apply to midnight theme', () => {
+  const css = read('ui/ditasha-v2.css');
+  assert.doesNotMatch(css, /body\.workspace-shell\s*\{\s*color-scheme:\s*dark/);
+  assert.match(css, /data-theme="midnight"\]\s*\{\s*color-scheme:\s*dark/);
+});
