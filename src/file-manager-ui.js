@@ -463,8 +463,14 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
       } catch (e) {
         if (current === serial) $('fmImage').textContent = e.message;
       }
-    } else if (/\.(ydd|ydr|yft|ytd|dds)$/i.test(file.name))
-      await assetPreview.show(file, previewApi());
+    } else if (/\.(ydd|ydr|yft|ytd|dds)$/i.test(file.name)) {
+      const generation = selectionGeneration;
+      const controller = await assetPreview.show(file, previewApi());
+      if (generation === selectionGeneration) {
+        previewController = controller;
+        if (/\.(ydd|ydr|yft)$/i.test(file.name)) showTextureVariants(file, generation);
+      }
+    }
     else $('fmImage').innerHTML = icon('document');
   }
   async function list() {
