@@ -1,0 +1,37 @@
+name: DITASHA Clothing Library Windows EXE test
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/clothing-test-exe.yml'
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Format integration files in build workspace only
+        run: npx prettier --write electron/clothing-library.cjs electron/clothing-ipc.cjs electron/main.cjs electron/preload.cjs src/file-manager-ui.js src/clothing-library-browser.js src/file-preview.js src/freemode-character-source.js src/freemode-morph-pack.js src/offline-face-deform.js tests/file-manager-clothing-fallback.test.cjs
+      - run: npm run format:check
+      - run: npm test
+      - run: npm run build:win
+      - name: Verify Windows binaries
+        shell: pwsh
+        run: |
+          if (!(Test-Path 'release/DITASHA-Editor.exe')) { throw 'Portable EXE missing' }
+          if (!(Test-Path 'release/DITASHA-Setup.exe')) { throw 'Setup EXE missing' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DITASHA-main-clothing-library-test-Windows
+          path: |
+            release/DITASHA-Editor.exe
+            release/DITASHA-Setup.exe
+          retention-days: 14
+          if-no-files-found: error
