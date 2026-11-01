@@ -34,7 +34,7 @@ export function mountWorkspacePolish() {
             : panel.classList.contains('files')
               ? 'File & layer'
               : panel.querySelector('h2,h3,.sectiontitle')?.textContent.trim() || 'Pengaturan';
-      const legacyKey = panel.id || panel.parentElement.id + ':' + panel.className + ':' + index;
+      const legacyKey = panel.id || (panel.parentElement?.id || 'workspace') + ':' + panel.className + ':' + index;
       const anchor = panel.querySelector('button[id],input[id],select[id],[role=status][id]')?.id;
       const key = panel.id || 'panel:' + (anchor || legacyKey);
       if (panel.matches('.archive-selection-details .tool-details, .gt-panel'))
@@ -133,7 +133,8 @@ export function mountWorkspacePolish() {
       d.open = true;
     });
   };
-  document.querySelector('.settings-section')?.append(reset);
+  const settingsSection = document.querySelector('.settings-section');
+  if (settingsSection) settingsSection.append(reset);
   mountPanelMenu(panelRecords, () => reset.click());
 
   const labels = {
@@ -250,5 +251,9 @@ function mountPanelMenu(records, restore) {
   const triggerAnchor = document.querySelector('body > header .workspace-search');
   const header = document.querySelector('body > header');
   if (triggerAnchor) triggerAnchor.after(button);
-  else header?.append(button);
+  else if (header) header.append(button);
+  else {
+    // Keep the panel launcher discoverable even if shell markup changes.
+    document.body.prepend(button);
+  }
 }
