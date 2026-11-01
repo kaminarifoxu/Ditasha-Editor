@@ -132,28 +132,32 @@ export function createFilePreview(container) {
       // Report the exact unresolved diffuse names instead of silently showing grey.
       // The same strict material matching used by the main texture-search pipeline
       // is used here; ambiguous names are never assigned an arbitrary YTD image.
-      const missingTextures = [...new Set(level.geometries
-        .filter(geometry => geometry.diffuseTexture && !resolveModelTexture(
-          geometry.diffuseTexture, external,
-          geometry.sourceEmbeddedTextures || drawable.embeddedTextures || [], file.name))
-        .map(geometry => geometry.diffuseTexture))];
       const host = document.createElement('div');
       host.className = 'fm-model-preview';
       container.replaceChildren(host);
-      if (missingTextures.length && !snapshot) {
-        const notice = document.createElement('details');
-        notice.className = 'fm-missing-textures';
-        notice.style.cssText = 'position:absolute;left:8px;bottom:8px;z-index:2;max-width:calc(100% - 16px);padding:6px 9px;background:rgba(14,19,30,.92);color:#f8d9aa;border:1px solid #8b6843;border-radius:8px;font-size:11px;line-height:1.4;overflow-wrap:anywhere';
-        const label = document.createElement('summary');
-        label.textContent = missingTextures.length + ' nama tekstur belum ditemukan · detail';
-        const content = document.createElement('div');
-        content.textContent = missingTextures.slice(0, 24).join(', ') +
+      const notice = document.createElement('details');
+      notice.className = 'fm-missing-textures';
+      notice.style.cssText = 'position:absolute;left:8px;bottom:8px;z-index:2;max-width:calc(100% - 16px);padding:6px 9px;background:rgba(14,19,30,.92);color:#f8d9aa;border:1px solid #8b6843;border-radius:8px;font-size:11px;line-height:1.4;overflow-wrap:anywhere';
+      const noticeLabel = document.createElement('summary');
+      const noticeContent = document.createElement('div');
+      notice.append(noticeLabel, noticeContent);
+      const refreshTextureDiagnostics = textures => {
+        const missingTextures = [...new Set(level.geometries
+          .filter(geometry => geometry.diffuseTexture && !resolveModelTexture(
+            geometry.diffuseTexture, textures,
+            geometry.sourceEmbeddedTextures || drawable.embeddedTextures || [], file.name))
+          .map(geometry => geometry.diffuseTexture))];
+        noticeLabel.textContent = missingTextures.length + ' nama tekstur belum ditemukan · detail';
+        noticeContent.textContent = missingTextures.slice(0, 24).join(', ') +
           (missingTextures.length > 24 ? ' …' : '') +
           '. Pilih variasi YTD lain atau pastikan dictionary tekstur asli tersedia.';
-        notice.append(label, content);
+        notice.hidden = snapshot || missingTextures.length === 0;
+      };
+      if (!snapshot) {
         host.style.position = 'relative';
         host.append(notice);
       }
+      refreshTextureDiagnostics(external);
       const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: snapshot, powerPreference: highPerformance ? 'high-performance' : 'default' });
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
@@ -382,8 +386,9 @@ export function createFilePreview(container) {
         const variant = (await decodeResource('ytd', new Uint8Array(selected.data).buffer)).textures;
         if (version !== generation || request !== textureRequest) return false;
         for (const { mesh, g, embedded } of materialBindings) {
-          const diffuse = resolveModelTexture(g.diffuseTexture, variant, embedded, file.name) ||
-            (variant.length === 1 && g.uvs ? variant[0] : null);
+          // Never paint an arbitrary texture into a GTA material merely because
+          // the selected dictionary has one entry: its UV may be unrelated.
+          const diffuse = resolveModelTexture(g.diffuseTexture, variant, embedded, file.name);
           // Keep the current diffuse if the selected dictionary lacks a match.
           if (!diffuse) continue;
           const texture = textureMapForVariant(diffuse);
@@ -391,6 +396,7 @@ export function createFilePreview(container) {
           mesh.material.color.setHex(0xffffff);
           mesh.material.needsUpdate = true;
         }
+        refreshTextureDiagnostics(variant);
         draw();
         return true;
       };
