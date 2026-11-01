@@ -41,3 +41,17 @@ test('Editor 2.0 dark browser controls only apply to midnight theme', () => {
   assert.doesNotMatch(css, /body\.workspace-shell\s*\{\s*color-scheme:\s*dark/);
   assert.match(css, /data-theme="midnight"\]\s*\{\s*color-scheme:\s*dark/);
 });
+
+test('workspace panel controls mount once and retain a header fallback', () => {
+  const js = read('src/workspace-polish.js');
+  assert.match(js, /getElementById\('workspacePanelsDialog'\)\) return/);
+  assert.match(js, /if \(triggerAnchor\) triggerAnchor\.after\(button\)/);
+  assert.match(js, /else header\?\.append\(button\)/);
+});
+
+test('panel toggles preserve expanded state and work with buttons', () => {
+  const js = read('src/workspace-polish.js');
+  assert.match(js, /toggle\.type = 'button'/);
+  assert.match(js, /toggle\.setAttribute\('aria-expanded'/);
+  assert.match(js, /toggle\.onclick =/);
+});
