@@ -14,15 +14,16 @@ contextBridge.exposeInMainWorld('ditashaCraft', {
 });
 contextBridge.exposeInMainWorld('ditashaClothing', {
   list: () => ipcRenderer.invoke('ditasha:clothing-list'),
-  previewRead: (id, relativePath) => ipcRenderer.invoke('ditasha:clothing-preview-read', id, relativePath),
-  import: pack => ipcRenderer.invoke('ditasha:clothing-import', pack),
-  importFolder: pack => ipcRenderer.invoke('ditasha:clothing-import-folder', pack),
+  previewRead: (id, relativePath) =>
+    ipcRenderer.invoke('ditasha:clothing-preview-read', id, relativePath),
+  import: (pack) => ipcRenderer.invoke('ditasha:clothing-import', pack),
+  importFolder: (pack) => ipcRenderer.invoke('ditasha:clothing-import-folder', pack),
   importFreemodeFolder: () => ipcRenderer.invoke('ditasha:freemode-import-folder'),
   rename: (id, label) => ipcRenderer.invoke('ditasha:clothing-rename', id, label),
-  remove: id => ipcRenderer.invoke('ditasha:clothing-remove', id),
+  remove: (id) => ipcRenderer.invoke('ditasha:clothing-remove', id),
   listOutfits: () => ipcRenderer.invoke('ditasha:outfits-list'),
-  saveOutfit: outfit => ipcRenderer.invoke('ditasha:outfits-save', outfit),
-  removeOutfit: id => ipcRenderer.invoke('ditasha:outfits-remove', id),
+  saveOutfit: (outfit) => ipcRenderer.invoke('ditasha:outfits-save', outfit),
+  removeOutfit: (id) => ipcRenderer.invoke('ditasha:outfits-remove', id),
 });
 contextBridge.exposeInMainWorld('ditashaFiles', {
   state: () => ipcRenderer.invoke('ditasha:files-state'),

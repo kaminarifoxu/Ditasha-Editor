@@ -100,32 +100,43 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
     const virtual = libraryCompanions.get(id);
     if (virtual) {
       const result = await window.ditashaClothing.previewRead(virtual.packId, virtual.relativePath);
-      return {name: result.name, data: result.bytes};
+      return { name: result.name, data: result.bytes };
     }
     const data = await api().read(id);
     if (data.companion || !/\.(ydd|ydr)$/i.test(data.name || '')) return data;
     const clothing = window.ditashaClothing;
     if (!clothing?.list || !clothing?.previewRead) return data;
     const packs = await clothing.list();
-    const gender = /mp_m_freemode_01/i.test(data.name) ? 'male'
-      : /mp_f_freemode_01/i.test(data.name) ? 'female' : null;
+    const gender = /mp_m_freemode_01/i.test(data.name)
+      ? 'male'
+      : /mp_f_freemode_01/i.test(data.name)
+        ? 'female'
+        : null;
     if (!gender) return data; // Ambiguous gender must never select a different freemode atlas.
     const match = (data.name || '').match(/(?:\^|^)((?:p_)?[a-z]+)_(\d{3})(?:_|\.)/i);
     if (!match) return data;
-    const component = match[1].toLowerCase(), drawable = Number(match[2]);
+    const component = match[1].toLowerCase(),
+      drawable = Number(match[2]);
     // Only unique candidates are safe: never assign a different clothing variant.
-    const candidates = packs.flatMap(pack => (pack.files || [])
-      .filter(entry => /\.ytd$/i.test(entry.name) &&
-        entry.component === component && entry.drawable === drawable &&
-        entry.gender === gender &&
-        (!entry.textureVariant || entry.textureVariant === 'a'))
-      .map(entry => ({packId: pack.id, relativePath: entry.relativePath, name: entry.name})));
+    const candidates = packs.flatMap((pack) =>
+      (pack.files || [])
+        .filter(
+          (entry) =>
+            /\.ytd$/i.test(entry.name) &&
+            entry.component === component &&
+            entry.drawable === drawable &&
+            entry.gender === gender &&
+            (!entry.textureVariant || entry.textureVariant === 'a'),
+        )
+        .map((entry) => ({ packId: pack.id, relativePath: entry.relativePath, name: entry.name })),
+    );
     if (candidates.length !== 1) return data;
-    const key = 'ditasha-library-companion:' + candidates[0].packId + ':' + candidates[0].relativePath;
+    const key =
+      'ditasha-library-companion:' + candidates[0].packId + ':' + candidates[0].relativePath;
     libraryCompanions.set(key, candidates[0]);
-    return {...data, companion: {id: key, name: candidates[0].name}};
+    return { ...data, companion: { id: key, name: candidates[0].name } };
   }
-  const previewApi = () => ({...api(), read: readWithClothingCompanion});
+  const previewApi = () => ({ ...api(), read: readWithClothingCompanion });
 
   let location = '',
     offset = 0,
@@ -398,7 +409,8 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
       } catch (e) {
         if (current === serial) $('fmImage').textContent = e.message;
       }
-    } else if (/\.(ydd|ydr|yft|ytd|dds)$/i.test(file.name)) await assetPreview.show(file, previewApi());
+    } else if (/\.(ydd|ydr|yft|ytd|dds)$/i.test(file.name))
+      await assetPreview.show(file, previewApi());
     else $('fmImage').innerHTML = icon('document');
   }
   async function list() {
