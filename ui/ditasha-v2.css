@@ -20,14 +20,12 @@ body.workspace-shell[data-theme="midnight"] :is(button,.donation-button):hover:n
   background: #2a3745;
   border-color: #637184;
 }
-body.workspace-shell[data-theme="midnight"] button.primary,
-body.workspace-shell[data-theme="midnight"] .primary {
+body.workspace-shell[data-theme="midnight"] button.primary {
   color: #14171c;
   background: #d5b444;
   border-color: #d5b444;
 }
-body.workspace-shell[data-theme="midnight"] button.primary:hover:not(:disabled),
-body.workspace-shell[data-theme="midnight"] .primary:hover:not(:disabled) {
+body.workspace-shell[data-theme="midnight"] button.primary:hover:not(:disabled) {
   background: #e7cd68;
   border-color: #e7cd68;
 }
@@ -72,7 +70,7 @@ body.workspace-shell[data-motion="reduced"] *::after {
 }
 
 /* Phase 2: readable controls, bounded dialogs, and compact workspace layouts. */
-body.workspace-shell {
+body.workspace-shell[data-theme="midnight"] {
   color-scheme: dark;
 }
 body.workspace-shell[data-theme="light"],
