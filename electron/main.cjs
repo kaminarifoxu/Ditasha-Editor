@@ -440,9 +440,20 @@ else {
     };
     ipcMain.handle('gano:update-install', (event) => installUpdate(event));
     ipcMain.handle('gano:update-now', (event) => installUpdate(event, true));
+    // did-finish-load only confirms that HTML loaded, not that app.js
+    // initialized the Creative Suite. Never display a dead editor shell as
+    // though startup succeeded.
     win.webContents.once('did-finish-load', () => {
-      setTimeout(reveal, 350);
       setTimeout(() => updater.check(), 2500);
+      setTimeout(() => {
+        if (revealed || win.isDestroyed()) return;
+        reveal();
+        dialog.showMessageBox(win, {
+          type: 'error',
+          message: 'DITASHA Editor belum berhasil memulai halaman Home.',
+          detail: 'Halaman HTML sudah terbuka, tetapi antarmuka Creative Suite belum siap. Periksa log renderer / Developer Tools untuk error JavaScript, lalu kirim pesan error tersebut.',
+        });
+      }, 12000);
     });
     win.loadFile(path.join(__dirname, '..', 'ui', 'index.html'));
     win.on('closed', () => {
