@@ -182,6 +182,7 @@ else {
       if (!isTrustedUpdateEvent(event, win, path.join(__dirname, '..', 'ui', 'index.html')))
         throw Error('Untrusted update request');
     };
+    require('./clothing-ipc.cjs').registerClothingLibrary({ app, ipcMain, dialog, win, trusted });
     require('./file-manager.cjs').registerFileManager({
       ipcMain,
       trusted,
