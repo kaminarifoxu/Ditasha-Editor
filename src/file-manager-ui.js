@@ -93,6 +93,36 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
   const $ = (id) => root.querySelector('#' + id),
     api = () => window.ditashaFiles;
   const assetPreview = createFilePreview($('fmImage'));
+  // Read-only library fallback. Preserve the original File Manager layout and
+  // file selection; imported YTD is only used when the chosen YDD has none.
+  const libraryCompanions = new Map();
+  async function readWithClothingCompanion(id) {
+    const virtual = libraryCompanions.get(id);
+    if (virtual) return window.ditashaClothing.previewRead(virtual.packId, virtual.relativePath);
+    const data = await api().read(id);
+    if (data.companion || !/\.(ydd|ydr)$/i.test(data.name || '')) return data;
+    const clothing = window.ditashaClothing;
+    if (!clothing?.list || !clothing?.previewRead) return data;
+    const packs = await clothing.list();
+    const gender = /mp_m_freemode_01/i.test(data.name) ? 'male'
+      : /mp_f_freemode_01/i.test(data.name) ? 'female' : null;
+    const match = (data.name || '').match(/(?:\^|^)((?:p_)?[a-z]+)_(\d{3})(?:_|\.)/i);
+    if (!match) return data;
+    const component = match[1].toLowerCase(), drawable = Number(match[2]);
+    // Only unique candidates are safe: never assign a different clothing variant.
+    const candidates = packs.flatMap(pack => (pack.files || [])
+      .filter(entry => /\.ytd$/i.test(entry.name) &&
+        entry.component === component && entry.drawable === drawable &&
+        (!gender || entry.gender === gender) &&
+        (!entry.textureVariant || entry.textureVariant === 'a'))
+      .map(entry => ({packId: pack.id, relativePath: entry.relativePath, name: entry.name})));
+    if (candidates.length !== 1) return data;
+    const key = 'ditasha-library-companion:' + candidates[0].packId + ':' + candidates[0].relativePath;
+    libraryCompanions.set(key, candidates[0]);
+    return {...data, companion: {id: key, name: candidates[0].name}};
+  }
+  const previewApi = () => ({...api(), read: readWithClothingCompanion});
+
   let location = '',
     offset = 0,
     total = 0,
@@ -364,7 +394,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
       } catch (e) {
         if (current === serial) $('fmImage').textContent = e.message;
       }
-    } else if (/\.(ydd|ydr|yft|ytd|dds)$/i.test(file.name)) await assetPreview.show(file, api());
+    } else if (/\.(ydd|ydr|yft|ytd|dds)$/i.test(file.name)) await assetPreview.show(file, previewApi());
     else $('fmImage').innerHTML = icon('document');
   }
   async function list() {
@@ -615,11 +645,11 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
       .catch((e) => toast(e.message));
   $('fmOpen').onclick = () =>
     run(async () => {
-      const data = await api().read(picked.id),
+      const data = await readWithClothingCompanion(picked.id),
         files = [new File([data.data], data.name)];
       if (data.companion) {
         try {
-          const paired = await api().read(data.companion.id);
+          const paired = await readWithClothingCompanion(data.companion.id);
           files.push(new File([paired.data], paired.name));
         } catch (e) {
           toast('Tekstur pendamping: ' + e.message);
