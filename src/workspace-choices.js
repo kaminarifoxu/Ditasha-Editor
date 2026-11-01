@@ -23,6 +23,7 @@ export function mountChoiceSelect(select) {
     option.disabled ||
     (option.parentElement?.tagName === 'OPTGROUP' && option.parentElement.disabled);
   function sync() {
+    if (!box.isConnected || !select.isConnected) return;
     const options = [...select.options];
     const signature = JSON.stringify(options.map((o) => [o.value, o.text, unavailable(o)]));
     if (box.dataset.options !== signature) {
