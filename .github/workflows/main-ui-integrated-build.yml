@@ -1,0 +1,35 @@
+name: DITASHA main UI + Clothing integrated Windows build
+on:
+  push:
+    branches: [feature/main-ui-clothing-integration]
+    paths:
+      - '.github/workflows/main-ui-integrated-build.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify-and-package:
+    runs-on: windows-latest
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build:win
+      - name: Verify packages are generated
+        shell: pwsh
+        run: |
+          if (!(Test-Path 'release/DITASHA-Editor.exe')) { throw 'Portable EXE missing' }
+          if (!(Test-Path 'release/DITASHA-Setup.exe')) { throw 'Setup EXE missing' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ditasha-main-1752-clothing-integrated-windows
+          path: |
+            release/DITASHA-Editor.exe
+            release/DITASHA-Setup.exe
+          if-no-files-found: error
+          retention-days: 7
