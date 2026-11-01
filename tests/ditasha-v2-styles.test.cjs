@@ -93,3 +93,10 @@ test('every stylesheet linked by the editor entry exists', () => {
     assert.ok(existsSync(join(root, 'ui', style)), `Missing stylesheet: ${style}`);
   }
 });
+
+test('choice synchronization timer is stopped when the shell is removed', () => {
+  const js = read('src/workspace-polish.js');
+  assert.match(js, /const choiceRefresh = setInterval/);
+  assert.match(js, /clearInterval\(choiceRefresh\)/);
+  assert.match(js, /sync\.destroy\?\.\(\)/);
+});
