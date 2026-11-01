@@ -27,6 +27,7 @@ const { isTrustedUpdateEvent } = require('./ipc-trust.cjs');
 const { startReplacement } = require('./installer.cjs');
 const { completeUpdateStartup } = require('./update-startup.cjs');
 const fs = require('node:fs/promises');
+const { ClothingLibrary } = require('./clothing-library.cjs');
 const { createPortableUpdater } = require('./updater.cjs');
 let win,
   splash,
@@ -231,6 +232,114 @@ else {
       win,
       trusted,
       WebContentsView,
+    });
+    const clothingLibrary = new ClothingLibrary(path.join(app.getPath('userData'), 'clothing-library-v2'));
+    const { ensureBundledFreemode } = require('./bundled-freemode.cjs');
+    let freemodeAttempt=null;
+    const registerBuiltInFreemode=()=> {
+      if(!freemodeAttempt) freemodeAttempt=ensureBundledFreemode(clothingLibrary,
+        app.isPackaged ? process.resourcesPath : path.join(__dirname,'..','assets'))
+        .catch(error=>({available:false,reason:String(error.message||error)}));
+      return freemodeAttempt;
+    };
+    const trustedClothingEvent = (event) => event.sender === win?.webContents && !event.sender.isDestroyed();
+    const { CharacterPresets } = require('./character-presets.cjs');
+    const characterPresets = new CharacterPresets(path.join(app.getPath('userData'), 'clothing-library-v2'));
+    ipcMain.handle('ditasha:characters-list', async event => {
+      if (!trustedClothingEvent(event)) throw new Error('Untrusted caller');
+      await registerBuiltInFreemode();
+      return characterPresets.list();
+    });
+    ipcMain.handle('ditasha:characters-save', async (event, preset) => {
+      if (!trustedClothingEvent(event)) throw new Error('Untrusted caller');
+      if (!preset || !['male', 'female'].includes(preset.gender)) throw Error('Gender karakter tidak valid.');
+      if (preset.baseModel) {
+        const packs = await clothingLibrary.list();
+        const pack = packs.find(p => p.id === preset.baseModel.packId);
+        const file = pack?.files.find(f => f.relativePath === preset.baseModel.relativePath && /\.ydd$/i.test(f.name));
+        if (!file || file.gender !== preset.gender) throw Error('Model dasar tidak ditemukan atau gender tidak cocok.');
+      }
+      if (preset.outfitId) {
+        const outfit = (await clothingLibrary.listOutfits()).find(o => o.id === preset.outfitId);
+        if (!outfit || outfit.gender !== preset.gender) throw Error('Outfit tidak tersedia atau gender tidak cocok.');
+      }
+      return characterPresets.save(preset);
+    });
+    ipcMain.handle('ditasha:characters-remove', (event, id) => {
+      if (!trustedClothingEvent(event)) throw new Error('Untrusted caller');
+      return characterPresets.remove(id);
+    });
+    ipcMain.handle('ditasha:outfits-list', event => {
+      if (!trustedClothingEvent(event)) throw new Error('Untrusted caller');
+      return clothingLibrary.listOutfits();
+    });
+    ipcMain.handle('ditasha:outfits-save', (event, outfit) => {
+      if (!trustedClothingEvent(event)) throw new Error('Untrusted caller');
+      return clothingLibrary.saveOutfit(outfit);
+    });
+    ipcMain.handle('ditasha:outfits-remove', async (event, id) => {
+      if (!trustedClothingEvent(event)) throw new Error('Untrusted caller');
+      const characters=await characterPresets.list();
+      const dependent=characters.find(c=>c.outfitId===id);
+      if(dependent)throw Error('Outfit digunakan karakter tersimpan: '+dependent.name+'. Ubah/hapus karakter dahulu.');
+      return clothingLibrary.removeOutfit(id);
+    });
+    ipcMain.handle('ditasha:clothing-list', async (event) => {
+      if (!trustedClothingEvent(event)) throw new Error('Untrusted caller');
+      await registerBuiltInFreemode();
+      return clothingLibrary.list();
+    });
+    ipcMain.handle('ditasha:clothing-import', async (event, pack) => {
+      if (!trustedClothingEvent(event)) throw new Error('Untrusted caller');
+      const selection = await dialog.showOpenDialog(win, {
+        title: 'Import custom clothing YDD/YTD',
+        properties: ['openFile', 'multiSelections'],
+        filters: [{ name: 'GTA clothing files', extensions: ['ydd','ytd','ymt','yld','meta','png','jpg','jpeg','webp'] }],
+      });
+      if (selection.canceled || !selection.filePaths.length) return null;
+      return clothingLibrary.importFiles({ pack, files: selection.filePaths });
+    });
+    ipcMain.handle('ditasha:freemode-import-folder', async event => {
+      if (!trustedClothingEvent(event)) throw new Error('Untrusted caller');
+      const selection = await dialog.showOpenDialog(win, {
+        title: 'Pilih folder model freemode',
+        properties: ['openDirectory'],
+      });
+      if (selection.canceled || !selection.filePaths.length) return null;
+      const imported = await clothingLibrary.importDirectory({
+        pack: 'DITASHA Freemode Library',
+        directory: selection.filePaths[0],
+      });
+      const heads=imported.files.filter(file => file.component === 'head' && file.name.toLowerCase().endsWith('.ydd'));
+      if (!heads.some(file => file.gender === 'male' || file.gender === 'female')) {
+        await clothingLibrary.remove(imported.id);
+        throw Error('Tidak ada head YDD freemode pria/wanita dalam folder terpilih.');
+      }
+      return { id: imported.id, count: imported.files.length, genders: [...new Set(heads.map(file => file.gender))] };
+    });
+    ipcMain.handle('ditasha:clothing-import-folder', async (event, pack) => {
+      if (!trustedClothingEvent(event)) throw new Error('Untrusted caller');
+      const selection = await dialog.showOpenDialog(win, {
+        title: 'Import folder pakaian FiveM',
+        properties: ['openDirectory'],
+      });
+      if (selection.canceled || !selection.filePaths.length) return null;
+      return clothingLibrary.importDirectory({ pack, directory: selection.filePaths[0] });
+    });
+    ipcMain.handle('ditasha:clothing-preview-read', (event, packId, relativePath) => {
+      if (!trustedClothingEvent(event)) throw new Error('Untrusted caller');
+      return clothingLibrary.readAsset(packId, relativePath);
+    });
+    ipcMain.handle('ditasha:clothing-rename', (event, id, label) => {
+      if (!trustedClothingEvent(event)) throw new Error('Untrusted caller');
+      return clothingLibrary.rename(id, label);
+    });
+    ipcMain.handle('ditasha:clothing-remove', async (event, id) => {
+      if (!trustedClothingEvent(event)) throw new Error('Untrusted caller');
+      const characters=await characterPresets.list();
+      const dependent=characters.find(c=>c.baseModel?.packId===id);
+      if(dependent)throw Error('Pack masih digunakan karakter tersimpan: '+dependent.name+'. Hapus/ubah karakter terlebih dahulu.');
+      return clothingLibrary.remove(id);
     });
     ipcMain.handle('ditasha:open-icon-credits', async (event) => {
       trusted(event);
