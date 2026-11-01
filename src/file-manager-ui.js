@@ -93,6 +93,59 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
   const $ = (id) => root.querySelector('#' + id),
     api = () => window.ditashaFiles;
   const assetPreview = createFilePreview($('fmImage'));
+  // V2 functionality lives inside the existing inspector, not a new workspace layout.
+  const textureVariants = document.createElement('div');
+  textureVariants.className = 'fm-ytd-variants';
+  textureVariants.hidden = true;
+  textureVariants.setAttribute('aria-label', 'Variasi tekstur YTD');
+  root.querySelector('.fm-inspector').append(textureVariants);
+  let visibleTextures = [];
+  let previewController = null;
+  let selectionGeneration = 0;
+  function resetTextureVariants() {
+    selectionGeneration++;
+    previewController = null;
+    textureVariants.hidden = true;
+    textureVariants.replaceChildren();
+  }
+  function matchingTextures(file) {
+    const match = String(file.name).match(/(?:\\^|^)((?:p_)?[a-z]+)_(\\d{3})(?:_|\\.)/i);
+    if (!match) return [];
+    const gender = /mp_m_freemode_01/i.test(file.name) ? 'male'
+      : /mp_f_freemode_01/i.test(file.name) ? 'female' : '';
+    return visibleTextures.filter(item => {
+      const texture = String(item.name);
+      const matched = texture.match(/(?:\\^|^)((?:p_)?[a-z]+)_diff_(\\d{3})_/i);
+      if (!matched || matched[1].toLowerCase() !== match[1].toLowerCase() ||
+        matched[2] !== match[2]) return false;
+      if (gender === 'male') return /mp_m_freemode_01/i.test(texture) || !/mp_f_freemode_01/i.test(texture);
+      if (gender === 'female') return /mp_f_freemode_01/i.test(texture) || !/mp_m_freemode_01/i.test(texture);
+      return true;
+    });
+  }
+  function showTextureVariants(file, generation) {
+    const variants = matchingTextures(file);
+    if (!variants.length || !previewController?.setTextureVariant || generation !== selectionGeneration) return;
+    const title = document.createElement('strong');
+    title.textContent = 'Variasi YTD · ' + variants.length;
+    textureVariants.append(title);
+    for (const variant of variants) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = variant.name;
+      button.title = variant.name;
+      button.onclick = async () => {
+        if (generation !== selectionGeneration) return;
+        try {
+          await previewController.setTextureVariant(variant.id);
+          textureVariants.querySelectorAll('button').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+        } catch (error) { toast('Gagal mengganti tekstur: ' + error.message); }
+      };
+      textureVariants.append(button);
+    }
+    textureVariants.hidden = false;
+  }
+
   // Read-only library fallback. Preserve the original File Manager layout and
   // file selection; imported YTD is only used when the chosen YDD has none.
   const libraryCompanions = new Map();
@@ -357,6 +410,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
     $('fmPlanPanel').hidden = true;
   }
   function clearPreview() {
+    resetTextureVariants();
     assetPreview.clear();
     serial++;
     picked = null;
@@ -416,6 +470,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
   async function list() {
     const previous = picked?.id;
     const data = await api().list(query());
+    visibleTextures = data.files.filter(file => /\.ytd$/i.test(file.name));
     clearThumbnails();
     total = data.totalItems;
     matchingFiles = data.total;
