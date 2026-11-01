@@ -23,3 +23,10 @@ test('cross-YTD fallback only uses unique matches and keeps user choice intact',
   assert.match(viewer, /if \(matches\.length === 1\)/);
   assert.match(viewer, /const setTextureVariant = async \(textureId\)/);
 });
+
+test('texture diagnostics refresh after YTD variant changes without guessing the atlas', () => {
+  assert.match(viewer,/const refreshTextureDiagnostics = textures =>/);
+  assert.match(viewer,/refreshTextureDiagnostics\(external\)/);
+  assert.match(viewer,/refreshTextureDiagnostics\(variant\)/);
+  assert.doesNotMatch(viewer,/variant\.length === 1 && g\.uvs \? variant\[0\]/);
+});
