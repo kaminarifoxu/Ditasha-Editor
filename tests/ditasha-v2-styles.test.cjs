@@ -106,3 +106,9 @@ test('collapsible inspector groups expose an action label', () => {
   assert.match(source, /button\.setAttribute\('aria-label', \(closed \? 'Buka ' : 'Minimalkan '\) \+ label\)/);
   assert.match(source, /button\.title = \(closed \? 'Buka ' : 'Minimalkan '\) \+ label/);
 });
+
+test('panel dialog declares its trigger relationship and restores focus', () => {
+  const js = read('src/workspace-polish.js');
+  assert.match(js, /button\.setAttribute\('aria-controls', dialog\.id\)/);
+  assert.match(js, /dialog\.addEventListener\('close', \(\) => button\?\.focus\(\)\)/);
+});
