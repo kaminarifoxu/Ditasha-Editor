@@ -13,6 +13,6 @@ test('main layout is retained and Clothing Library is read-only companion fallba
   assert.match(source, /if \(!gender\) return data/);
 });
 test('Clothing Library data bytes are mapped to File Manager preview shape', () => {
-  assert.match(source, /return \{name: result\.name, data: result\.bytes\}/);
+  assert.match(source, /return\s*\{\s*name:\s*result\.name,\s*data:\s*result\.bytes\s*\}/);
   assert.match(source, /const paired = await readWithClothingCompanion\(data\.companion\.id\)/);
 });
