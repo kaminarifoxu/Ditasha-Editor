@@ -76,3 +76,20 @@ test('detached choice controls do not receive stale updates', () => {
   const js = read('src/workspace-choices.js');
   assert.match(js, /if \(!box\.isConnected \|\| !select\.isConnected\) return/);
 });
+
+test('base HTML contains no duplicate static element IDs', () => {
+  const html = read('ui/index.html');
+  const ids = [...html.matchAll(/\\bid="([^"]+)"/g)].map((match) => match[1]);
+  assert.ok(ids.length > 20, 'expected editor controls to have stable IDs');
+  assert.equal(new Set(ids).size, ids.length, 'duplicate IDs can break event binding');
+});
+
+test('every stylesheet linked by the editor entry exists', () => {
+  const { existsSync } = require('node:fs');
+  const html = read('ui/index.html');
+  const styles = [...html.matchAll(/<link\\s+href="([^"]+\\.css)"\\s+rel="stylesheet"\\s*\\/>/g)]
+    .map((match) => match[1]);
+  for (const style of styles) {
+    assert.ok(existsSync(join(root, 'ui', style)), `Missing stylesheet: ${style}`);
+  }
+});
