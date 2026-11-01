@@ -70,3 +70,85 @@ body.workspace-shell[data-motion="reduced"] *::after {
   animation-duration: .01ms !important;
   transition-duration: .01ms !important;
 }
+
+/* Phase 2: readable controls, bounded dialogs, and compact workspace layouts. */
+body.workspace-shell {
+  color-scheme: dark;
+}
+body.workspace-shell[data-theme="light"],
+body.workspace-shell[data-theme="terang"] {
+  color-scheme: light;
+}
+body.workspace-shell :is(button, input, select, textarea) {
+  font: inherit;
+}
+body.workspace-shell :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), select, textarea) {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+body.workspace-shell :is(.fm-inspector, .tool-details, .inspector, .pb-panel) :is(label, .field, .form-row) {
+  min-width: 0;
+  max-width: 100%;
+}
+body.workspace-shell :is(.fm-inspector, .tool-details, .inspector, .pb-panel) :is(input, select, textarea) {
+  max-width: 100%;
+}
+body.workspace-shell :is(.tool-workspace, .archive-workspace, .pb-layout, .ac-layout, .debadge-layout, .native-build-layout) > * {
+  min-width: 0;
+}
+body.workspace-shell :is(.tool-sidebar, .tool-details, .fm-sidebar, .fm-inspector, .pb-panel, .inspector) {
+  overscroll-behavior: contain;
+}
+body.workspace-shell dialog {
+  box-sizing: border-box;
+  max-width: min(92vw, 720px);
+  max-height: min(88dvh, 900px);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+body.workspace-shell dialog::backdrop {
+  background: rgb(4 8 13 / 72%);
+}
+body.workspace-shell dialog :is(input, select, textarea) {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+body.workspace-shell :is(button, [role="button"]):disabled {
+  opacity: .55;
+}
+body.workspace-shell :is(button, summary) {
+  touch-action: manipulation;
+}
+body.workspace-shell .workspace-panel-toggle {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 900px) {
+  body.workspace-shell :is(.tool-workspace, .archive-workspace, .ac-layout, .debadge-layout, .native-build-layout) {
+    min-width: 0;
+  }
+  body.workspace-shell .editor-commandbar {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  body.workspace-shell .editor-commandbar :is(button, select, input) {
+    max-width: 100%;
+  }
+  body.workspace-shell .workspace-panels-dialog {
+    width: min(440px, 92vw);
+    padding: 16px;
+  }
+}
+@media (max-width: 600px) {
+  body.workspace-shell dialog {
+    max-width: 96vw;
+    max-height: 92dvh;
+  }
+  body.workspace-shell .workspace-choice-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  body.workspace-shell .workspace-panel-toggle {
+    gap: 6px;
+  }
+}
