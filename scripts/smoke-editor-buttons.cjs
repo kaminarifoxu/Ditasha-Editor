@@ -6,7 +6,7 @@ app.whenReady().then(async () => {
   const errors = [];
   try {
     win = new BrowserWindow({show:true,width:1300,height:850,webPreferences:{
-      contextIsolation:true,sandbox:true,nodeIntegration:false,backgroundThrottling:false,
+      contextIsolation:true,sandbox:true,nodeIntegration:false,backgroundThrottling:false,\n      preload: path.resolve('electron/preload.cjs'),
     }});
     win.webContents.on('console-message', (_event, details) => {
       if (details?.level === 'error') errors.push(details.message);
@@ -20,7 +20,7 @@ app.whenReady().then(async () => {
       // Programmatic click must invoke the application click listener, not navigate.
       let opened=false;const original=input.click.bind(input);
       input.click=()=>{opened=true;};
-      open.click();
+      const bounds=open.getBoundingClientRect();\n      const hit=document.elementFromPoint(bounds.left+bounds.width/2,bounds.top+bounds.height/2);\n      if(hit!==open&&!open.contains(hit))throw Error('Open Texture button blocked by overlay: '+hit?.tagName+' '+hit?.className);\n      open.click();
       input.click=original;
       if(!opened)throw Error('Open Texture has no working event handler');
       const nav=document.querySelector('[data-page="files"]');
