@@ -17,6 +17,11 @@ app.whenReady().then(async () => {
       const $=id=>document.getElementById(id);
       const open=$('openTexture'),input=$('fileInput'),paint=$('brush');
       if(!open||!input||!paint)throw Error('Editor controls are missing');
+      if(!document.body.classList.contains('workspace-shell'))throw Error('Creative Suite shell did not initialize');
+      const home=document.querySelector('[data-page="home"]');
+      if(!home)throw Error('Creative Suite Home navigation missing');
+      home.click();
+      if(!document.querySelector('.suite-nav-groups'))throw Error('Creative Suite sidebar missing');
       // Programmatic click must invoke the application click listener, not navigate.
       let opened=false;const original=input.click.bind(input);
       input.click=()=>{opened=true;};
