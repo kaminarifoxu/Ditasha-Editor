@@ -1,6 +1,7 @@
 import { mountChoiceSelect } from './workspace-choices.js';
 // Shared desktop UI. Retain original controls and listeners as the source of truth.
 export function mountWorkspacePolish() {
+  if (document.getElementById('workspacePanelsDialog')) return;
   const $ = (id) => document.getElementById(id);
   const read = (key, fallback) => {
     try {
@@ -246,5 +247,8 @@ function mountPanelMenu(records, restore) {
     render();
     dialog.showModal();
   };
-  document.querySelector('body > header .workspace-search')?.after(button);
+  const triggerAnchor = document.querySelector('body > header .workspace-search');
+  const header = document.querySelector('body > header');
+  if (triggerAnchor) triggerAnchor.after(button);
+  else header?.append(button);
 }
