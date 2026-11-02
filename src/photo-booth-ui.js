@@ -1642,6 +1642,17 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       setControls();
     }
   }
+  // Never silently export a T-pose for an emote whose tracks did not bind.
+  function assertBoothClipBindings() {
+    const missing = actors().filter((a) =>
+      a.motion.pose === 'clip' && !mixers.some((m) => m.userData.actor === a.id),
+    );
+    if (missing.length) throw Error(
+      'Emote belum terikat ke skeleton: ' +
+      missing.map((a) => a.label || a.name).slice(0, 5).join(', ') +
+      '. Periksa jenis rig dan bone tag, lalu pilih emote lain atau gunakan pose manual.',
+    );
+  }
   async function settleEmotes() {
     let current;
     do {
@@ -2906,6 +2917,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
   function exportPhoto(size) {
     return guard(async () => {
       await settleEmotes();
+      assertBoothClipBindings();
       movie.pause();
       for (const a of actors()) a.motion.playing = false;
       playing = false;
@@ -2966,6 +2978,10 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
   };
   $('pbExportSize').onchange = previewExportSize;
   $('pbCapture').onclick = () => {
+    if (actors().some((a) => a.motion.pose === 'clip' && !mixers.some((m) => m.userData.actor === a.id))) {
+      setStatus('Emote belum siap: beberapa ped belum memiliki track animasi yang cocok. Periksa status rigging.');
+      return;
+    }
     for (const a of actors()) a.motion.playing = false;
     playing = false;
     applyPose();
@@ -3308,6 +3324,8 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
   }
   $('pbLibrarySave').onclick = () =>
     guard(async () => {
+      await settleEmotes();
+      assertBoothClipBindings();
       setStatus('Menyalin sumber preset ke library lokal…');
       await library.save(snapshotScene(), (done, total) =>
         setStatus('Menyimpan preset · ' + Math.round((100 * done) / Math.max(1, total)) + '%'),
