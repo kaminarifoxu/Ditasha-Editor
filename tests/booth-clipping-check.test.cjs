@@ -7,10 +7,10 @@ test('clipping checker warns for layered tops and torso but not unrelated ped', 
   const moduleUrl = 'data:text/javascript,' + encodeURIComponent(content);
   const { outfitLayerWarnings } = await import(moduleUrl);
   const actors = [
-    {owner: 1,visible:true,category:'tops'},
-    {owner: 1,visible:true,category:'torso'},
-    {owner: 2,visible:true,category:'pants'},
-    {owner: 1,visible:false,category:'vest'},
+    { owner: 1, visible: true, category: 'tops' },
+    { owner: 1, visible: true, category: 'torso' },
+    { owner: 2, visible: true, category: 'pants' },
+    { owner: 1, visible: false, category: 'vest' },
   ];
   const risks = outfitLayerWarnings(actors, 1);
   assert.equal(risks.length, 1);

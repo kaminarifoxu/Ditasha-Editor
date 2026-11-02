@@ -19,7 +19,17 @@ export function createFilePreview(container) {
     release();
     release = () => {};
   }
-  async function show(file, api, { snapshot = false, facePreview = false, morphPack = null, highPerformance = false, textureId = null } = {}) {
+  async function show(
+    file,
+    api,
+    {
+      snapshot = false,
+      facePreview = false,
+      morphPack = null,
+      highPerformance = false,
+      textureId = null,
+    } = {},
+  ) {
     clear();
     const version = generation;
     container.textContent = 'Memuat preview…';
@@ -86,7 +96,12 @@ export function createFilePreview(container) {
       const host = document.createElement('div');
       host.className = 'fm-model-preview';
       container.replaceChildren(host);
-      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: snapshot, powerPreference: highPerformance ? 'high-performance' : 'default' });
+      const renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: true,
+        preserveDrawingBuffer: snapshot,
+        powerPreference: highPerformance ? 'high-performance' : 'default',
+      });
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
       host.append(renderer.domElement);
@@ -128,15 +143,20 @@ export function createFilePreview(container) {
         // GTA clothing often carries alpha bytes in nominally opaque fabrics.
         // Treat clothing fabric as solid unless its shader explicitly identifies cutout/blend.
         const alpha = modelPreviewAlpha(g);
-        const clothing = /(?:^|[\\^])(jbib|uppr|lowr|hand|feet|accs|task|decl|hair|head)_(?:diff_)?\d/i.test(file.name);
+        const clothing =
+          /(?:^|[\\^])(jbib|uppr|lowr|hand|feet|accs|task|decl|hair|head)_(?:diff_)?\d/i.test(
+            file.name,
+          );
         const outerGarment = /(?:^|[\\^])(jbib|uppr|lowr|accs|task)_(?:diff_)?\d/i.test(file.name);
         // Opaque garments should never retain an accidental alpha-blend shader.
         // Hair, skin and intentional cutouts keep their original alpha behavior.
         const solidFabric = outerGarment || (clothing && (!alpha || alpha.mode === 'opaque'));
-        const opaque = solidFabric || (alpha
-          ? alpha.mode === 'opaque'
-          : modelAlphaMode(g) === 'opaque' ||
-            /^(sbase|head_diff|uppr_diff|body_diff)/i.test(g.diffuseTexture || ''));
+        const opaque =
+          solidFabric ||
+          (alpha
+            ? alpha.mode === 'opaque'
+            : modelAlphaMode(g) === 'opaque' ||
+              /^(sbase|head_diff|uppr_diff|body_diff)/i.test(g.diffuseTexture || ''));
         const mesh = new THREE.Mesh(
           geometry,
           createModelMaterial(g, {
@@ -170,8 +190,12 @@ export function createFilePreview(container) {
         }
         group.add(mesh);
         materialBindings.push({ mesh, g, embedded });
-        if (facePreview && /head|face|skin/i.test(file.name+' '+(g.diffuseTexture||''))) {
-          faceMeshes.push({ geometry, original: new Float32Array(g.positions), indices: g.indices });
+        if (facePreview && /head|face|skin/i.test(file.name + ' ' + (g.diffuseTexture || ''))) {
+          faceMeshes.push({
+            geometry,
+            original: new Float32Array(g.positions),
+            indices: g.indices,
+          });
         }
       }
       // Optional body reference uses actual user-supplied YDD/ YDR geometry,
@@ -180,51 +204,79 @@ export function createFilePreview(container) {
       const setCharacterModel = async (reference) => {
         if (bodyReference) {
           group.remove(bodyReference);
-          bodyReference.traverse(o => {
-            if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); }
+          bodyReference.traverse((o) => {
+            if (o.isMesh) {
+              o.geometry.dispose();
+              o.material.dispose();
+            }
           });
           bodyReference = null;
         }
-        if (!reference || version !== generation) { draw(); return false; }
+        if (!reference || version !== generation) {
+          draw();
+          return false;
+        }
         const bytes = await api.read(reference.id);
         const kind = reference.name.split('.').at(-1).toLowerCase();
-        if (!['ydd','ydr'].includes(kind)) throw Error('Referensi karakter harus YDD atau YDR.');
+        if (!['ydd', 'ydr'].includes(kind)) throw Error('Referensi karakter harus YDD atau YDR.');
         const parsed = await decodeResource(kind, new Uint8Array(bytes.data).buffer);
         let referenceTextures = [];
-        if(bytes.companion) {
+        if (bytes.companion) {
           try {
-            const ytd=await api.read(bytes.companion.id);
-            referenceTextures=(await decodeResource('ytd',new Uint8Array(ytd.data).buffer)).textures;
-          }catch { /* Preserve reference geometry if the YTD is missing. */ }
+            const ytd = await api.read(bytes.companion.id);
+            referenceTextures = (await decodeResource('ytd', new Uint8Array(ytd.data).buffer))
+              .textures;
+          } catch {
+            /* Preserve reference geometry if the YTD is missing. */
+          }
         }
         if (version !== generation) return false;
-        const refDrawable=drawableView(parsed,defaultDrawableSelection(parsed));
-        const refLevel=refDrawable?.lods?.[0];
-        if(!refLevel?.geometries?.length)throw Error('Mesh karakter tidak ditemukan pada referensi.');
+        const refDrawable = drawableView(parsed, defaultDrawableSelection(parsed));
+        const refLevel = refDrawable?.lods?.[0];
+        if (!refLevel?.geometries?.length)
+          throw Error('Mesh karakter tidak ditemukan pada referensi.');
         bodyReference = new THREE.Group();
-        bodyReference.name='body-reference';
-        for(const g of refLevel.geometries){
-          const geometry=new THREE.BufferGeometry();
-          geometry.setAttribute('position',new THREE.BufferAttribute(g.positions,3));
-          if(g.uvs) geometry.setAttribute('uv',new THREE.BufferAttribute(g.uvs,2));
-          geometry.setIndex(new THREE.BufferAttribute(g.indices,1));
-          if(g.normals)geometry.setAttribute('normal',new THREE.BufferAttribute(g.normals,3));
+        bodyReference.name = 'body-reference';
+        for (const g of refLevel.geometries) {
+          const geometry = new THREE.BufferGeometry();
+          geometry.setAttribute('position', new THREE.BufferAttribute(g.positions, 3));
+          if (g.uvs) geometry.setAttribute('uv', new THREE.BufferAttribute(g.uvs, 2));
+          geometry.setIndex(new THREE.BufferAttribute(g.indices, 1));
+          if (g.normals) geometry.setAttribute('normal', new THREE.BufferAttribute(g.normals, 3));
           else geometry.computeVertexNormals();
           const embedded = g.sourceEmbeddedTextures || refDrawable.embeddedTextures || [];
-          const tex=resolveModelTexture(g.diffuseTexture,referenceTextures,embedded,reference.name);
-          const map=tex?new THREE.DataTexture(tex.out,tex.w,tex.h,THREE.RGBAFormat):null;
-          if(map){map.flipY=false;map.colorSpace=THREE.SRGBColorSpace;map.needsUpdate=true;maps.push(map);}
-          const material=new THREE.MeshStandardMaterial({map,color:map?0xffffff:0xb9b6ad,roughness:.9,side:THREE.FrontSide,depthWrite:true});
-          bodyReference.add(new THREE.Mesh(geometry,material));
+          const tex = resolveModelTexture(
+            g.diffuseTexture,
+            referenceTextures,
+            embedded,
+            reference.name,
+          );
+          const map = tex ? new THREE.DataTexture(tex.out, tex.w, tex.h, THREE.RGBAFormat) : null;
+          if (map) {
+            map.flipY = false;
+            map.colorSpace = THREE.SRGBColorSpace;
+            map.needsUpdate = true;
+            maps.push(map);
+          }
+          const material = new THREE.MeshStandardMaterial({
+            map,
+            color: map ? 0xffffff : 0xb9b6ad,
+            roughness: 0.9,
+            side: THREE.FrontSide,
+            depthWrite: true,
+          });
+          bodyReference.add(new THREE.Mesh(geometry, material));
         }
         group.add(bodyReference);
         const bounds = new THREE.Box3().setFromObject(group);
-        const midpoint=bounds.getCenter(new THREE.Vector3());
-        const extent=bounds.getSize(new THREE.Vector3());
-        const diameter=Math.max(extent.x,extent.y,extent.z,.01);
-        camera.near=diameter/1000;
-        camera.far=diameter*1000;
-        camera.position.copy(midpoint).add(new THREE.Vector3(diameter*.85,diameter*.4,diameter*1.8));
+        const midpoint = bounds.getCenter(new THREE.Vector3());
+        const extent = bounds.getSize(new THREE.Vector3());
+        const diameter = Math.max(extent.x, extent.y, extent.z, 0.01);
+        camera.near = diameter / 1000;
+        camera.far = diameter * 1000;
+        camera.position
+          .copy(midpoint)
+          .add(new THREE.Vector3(diameter * 0.85, diameter * 0.4, diameter * 1.8));
         controls.target.copy(midpoint);
         controls.update();
         camera.updateProjectionMatrix();
@@ -254,22 +306,31 @@ export function createFilePreview(container) {
       };
       const applyFace = (appearance) => {
         if (!faceMeshes.length) return false;
-        let updated=0;
+        let updated = 0;
         for (const item of faceMeshes) {
           let altered;
-          if(morphPack){
-            try { altered=applyMorphPack(item.original,morphPack,appearance,item.indices); }
-            catch { altered=null; }
-          }else altered=deformFacePositions(item.original, appearance?.features, appearance?.shapeMix);
-          if(!altered)continue;
+          if (morphPack) {
+            try {
+              altered = applyMorphPack(item.original, morphPack, appearance, item.indices);
+            } catch {
+              altered = null;
+            }
+          } else
+            altered = deformFacePositions(
+              item.original,
+              appearance?.features,
+              appearance?.shapeMix,
+            );
+          if (!altered) continue;
           updated++;
-          const attribute=item.geometry.getAttribute('position');
-          attribute.array.set(altered); attribute.needsUpdate=true;
+          const attribute = item.geometry.getAttribute('position');
+          attribute.array.set(altered);
+          attribute.needsUpdate = true;
           item.geometry.computeVertexNormals();
           item.geometry.computeBoundingSphere();
         }
         draw();
-        return updated>0;
+        return updated > 0;
       };
       // Switch YTD variants in-place: materials update without recreating model,
       // camera, controls or renderer. Source files remain untouched.
@@ -279,10 +340,12 @@ export function createFilePreview(container) {
         if (version !== generation) return false;
         const selected = await api.read(textureId);
         if (version !== generation || request !== textureRequest) return false;
-        const variant = (await decodeResource('ytd', new Uint8Array(selected.data).buffer)).textures;
+        const variant = (await decodeResource('ytd', new Uint8Array(selected.data).buffer))
+          .textures;
         if (version !== generation || request !== textureRequest) return false;
         for (const { mesh, g, embedded } of materialBindings) {
-          const diffuse = resolveModelTexture(g.diffuseTexture, variant, embedded, file.name) ||
+          const diffuse =
+            resolveModelTexture(g.diffuseTexture, variant, embedded, file.name) ||
             (variant.length === 1 && g.uvs ? variant[0] : null);
           // Keep the current diffuse if the selected dictionary lacks a match.
           if (!diffuse) continue;
@@ -307,7 +370,9 @@ export function createFilePreview(container) {
       const observer = new ResizeObserver(draw);
       observer.observe(host);
       draw();
-      const thumbnail = snapshot ? await new Promise(resolve => renderer.domElement.toBlob(resolve, 'image/png')) : null;
+      const thumbnail = snapshot
+        ? await new Promise((resolve) => renderer.domElement.toBlob(resolve, 'image/png'))
+        : null;
       release = () => {
         observer.disconnect();
         controls.dispose();
@@ -322,7 +387,9 @@ export function createFilePreview(container) {
         renderer.forceContextLoss();
         host.remove();
       };
-      return snapshot ? thumbnail : { applyFace, supported:faceMeshes.length>0, setTextureVariant, setCharacterModel };
+      return snapshot
+        ? thumbnail
+        : { applyFace, supported: faceMeshes.length > 0, setTextureVariant, setCharacterModel };
     } catch (error) {
       if (version === generation) {
         clear();

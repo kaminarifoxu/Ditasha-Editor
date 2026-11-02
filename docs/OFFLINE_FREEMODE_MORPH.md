@@ -9,7 +9,7 @@ This implementation runs inside the Electron/Three.js Character Maker with **no 
 - Linear weighted blending of vertex deltas, normals and bounds recomputation.
 - Strict same-topology validation: the mesh vertex count must match the morph pack.
 - Import per-session JSON morph packs directly in Character Maker. Invalid packs show an error rather than falsely reporting success.
-- If no calibrated morph pack is loaded, the UI offers the earlier *approximate* mesh deform preview, clearly labeled as such.
+- If no calibrated morph pack is loaded, the UI offers the earlier _approximate_ mesh deform preview, clearly labeled as such.
 
 ## Morph pack format
 
@@ -36,7 +36,6 @@ Rockstar's actual freemode head blend uses proprietary face shape data, inherita
 The save and JSON import/export pipelines preserve FiveM appearance values but **do not export mutated YDD meshes**. Photo Booth currently receives preset appearance metadata, and its renderer does not yet consume this morph pack for the actor.
 
 No exact GTA visual fidelity is claimed before comparative visual testing.
-
 
 ## Morph Pack Generator — neutral and sculpted YDD
 
