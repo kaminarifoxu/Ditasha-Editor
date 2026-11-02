@@ -1,0 +1,39 @@
+name: DITASHA Editor repair EXE candidate
+on:
+  push:
+    branches:
+      - fix/preview-geometry-validation-20261102
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows-repair-build:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Test code
+        run: npm test
+      - name: Build Windows portable and installer
+        run: npm run build:win
+      - name: Verify packages
+        shell: pwsh
+        run: |
+          if (!(Test-Path 'release/DITASHA-Editor.exe')) { throw 'Portable EXE missing' }
+          if (!(Test-Path 'release/DITASHA-Setup.exe')) { throw 'Installer EXE missing' }
+          Get-Item release/DITASHA-Editor.exe,release/DITASHA-Setup.exe | Select-Object Name,Length
+      - name: Upload Windows update candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: DITASHA-Repair-Windows-x64
+          path: |
+            release/DITASHA-Editor.exe
+            release/DITASHA-Setup.exe
+          if-no-files-found: error
+          retention-days: 14

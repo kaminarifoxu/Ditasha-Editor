@@ -350,7 +350,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
     $('fmOpen').disabled =
       !picked ||
       !/\.(png|jpe?g|webp|ytd|dds|ydd|ydr|yft|rpf|zip|oiv)$/i.test(picked.name) ||
-      picked.size > 64 * 1024 * 1024;
+      picked.size > (/\.ytd$/i.test(picked.name) ? 512 : /\.(ydd|ydr|yft)$/i.test(picked.name) ? 256 : 64) * 1024 * 1024;
     $('fmReveal').disabled = !picked;
     $('fmCopy').disabled = !plan;
   }

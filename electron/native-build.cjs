@@ -721,7 +721,7 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
         state.status = rep.ok && !error && !state.cancelled ? 'success' : 'error';
         state.message = state.cancelled
           ? 'Build dibatalkan; hasil parsial jangan dipakai.'
-          : rep.error ||
+          : (rep.error ? '[' + (rep.stage || 'engine') + '] ' + rep.error : null) ||
             error ||
             (job.mode === 'ped_preview'
               ? 'Model sumber siap diperiksa. Belum ada proses rig atau ekspor game.'

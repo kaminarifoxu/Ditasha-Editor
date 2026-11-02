@@ -34,7 +34,8 @@ import { applyBoothMatte } from './booth-look.js';
 import { BOOTH_STUDIOS, createBoothStudio, disposeBoothStudio } from './booth-studio.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { readYcd, ycdAnimationClip } from './ycd.js';
-import { freemodeFamily, selectBoothRig } from './booth-rig.js';
+import { safePreviewMesh } from './preview-geometry.js';
+import { freemodeFamily, selectBoothRig, validateBoothSkeleton } from './booth-rig.js';
 import { boothHeight, setBoothHeight, setBoothElevation } from './booth-transform.js';
 import {
   MAX_BOOTH_MODELS,
@@ -1168,6 +1169,8 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     return map;
   }
   function nativeRig(data) {
+    const error = validateBoothSkeleton(data);
+    if (error) throw Error('Skeleton ped tidak bisa dibangun: ' + error);
     const holder = new THREE.Group();
     holder.userData.boothRig = true;
     const bones = data.map((b) => {
@@ -1214,6 +1217,9 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     for (const a of actors()) a.rigReport = { skinned: 0, static: 0, transfers: 0, sources: new Set() };
     let skinned = 0,
       staticMeshes = 0;
+    // A ped must own one skeleton per source rig. Recreating the same bones for
+    // each outfit isolates them from the animation mixer and wastes GPU memory.
+    const actorRigCache = new Map();
     for (const a of assets) {
       a.textureReport = [];
       a.liveGrip = null;
@@ -1264,7 +1270,11 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         part.name = d.name;
         part.visible = !a.hiddenSlots.has(d.componentSlot);
         a.root.add(part);
-        const rigCache = new Map();
+        let rigCache = actorRigCache.get(owner.id);
+        if (!rigCache) {
+          rigCache = new Map();
+          actorRigCache.set(owner.id, rigCache);
+        }
         for (const g of (d.lods.find((l) => l.name === 'High') || d.lods[0]).geometries) {
           let transfer = null;
           if (!g.skin && a.kind === 'clothing' && owner.kind === 'ped') {
@@ -1284,9 +1294,18 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
                 });
           let rig = selection.rig.length ? rigCache.get(selection.rig) : null;
           if (!rig && selection.rig.length) {
-            rig = nativeRig(selection.rig);
-            rigCache.set(selection.rig, rig);
-            part.add(rig.holder);
+            const badSkeleton = validateBoothSkeleton(selection.rig);
+            if (badSkeleton) {
+              warnings.push(a.name + ': ' + badSkeleton);
+            } else if (selection.rig.some((bone) => !bone.matrix || bone.matrix.length !== 16 || !Number.isInteger(bone.parent))) {
+              warnings.push(a.name + ': skeleton tidak berisi transform/parent lengkap untuk preview.');
+            } else {
+              rig = nativeRig(selection.rig);
+              rigCache.set(selection.rig, rig);
+              // Parent the shared skeleton to the actor, not to an individual
+              // drawable (which may be hidden, switched or removed).
+              actorFrames.get(owner.id).add(rig.holder);
+            }
           }
           if (selection.warning) warnings.push(a.name + ': ' + selection.warning);
           if (selection.source && rig) owner.rigReport.sources.add(selection.source);
@@ -1295,6 +1314,13 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
               ? vehiclePreviewIndices(g, d.rig || [], vehicleHidden)
               : g.indices;
           if (!previewIndices.length) continue;
+          const safe = safePreviewMesh({ ...g, indices: previewIndices });
+          if (!safe) {
+            warnings.push(a.name + ': geometri tidak valid atau semua segitiga rusak; bagian dilewati.');
+            continue;
+          }
+          if (safe.droppedTriangles)
+            warnings.push(a.name + ': ' + safe.droppedTriangles + ' segitiga rusak dilewati dalam preview.');
           const geom = new THREE.BufferGeometry();
           // Morph target applies to the matching actor head, never to clothing/body meshes.
           let headPositions=g.positions;
@@ -1303,11 +1329,14 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
             try {headPositions=applyMorphPack(g.positions,owner.characterMorphPack,owner.characterAppearance,g.indices);}
             catch(error){warnings.push('Morph wajah '+a.name+': '+error.message);}
           }
-          geom.setAttribute('position', new THREE.BufferAttribute(headPositions, 3));
-          if (g.uvs) geom.setAttribute('uv', new THREE.BufferAttribute(g.uvs, 2));
-          if (g.uvs2) geom.setAttribute('uv1', new THREE.BufferAttribute(g.uvs2, 2));
-          geom.setIndex(new THREE.BufferAttribute(previewIndices, 1));
-          if (g.normals) geom.setAttribute('normal', new THREE.BufferAttribute(g.normals, 3));
+          // Preserve vertex numbering for GTA skin weights while replacing NaNs in preview only.
+          const previewPositions = headPositions === g.positions ? safe.positions : safePreviewMesh({ ...g, positions: headPositions, indices: safe.indices })?.positions;
+          if (!previewPositions) { warnings.push(a.name + ': morph menghasilkan vertex tidak valid.'); continue; }
+          geom.setAttribute('position', new THREE.BufferAttribute(previewPositions, 3));
+          if (safe.uvs) geom.setAttribute('uv', new THREE.BufferAttribute(safe.uvs, 2));
+          if (safe.uvs2) geom.setAttribute('uv1', new THREE.BufferAttribute(safe.uvs2, 2));
+          geom.setIndex(new THREE.BufferAttribute(safe.indices, 1));
+          if (safe.normals) geom.setAttribute('normal', new THREE.BufferAttribute(safe.normals, 3));
           else geom.computeVertexNormals();
           const ownTextures = textures.filter(
             (t) => t.boothOwner == null || t.boothOwner === a.id || t.boothOwner === owner.id,
@@ -1378,8 +1407,8 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
               a.name,
               owner.textureParents || [],
             );
-            if (livery && g.uvs2) {
-              geom.setAttribute('ditashaLiveryUv', new THREE.BufferAttribute(g.uvs2, 2));
+            if (livery && safe.uvs2) {
+              geom.setAttribute('ditashaLiveryUv', new THREE.BufferAttribute(safe.uvs2, 2));
               setVehicleLivery(material, textureMap(livery));
             } else if (liveryReference(g) && !livery)
               warnings.push(a.name + ': livery ' + liveryReference(g) + ' belum ditemukan');
@@ -1578,6 +1607,10 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
             if (o.userData.boothRig) roots.add(o);
           });
       }
+      // Native GTA bones are attached to the actor frame and are therefore
+      // shared by clothing, hair and body. Bind the animation once per rig.
+      const frame = actorFrames.get(owner.id);
+      if (frame?.children.some((child) => child.userData.boothRig)) roots.add(frame);
       for (const root of roots) {
         const names = new Set();
         root.traverse((o) => names.add(o.name));
@@ -1608,6 +1641,17 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       applyPose();
       setControls();
     }
+  }
+  // Never silently export a T-pose for an emote whose tracks did not bind.
+  function assertBoothClipBindings() {
+    const missing = actors().filter((a) =>
+      a.motion.pose === 'clip' && !mixers.some((m) => m.userData.actor === a.id),
+    );
+    if (missing.length) throw Error(
+      'Emote belum terikat ke skeleton: ' +
+      missing.map((a) => a.label || a.name).slice(0, 5).join(', ') +
+      '. Periksa jenis rig dan bone tag, lalu pilih emote lain atau gunakan pose manual.',
+    );
   }
   async function settleEmotes() {
     let current;
@@ -2873,6 +2917,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
   function exportPhoto(size) {
     return guard(async () => {
       await settleEmotes();
+      assertBoothClipBindings();
       movie.pause();
       for (const a of actors()) a.motion.playing = false;
       playing = false;
@@ -2933,6 +2978,10 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
   };
   $('pbExportSize').onchange = previewExportSize;
   $('pbCapture').onclick = () => {
+    if (actors().some((a) => a.motion.pose === 'clip' && !mixers.some((m) => m.userData.actor === a.id))) {
+      setStatus('Emote belum siap: beberapa ped belum memiliki track animasi yang cocok. Periksa status rigging.');
+      return;
+    }
     for (const a of actors()) a.motion.playing = false;
     playing = false;
     applyPose();
@@ -3252,6 +3301,21 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         },
       );
       await settleEmotes();
+      // Rehydrating a preset is asynchronous: reapply every actor's saved time
+      // after the emote dictionary has been decoded, not only the selected ped.
+      const missingPresetEmotes = actors().filter((a) =>
+        a.motion.pose === 'clip' && !mixers.some((m) => m.userData.actor === a.id),
+      );
+      for (const a of missingPresetEmotes) {
+        restoreWarnings.push(
+          (a.label || a.name) + ': emote preset tidak cocok / belum terikat pada skeleton. Menggunakan pose santai agar bukan T-pose.',
+        );
+        a.motion.pose = 'relaxed';
+        a.motion.playing = false;
+      }
+      if (missingPresetEmotes.length) await updateClips();
+      applyPose();
+      render();
       $('pbLibraryName').value = record.name;
       if (restoreWarnings.length) {
         updateIssues([
@@ -3275,6 +3339,8 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
   }
   $('pbLibrarySave').onclick = () =>
     guard(async () => {
+      await settleEmotes();
+      assertBoothClipBindings();
       setStatus('Menyalin sumber preset ke library lokal…');
       await library.save(snapshotScene(), (done, total) =>
         setStatus('Menyimpan preset · ' + Math.round((100 * done) / Math.max(1, total)) + '%'),

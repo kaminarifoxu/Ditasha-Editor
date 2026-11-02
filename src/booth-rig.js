@@ -9,12 +9,46 @@ export function nativeSkinRequirement(skin) {
     if (skin.weights[i] > 0) max = Math.max(max, skin.indices[i]);
   return max + 1;
 }
+// Reject malformed skeleton trees before Three.js builds a Bone hierarchy.
+export function validateBoothSkeleton(rig) {
+  if (!Array.isArray(rig) || !rig.length) return 'Skeleton kosong.';
+  for (let i = 0; i < rig.length; i++) {
+    const bone = rig[i], parent = bone?.parent;
+    if (parent !== undefined && (!Number.isInteger(parent) || parent < -1 || parent >= rig.length || parent === i))
+      return 'Parent bone tidak valid pada index ' + i + '.';
+    if (bone.matrix && (bone.matrix.length !== 16 ||
+        Array.from(bone.matrix).some((n) => !Number.isFinite(n))))
+      return 'Transform bone tidak valid pada index ' + i + '.';
+    const seen = new Set([i]);
+    let cursor = parent ?? -1;
+    while (cursor !== -1) {
+      if (seen.has(cursor)) return 'Skeleton mempunyai siklus parent bone.';
+      seen.add(cursor);
+      cursor = rig[cursor]?.parent ?? -1;
+      if (!Number.isInteger(cursor) || cursor < -1 || cursor >= rig.length)
+        return 'Rantai parent bone tidak valid.';
+    }
+  }
+  return null;
+}
 export function selectBoothRig(ownRig, skin, candidates = [], { family, choice = 'auto' } = {}) {
   const required = nativeSkinRequirement(skin),
     own = ownRig || [];
+  if (skin && (
+    !skin.indices || !skin.weights ||
+    skin.indices.length !== skin.weights.length ||
+    skin.indices.length % 4 !== 0 ||
+    Array.from(skin.weights).some((weight, i) =>
+      !Number.isFinite(weight) || weight < 0 ||
+      (weight > 0 && (!Number.isInteger(skin.indices[i]) || skin.indices[i] < 0))
+    )
+  )) return {
+    rig: [], indices: null, required: 0, source: '',
+    warning: 'Skin weights atau bone indices tidak valid; rigging dilewati untuk mencegah deformasi.',
+  };
   if (!skin)
     return {
-      rig: own.length ? own : candidates.find((c) => c.rig?.length)?.rig || [],
+      rig: own.length && !validateBoothSkeleton(own) ? own : candidates.find((c) => c.rig?.length && !validateBoothSkeleton(c.rig))?.rig || [],
       indices: null,
       source: 'rigid',
     };
@@ -28,7 +62,7 @@ export function selectBoothRig(ownRig, skin, candidates = [], { family, choice =
     options.push({ rig: references[gender], label: 'Acuan freemode ' + gender });
   for (const option of options) {
     const rig = option.rig;
-    if (!rig?.length) continue;
+    if (!rig?.length || validateBoothSkeleton(rig)) continue;
     let mapped = null,
       valid = true;
     const byTag = new Map(rig.map((b, i) => [b.tag, i])),

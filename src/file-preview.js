@@ -8,6 +8,7 @@ import { readDds } from './asset-tools.js';
 import { resolveModelTexture, modelAlphaMode, modelPreviewAlpha } from './model-material.js';
 import { resolveVehicleLivery, setVehicleLivery } from './vehicle-livery.js';
 import { createModelMaterial, resolveSurfaceMaps, setSurfaceMaps } from './vehicle-surface.js';
+import { safePreviewMesh } from './preview-geometry.js';
 
 // One owned preview at a time; selecting a different file releases its WebGL
 // context, controls, decoded resources and observer before displaying the next.
@@ -102,14 +103,17 @@ export function createFilePreview(container) {
       const faceMeshes = [];
       const materialBindings = [];
       for (const g of level.geometries) {
+        const safe = safePreviewMesh(g);
+        if (!safe) continue;
         const embedded = g.sourceEmbeddedTextures || drawable.embeddedTextures || [];
         const geometry = new THREE.BufferGeometry();
-        geometry.setAttribute('position', new THREE.BufferAttribute(g.positions, 3));
-        if (g.uvs) geometry.setAttribute('uv', new THREE.BufferAttribute(g.uvs, 2));
-        geometry.setIndex(new THREE.BufferAttribute(g.indices, 1));
-        if (g.normals) geometry.setAttribute('normal', new THREE.BufferAttribute(g.normals, 3));
+        geometry.setAttribute('position', new THREE.BufferAttribute(safe.positions, 3));
+        if (safe.uvs) geometry.setAttribute('uv', new THREE.BufferAttribute(safe.uvs, 2));
+        geometry.setIndex(new THREE.BufferAttribute(safe.indices, 1));
+        if (safe.normals) geometry.setAttribute('normal', new THREE.BufferAttribute(safe.normals, 3));
         else geometry.computeVertexNormals();
-        const t = resolveModelTexture(g.diffuseTexture, external, embedded, file.name);
+        const t = resolveModelTexture(g.diffuseTexture, external, embedded, file.name) ||
+          (g.uvs && external.length === 1 && embedded.length === 0 ? external[0] : null);
         const textureMap = (t, role = 'color') => {
           if (!t) return null;
           if (mapCache.get(t)?.has(role)) return mapCache.get(t).get(role);
@@ -164,14 +168,14 @@ export function createFilePreview(container) {
           g.uvs ? resolveSurfaceMaps(g, external, embedded, file.name) : {},
           textureMap,
         );
-        if (livery && g.uvs2) {
-          geometry.setAttribute('ditashaLiveryUv', new THREE.BufferAttribute(g.uvs2, 2));
+        if (livery && safe.uvs2) {
+          geometry.setAttribute('ditashaLiveryUv', new THREE.BufferAttribute(safe.uvs2, 2));
           setVehicleLivery(mesh.material, textureMap(livery));
         }
         group.add(mesh);
         materialBindings.push({ mesh, g, embedded });
         if (facePreview && /head|face|skin/i.test(file.name+' '+(g.diffuseTexture||''))) {
-          faceMeshes.push({ geometry, original: new Float32Array(g.positions), indices: g.indices });
+          faceMeshes.push({ geometry, original: new Float32Array(safe.positions), indices: safe.indices });
         }
       }
       // Optional body reference uses actual user-supplied YDD/ YDR geometry,
@@ -204,11 +208,13 @@ export function createFilePreview(container) {
         bodyReference = new THREE.Group();
         bodyReference.name='body-reference';
         for(const g of refLevel.geometries){
+          const safe = safePreviewMesh(g);
+          if (!safe) continue;
           const geometry=new THREE.BufferGeometry();
-          geometry.setAttribute('position',new THREE.BufferAttribute(g.positions,3));
-          if(g.uvs) geometry.setAttribute('uv',new THREE.BufferAttribute(g.uvs,2));
-          geometry.setIndex(new THREE.BufferAttribute(g.indices,1));
-          if(g.normals)geometry.setAttribute('normal',new THREE.BufferAttribute(g.normals,3));
+          geometry.setAttribute('position',new THREE.BufferAttribute(safe.positions,3));
+          if(safe.uvs) geometry.setAttribute('uv',new THREE.BufferAttribute(safe.uvs,2));
+          geometry.setIndex(new THREE.BufferAttribute(safe.indices,1));
+          if(safe.normals)geometry.setAttribute('normal',new THREE.BufferAttribute(safe.normals,3));
           else geometry.computeVertexNormals();
           const embedded = g.sourceEmbeddedTextures || refDrawable.embeddedTextures || [];
           const tex=resolveModelTexture(g.diffuseTexture,referenceTextures,embedded,reference.name);
