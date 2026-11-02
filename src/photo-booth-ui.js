@@ -1297,6 +1297,8 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
             const badSkeleton = validateBoothSkeleton(selection.rig);
             if (badSkeleton) {
               warnings.push(a.name + ': ' + badSkeleton);
+            } else if (selection.rig.some((bone) => !bone.matrix || bone.matrix.length !== 16 || !Number.isInteger(bone.parent))) {
+              warnings.push(a.name + ': skeleton tidak berisi transform/parent lengkap untuk preview.');
             } else {
               rig = nativeRig(selection.rig);
               rigCache.set(selection.rig, rig);
@@ -1608,12 +1610,8 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       // Native GTA bones are attached to the actor frame and are therefore
       // shared by clothing, hair and body. Bind the animation once per rig.
       const frame = actorFrames.get(owner.id);
-      if (frame) roots.add(frame);
+      if (frame?.children.some((child) => child.userData.boothRig)) roots.add(frame);
       for (const root of roots) {
-        if (root === frame) {
-          // Existing per-asset native roots no longer own rig holders.
-          // Bind native tracks against this single shared actor hierarchy.
-        }
         const names = new Set();
         root.traverse((o) => names.add(o.name));
         const boundClip = selected.ycd ? ycdAnimationClip(selected.ycd, root) : selected.clip;
