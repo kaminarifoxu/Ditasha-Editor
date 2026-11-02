@@ -28,3 +28,11 @@ test('rigging rejects absent bone and invalid negative indices', () => {
   const negative=selectBoothRig(own,skin([-1,0,0,0],[1,0,0,0]),[],{family:'female'});
   assert.equal(negative.indices,null);
 });
+
+test('rigging rejects non-finite or negative skin weights before binding', () => {
+  const invalid = selectBoothRig(own,skin([1,2,0,0],[NaN,0.2,0,0]),[],{family:'male'});
+  assert.equal(invalid.indices,null);
+  assert.match(invalid.warning,/tidak valid/);
+  const negative = selectBoothRig(own,skin([1,2,0,0],[-0.3,0.2,0,0]),[],{family:'male'});
+  assert.equal(negative.rig.length,0);
+});
