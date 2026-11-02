@@ -6,12 +6,7 @@ const path = require('node:path');
 const { ClothingLibrary, metadataFor } = require('../electron/clothing-library.cjs');
 
 test('identifies male freemode upper clothing', () => {
-  assert.deepEqual(metadataFor('mp_m_freemode_01^jbib_012_u.ydd'), {
-    gender: 'male',
-    component: 'jbib',
-    drawable: 12,
-    textureVariant: null,
-  });
+  assert.deepEqual(metadataFor('mp_m_freemode_01^jbib_012_u.ydd'), { gender: 'male', component: 'jbib', drawable: 12, textureVariant: null });
 });
 test('persists custom imported clothing and removes it', async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'ditasha-clothing-'));
@@ -25,10 +20,9 @@ test('persists custom imported clothing and removes it', async () => {
     assert.equal((await second.list()).length, 1);
     assert.equal(await second.remove(item.id), true);
     assert.equal((await second.list()).length, 0);
-  } finally {
-    await fs.rm(root, { recursive: true, force: true });
-  }
+  } finally { await fs.rm(root, { recursive: true, force: true }); }
 });
+
 
 test('rejects a texture-only pack without saving a library record', async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'ditasha-invalid-pack-'));
@@ -38,9 +32,7 @@ test('rejects a texture-only pack without saving a library record', async () => 
     const library = new ClothingLibrary(path.join(root, 'library'));
     await assert.rejects(library.importFiles({ files: [source] }), /at least one YDD/);
     assert.deepEqual(await library.list(), []);
-  } finally {
-    await fs.rm(root, { recursive: true, force: true });
-  }
+  } finally { await fs.rm(root, { recursive: true, force: true }); }
 });
 test('rejects duplicate source paths', async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'ditasha-dupes-'));
@@ -49,9 +41,7 @@ test('rejects duplicate source paths', async () => {
     await fs.writeFile(source, Buffer.from('test'));
     const library = new ClothingLibrary(path.join(root, 'library'));
     await assert.rejects(library.importFiles({ files: [source, source] }), /Duplicate source/);
-  } finally {
-    await fs.rm(root, { recursive: true, force: true });
-  }
+  } finally { await fs.rm(root, { recursive: true, force: true }); }
 });
 
 test('reads persisted model bytes for preview after app reload', async () => {
@@ -66,9 +56,7 @@ test('reads persisted model bytes for preview after app reload', async () => {
     assert.equal(result.name, path.basename(source));
     assert.equal(Buffer.from(result.bytes).toString(), 'example-model');
     await assert.rejects(reopened.readAsset(pack.id, '../index.json'), /Asset not found/);
-  } finally {
-    await fs.rm(root, { recursive: true, force: true });
-  }
+  } finally { await fs.rm(root, { recursive: true, force: true }); }
 });
 
 test('renames saved pack and preserves name after restart', async () => {
@@ -82,9 +70,7 @@ test('renames saved pack and preserves name after restart', async () => {
     const reopened = new ClothingLibrary(path.join(root, 'library'));
     assert.equal((await reopened.list())[0].pack, 'Custom Outfit');
     await assert.rejects(reopened.rename(pack.id, '  '), /Invalid pack name/);
-  } finally {
-    await fs.rm(root, { recursive: true, force: true });
-  }
+  } finally { await fs.rm(root, { recursive: true, force: true }); }
 });
 
 test('imports a nested clothing resource folder and persists textures', async () => {
@@ -100,10 +86,8 @@ test('imports a nested clothing resource folder and persists textures', async ()
     const pack = await library.importDirectory({ pack: 'Nested Pack', directory: folder });
     assert.equal(pack.files.length, 2);
     assert.equal((await new ClothingLibrary(path.join(root, 'library')).list())[0].files.length, 2);
-    assert.equal(pack.files.find((x) => /\.ytd$/i.test(x.name)).component, 'jbib');
-  } finally {
-    await fs.rm(root, { recursive: true, force: true });
-  }
+    assert.equal(pack.files.find(x => /\.ytd$/i.test(x.name)).component, 'jbib');
+  } finally { await fs.rm(root, { recursive: true, force: true }); }
 });
 
 test('pairs drawable and multiple texture variations from GTA naming', () => {
@@ -121,39 +105,24 @@ test('pairs drawable and multiple texture variations from GTA naming', () => {
 test('saves freemode outfit with multiple drawable parts across restart', async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'ditasha-outfit-'));
   try {
-    const sources = [
-      'mp_m_freemode_01^jbib_001_u.ydd',
-      'mp_m_freemode_01^lowr_002_u.ydd',
-      'mp_m_freemode_01^jbib_diff_001_a_uni.ytd',
-    ].map((name) => path.join(root, name));
-    for (const source of sources) await fs.writeFile(source, 'sample');
-    const library = new ClothingLibrary(path.join(root, 'library'));
-    const pack = await library.importFiles({ files: sources });
-    const top = pack.files.find((f) => f.component === 'jbib' && /\.ydd$/i.test(f.name));
-    const pants = pack.files.find((f) => f.component === 'lowr');
-    const preset = await library.saveOutfit({
-      name: 'My Outfit',
-      gender: 'male',
-      slots: [
-        { packId: pack.id, relativePath: top.relativePath, textureVariant: 'a' },
-        { packId: pack.id, relativePath: pants.relativePath },
-      ],
-    });
-    const reopened = new ClothingLibrary(path.join(root, 'library'));
-    assert.equal((await reopened.listOutfits())[0].id, preset.id);
-    await assert.rejects(
-      reopened.saveOutfit({
-        name: 'Wrong',
-        gender: 'female',
-        slots: [{ packId: pack.id, relativePath: top.relativePath }],
-      }),
-      /incompatible/,
-    );
-    assert.equal(await reopened.removeOutfit(preset.id), true);
-    assert.deepEqual(await reopened.listOutfits(), []);
-  } finally {
-    await fs.rm(root, { recursive: true, force: true });
-  }
+    const sources = ['mp_m_freemode_01^jbib_001_u.ydd', 'mp_m_freemode_01^lowr_002_u.ydd',
+      'mp_m_freemode_01^jbib_diff_001_a_uni.ytd'].map(name => path.join(root,name));
+    for(const source of sources) await fs.writeFile(source,'sample');
+    const library = new ClothingLibrary(path.join(root,'library'));
+    const pack = await library.importFiles({files:sources});
+    const top=pack.files.find(f=>f.component==='jbib' && /\.ydd$/i.test(f.name));
+    const pants=pack.files.find(f=>f.component==='lowr');
+    const preset=await library.saveOutfit({name:'My Outfit',gender:'male',slots:[
+      {packId:pack.id,relativePath:top.relativePath,textureVariant:'a'},
+      {packId:pack.id,relativePath:pants.relativePath}
+    ]});
+    const reopened = new ClothingLibrary(path.join(root,'library'));
+    assert.equal((await reopened.listOutfits())[0].id,preset.id);
+    await assert.rejects(reopened.saveOutfit({name:'Wrong',gender:'female',slots:[
+      {packId:pack.id,relativePath:top.relativePath}]}),/incompatible/);
+    assert.equal(await reopened.removeOutfit(preset.id),true);
+    assert.deepEqual(await reopened.listOutfits(),[]);
+  } finally { await fs.rm(root,{recursive:true,force:true}); }
 });
 
 test('prevents removing clothing packs referenced by saved outfit presets', async () => {
@@ -162,20 +131,14 @@ test('prevents removing clothing packs referenced by saved outfit presets', asyn
     const source = path.join(root, 'mp_m_freemode_01^jbib_001_u.ydd');
     await fs.writeFile(source, 'model');
     const library = new ClothingLibrary(path.join(root, 'library'));
-    const pack = await library.importFiles({ files: [source] });
-    const outfit = await library.saveOutfit({
-      name: 'Protected outfit',
-      gender: 'male',
-      slots: [{ packId: pack.id, relativePath: pack.files[0].relativePath }],
-    });
+    const pack = await library.importFiles({files:[source]});
+    const outfit = await library.saveOutfit({name:'Protected outfit',gender:'male',slots:[{packId:pack.id,relativePath:pack.files[0].relativePath}]});
     await assert.rejects(library.remove(pack.id), /Protected outfit/);
     assert.equal((await library.list()).length, 1);
     await library.removeOutfit(outfit.id);
-    assert.equal(await library.remove(pack.id), true);
-    assert.deepEqual(await library.list(), []);
-  } finally {
-    await fs.rm(root, { recursive: true, force: true });
-  }
+    assert.equal(await library.remove(pack.id),true);
+    assert.deepEqual(await library.list(),[]);
+  } finally { await fs.rm(root,{recursive:true,force:true}); }
 });
 
 test('freemode import retains actual ped reference file types (YFT and YDR) alongside YDD', async () => {
@@ -187,13 +150,11 @@ test('freemode import retains actual ped reference file types (YFT and YDR) alon
       await fs.writeFile(path.join(folder, name), 'RSC7');
     }
     const library = new ClothingLibrary(path.join(root, 'library'));
-    const pack = await library.importDirectory({ directory: folder, pack: 'Freemode reference' });
-    assert.deepEqual(pack.files.map((f) => path.extname(f.name)).sort(), ['.ydd', '.ydr', '.yft']);
-    assert.equal(pack.files.find((f) => f.name.endsWith('.ydd')).gender, 'female');
-    const yft = pack.files.find((f) => f.name.endsWith('.yft'));
+    const pack = await library.importDirectory({directory: folder, pack: 'Freemode reference'});
+    assert.deepEqual(pack.files.map(f => path.extname(f.name)).sort(), ['.ydd','.ydr','.yft']);
+    assert.equal(pack.files.find(f => f.name.endsWith('.ydd')).gender,'female');
+    const yft = pack.files.find(f => f.name.endsWith('.yft'));
     const binary = await library.readAsset(pack.id, yft.relativePath);
     assert.equal(Buffer.from(binary.bytes).toString(), 'RSC7');
-  } finally {
-    await fs.rm(root, { recursive: true, force: true });
-  }
+  } finally { await fs.rm(root,{recursive:true,force:true}); }
 });

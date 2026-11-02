@@ -1,9 +1,3 @@
-# v1.75.3 — Restore preferred DITASHA Creative Suite build
-
-- Restore the tested DITASHA V2 Creative Suite interface and File Manager from commit c8c52f53 (GitHub Actions run 41218665484), preserving the layout and working controls chosen by users.
-- Package the restored build as a version newer than v1.75.2 so existing portable and installed DITASHA Editor clients can detect the update through GitHub Releases.
-- Preserve the existing application identity and user-data directory when upgrading; the update does not require deleting projects or reinstalling from scratch.
-
 # v1.75.0 — Character and weapon workshops
 
 - Persist imported YCD/animated GLB emotes across application sessions, with automatic local source saves, chunked bytes, SHA-256 deduplication and bounded playback caching. Import emote folders or RPEmotes ZIPs without evaluating Lua. Add explicit save, reload and saved-library deletion controls.

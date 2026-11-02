@@ -2580,12 +2580,10 @@ mountWorkspaceShell({ toast });
 mountAssetWorkshopUi();
 mountWorkspacePolish();
 mountCharacterMaker();
-mountClothingCatalog({
-  openPreview: async (modelFiles) => {
-    tools.activate('editor');
-    await loadFiles(modelFiles);
-  },
-});
+mountClothingCatalog({ openPreview: async (modelFiles) => {
+  tools.activate('editor');
+  await loadFiles(modelFiles);
+}});
 let canvasFitFrame;
 new ResizeObserver(() => {
   cancelAnimationFrame(canvasFitFrame);

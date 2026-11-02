@@ -42,10 +42,7 @@ export function selectBoothRig(ownRig, skin, candidates = [], { family, choice =
         source = own[old];
       let index = old;
       if (own !== rig) {
-        if (!source) {
-          valid = false;
-          break;
-        }
+        if (!source) { valid = false; break; }
         index = byName.get(normalized(source.name));
         if (index === undefined && source.tag !== 0) index = byTag.get(source.tag);
         if (index === undefined) {

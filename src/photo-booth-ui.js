@@ -1211,8 +1211,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       stage.add(frame);
     }
     const warnings = [];
-    for (const a of actors())
-      a.rigReport = { skinned: 0, static: 0, transfers: 0, sources: new Set() };
+    for (const a of actors()) a.rigReport = { skinned: 0, static: 0, transfers: 0, sources: new Set() };
     let skinned = 0,
       staticMeshes = 0;
     for (const a of assets) {
@@ -1246,26 +1245,13 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       // Only the selected ped's own weighted body/reference mesh may donate bone weights.
       // Both meshes must share GTA model coordinates; out-of-range vertices remain static.
       const weightSources = assets
-        .filter(
-          (b) =>
-            b !== a &&
-            actorForAsset(assets, b) === owner &&
-            (b.kind === 'ped' || b.referenceOnly) &&
-            (!freemodeFamily(b.name) || !family || freemodeFamily(b.name) === family),
-        )
-        .flatMap((b) =>
-          (b.drawables || []).flatMap(
-            (d) =>
-              (d.lods.find((l) => l.name === 'High') || d.lods[0])?.geometries
-                ?.filter((g) => g.skin && d.rig?.length)
-                .map((g) => ({
-                  positions: g.positions,
-                  skin: g.skin,
-                  rig: d.rig,
-                  label: b.name,
-                })) || [],
-          ),
-        );
+        .filter(b => b !== a && actorForAsset(assets, b) === owner &&
+          (b.kind === 'ped' || b.referenceOnly) &&
+          (!freemodeFamily(b.name) || !family || freemodeFamily(b.name) === family))
+        .flatMap(b => (b.drawables || []).flatMap(d =>
+          (d.lods.find(l => l.name === 'High') || d.lods[0])?.geometries
+            ?.filter(g => g.skin && d.rig?.length)
+            .map(g => ({ positions:g.positions, skin:g.skin, rig:d.rig, label:b.name })) || []));
       if (a.referenceOnly) continue;
       if (a.gltf) {
         a.root.add(a.gltf.scene);
@@ -1287,11 +1273,9 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
               if (transfer) break;
             }
           }
-          const effectiveSkin = transfer
-            ? { indices: transfer.indices, weights: transfer.weights }
-            : g.skin;
+          const effectiveSkin = transfer ? { indices:transfer.indices, weights:transfer.weights } : g.skin;
           const selection = transfer
-            ? selectBoothRig(transfer.rig, effectiveSkin, [], { family, choice: 'auto' })
+            ? selectBoothRig(transfer.rig, effectiveSkin, [], { family, choice:'auto' })
             : isRigidBoothProp(a)
               ? { rig: [], indices: null }
               : selectBoothRig(d.rig, g.skin, candidates, {
@@ -1313,22 +1297,11 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           if (!previewIndices.length) continue;
           const geom = new THREE.BufferGeometry();
           // Morph target applies to the matching actor head, never to clothing/body meshes.
-          let headPositions = g.positions;
-          if (
-            owner.kind === 'ped' &&
-            owner.characterMorphPack &&
-            /head|face/i.test(a.name + ' ' + (g.name || '') + ' ' + (g.diffuseTexture || ''))
-          ) {
-            try {
-              headPositions = applyMorphPack(
-                g.positions,
-                owner.characterMorphPack,
-                owner.characterAppearance,
-                g.indices,
-              );
-            } catch (error) {
-              warnings.push('Morph wajah ' + a.name + ': ' + error.message);
-            }
+          let headPositions=g.positions;
+          if(owner.kind==='ped' && owner.characterMorphPack &&
+            /head|face/i.test(a.name+' '+(g.name||'')+' '+(g.diffuseTexture||''))){
+            try {headPositions=applyMorphPack(g.positions,owner.characterMorphPack,owner.characterAppearance,g.indices);}
+            catch(error){warnings.push('Morph wajah '+a.name+': '+error.message);}
           }
           geom.setAttribute('position', new THREE.BufferAttribute(headPositions, 3));
           if (g.uvs) geom.setAttribute('uv', new THREE.BufferAttribute(g.uvs, 2));
@@ -2233,10 +2206,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     return new GLTFLoader(manager).parseAsync(buffer, '');
   }
   async function importFiles(files, assetKind, category = 'auto', options = {}) {
-    if (
-      options.targetActorId != null &&
-      !assets.some((a) => a.id === options.targetActorId && a.kind === 'ped')
-    )
+    if (options.targetActorId != null && !assets.some(a => a.id === options.targetActorId && a.kind === 'ped'))
       throw Error('Ped tujuan tidak ditemukan. Pilih ped freemode lagi.');
     if (options.referenceOnly && !currentActor())
       throw Error('Buka ped dahulu sebelum mengimpor skeleton acuan.');
@@ -2299,16 +2269,15 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
             0,
           ],
           yaw: 0,
-          owner:
-            options.targetActorId != null && assetKind !== 'ped' && assetKind !== 'vehicle'
-              ? options.targetActorId
-              : ['ped', 'vehicle'].includes(assetKind)
-                ? null
-                : assetKind === 'vehicle-part' && currentActor()?.kind === 'vehicle'
-                  ? currentActor().id
-                  : currentActor()?.kind === 'ped'
-                    ? currentActor().id
-                    : null,
+          owner: options.targetActorId != null && assetKind !== 'ped' && assetKind !== 'vehicle'
+            ? options.targetActorId
+            : ['ped', 'vehicle'].includes(assetKind)
+            ? null
+            : assetKind === 'vehicle-part' && currentActor()?.kind === 'vehicle'
+              ? currentActor().id
+              : currentActor()?.kind === 'ped'
+                ? currentActor().id
+                : null,
           motion: createActorMotion(),
           scale: 1,
           attach: 'auto',
@@ -2432,36 +2401,16 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
   }
   $('pbSavedOutfits').onclick = async () => {
     const library = window.ditashaClothing;
-    if (!library) {
-      setStatus('Clothing Library tidak tersedia pada mode ini.');
-      return;
-    }
+    if (!library) { setStatus('Clothing Library tidak tersedia pada mode ini.'); return; }
     const button = $('pbSavedOutfits');
     button.disabled = true;
     try {
       const outfits = await library.listOutfits();
-      if (!outfits.length) {
-        setStatus('Belum ada outfit tersimpan di Clothing Library.');
-        return;
-      }
+      if (!outfits.length) { setStatus('Belum ada outfit tersimpan di Clothing Library.'); return; }
       const answer = window.prompt(
         'Pilih nomor outfit untuk Photo Booth:\n' +
-          outfits
-            .map(
-              (outfit, i) =>
-                i +
-                1 +
-                '. ' +
-                outfit.name +
-                ' (' +
-                outfit.gender +
-                ', ' +
-                outfit.slots.length +
-                ' item)',
-            )
-            .join('\n'),
-        '1',
-      );
+          outfits.map((outfit, i) => (i + 1) + '. ' + outfit.name +
+            ' (' + outfit.gender + ', ' + outfit.slots.length + ' item)').join('\n'), '1');
       if (answer === null) return;
       const index = Number(answer) - 1;
       if (!Number.isInteger(index) || !outfits[index]) throw Error('Nomor outfit tidak valid.');
@@ -2469,127 +2418,74 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       const packs = await library.list();
       const selected = resolveOutfitEntries(packs, outfit.slots);
       const owner = currentActor();
-      if (!owner || owner.kind !== 'ped')
-        throw Error(
-          'Pilih atau import ped freemode terlebih dahulu agar outfit menempel pada karakter.',
-        );
+      if (!owner || owner.kind !== 'ped') throw Error('Pilih atau import ped freemode terlebih dahulu agar outfit menempel pada karakter.');
       const files = [];
-      for (const { packId, entry } of selected) {
+      for (const {packId, entry} of selected) {
         const data = await library.previewRead(packId, entry.relativePath);
         files.push(new File([data.bytes], freemodeImportName(entry)));
       }
       await importFiles(files, 'clothing', 'auto', { targetActorId: owner.id });
       const risks = outfitLayerWarnings(assets, owner.id);
-      setStatus(
-        'Outfit ' +
-          outfit.name +
-          ' dimuat ke ' +
-          owner.name +
-          '. ' +
-          (risks.length
-            ? 'Potensi clipping: ' + risks.join(' ')
-            : 'Tidak terdeteksi pasangan layer berisiko; tetap cek visual.'),
-      );
+      setStatus('Outfit ' + outfit.name + ' dimuat ke ' + owner.name + '. ' + (risks.length ? 'Potensi clipping: ' + risks.join(' ') : 'Tidak terdeteksi pasangan layer berisiko; tetap cek visual.'));
     } catch (error) {
       setStatus('Gagal memuat outfit: ' + error.message);
-    } finally {
-      button.disabled = false;
-    }
+    } finally { button.disabled = false; }
   };
   $('pbSavedCharacters').onclick = async () => {
     try {
-      const characters = (await window.ditashaCharacters?.list?.()) || [];
-      if (!characters.length)
-        return setStatus('Belum ada karakter. Buka Character Maker untuk membuatnya.');
-      const answer = window.prompt(
-        'Pilih karakter tersimpan:\\n' +
-          characters.map((c, i) => i + 1 + '. ' + c.name + ' (' + c.gender + ')').join('\\n'),
-        '1',
-      );
-      if (answer === null) return;
-      const selected = characters[Number(answer) - 1];
+      const characters=await window.ditashaCharacters?.list?.() || [];
+      if (!characters.length) return setStatus('Belum ada karakter. Buka Character Maker untuk membuatnya.');
+      const answer=window.prompt('Pilih karakter tersimpan:\\n'+
+        characters.map((c,i)=>(i+1)+'. '+c.name+' ('+c.gender+')').join('\\n'),'1');
+      if (answer===null) return;
+      const selected=characters[Number(answer)-1];
       if (!selected) throw Error('Nomor karakter tidak valid.');
-      const outfit = (await window.ditashaClothing.listOutfits()).find(
-        (o) => o.id === selected.outfitId,
-      );
-      const packs = await window.ditashaClothing.list();
-      const files = [];
-      const baseFiles = [];
-      if (selected.baseModel)
-        for (const { packId, entry } of resolveCharacterBodyEntries(
-          packs,
-          selected.baseModel,
-          selected.gender,
-        )) {
-          const data = await window.ditashaClothing.previewRead(packId, entry.relativePath);
-          baseFiles.push(new File([data.bytes], freemodeImportName(entry)));
-        }
-      if (outfit)
-        for (const { packId, entry } of resolveOutfitEntries(packs, outfit.slots)) {
-          const data = await window.ditashaClothing.previewRead(packId, entry.relativePath);
-          files.push(new File([data.bytes], freemodeImportName(entry)));
-        }
-      const result = await new Promise((resolve) =>
-        window.dispatchEvent(
-          new CustomEvent('ditasha:character-to-booth', {
-            detail: {
-              preset: selected,
-              files,
-              baseFiles,
-              morphPack: selected.morphPack,
-              onComplete: resolve,
-            },
-          }),
-        ),
-      );
-      if (!result.success) throw Error(result.error);
-    } catch (error) {
-      setStatus('Karakter tersimpan: ' + error.message);
-    }
+      const outfit=(await window.ditashaClothing.listOutfits()).find(o=>o.id===selected.outfitId);
+      const packs=await window.ditashaClothing.list();
+      const files=[];
+      const baseFiles=[];
+      if(selected.baseModel)for(const {packId,entry} of resolveCharacterBodyEntries(packs,selected.baseModel,selected.gender)){
+        const data=await window.ditashaClothing.previewRead(packId,entry.relativePath);
+        baseFiles.push(new File([data.bytes],freemodeImportName(entry)));
+      }
+      if(outfit)for(const {packId,entry} of resolveOutfitEntries(packs,outfit.slots)){
+        const data=await window.ditashaClothing.previewRead(packId,entry.relativePath);
+        files.push(new File([data.bytes],freemodeImportName(entry)));
+      }
+      const result=await new Promise(resolve=>window.dispatchEvent(new CustomEvent(
+        'ditasha:character-to-booth',{detail:{preset:selected,files,baseFiles,morphPack:selected.morphPack,onComplete:resolve}})));
+      if(!result.success)throw Error(result.error);
+    }catch(error){setStatus('Karakter tersimpan: '+error.message);}
   };
   // Character Maker hands off saved freemode appearance metadata and optional outfit.
   // Face blend and facial morphs are NOT applied to the offline GTA mesh yet.
   window.addEventListener('ditasha:character-to-booth', async (event) => {
-    const detail = event.detail;
+    const detail=event.detail;
     if (!detail?.preset || !Array.isArray(detail.files)) return;
     try {
       activate('photobooth');
       // When the preset contains an actual source YDD, create a new ped without
       // requiring the user to re-import a freemode reference each session.
-      const sourceFiles = Array.isArray(detail.baseFiles)
-        ? detail.baseFiles
-        : detail.baseFile
-          ? [detail.baseFile]
-          : [];
-      if (sourceFiles.length) await importFiles(sourceFiles, 'ped', 'auto', { singleActor: true });
-      const owner = currentActor();
+      const sourceFiles=Array.isArray(detail.baseFiles)?detail.baseFiles:(detail.baseFile?[detail.baseFile]:[]);
+      if (sourceFiles.length) await importFiles(sourceFiles, 'ped', 'auto', {singleActor:true});
+      const owner=currentActor();
       if (!owner || owner.kind !== 'ped')
-        throw Error(
-          'Pilih model YDD kepala/tubuh dalam Character Maker atau impor ped freemode dahulu.',
-        );
-      const actual = freemodeFamily(owner.name);
+        throw Error('Pilih model YDD kepala/tubuh dalam Character Maker atau impor ped freemode dahulu.');
+      const actual=freemodeFamily(owner.name);
       if (actual && actual !== detail.preset.gender)
-        throw Error('Gender ped tidak sama dengan preset. Pilih ped ' + detail.preset.gender + '.');
+        throw Error('Gender ped tidak sama dengan preset. Pilih ped '+detail.preset.gender+'.');
       if (detail.files.length)
-        await importFiles(detail.files, 'clothing', 'auto', { targetActorId: owner.id });
-      owner.characterPresetId = detail.preset.id;
-      owner.characterAppearance = detail.preset.appearance;
-      owner.characterMorphPack = detail.morphPack || null;
-      rebuild({ fitCamera: false });
-      setStatus(
-        'Karakter ' +
-          detail.preset.name +
-          ' ditautkan ke ' +
-          owner.name +
-          '. Outfit dimuat; morph wajah ' +
-          (owner.characterMorphPack
-            ? 'diproses jika topologi kepala sesuai.'
-            : 'tidak tersedia tanpa morph pack.'),
-      );
-      detail.onComplete?.({ success: true });
-    } catch (error) {
-      setStatus('Character Maker: ' + error.message);
-      detail.onComplete?.({ success: false, error: error.message });
+        await importFiles(detail.files,'clothing','auto',{targetActorId:owner.id});
+      owner.characterPresetId=detail.preset.id;
+      owner.characterAppearance=detail.preset.appearance;
+      owner.characterMorphPack=detail.morphPack||null;
+      rebuild({fitCamera:false});
+      setStatus('Karakter '+detail.preset.name+' ditautkan ke '+owner.name+
+        '. Outfit dimuat; morph wajah '+(owner.characterMorphPack ? 'diproses jika topologi kepala sesuai.' : 'tidak tersedia tanpa morph pack.'));
+      detail.onComplete?.({success:true});
+    } catch(error) {
+      setStatus('Character Maker: '+error.message);
+      detail.onComplete?.({success:false,error:error.message});
     }
   });
   // Clothing Library V2 sends actual persisted YDD/YTD files to the existing booth importer.
@@ -2600,18 +2496,10 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     try {
       activate('photobooth');
       const owner = currentActor();
-      if (!owner || owner.kind !== 'ped')
-        throw Error('Import ped freemode di Photo Booth dahulu, kemudian kirim outfit.');
+      if (!owner || owner.kind !== 'ped') throw Error('Import ped freemode di Photo Booth dahulu, kemudian kirim outfit.');
       await importFiles(detail.files, 'clothing', 'auto', { targetActorId: owner.id });
       const risks = outfitLayerWarnings(assets, owner.id);
-      setStatus(
-        'Outfit dimuat ke ' +
-          owner.name +
-          '. ' +
-          (risks.length
-            ? 'Potensi clipping: ' + risks.join(' ')
-            : 'Cek hasil secara visual untuk clipping.'),
-      );
+      setStatus('Outfit dimuat ke ' + owner.name + '. ' + (risks.length ? 'Potensi clipping: ' + risks.join(' ') : 'Cek hasil secara visual untuk clipping.'));
       detail.onComplete?.({ success: true });
     } catch (error) {
       setStatus('Gagal memuat outfit library: ' + error.message);
