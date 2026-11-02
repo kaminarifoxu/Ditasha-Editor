@@ -112,7 +112,8 @@ export function createFilePreview(container) {
         geometry.setIndex(new THREE.BufferAttribute(safe.indices, 1));
         if (safe.normals) geometry.setAttribute('normal', new THREE.BufferAttribute(safe.normals, 3));
         else geometry.computeVertexNormals();
-        const t = resolveModelTexture(g.diffuseTexture, external, embedded, file.name);
+        const t = resolveModelTexture(g.diffuseTexture, external, embedded, file.name) ||
+          (g.uvs && external.length === 1 && embedded.length === 0 ? external[0] : null);
         const textureMap = (t, role = 'color') => {
           if (!t) return null;
           if (mapCache.get(t)?.has(role)) return mapCache.get(t).get(role);
