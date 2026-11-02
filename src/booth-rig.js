@@ -14,17 +14,17 @@ export function validateBoothSkeleton(rig) {
   if (!Array.isArray(rig) || !rig.length) return 'Skeleton kosong.';
   for (let i = 0; i < rig.length; i++) {
     const bone = rig[i], parent = bone?.parent;
-    if (!Number.isInteger(parent) || parent < -1 || parent >= rig.length || parent === i)
+    if (parent !== undefined && (!Number.isInteger(parent) || parent < -1 || parent >= rig.length || parent === i))
       return 'Parent bone tidak valid pada index ' + i + '.';
-    if (!bone.matrix || bone.matrix.length !== 16 ||
+    if (bone.matrix && (bone.matrix.length !== 16 ||
         Array.from(bone.matrix).some((n) => !Number.isFinite(n)))
       return 'Transform bone tidak valid pada index ' + i + '.';
     const seen = new Set([i]);
-    let cursor = parent;
+    let cursor = parent ?? -1;
     while (cursor !== -1) {
       if (seen.has(cursor)) return 'Skeleton mempunyai siklus parent bone.';
       seen.add(cursor);
-      cursor = rig[cursor]?.parent;
+      cursor = rig[cursor]?.parent ?? -1;
       if (!Number.isInteger(cursor) || cursor < -1 || cursor >= rig.length)
         return 'Rantai parent bone tidak valid.';
     }
