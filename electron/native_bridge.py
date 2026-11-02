@@ -572,8 +572,8 @@ def run(job):
         for obj in list(bpy.data.objects):
             bpy.data.objects.remove(obj, do_unlink=True)
         if job['mode'] == 'ped':
-            if bpy.app.version < (5, 0, 0):
-                raise RuntimeError('Template Muto saat ini memerlukan Blender 5.x. Gunakan Blender 5.2 untuk rigging ped.')
+            if bpy.app.version < (4, 2, 0):
+                raise RuntimeError('Muto Ped Rig memerlukan Blender 4.2 atau lebih baru; gunakan versi Blender yang didukung oleh Muto dan Sollumz.')
             module = report['engine']['muto']
             if not module:
                 raise RuntimeError('Muto Ped Rig belum aktif pada Blender ini.')
@@ -584,7 +584,9 @@ def run(job):
             options = job.get('pedOptions', {})
             report['stage'] = 'muto-rig-and-native-export'
             report['source'] = Path(job['source']).name
-            result = review.run_muto(worker, bpy, {'src': job['source'], 'out': str(output), 'ped': job['name'], 'mode': 'ADDON', 'tex': 'YTD', 'rig': 'mp_m'}, options)
+            result = review.run_muto(worker, bpy, {'src': job['source'], 'out': str(output), 'ped': job['name'], 'mode': 'ADDON', 'tex': 'YTD', 'rig': 'mp_f' if options.get('reference') == 'mp_f' else 'mp_m'}, options)
+            if not isinstance(result, dict):
+                raise RuntimeError('Muto batch worker tidak mengembalikan laporan dict yang valid. Periksa batch_report.json dan versi Muto Ped Rig.')
             report['stage'] = 'validating-export'
             report['pedOptions'] = options
             report['rigging'] = result
