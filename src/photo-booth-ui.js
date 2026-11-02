@@ -35,7 +35,7 @@ import { BOOTH_STUDIOS, createBoothStudio, disposeBoothStudio } from './booth-st
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { readYcd, ycdAnimationClip } from './ycd.js';
 import { safePreviewMesh } from './preview-geometry.js';
-import { freemodeFamily, selectBoothRig } from './booth-rig.js';
+import { freemodeFamily, selectBoothRig, validateBoothSkeleton } from './booth-rig.js';
 import { boothHeight, setBoothHeight, setBoothElevation } from './booth-transform.js';
 import {
   MAX_BOOTH_MODELS,
@@ -1169,6 +1169,8 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     return map;
   }
   function nativeRig(data) {
+    const error = validateBoothSkeleton(data);
+    if (error) throw Error('Skeleton ped tidak bisa dibangun: ' + error);
     const holder = new THREE.Group();
     holder.userData.boothRig = true;
     const bones = data.map((b) => {
@@ -1285,9 +1287,14 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
                 });
           let rig = selection.rig.length ? rigCache.get(selection.rig) : null;
           if (!rig && selection.rig.length) {
-            rig = nativeRig(selection.rig);
-            rigCache.set(selection.rig, rig);
-            part.add(rig.holder);
+            const badSkeleton = validateBoothSkeleton(selection.rig);
+            if (badSkeleton) {
+              warnings.push(a.name + ': ' + badSkeleton);
+            } else {
+              rig = nativeRig(selection.rig);
+              rigCache.set(selection.rig, rig);
+              part.add(rig.holder);
+            }
           }
           if (selection.warning) warnings.push(a.name + ': ' + selection.warning);
           if (selection.source && rig) owner.rigReport.sources.add(selection.source);
