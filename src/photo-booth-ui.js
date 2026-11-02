@@ -34,6 +34,7 @@ import { applyBoothMatte } from './booth-look.js';
 import { BOOTH_STUDIOS, createBoothStudio, disposeBoothStudio } from './booth-studio.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { readYcd, ycdAnimationClip } from './ycd.js';
+import { safePreviewMesh } from './preview-geometry.js';
 import { freemodeFamily, selectBoothRig } from './booth-rig.js';
 import { boothHeight, setBoothHeight, setBoothElevation } from './booth-transform.js';
 import {
@@ -1295,6 +1296,13 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
               ? vehiclePreviewIndices(g, d.rig || [], vehicleHidden)
               : g.indices;
           if (!previewIndices.length) continue;
+          const safe = safePreviewMesh({ ...g, indices: previewIndices });
+          if (!safe) {
+            warnings.push(a.name + ': geometri tidak valid atau semua segitiga rusak; bagian dilewati.');
+            continue;
+          }
+          if (safe.droppedTriangles)
+            warnings.push(a.name + ': ' + safe.droppedTriangles + ' segitiga rusak dilewati dalam preview.');
           const geom = new THREE.BufferGeometry();
           // Morph target applies to the matching actor head, never to clothing/body meshes.
           let headPositions=g.positions;
@@ -1303,11 +1311,14 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
             try {headPositions=applyMorphPack(g.positions,owner.characterMorphPack,owner.characterAppearance,g.indices);}
             catch(error){warnings.push('Morph wajah '+a.name+': '+error.message);}
           }
-          geom.setAttribute('position', new THREE.BufferAttribute(headPositions, 3));
-          if (g.uvs) geom.setAttribute('uv', new THREE.BufferAttribute(g.uvs, 2));
-          if (g.uvs2) geom.setAttribute('uv1', new THREE.BufferAttribute(g.uvs2, 2));
-          geom.setIndex(new THREE.BufferAttribute(previewIndices, 1));
-          if (g.normals) geom.setAttribute('normal', new THREE.BufferAttribute(g.normals, 3));
+          // Preserve vertex numbering for GTA skin weights while replacing NaNs in preview only.
+          const previewPositions = headPositions === g.positions ? safe.positions : safePreviewMesh({ ...g, positions: headPositions, indices: safe.indices })?.positions;
+          if (!previewPositions) { warnings.push(a.name + ': morph menghasilkan vertex tidak valid.'); continue; }
+          geom.setAttribute('position', new THREE.BufferAttribute(previewPositions, 3));
+          if (safe.uvs) geom.setAttribute('uv', new THREE.BufferAttribute(safe.uvs, 2));
+          if (safe.uvs2) geom.setAttribute('uv1', new THREE.BufferAttribute(safe.uvs2, 2));
+          geom.setIndex(new THREE.BufferAttribute(safe.indices, 1));
+          if (safe.normals) geom.setAttribute('normal', new THREE.BufferAttribute(safe.normals, 3));
           else geom.computeVertexNormals();
           const ownTextures = textures.filter(
             (t) => t.boothOwner == null || t.boothOwner === a.id || t.boothOwner === owner.id,
@@ -1378,8 +1389,8 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
               a.name,
               owner.textureParents || [],
             );
-            if (livery && g.uvs2) {
-              geom.setAttribute('ditashaLiveryUv', new THREE.BufferAttribute(g.uvs2, 2));
+            if (livery && safe.uvs2) {
+              geom.setAttribute('ditashaLiveryUv', new THREE.BufferAttribute(safe.uvs2, 2));
               setVehicleLivery(material, textureMap(livery));
             } else if (liveryReference(g) && !livery)
               warnings.push(a.name + ': livery ' + liveryReference(g) + ' belum ditemukan');
