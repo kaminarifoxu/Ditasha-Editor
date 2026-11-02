@@ -12,6 +12,18 @@ export function nativeSkinRequirement(skin) {
 export function selectBoothRig(ownRig, skin, candidates = [], { family, choice = 'auto' } = {}) {
   const required = nativeSkinRequirement(skin),
     own = ownRig || [];
+  if (skin && (
+    !skin.indices || !skin.weights ||
+    skin.indices.length !== skin.weights.length ||
+    skin.indices.length % 4 !== 0 ||
+    Array.from(skin.weights).some((weight, i) =>
+      !Number.isFinite(weight) || weight < 0 ||
+      (weight > 0 && (!Number.isInteger(skin.indices[i]) || skin.indices[i] < 0))
+    )
+  )) return {
+    rig: [], indices: null, required: 0, source: '',
+    warning: 'Skin weights atau bone indices tidak valid; rigging dilewati untuk mencegah deformasi.',
+  };
   if (!skin)
     return {
       rig: own.length ? own : candidates.find((c) => c.rig?.length)?.rig || [],
