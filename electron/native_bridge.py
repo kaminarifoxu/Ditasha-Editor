@@ -530,7 +530,7 @@ def export_vehicle(bpy, fragment, output):
 def run(job):
     import bpy
     output = Path(job['output'])
-    report = {'ok': False, 'mode': job['mode'], 'engine': engine_info(bpy)}
+    report = {'ok': False, 'mode': job['mode'], 'engine': engine_info(bpy), 'stage': 'initializing'}
     try:
         if job['mode'] == 'probe':
             report['ok'] = True
@@ -582,7 +582,10 @@ def run(job):
             review = importlib.util.module_from_spec(review_spec)
             review_spec.loader.exec_module(review)
             options = job.get('pedOptions', {})
+            report['stage'] = 'muto-rig-and-native-export'
+            report['source'] = Path(job['source']).name
             result = review.run_muto(worker, bpy, {'src': job['source'], 'out': str(output), 'ped': job['name'], 'mode': 'ADDON', 'tex': 'YTD', 'rig': 'mp_m'}, options)
+            report['stage'] = 'validating-export'
             report['pedOptions'] = options
             report['rigging'] = result
             # A self-contained correction project remains available even when
@@ -602,7 +605,9 @@ def run(job):
             if not required.issubset(present) or not list(output.rglob('fxmanifest.lua')):
                 raise RuntimeError('Resource ped belum lengkap: YFT/YDD/YTD/YMT/fxmanifest diperlukan.')
             rigged = [obj for obj in bpy.data.objects if obj.type == 'MESH' and getattr(obj, 'sollum_type', '') == 'sollumz_drawable_model']
+            report['stage'] = 'validating-rigged-meshes'
             report['quality'] = review.audit_rig(rigged, mesh_levels)
+            report['stage'] = 'building-pose-previews'
             report['preview'] = review.create_pose_previews(bpy, rigged, output, preview_scene)
             try:
                 report['preview']['motion'] = review.add_walk_preview(bpy, rigged, output, preview_scene)
@@ -649,6 +654,8 @@ def run(job):
         report['ok'] = True
     except Exception as exc:
         report['error'] = str(exc)
+        if job['mode'] == 'ped':
+            report.setdefault('warnings', []).append('Tahap gagal: ' + report.get('stage', 'unknown') + '. Jika tahap Muto/export, periksa batch_report.json dan ditasha-result.blend; skeleton tidak boleh dianggap penyebab tanpa bukti.')
         report['traceback'] = traceback.format_exc()[-5000:]
     finally:
         (output / 'report.json').write_text(json.dumps(report, indent=2), encoding='utf-8')
