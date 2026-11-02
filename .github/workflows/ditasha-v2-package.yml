@@ -1,7 +1,7 @@
 name: DITASHA V2 Windows package smoke test
 on:
   push:
-    branches: [feature/clothing-library-v2]
+    branches: [feature/clothing-library-v2, fix/preview-geometry-validation-20261102]
     paths:
       - 'src/**'
       - 'electron/**'
