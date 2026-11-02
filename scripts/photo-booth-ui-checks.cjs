@@ -522,10 +522,8 @@ module.exports = async function checkPhotoBooth(fixtures) {
   assert($('pbPlay').disabled, 'Incompatible skin incorrectly enabled playback');
   $('pbRigSource').value = 'freemode-male';
   $('pbRigSource').dispatchEvent(new Event('change'));
-  assert(
-    $('pbRigStatus').textContent.includes('1 mesh GTA skinned'),
-    'Selected freemode reference did not bind native skin',
-  );
+  await wait(() => $('pbRigStatus').textContent.includes('1 mesh GTA skinned'),
+    'Selected freemode reference did not bind native skin: ' + $('pbRigStatus').textContent);
   document.querySelector('[data-quick-pose=walk]').click();
   await sleep(200);
   assert(Number($('pbTime').value) > 0, 'Quick emote did not start native animation');
