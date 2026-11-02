@@ -17,7 +17,7 @@ export function validateBoothSkeleton(rig) {
     if (parent !== undefined && (!Number.isInteger(parent) || parent < -1 || parent >= rig.length || parent === i))
       return 'Parent bone tidak valid pada index ' + i + '.';
     if (bone.matrix && (bone.matrix.length !== 16 ||
-        Array.from(bone.matrix).some((n) => !Number.isFinite(n)))
+        Array.from(bone.matrix).some((n) => !Number.isFinite(n))))
       return 'Transform bone tidak valid pada index ' + i + '.';
     const seen = new Set([i]);
     let cursor = parent ?? -1;
