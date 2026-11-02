@@ -1,0 +1,30 @@
+name: Prepare DITASHA restored baseline for update
+on:
+  push:
+    paths:
+      - '.github/workflows/restore-reference-update-format.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Apply formatting only, without redesign
+        run: npm run format
+      - name: Commit formatting back to main
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if (git diff --cached --quiet) { Write-Host "No changes" } else { git commit -m "style: format restored baseline for v1.75.3 release"; git push origin HEAD:main }
