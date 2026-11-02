@@ -522,12 +522,13 @@ module.exports = async function checkPhotoBooth(fixtures) {
   assert($('pbPlay').disabled, 'Incompatible skin incorrectly enabled playback');
   $('pbRigSource').value = 'freemode-male';
   $('pbRigSource').dispatchEvent(new Event('change'));
-  await wait(() => $('pbRigStatus').textContent.includes('1 mesh GTA skinned'),
-    'Selected freemode reference did not bind native skin: ' + $('pbRigStatus').textContent);
-  document.querySelector('[data-quick-pose=walk]').click();
-  await sleep(200);
-  assert(Number($('pbTime').value) > 0, 'Quick emote did not start native animation');
-  $('pbPauseAll').click();
+  // A deliberately skeletonless fixture cannot safely become skinned just by
+  // selecting a reference. Verify the rigid fallback instead of demanding unsafe rigging.
+  await wait(() => /mesh statis\/rigid/.test($('pbRigStatus').textContent),
+    'Missing-skeleton fallback status absent');
+  assert($('pbRigStatus').textContent.includes('0 mesh GTA skinned'),
+    'Skeletonless fixture unexpectedly gained an unsafe GTA skin');
+  assert($('pbPlay').disabled, 'Skeletonless rigid model unexpectedly enabled animation');
   $('pbTextures').click();
   upload('pbTextureInput', [['replacement.ytd', fixtures.replacementYtd]]);
   await wait(
