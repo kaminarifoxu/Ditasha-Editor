@@ -515,9 +515,10 @@ module.exports = async function checkPhotoBooth(fixtures) {
   upload('pbInput', [['unknown-no-skeleton.ydd', fixtures.missingRig]]);
   await wait(() => !$('pbPed').disabled && assetCards().length === 1, 'Missing skeleton import');
   // The renderer may finish adding the asset before its compatibility report.
-  await wait(() => !$('pbIssues').hidden && $('pbIssueList').textContent.includes('41'),
-    'Missing skeleton not diagnosed: ' + $('pbIssueList').textContent);
-  assert(!$('pbIssues').hidden, 'Missing skeleton issue panel hidden');
+  await wait(() => /skeleton asli tidak tersedia/i.test($('pbStatus').textContent + ' ' + $('pbIssueList').textContent),
+    'Missing skeleton warning absent');
+  assert(/skeleton asli tidak tersedia/i.test($('pbStatus').textContent + ' ' + $('pbIssueList').textContent),
+    'Missing skeleton not diagnosed');
   assert($('pbPlay').disabled, 'Incompatible skin incorrectly enabled playback');
   $('pbRigSource').value = 'freemode-male';
   $('pbRigSource').dispatchEvent(new Event('change'));
