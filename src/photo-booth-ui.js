@@ -1217,6 +1217,9 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     for (const a of actors()) a.rigReport = { skinned: 0, static: 0, transfers: 0, sources: new Set() };
     let skinned = 0,
       staticMeshes = 0;
+    // A ped must own one skeleton per source rig. Recreating the same bones for
+    // each outfit isolates them from the animation mixer and wastes GPU memory.
+    const actorRigCache = new Map();
     for (const a of assets) {
       a.textureReport = [];
       a.liveGrip = null;
@@ -1267,7 +1270,11 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         part.name = d.name;
         part.visible = !a.hiddenSlots.has(d.componentSlot);
         a.root.add(part);
-        const rigCache = new Map();
+        let rigCache = actorRigCache.get(owner.id);
+        if (!rigCache) {
+          rigCache = new Map();
+          actorRigCache.set(owner.id, rigCache);
+        }
         for (const g of (d.lods.find((l) => l.name === 'High') || d.lods[0]).geometries) {
           let transfer = null;
           if (!g.skin && a.kind === 'clothing' && owner.kind === 'ped') {
@@ -1293,7 +1300,9 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
             } else {
               rig = nativeRig(selection.rig);
               rigCache.set(selection.rig, rig);
-              part.add(rig.holder);
+              // Parent the shared skeleton to the actor, not to an individual
+              // drawable (which may be hidden, switched or removed).
+              actorFrames.get(owner.id).add(rig.holder);
             }
           }
           if (selection.warning) warnings.push(a.name + ': ' + selection.warning);
@@ -1596,7 +1605,15 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
             if (o.userData.boothRig) roots.add(o);
           });
       }
+      // Native GTA bones are attached to the actor frame and are therefore
+      // shared by clothing, hair and body. Bind the animation once per rig.
+      const frame = actorFrames.get(owner.id);
+      if (frame) roots.add(frame);
       for (const root of roots) {
+        if (root === frame) {
+          // Existing per-asset native roots no longer own rig holders.
+          // Bind native tracks against this single shared actor hierarchy.
+        }
         const names = new Set();
         root.traverse((o) => names.add(o.name));
         const boundClip = selected.ycd ? ycdAnimationClip(selected.ycd, root) : selected.clip;
