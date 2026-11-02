@@ -3301,6 +3301,21 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         },
       );
       await settleEmotes();
+      // Rehydrating a preset is asynchronous: reapply every actor's saved time
+      // after the emote dictionary has been decoded, not only the selected ped.
+      const missingPresetEmotes = actors().filter((a) =>
+        a.motion.pose === 'clip' && !mixers.some((m) => m.userData.actor === a.id),
+      );
+      for (const a of missingPresetEmotes) {
+        restoreWarnings.push(
+          (a.label || a.name) + ': emote preset tidak cocok / belum terikat pada skeleton. Menggunakan pose santai agar bukan T-pose.',
+        );
+        a.motion.pose = 'relaxed';
+        a.motion.playing = false;
+      }
+      if (missingPresetEmotes.length) await updateClips();
+      applyPose();
+      render();
       $('pbLibraryName').value = record.name;
       if (restoreWarnings.length) {
         updateIssues([
