@@ -2,6 +2,7 @@ import { applyMorphPack } from './freemode-morph-pack.js';
 import { deformFacePositions } from './offline-face-deform.js';
 import { defaultDrawableSelection, drawableView } from './drawable-selection.js';
 import * as THREE from 'three';
+import { previewMaterialAlpha, resolveVariantDiffuse } from './preview-texture-material.js';
 import { createSafeGeometry } from './safe-model-geometry.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { decodeResource } from './resource-client.js';
@@ -123,40 +124,21 @@ export function createFilePreview(container) {
         };
         const map = textureMap(t),
           livery = resolveVehicleLivery(g, external, embedded, file.name);
-        // GTA clothing often carries alpha bytes in nominally opaque fabrics.
-        // Treat clothing fabric as solid unless its shader explicitly identifies cutout/blend.
-        const alpha = modelPreviewAlpha(g);
-        const clothing = /(?:^|[\\^])(jbib|uppr|lowr|hand|feet|accs|task|decl|hair|head)_(?:diff_)?\d/i.test(file.name);
-        const outerGarment = /(?:^|[\\^])(jbib|uppr|lowr|accs|task)_(?:diff_)?\d/i.test(file.name);
-        // Opaque garments should never retain an accidental alpha-blend shader.
-        // Hair, skin and intentional cutouts keep their original alpha behavior.
-        const solidFabric = outerGarment || (clothing && (!alpha || alpha.mode === 'opaque'));
-        const opaque = solidFabric || (alpha
-          ? alpha.mode === 'opaque'
-          : modelAlphaMode(g) === 'opaque' ||
-            /^(sbase|head_diff|uppr_diff|body_diff)/i.test(g.diffuseTexture || ''));
+        // Derive cutout/blend from actual loaded YTD alpha; placeholder grey
+        // material remains opaque when a sampler has no matching texture.
+        const alpha = previewMaterialAlpha(g, t, file.name, modelPreviewAlpha(g));
         const mesh = new THREE.Mesh(
           geometry,
           createModelMaterial(g, {
             map,
             color: map ? 0xffffff : 0xb6bfcc,
             roughness: 0.8,
-            side: THREE.DoubleSide,
-            transparent: !!map && !solidFabric && (alpha ? alpha.mode === 'blend' : !opaque),
-            alphaTest: opaque ? 0 : (alpha?.cutoff ?? 0.01),
-            depthWrite: solidFabric || !map || (alpha ? alpha.mode !== 'blend' : opaque),
+            side: alpha.side === 'double' ? THREE.DoubleSide : THREE.FrontSide,
+            transparent: alpha.transparent,
+            alphaTest: alpha.alphaTest,
+            depthWrite: alpha.depthWrite,
           }),
         );
-        // Freemode body sections often overlap back-facing triangles. With DoubleSide,
-        // the internal faces may compete with the outer skin and produce jagged holes.
-        // Cull backfaces for ordinary opaque skin/body geometry; keep intentional cutouts two-sided.
-        if (solidFabric && !/hair|eyelash/i.test(g.diffuseTexture || '')) {
-          mesh.material.side = THREE.FrontSide;
-          mesh.material.depthWrite = true;
-          mesh.material.transparent = false;
-          mesh.material.alphaTest = 0;
-          mesh.material.needsUpdate = true;
-        }
         setSurfaceMaps(
           mesh.material,
           g.uvs ? resolveSurfaceMaps(g, external, embedded, file.name) : {},
@@ -281,12 +263,16 @@ export function createFilePreview(container) {
         const variant = (await decodeResource('ytd', new Uint8Array(selected.data).buffer)).textures;
         if (version !== generation || request !== textureRequest) return false;
         for (const { mesh, g, embedded } of materialBindings) {
-          const diffuse = resolveModelTexture(g.diffuseTexture, variant, embedded, file.name) ||
-            (variant.length === 1 && g.uvs ? variant[0] : null);
+          const diffuse = resolveVariantDiffuse(g.diffuseTexture, variant, embedded, file.name, resolveModelTexture);
           // Keep the current diffuse if the selected dictionary lacks a match.
           if (!diffuse) continue;
           const texture = textureMapForVariant(diffuse);
           mesh.material.map = texture;
+          const alpha = previewMaterialAlpha(g, diffuse, file.name, modelPreviewAlpha(g));
+          mesh.material.transparent = alpha.transparent;
+          mesh.material.alphaTest = alpha.alphaTest;
+          mesh.material.depthWrite = alpha.depthWrite;
+          mesh.material.side = alpha.side === 'double' ? THREE.DoubleSide : THREE.FrontSide;
           mesh.material.color.setHex(0xffffff);
           mesh.material.needsUpdate = true;
         }
