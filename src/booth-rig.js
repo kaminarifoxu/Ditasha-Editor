@@ -9,7 +9,7 @@ export function nativeSkinRequirement(skin) {
     if (skin.weights[i] > 0) max = Math.max(max, skin.indices[i]);
   return max + 1;
 }
-export function selectBoothRig(ownRig, skin, candidates = [], { family, choice = 'auto' } = {}) {
+export function selectBoothRig(ownRig, skin, candidates = [], { family, choice = 'auto', allowApproximate = false } = {}) {
   const required = nativeSkinRequirement(skin),
     own = ownRig || [];
   if (!skin)
@@ -67,6 +67,36 @@ export function selectBoothRig(ownRig, skin, candidates = [], { family, choice =
         required,
         warning: null,
       };
+  }
+  // Last resort for weight-bearing custom GTA peds without original bone metadata.
+  // This is a preview-only *approximation*, not verified bone-name retargeting.
+  // Prefer matching source skeletons above; never silently use arbitrary index mappings.
+  if (allowApproximate && choice === 'auto' && !own.length && required > 0) {
+    const fallback = [...candidates.map(c => ({ ...c, label: c.label || 'Acuan ped' }))];
+    if (family && references[family])
+      fallback.push({ rig: references[family], label: 'Template freemode ' + family });
+    // If the user did not supply a gender, try the common freemode reference.
+    if (!family) fallback.push({ rig: references.male, label: 'Template freemode (perkiraan male)' });
+    const candidate = fallback.find(c => c.rig?.length >= required);
+    if (candidate) {
+      let valid = true;
+      for (let i = 0; i < skin.indices.length; i++) {
+        if (skin.weights[i] <= 0) continue;
+        const index = skin.indices[i];
+        if (!Number.isInteger(index) || index < 0 || index >= candidate.rig.length) {
+          valid = false;
+          break;
+        }
+      }
+      if (valid) return {
+        rig: candidate.rig,
+        indices: skin.indices,
+        required,
+        source: 'Auto-skeleton sementara: ' + candidate.label,
+        approximate: true,
+        warning: 'Auto-skeleton perkiraan: bone indices belum dapat dicocokkan dengan nama/tag asli. Periksa pose dan emote; impor skeleton model asli untuk hasil akurat.',
+      };
+    }
   }
   return {
     rig: [],
