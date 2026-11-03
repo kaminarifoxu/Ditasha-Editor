@@ -2,6 +2,7 @@ import { applyMorphPack } from './freemode-morph-pack.js';
 import { deformFacePositions } from './offline-face-deform.js';
 import { defaultDrawableSelection, drawableView } from './drawable-selection.js';
 import * as THREE from 'three';
+import { createSafeGeometry } from './safe-model-geometry.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { decodeResource } from './resource-client.js';
 import { readDds } from './asset-tools.js';
@@ -103,12 +104,9 @@ export function createFilePreview(container) {
       const materialBindings = [];
       for (const g of level.geometries) {
         const embedded = g.sourceEmbeddedTextures || drawable.embeddedTextures || [];
-        const geometry = new THREE.BufferGeometry();
-        geometry.setAttribute('position', new THREE.BufferAttribute(g.positions, 3));
-        if (g.uvs) geometry.setAttribute('uv', new THREE.BufferAttribute(g.uvs, 2));
-        geometry.setIndex(new THREE.BufferAttribute(g.indices, 1));
-        if (g.normals) geometry.setAttribute('normal', new THREE.BufferAttribute(g.normals, 3));
-        else geometry.computeVertexNormals();
+        let geometry;
+        try { geometry = createSafeGeometry(g); }
+        catch (error) { console.warn('[DITASHA 3D] Skipping invalid submesh:', error.message); continue; }
         const t = resolveModelTexture(g.diffuseTexture, external, embedded, file.name);
         const textureMap = (t, role = 'color') => {
           if (!t) return null;
@@ -164,8 +162,7 @@ export function createFilePreview(container) {
           g.uvs ? resolveSurfaceMaps(g, external, embedded, file.name) : {},
           textureMap,
         );
-        if (livery && g.uvs2) {
-          geometry.setAttribute('ditashaLiveryUv', new THREE.BufferAttribute(g.uvs2, 2));
+        if (livery && geometry.hasAttribute('ditashaLiveryUv')) {
           setVehicleLivery(mesh.material, textureMap(livery));
         }
         group.add(mesh);
@@ -204,12 +201,9 @@ export function createFilePreview(container) {
         bodyReference = new THREE.Group();
         bodyReference.name='body-reference';
         for(const g of refLevel.geometries){
-          const geometry=new THREE.BufferGeometry();
-          geometry.setAttribute('position',new THREE.BufferAttribute(g.positions,3));
-          if(g.uvs) geometry.setAttribute('uv',new THREE.BufferAttribute(g.uvs,2));
-          geometry.setIndex(new THREE.BufferAttribute(g.indices,1));
-          if(g.normals)geometry.setAttribute('normal',new THREE.BufferAttribute(g.normals,3));
-          else geometry.computeVertexNormals();
+          let geometry;
+          try { geometry = createSafeGeometry(g); }
+          catch (error) { console.warn('[DITASHA 3D] Skipping invalid character reference:', error.message); continue; }
           const embedded = g.sourceEmbeddedTextures || refDrawable.embeddedTextures || [];
           const tex=resolveModelTexture(g.diffuseTexture,referenceTextures,embedded,reference.name);
           const map=tex?new THREE.DataTexture(tex.out,tex.w,tex.h,THREE.RGBAFormat):null;
@@ -231,6 +225,7 @@ export function createFilePreview(container) {
         draw();
         return true;
       };
+      if (!materialBindings.length) throw Error('Tidak ada submesh valid. Periksa format model dan decoder YDD/YDR.');
       const box = new THREE.Box3().setFromObject(group),
         center = box.getCenter(new THREE.Vector3()),
         size = box.getSize(new THREE.Vector3()),
@@ -262,8 +257,12 @@ export function createFilePreview(container) {
             catch { altered=null; }
           }else altered=deformFacePositions(item.original, appearance?.features, appearance?.shapeMix);
           if(!altered)continue;
-          updated++;
           const attribute=item.geometry.getAttribute('position');
+          if (altered.length !== attribute.array.length) continue;
+          let finite = true;
+          for (let i = 0; i < altered.length; i++) if (!Number.isFinite(altered[i])) { finite = false; break; }
+          if (!finite) continue;
+          updated++;
           attribute.array.set(altered); attribute.needsUpdate=true;
           item.geometry.computeVertexNormals();
           item.geometry.computeBoundingSphere();
