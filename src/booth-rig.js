@@ -9,7 +9,7 @@ export function nativeSkinRequirement(skin) {
     if (skin.weights[i] > 0) max = Math.max(max, skin.indices[i]);
   return max + 1;
 }
-export function selectBoothRig(ownRig, skin, candidates = [], { family, choice = 'auto', allowApproximate = false } = {}) {
+export function selectBoothRig(ownRig, skin, candidates = [], { family, choice = 'auto', allowApproximate = false, modelName = '' } = {}) {
   const required = nativeSkinRequirement(skin),
     own = ownRig || [];
   if (!skin)
@@ -67,6 +67,35 @@ export function selectBoothRig(ownRig, skin, candidates = [], { family, choice =
         required,
         warning: null,
       };
+  }
+  // A standalone GTA head can be attached as a single rigidly animated head.
+  // This is more predictable than treating its original palette as the template's
+  // unrelated numeric bone order. Facial sub-bone motion is not reconstructable.
+  if (allowApproximate && choice === 'auto' && !own.length && required > 0 &&
+      /(?:^|[\\^/])head[_\\^]|\\^head[_\\^]|^head[_\\^]/i.test(modelName)) {
+    const gender = family === 'female' ? 'female' : 'male';
+    const template = references[gender];
+    const head = template.findIndex(b => /^(?:skel_)?head$/i.test(b.name));
+    if (head >= 0 && skin.indices?.length === skin.weights?.length) {
+      const remapped = new Uint16Array(skin.indices.length);
+      let active = 0, valid = true;
+      for (let i = 0; i < skin.indices.length; i++) {
+        const w = skin.weights[i], index = skin.indices[i];
+        if (!Number.isFinite(w) || w < 0 || !Number.isInteger(index) || index < 0) {
+          valid = false;
+          break;
+        }
+        if (w > 0) { remapped[i] = head; active++; }
+      }
+      if (valid && active) return {
+        rig: template,
+        indices: remapped,
+        required,
+        source: 'Auto Head Skeleton (' + gender + ')',
+        approximate: true,
+        warning: 'Auto Head Skeleton: kepala mengikuti SKEL_Head dan pose dasar. Bone wajah/rahang khusus tidak dapat dipulihkan tanpa skeleton asli.',
+      };
+    }
   }
   // Last resort for weight-bearing custom GTA peds without original bone metadata.
   // This is a preview-only *approximation*, not verified bone-name retargeting.
