@@ -225,6 +225,7 @@ export function createFilePreview(container) {
         draw();
         return true;
       };
+      if (!materialBindings.length) throw Error('Tidak ada submesh valid. Periksa format model dan decoder YDD/YDR.');
       const box = new THREE.Box3().setFromObject(group),
         center = box.getCenter(new THREE.Vector3()),
         size = box.getSize(new THREE.Vector3()),
@@ -256,8 +257,12 @@ export function createFilePreview(container) {
             catch { altered=null; }
           }else altered=deformFacePositions(item.original, appearance?.features, appearance?.shapeMix);
           if(!altered)continue;
-          updated++;
           const attribute=item.geometry.getAttribute('position');
+          if (altered.length !== attribute.array.length) continue;
+          let finite = true;
+          for (let i = 0; i < altered.length; i++) if (!Number.isFinite(altered[i])) { finite = false; break; }
+          if (!finite) continue;
+          updated++;
           attribute.array.set(altered); attribute.needsUpdate=true;
           item.geometry.computeVertexNormals();
           item.geometry.computeBoundingSphere();
