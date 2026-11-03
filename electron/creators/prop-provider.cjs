@@ -17,9 +17,10 @@ function extractProbe(log) {
     throw Error('Invalid native probe schema');
   return data;
 }
-async function probeInstalledPropProvider({ root, script, signal, runner = runNativeProcess } = {}) {
+async function probeInstalledPropProvider({ root, signal, runner = runNativeProcess } = {}) {
+  const script = path.join(__dirname, 'prop-probe.py');
   if (typeof root !== 'string' || !path.isAbsolute(root)) throw Error('Native provider root not approved');
-  if (typeof script !== 'string' || !path.isAbsolute(script)) throw Error('Native probe path not approved');
+  if (!(await fs.stat(script)).isFile()) throw Error('Bundled native probe is missing');
   const installedRoot = await fs.realpath(root);
   const manifest = JSON.parse(await fs.readFile(path.join(installedRoot, 'ready.json'), 'utf8'));
   const blender = await fs.realpath(manifest.engine);
