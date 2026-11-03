@@ -79,7 +79,7 @@ test('Artifact validator rejects traversal, duplicates, symlinks and checksum mi
   await assert.rejects(validateArtifacts(root, [{ relativePath: 'model.ydr', sha256: '0'.repeat(64) }]), /checksum/);
   await assert.rejects(validateArtifacts(root, [{ relativePath: 'missing.ydr' }]));
   await fs.symlink(path.join(root, 'model.ydr'), path.join(root, 'alias.ydr'));
-  await assert.rejects(validateArtifacts(root, [{ relativePath: 'alias.ydr' }]), /type or size/);
+  await assert.rejects(validateArtifacts(root, [{ relativePath: 'alias.ydr' }]), /type or size|symlink escape/);
 });
 
 test('Export commits validated staging without replacing previous output', async t => {
@@ -97,4 +97,65 @@ test('Export commits validated staging without replacing previous output', async
   await fs.writeFile(path.join(secondStage, 'prop.ydr'), 'other');
   await assert.rejects(commitExport({ stagingRoot: secondStage, destinationRoot: destination, artifacts: [{ relativePath: 'prop.ydr' }] }), /already exists/);
   assert.equal(await fs.readFile(path.join(destination, 'prop.ydr'), 'utf8'), 'valid');
+});
+
+
+test('Windows artifact rules reject reserved, trailing and unsafe nested path names', () => {
+  for (const name of ['CON', 'con.txt', 'AUX.dds', 'LPT1', 'COM9.bin', 'folder. /file', 'hello.','name ', 'foo//bar', 'dir/../file']) {
+    assert.throws(() => safeRelative(name), /Unsafe|Invalid/);
+  }
+  assert.equal(safeRelative('stream/prop_hi.ytd'), 'stream/prop_hi.ytd');
+});
+
+test('Artifact validation rejects symlink ancestors and exclusive export reservations', async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'ditasha-phase3-race-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const stage = path.join(root, 'stage');
+  await fs.mkdir(stage);
+  await fs.mkdir(path.join(stage, 'actual'));
+  await fs.writeFile(path.join(stage, 'actual', 'asset.ydr'), 'test');
+  await fs.symlink(path.join(stage, 'actual'), path.join(stage, 'alias'), 'junction');
+  await assert.rejects(validateArtifacts(stage, [{ relativePath: 'alias/asset.ydr' }]), /symlink escape/);
+  const destination = path.join(root, 'final');
+  await fs.writeFile(path.join(root, '.final.ditasha-lock'), 'lock');
+  await assert.rejects(commitExport({ stagingRoot: stage, destinationRoot: destination, artifacts: [{ relativePath: 'actual/asset.ydr' }] }), /reserved/);
+  await fs.rm(path.join(root, '.final.ditasha-lock'));
+  const out = await commitExport({ stagingRoot: stage, destinationRoot: destination, artifacts: [{ relativePath: 'actual/asset.ydr' }] });
+  assert.equal(out.artifacts.length, 1);
+  await assert.rejects(fs.access(stage));
+});
+
+test('Creator job history is bounded and timeout aborts cooperative work', async () => {
+  const manager = createJobManager({ maxHistory: 2, timeoutMs: 25 });
+  const ids = [];
+  for (let n = 0; n < 4; n++) {
+    const j = manager.submit('prop', async () => n);
+    await j.completion; ids.push(j.id);
+  }
+  assert.equal(manager.snapshot(ids[0]), null);
+  assert.equal(manager.snapshot(ids[3]).state, 'succeeded');
+  const slow = manager.submit('prop', ({ signal }) => new Promise(resolve => {
+    signal.addEventListener('abort', () => resolve(), { once: true });
+  }));
+  assert.equal((await slow.completion).state, 'failed');
+  assert.match(manager.snapshot(slow.id).error, /timed out/);
+  manager.close();
+});
+
+test('Native job runner uses argv, abort signals, and cleanup refuses unrelated directories', async t => {
+  const { runNativeProcess, cleanupStaging } = require('../electron/creators/native-process.cjs');
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ditasha-native-jobs-'));
+  t.after(() => fs.rm(dir, { force: true, recursive: true }));
+  const ok = await runNativeProcess({ executable: process.execPath, args: ['-e', 'console.log("done")'], timeoutMs: 5000 });
+  assert.match(ok.log, /done/);
+  const controller = new AbortController();
+  const pending = runNativeProcess({ executable: process.execPath, args: ['-e', 'setInterval(() => {}, 1000)'], signal: controller.signal, timeoutMs: 5000 });
+  setTimeout(() => controller.abort(), 60);
+  await assert.rejects(pending, /cancelled/);
+  const staging = path.join(dir, 'ditasha-stage-fixture');
+  await fs.mkdir(staging);
+  await fs.writeFile(path.join(staging, 'test'), 'ok');
+  await assert.rejects(cleanupStaging(dir, dir), /Unsafe/);
+  await cleanupStaging(staging, dir);
+  await assert.rejects(fs.access(staging));
 });
