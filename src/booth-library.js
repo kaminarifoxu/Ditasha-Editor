@@ -90,7 +90,7 @@ export function validateBoothScene(record) {
     file(a.file, 64 * 1024 ** 2);
     if (
       !/\.(glb|ydd|ydr|yft)$/i.test(a.file.name) ||
-      !['ped', 'vehicle', 'vehicle-part', 'clothing', 'accessory'].includes(a.kind) ||
+      !['ped', 'vehicle', 'vehicle-part', 'clothing', 'accessory', 'object'].includes(a.kind) ||
       !Array.isArray(a.offset) ||
       a.offset.length !== 3 ||
       !a.offset.every((n) => Number.isFinite(n) && Math.abs(n) <= 100) ||
