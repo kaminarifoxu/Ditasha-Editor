@@ -5,7 +5,9 @@ const { createAssetTokens } = require('./asset-tokens.cjs');
 function registerCreators({ ipcMain, trusted, app, dialog, win }) {
   if (!ipcMain || typeof ipcMain.handle !== 'function' || typeof trusted !== 'function') throw Error('Creator IPC dependencies missing');
   // M0 is foundation-only. No native creator handlers or UI controls are enabled.
-  const registry = createRegistry();
+  // Opt-in preview only. Native creator execution remains unavailable until
+  // provider round-trip verification; no end-user UI change by default.
+  const registry = createRegistry({ flags: { prop: process.env.DITASHA_EXPERIMENTAL_PROP_PREVIEW === '1' } });
   const jobs = createJobManager();
   const grants = createAssetTokens();
   ipcMain.handle('ditasha:creators-state', event => {
