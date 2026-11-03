@@ -44,3 +44,26 @@ test('explicit reference mode never silently guesses bone indices', () => {
   });
   assert.equal(result.indices,null);
 });
+
+test('skeletonless custom freemode head automatically follows SKEL_Head', () => {
+  const original = skin([124, 40, 8, 0], [0.5, 0.3, 0.2, 0]);
+  const before = Array.from(original.indices);
+  const result = selectBoothRig([], original, [], {
+    family: 'male', choice: 'auto', allowApproximate: true,
+    modelName: 'mp_m_freemode_01_cpxhead^head_001_u.ydd',
+  });
+  const headIndex = result.rig.findIndex(b => b.name === 'SKEL_Head');
+  assert.ok(headIndex >= 0);
+  assert.deepEqual(Array.from(result.indices.slice(0, 3)), [headIndex, headIndex, headIndex]);
+  assert.deepEqual(Array.from(original.indices), before, 'original imported YDD data must remain untouched');
+  assert.equal(result.approximate, true);
+  assert.match(result.source, /Auto Head Skeleton/);
+});
+test('auto-head binding never overrides a model with a valid original rig', () => {
+  const result = selectBoothRig(own, skin([2,0,0,0],[1,0,0,0]), [], {
+    family: 'male', choice: 'auto', allowApproximate: true, modelName:'head_001_u.ydd',
+  });
+  assert.equal(result.rig, own);
+  assert.equal(result.indices[0], 2);
+  assert.equal(result.approximate, undefined);
+});
