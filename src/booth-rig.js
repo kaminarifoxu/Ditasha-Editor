@@ -72,7 +72,7 @@ export function selectBoothRig(ownRig, skin, candidates = [], { family, choice =
   // This is more predictable than treating its original palette as the template's
   // unrelated numeric bone order. Facial sub-bone motion is not reconstructable.
   if (allowApproximate && choice === 'auto' && !own.length && required > 0 &&
-      /(?:^|[\\^/])head[_\\^]|\\^head[_\\^]|^head[_\\^]/i.test(modelName)) {
+      /(?:^|[\\^/])head_/i.test(modelName)) {
     const gender = family === 'female' ? 'female' : 'male';
     const template = references[gender];
     const head = template.findIndex(b => /^(?:skel_)?head$/i.test(b.name));
