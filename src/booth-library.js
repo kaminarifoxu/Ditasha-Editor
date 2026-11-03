@@ -88,9 +88,11 @@ export function validateBoothScene(record) {
     throw Error('Cutaway studio tidak valid.');
   for (const a of record.assets) {
     file(a.file, 64 * 1024 ** 2);
+    if (a.kind === 'object' && (!/\.glb$/i.test(a.file.name) || a.ownerIndex !== null))
+      throw Error('Objek 3D mandiri harus GLB tanpa pemilik ped.');
     if (
       !/\.(glb|ydd|ydr|yft)$/i.test(a.file.name) ||
-      !['ped', 'vehicle', 'vehicle-part', 'clothing', 'accessory'].includes(a.kind) ||
+      !['ped', 'vehicle', 'vehicle-part', 'clothing', 'accessory', 'object'].includes(a.kind) ||
       !Array.isArray(a.offset) ||
       a.offset.length !== 3 ||
       !a.offset.every((n) => Number.isFinite(n) && Math.abs(n) <= 100) ||
@@ -106,6 +108,7 @@ export function validateBoothScene(record) {
       a.category !== 'ped' &&
       a.category !== 'vehicle' &&
       a.category !== 'vehicle-part' &&
+      a.category !== 'object' &&
       !OUTFIT_CATEGORIES.some(([id]) => id === a.category)
     )
       throw Error('Kategori preset tidak valid.');

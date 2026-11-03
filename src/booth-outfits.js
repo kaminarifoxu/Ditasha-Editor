@@ -39,7 +39,7 @@ const slots = {
   p_rwrist: 'wrist',
 };
 export function outfitCategory(name, requested = 'auto', kind = 'clothing') {
-  if (['ped', 'vehicle'].includes(kind)) return kind;
+  if (['ped', 'vehicle', 'object'].includes(kind)) return kind;
   if (requested !== 'auto') {
     if (!OUTFIT_CATEGORIES.some(([id]) => id === requested))
       throw Error('Kategori outfit tidak valid.');
@@ -54,6 +54,7 @@ export function outfitCategory(name, requested = 'auto', kind = 'clothing') {
 }
 export function outfitLabel(id) {
   if (id === 'vehicle') return 'Kendaraan';
+  if (id === 'object') return 'Objek 3D';
   if (id === 'vehicle-part') return 'Part kendaraan';
   return id === 'ped'
     ? 'Ped / tubuh'
