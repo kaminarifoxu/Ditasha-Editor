@@ -58,6 +58,8 @@ contextBridge.exposeInMainWorld('ditashaDesktop', {
 
 contextBridge.exposeInMainWorld('ditashaCreators', Object.freeze({
   state: () => ipcRenderer.invoke('ditasha:creators-state'),
+  pickProp: (kind) => ipcRenderer.invoke('ditasha:prop-pick', kind),
+  revokeProp: (token) => ipcRenderer.invoke('ditasha:prop-revoke', token),
 }));
 
 contextBridge.exposeInMainWorld('ditashaNative', {
