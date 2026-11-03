@@ -514,12 +514,21 @@ module.exports = async function checkPhotoBooth(fixtures) {
   $('pbPed').click();
   upload('pbInput', [['unknown-no-skeleton.ydd', fixtures.missingRig]]);
   await wait(() => !$('pbPed').disabled && assetCards().length === 1, 'Missing skeleton import');
-  // The renderer may finish adding the asset before its compatibility report.
-  await wait(() => /skeleton asli tidak tersedia/i.test($('pbStatus').textContent + ' ' + $('pbIssueList').textContent),
-    'Missing skeleton warning absent');
-  assert(/skeleton asli tidak tersedia/i.test($('pbStatus').textContent + ' ' + $('pbIssueList').textContent),
-    'Missing skeleton not diagnosed');
-  assert($('pbPlay').disabled, 'Incompatible skin incorrectly enabled playback');
+  // Auto mode now chooses a provisional skeleton when the skin indices fit a
+  // bundled reference. It must report that the index mapping is only estimated.
+  await wait(() => /auto-skeleton perkiraan|skeleton asli tidak tersedia/i.test(
+    $('pbStatus').textContent + ' ' + $('pbIssueList').textContent
+  ), 'Auto skeleton compatibility report absent');
+  const autoIssues = $('pbStatus').textContent + ' ' + $('pbIssueList').textContent;
+  assert(/auto-skeleton perkiraan|skeleton asli tidak tersedia/i.test(autoIssues),
+    'Missing-skeleton model was neither provisionally rigged nor diagnosed');
+  if (/auto-skeleton perkiraan/i.test(autoIssues)) {
+    assert(/1 mesh GTA skinned/.test($('pbRigStatus').textContent),
+      'Provisional skeleton did not produce a skinned mesh');
+  } else {
+    assert($('pbPlay').disabled,
+      'Incompatible skin incorrectly enabled playback');
+  }
   $('pbRigSource').value = 'freemode-male';
   $('pbRigSource').dispatchEvent(new Event('change'));
   // A deliberately skeletonless fixture cannot safely become skinned just by
