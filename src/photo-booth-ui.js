@@ -35,6 +35,7 @@ import { BOOTH_STUDIOS, createBoothStudio, disposeBoothStudio } from './booth-st
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { readYcd, ycdAnimationClip } from './ycd.js';
 import { freemodeFamily, selectBoothRig } from './booth-rig.js';
+import { previewMaterialAlpha } from './preview-texture-material.js';
 import { boothHeight, setBoothHeight, setBoothElevation } from './booth-transform.js';
 import {
   MAX_BOOTH_MODELS,
@@ -1338,19 +1339,15 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
             });
           if (g.diffuseTexture && !t)
             warnings.push(a.name + ': tekstur ' + g.diffuseTexture + ' belum ditemukan');
-          const alpha = modelPreviewAlpha(g) || {
-            mode: /^(sbase|head_diff|uppr_diff|lowr_diff|body_diff)/i.test(g.diffuseTexture || '')
-              ? 'opaque'
-              : modelAlphaMode(g),
-            cutoff: 0.02,
-          };
+          const alpha = previewMaterialAlpha(g, t, a.name, modelPreviewAlpha(g));
           const material = createModelMaterial(g, {
             color: t ? 0xffffff : 0xa7b1c0,
             map: textureMap(t),
-            side: THREE.DoubleSide,
+            side: alpha.side === 'double' ? THREE.DoubleSide : THREE.FrontSide,
             roughness: 0.75,
-            transparent: alpha.mode === 'blend',
-            alphaTest: alpha.mode === 'opaque' ? 0 : alpha.cutoff,
+            transparent: alpha.transparent,
+            alphaTest: alpha.alphaTest,
+            depthWrite: alpha.depthWrite,
           });
           setSurfaceMaps(
             material,
