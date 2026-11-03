@@ -39,7 +39,7 @@ const slots = {
   p_rwrist: 'wrist',
 };
 export function outfitCategory(name, requested = 'auto', kind = 'clothing') {
-  if (['ped', 'vehicle'].includes(kind)) return kind;
+  if (['ped', 'vehicle', 'object'].includes(kind)) return kind;
   if (requested !== 'auto') {
     if (!OUTFIT_CATEGORIES.some(([id]) => id === requested))
       throw Error('Kategori outfit tidak valid.');
