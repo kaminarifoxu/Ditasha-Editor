@@ -52,3 +52,35 @@ test('M1b native probe rejects fabricated capabilities and malformed output', ()
     assert.throws(() => extractProbe(log));
   }
 });
+
+
+test('M1b installed provider probe never declares native writers without round-trip proof', async t => {
+  const { probeInstalledPropProvider } = require('../electron/creators/prop-provider.cjs');
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'ditasha-m1b-provider-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const engine = path.join(root, 'blender.exe');
+  await fs.writeFile(engine, 'fake for stub-only test');
+  await fs.writeFile(path.join(root, 'ready.json'), JSON.stringify({ version: 1, engine }));
+  let executed = false;
+  const report = await probeInstalledPropProvider({
+    root,
+    runner: async opts => {
+      executed = true;
+      assert.equal(opts.executable, await fs.realpath(engine));
+      assert.ok(opts.args.includes('--disable-autoexec'));
+      assert.ok(opts.args.includes('--python'));
+      return { log: 'DITASHA_PROP_PROBE='+JSON.stringify({
+        schema: 1, blenderVersion: [5, 2, 2],
+        sollumzLoaded: true, importers: ['glb','obj','fbx'],
+      }) };
+    },
+  });
+  assert.equal(executed, true);
+  assert.equal(report.ready, false);
+  for (const k of ['drawableWriter','collisionWriter','archetypeWriter']) assert.equal(report[k], false);
+  assert.equal(report.importer, true);
+  assert.equal(report.sollumzLoaded, true);
+  const wrong = path.join(root, 'ready.json');
+  await fs.writeFile(wrong, JSON.stringify({ version: 1, engine: process.execPath }));
+  await assert.rejects(probeInstalledPropProvider({ root, runner: async () => { throw Error('Must not execute untrusted engine'); } }), /outside verified native installation|Blender executable/);
+});
