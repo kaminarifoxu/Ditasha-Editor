@@ -666,6 +666,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       'pbClothes',
       'pbAccessory',
       'pbProp',
+      'pbObject',
       'pbFolder',
       'pbImportCategory',
       'pbTextures',
@@ -704,8 +705,8 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       .forEach((e) => (e.disabled = busy || e.dataset.referenceCheckbox === 'true'));
     $('pbLibrarySave').disabled = busy || !assets.length;
     $('pbVehiclePart').disabled = busy || currentActor()?.kind !== 'vehicle';
-    $('pbReference').disabled = busy || !currentActor() || currentActor().kind === 'vehicle';
-    $('pbMatte').disabled = busy || !currentActor() || currentActor().kind === 'vehicle';
+    $('pbReference').disabled = busy || !currentActor() || currentActor().kind !== 'ped';
+    $('pbMatte').disabled = busy || !currentActor() || currentActor().kind !== 'ped';
     $('pbRigSource').disabled = busy || !currentActor();
     $('pbHeightCm').disabled = busy || !currentActor()?.baseHeight;
     $('pbElevationCm').disabled = busy || !currentActor();
