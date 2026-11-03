@@ -21,6 +21,7 @@ import { setProject } from './project-context.js';
 import { mountCanvasStudio } from './canvas-studio.js';
 import { mountSceneStudio } from './scene-studio.js';
 import { mountAssetWorkshopUi } from './asset-workshop-ui.js';
+import { mountPropPreview } from './creators/prop-preview.js';
 import { mountWorkspaceShell } from './workspace-shell.js';
 import { mountNativeBuild } from './native-build-ui.js';
 import { decodeResource } from './resource-client.js';
@@ -2578,6 +2579,17 @@ mountPerformance();
 mountMinimalUi();
 mountWorkspaceShell({ toast });
 mountAssetWorkshopUi();
+// Experimental Prop Creator only: never insert controls in the current UI
+// unless the creator is explicitly enabled and its backend is verified.
+window.ditashaCreators?.state?.().then((entries) => {
+  if (!entries?.find((entry) => entry.type === 'prop' && entry.available)) return;
+  mountPropPreview({
+    container: sidebarInspector,
+    getModel: () => model,
+    scene,
+    render: () => renderer?.render(scene, camera),
+  });
+}).catch(() => {});
 mountWorkspacePolish();
 mountCharacterMaker();
 mountClothingCatalog({ openPreview: async (modelFiles) => {
