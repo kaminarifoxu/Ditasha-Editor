@@ -32,7 +32,6 @@ function createJobManager({ concurrency = 1, maxQueued = 16, maxHistory = 128, t
         job.timedOut = true;
         job.controller.abort();
       }, timeoutMs);
-      timer.unref?.();
       Promise.resolve().then(() => job.controller.signal.throwIfAborted()).then(() => job.worker({ signal: job.controller.signal, id: job.id }))
         .then(value => {
           if (job.timedOut) { job.state = 'failed'; job.error = 'Creator job timed out'; }
