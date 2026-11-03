@@ -1,6 +1,6 @@
 // Preview-only material decisions. Never rewrite source YDD/YTD alpha or UV data.
 const smallDetail = /(?:eyelash|lashes|lash_|brow|eyebrow|haircard|hair_card|fringe|decal|tattoo)/i;
-const opaqueFabric = /(?:^|[\\^/])(jbib|uppr|lowr|hand|feet|accs|task)_(?:diff_)?\\d/i;
+const opaqueFabric = /(?:^|[\^/])(jbib|uppr|lowr|hand|feet|accs|task)_(?:diff_)?\d/i;
 
 export function textureAlphaStats(texture) {
   const bytes = texture?.out;
