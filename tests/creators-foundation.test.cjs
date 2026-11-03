@@ -32,7 +32,9 @@ test('Creator IPC is read-only and rejects an untrusted renderer', async () => {
     trusted: event => { if (!event?.trusted) throw Error('Untrusted renderer'); },
     app: { on() {} },
   });
-  assert.deepEqual([...handlers.keys()], ['ditasha:creators-state']);
+  assert.deepEqual([...handlers.keys()].sort(), ['ditasha:creators-state','ditasha:prop-pick','ditasha:prop-revoke'].sort());
+  await assert.rejects(handlers.get('ditasha:prop-pick')({ trusted: true }, 'input'), /disabled/);
+  await assert.rejects(handlers.get('ditasha:prop-pick')({ trusted: false }, 'input'), /Untrusted/);
   assert.equal((await handlers.get('ditasha:creators-state')({ trusted: true })).length, 5);
   assert.throws(() => handlers.get('ditasha:creators-state')({ trusted: false }), /Untrusted/);
 });
