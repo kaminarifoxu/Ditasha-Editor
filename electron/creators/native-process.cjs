@@ -16,7 +16,7 @@ function terminateTree(child, platform = process.platform) {
     }
   }
 }
-function runNativeProcess({ executable, args = [], cwd, signal, timeoutMs = 15 * 60 * 1000, maxOutputBytes = 256 * 1024 } = {}) {
+function runNativeProcess({ executable, args = [], cwd, signal, timeoutMs = 15 * 60 * 1000, maxOutputBytes = 256 * 1024, env } = {}) {
   if (typeof executable !== 'string' || !path.isAbsolute(executable)) throw Error('Expected verified absolute executable path');
   if (!Array.isArray(args) || args.some(a => typeof a !== 'string' || a.length > 8192)) throw Error('Invalid native argv');
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 60 * 60 * 1000) throw Error('Invalid native timeout');
@@ -36,7 +36,7 @@ function runNativeProcess({ executable, args = [], cwd, signal, timeoutMs = 15 *
     };
     let timer;
     try {
-      child = spawn(executable, args, { cwd, shell: false, windowsHide: true, detached: process.platform !== 'win32', stdio: ['ignore', 'pipe', 'pipe'] });
+      child = spawn(executable, args, { cwd, shell: false, windowsHide: true, detached: process.platform !== 'win32', env, stdio: ['ignore', 'pipe', 'pipe'] });
       signal?.addEventListener('abort', abort, { once: true });
       timer = setTimeout(abort, timeoutMs);
       for (const stream of [child.stdout, child.stderr]) {
