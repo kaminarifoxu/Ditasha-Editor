@@ -57,7 +57,8 @@ async function cleanupStaging(directory, expectedParent) {
   if (typeof directory !== 'string' || typeof expectedParent !== 'string') throw Error('Missing staging scope');
   const root = await fs.realpath(expectedParent);
   const resolved = path.resolve(directory);
-  if (path.dirname(resolved) !== root || !path.basename(resolved).startsWith('ditasha-stage-')) throw Error('Unsafe staging cleanup');
+  const relative = path.relative(root, resolved);
+  if (!relative || relative === '..' || relative.startsWith('..' + path.sep) || path.isAbsolute(relative) || relative.includes(path.sep) || !relative.startsWith('ditasha-stage-')) throw Error('Unsafe staging cleanup');
   const stat = await fs.lstat(resolved).catch(e => e.code === 'ENOENT' ? null : Promise.reject(e));
   if (!stat) return;
   if (!stat.isDirectory() || stat.isSymbolicLink()) throw Error('Invalid staging directory');
