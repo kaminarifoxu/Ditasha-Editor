@@ -36,6 +36,7 @@ import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { readYcd, ycdAnimationClip } from './ycd.js';
 import { freemodeFamily, selectBoothRig } from './booth-rig.js';
 import { previewMaterialAlpha } from './preview-texture-material.js';
+import { canPreviewFacialEmote, applyFacialEmotePreview } from './booth-facial-emote-preview.js';
 import { boothHeight, setBoothHeight, setBoothElevation } from './booth-transform.js';
 import {
   MAX_BOOTH_MODELS,
@@ -719,9 +720,15 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     frame?.traverse((o) => {
       if (o.isSkinnedMesh) ownAnimated = true;
     });
+    const clipFallback = owner && $('pbPose').value === 'clip' &&
+      !mixers.some((m) => m.userData.actor === owner.id) &&
+      canPreviewFacialEmote(
+        rest.filter((r) => { for (let o = r.bone; o; o = o.parent) if (o === frame) return true; return false; }),
+        clipsFor(owner).find((c) => c.id === owner.motion.clip)?.label || ''
+      );
     const movable =
       $('pbPose').value === 'clip'
-        ? mixers.some((m) => m.userData.actor === owner?.id)
+        ? mixers.some((m) => m.userData.actor === owner?.id) || !!clipFallback
         : ownAnimated && rest.some((r) => r.role && frame?.getObjectById(r.bone.id));
     $('pbQuickPose')
       .querySelectorAll('button')
@@ -1629,7 +1636,12 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       });
       const ownMixers = mixers.filter((m) => m.userData.actor === actor.id);
       if (m.pose === 'clip') {
-        if (!ownMixers.length) applyBoothPose(bones, 'rest', 0);
+        if (!ownMixers.length) {
+          applyBoothPose(bones, 'rest', 0);
+          const chosen = clipsFor(actor).find((c) => c.id === m.clip);
+          if (chosen && (chosen.nativeYcd || chosen.ycd))
+            applyFacialEmotePreview(bones, chosen.label, m.time);
+        }
         ownMixers.forEach((mixer) => mixer.setTime(m.time));
       } else {
         ownMixers.forEach((mixer) => mixer.stopAllAction());
@@ -1652,9 +1664,16 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     const selectedEmote = selected && clipsFor(selected).find((c) => c.id === selected.motion.clip);
     if (selected?.motion.pose === 'clip' && (selectedEmote?.ycd || selectedEmote?.nativeYcd)) {
       const bound = mixers.filter((m) => m.userData.actor === selected.id).length;
+      const ownBones = rest.filter((r) => {
+        for (let o = r.bone; o; o = o.parent)
+          if (o === actorFrames.get(selected.id)) return true;
+        return false;
+      });
       $('pbRigStatus').textContent += bound
         ? ` YCD: ${bound} skeleton terikat ke bone tag GTA.`
-        : ' YCD tidak cocok: tidak ditemukan bone tag GTA pada skeleton ped ini. Gunakan skeleton GTA yang sesuai; GLB arbitrer belum diretarget otomatis.';
+        : canPreviewFacialEmote(ownBones, selectedEmote.label)
+          ? ' Preview simulasi batuk aktif. Ini bukan animasi facial YCD asli; kanal wajah GTA belum didukung.'
+          : ' YCD facial tidak memiliki track tulang yang cocok. Gunakan emote skeletal YCD untuk animasi tubuh; kanal ekspresi wajah GTA belum didukung.';
     }
     if (['relaxed', 'catalog', 'rest'].includes(selected?.motion.pose))
       $('pbRigStatus').textContent +=
