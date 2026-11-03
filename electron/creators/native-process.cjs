@@ -57,8 +57,11 @@ async function cleanupStaging(directory, expectedParent) {
   if (typeof directory !== 'string' || typeof expectedParent !== 'string') throw Error('Missing staging scope');
   const root = await fs.realpath(expectedParent);
   const resolved = path.resolve(directory);
-  const relative = path.relative(root, resolved);
-  if (!relative || relative === '..' || relative.startsWith('..' + path.sep) || path.isAbsolute(relative) || relative.includes(path.sep) || !relative.startsWith('ditasha-stage-')) throw Error('Unsafe staging cleanup');
+  // Windows temp directories may resolve through junctions/short paths. Canonicalize
+  // both parents before comparing rather than comparing a realpath to a raw path.
+  const actualParent = await fs.realpath(path.dirname(resolved));
+  if (process.platform === 'win32' ? actualParent.toLowerCase() !== root.toLowerCase() : actualParent !== root) throw Error('Unsafe staging cleanup');
+  if (!path.basename(resolved).startsWith('ditasha-stage-')) throw Error('Unsafe staging cleanup');
   const stat = await fs.lstat(resolved).catch(e => e.code === 'ENOENT' ? null : Promise.reject(e));
   if (!stat) return;
   if (!stat.isDirectory() || stat.isSymbolicLink()) throw Error('Invalid staging directory');
