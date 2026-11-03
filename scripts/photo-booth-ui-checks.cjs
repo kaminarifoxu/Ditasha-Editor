@@ -551,8 +551,12 @@ module.exports = async function checkPhotoBooth(fixtures) {
   const replace = $('pbAssets').querySelector('[data-preview-texture]');
   replace.selectedIndex = 1;
   replace.dispatchEvent(new Event('change'));
-  assert(
-    canvas().toDataURL() !== beforeReplacement,
+  // The render loop may update the WebGL canvas on the next frame after
+  // rebuilding materials. Assert the selected replacement and wait for pixels,
+  // rather than sampling the previous framebuffer synchronously.
+  assert.equal(replace.selectedIndex, 1, 'Replacement texture was not selected');
+  await wait(
+    () => canvas().toDataURL() !== beforeReplacement,
     'Texture override did not change native preview',
   );
   $('pbLibraryName').value = 'QA repaired native rig';
