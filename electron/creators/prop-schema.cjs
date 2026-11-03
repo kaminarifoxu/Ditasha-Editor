@@ -1,6 +1,5 @@
 'use strict';
 const path = require('node:path');
-const { safeRelative } = require('./export-validation.cjs');
 const INPUT_FORMATS = Object.freeze(['glb', 'obj', 'fbx']);
 const COLLISION_MODES = Object.freeze(['none', 'box', 'convex', 'authored']);
 const REQUIRED_NATIVE_FEATURES = Object.freeze(['drawableWriter', 'collisionWriter', 'archetypeWriter']);
@@ -36,7 +35,7 @@ function probePropCapabilities(provider) {
   // This is provider negotiation, not a claim that native exporters already exist.
   const status = {};
   for (const feature of REQUIRED_NATIVE_FEATURES) status[feature] = provider?.[feature] === true;
-  status.importer = INPUT_FORMATS.every(ext => provider?.importers?.includes(ext) === true);
+  status.importer = Array.isArray(provider?.importers) && INPUT_FORMATS.every(ext => provider.importers.includes(ext));
   const ready = Object.values(status).every(Boolean);
   return Object.freeze({ ready, ...status });
 }
