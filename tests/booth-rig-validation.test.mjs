@@ -28,3 +28,19 @@ test('rigging rejects absent bone and invalid negative indices', () => {
   const negative=selectBoothRig(own,skin([-1,0,0,0],[1,0,0,0]),[],{family:'female'});
   assert.equal(negative.indices,null);
 });
+
+test('auto-skeleton provides clearly labeled approximate bind when requested', () => {
+  const result = selectBoothRig([], skin([1,2,0,0],[0.8,0.2,0,0]),[],{
+    family:'female',choice:'auto',allowApproximate:true
+  });
+  assert.ok(result.rig.length > 2);
+  assert.equal(result.approximate,true);
+  assert.equal(result.indices[0],1);
+  assert.match(result.warning,/perkiraan/);
+});
+test('explicit reference mode never silently guesses bone indices', () => {
+  const result = selectBoothRig([],skin([1,2,0,0],[1,0,0,0]),[],{
+    family:'female',choice:'reference',allowApproximate:true
+  });
+  assert.equal(result.indices,null);
+});
