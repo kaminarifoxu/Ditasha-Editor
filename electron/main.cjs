@@ -216,6 +216,7 @@ else {
       shell,
       trusted,
     });
+    require('./creators/creator-ipc.cjs').registerCreators({ ipcMain, trusted, app });
     require('./native-build.cjs').registerNativeBuild({
       app,
       ipcMain,
