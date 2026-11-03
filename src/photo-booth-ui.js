@@ -1282,6 +1282,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
                   family,
                   choice: owner.rigChoice || 'auto',
                   allowApproximate: (owner.rigChoice || 'auto') === 'auto',
+                  modelName: a.name + ' ' + (g.name || ''),
                 });
           let rig = selection.rig.length ? rigCache.get(selection.rig) : null;
           if (!rig && selection.rig.length) {
