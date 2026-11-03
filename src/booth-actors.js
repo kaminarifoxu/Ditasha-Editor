@@ -3,7 +3,7 @@ export function createActorMotion() {
   return { pose: 'relaxed', clip: '', time: 0, playing: false, speed: 1 };
 }
 export function actorForAsset(assets, asset) {
-  if (['ped', 'vehicle'].includes(asset.kind)) return asset;
+  if (['ped', 'vehicle', 'object'].includes(asset.kind)) return asset;
   if (asset.kind === 'vehicle-part')
     return assets.find((a) => a.id === asset.owner && a.kind === 'vehicle') || asset;
   return assets.find((a) => a.id === asset.owner && a.kind === 'ped') || asset;
