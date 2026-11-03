@@ -1,10 +1,10 @@
 'use strict';
 const fs = require('node:fs/promises');
 const path = require('node:path');
-const { createHash, randomUUID } = require('node:crypto');
+const { createHash } = require('node:crypto');
 const { createReadStream } = require('node:fs');
 
-const WINDOWS_DEVICE = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i;
+const WINDOWS_DEVICE = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:[. ].*)?$/i;
 function safeRelative(value) {
   if (typeof value !== 'string' || !value || value.length > 1024 || value.includes('\\') || value.includes('\0') || path.posix.isAbsolute(value)) throw Error('Invalid artifact path');
   const parts = value.split('/');
