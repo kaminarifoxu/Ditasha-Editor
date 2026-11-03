@@ -1281,6 +1281,7 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
               : selectBoothRig(d.rig, g.skin, candidates, {
                   family,
                   choice: owner.rigChoice || 'auto',
+                  allowApproximate: (owner.rigChoice || 'auto') === 'auto',
                 });
           let rig = selection.rig.length ? rigCache.get(selection.rig) : null;
           if (!rig && selection.rig.length) {
