@@ -106,6 +106,7 @@ export function validateBoothScene(record) {
       a.category !== 'ped' &&
       a.category !== 'vehicle' &&
       a.category !== 'vehicle-part' &&
+      a.category !== 'object' &&
       !OUTFIT_CATEGORIES.some(([id]) => id === a.category)
     )
       throw Error('Kategori preset tidak valid.');
