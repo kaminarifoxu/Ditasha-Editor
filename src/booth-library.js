@@ -88,6 +88,8 @@ export function validateBoothScene(record) {
     throw Error('Cutaway studio tidak valid.');
   for (const a of record.assets) {
     file(a.file, 64 * 1024 ** 2);
+    if (a.kind === 'object' && (!/\.glb$/i.test(a.file.name) || a.ownerIndex !== null))
+      throw Error('Objek 3D mandiri harus GLB tanpa pemilik ped.');
     if (
       !/\.(glb|ydd|ydr|yft)$/i.test(a.file.name) ||
       !['ped', 'vehicle', 'vehicle-part', 'clothing', 'accessory', 'object'].includes(a.kind) ||
