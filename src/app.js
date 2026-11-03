@@ -2582,7 +2582,7 @@ mountAssetWorkshopUi();
 // Experimental Prop Creator only: never insert controls in the current UI
 // unless the creator is explicitly enabled and its backend is verified.
 window.ditashaCreators?.state?.().then((entries) => {
-  if (!entries?.find((entry) => entry.type === 'prop' && entry.available)) return;
+  if (!entries?.find((entry) => entry.type === 'prop' && entry.enabled)) return;
   mountPropPreview({
     container: sidebarInspector,
     getModel: () => model,
