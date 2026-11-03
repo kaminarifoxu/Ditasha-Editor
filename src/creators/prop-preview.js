@@ -36,18 +36,18 @@ export function makePropPreviewOverlay(model, options = {}) {
     if (settings.collision === 'box') {
       shape = new THREE.BoxGeometry(Math.max(size.x, 0.001), Math.max(size.y, 0.001), Math.max(size.z, 0.001));
     } else {
+      // Build a world-aligned convex preview; do not serialize this as YBN.
       const points = [];
       const vector = new THREE.Vector3();
       model.updateWorldMatrix(true, true);
-      const inverse = model.matrixWorld.clone().invert();
       model.traverse(object => {
         if (!object.isMesh || !object.geometry?.attributes?.position) return;
         const position = object.geometry.attributes.position;
         object.updateWorldMatrix(true, false);
-        const transform = inverse.clone().multiply(object.matrixWorld);
+        const transform = object.matrixWorld;
         const stride = Math.max(1, Math.ceil(position.count / 256));
         for (let i = 0; i < position.count && points.length < 1024; i += stride) {
-          vector.fromBufferAttribute(position, i).applyMatrix4(transform);
+          vector.fromBufferAttribute(position, i).applyMatrix4(transform).sub(center);
           if ([vector.x, vector.y, vector.z].every(Number.isFinite)) points.push(vector.clone());
         }
       });
