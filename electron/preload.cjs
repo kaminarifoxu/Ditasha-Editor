@@ -56,6 +56,10 @@ contextBridge.exposeInMainWorld('ditashaDesktop', {
   saveExport: (payload) => ipcRenderer.invoke('ditasha:save-export', payload),
 });
 
+contextBridge.exposeInMainWorld('ditashaCreators', Object.freeze({
+  state: () => ipcRenderer.invoke('ditasha:creators-state'),
+}));
+
 contextBridge.exposeInMainWorld('ditashaNative', {
   state: () => ipcRenderer.invoke('ditasha:native-state'),
   setup: () => ipcRenderer.invoke('ditasha:native-setup'),
