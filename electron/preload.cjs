@@ -66,6 +66,15 @@ contextBridge.exposeInMainWorld('ditashaCreators', Object.freeze({
   cancelProp: (jobId) => ipcRenderer.invoke('ditasha:prop-cancel', jobId),
 }));
 
+contextBridge.exposeInMainWorld('ditashaWeaponCreator', Object.freeze({
+  pick: (kind) => ipcRenderer.invoke('ditasha:weapon-pick', kind),
+  revoke: (token) => ipcRenderer.invoke('ditasha:weapon-revoke', token),
+  deps: () => ipcRenderer.invoke('ditasha:weapon-deps'),
+  start: (request) => ipcRenderer.invoke('ditasha:weapon-start', request),
+  job: (id) => ipcRenderer.invoke('ditasha:weapon-job', id),
+  cancel: (id) => ipcRenderer.invoke('ditasha:weapon-cancel', id),
+}));
+
 contextBridge.exposeInMainWorld('ditashaNative', {
   state: () => ipcRenderer.invoke('ditasha:native-state'),
   setup: () => ipcRenderer.invoke('ditasha:native-setup'),
