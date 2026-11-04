@@ -700,10 +700,16 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
     };
     child.stdout.on('data', (chunk) => append(chunk, true));
     child.stderr.on('data', (chunk) => append(chunk, false));
+    let timeoutReason = null;
     const timer = setTimeout(
       () => {
+        timeoutReason =
+          'Blender/Muto melewati batas 15 menit pada tahap: ' +
+          (state.step || 'tidak diketahui') +
+          '. Proses dihentikan; coba periksa model atau matikan Face/Fingers detail.';
         state.cancelled = true;
-        state.message = 'Build melebihi 15 menit. Blender dihentikan; lihat log engine dan coba model yang lebih ringan.';
+        state.message = timeoutReason;
+        state.log = (state.log + '\nDITASHA_TIMEOUT ' + timeoutReason + '\n').slice(-24000);
         cancel();
       },
       15 * 60 * 1000,
@@ -759,7 +765,7 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
           state.report = priorReport;
         }
         state.status = rep.ok && !error && !state.cancelled ? 'success' : 'error';
-        state.message = state.cancelled
+        state.message = timeoutReason || (state.cancelled
           ? 'Build dibatalkan; hasil parsial jangan dipakai.'
           : rep.error ||
             error ||
@@ -767,7 +773,7 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
               ? 'Model sumber siap diperiksa. Belum ada proses rig atau ekspor game.'
               : ['ped', 'garment'].includes(job.mode)
                 ? 'Preview rig siap. Periksa model 3D, lalu Simpan hasil ped.'
-                : 'Proses selesai. Periksa report dan hasil sebelum dipakai di game.');
+                : 'Proses selesai. Periksa report dan hasil sebelum dipakai di game.'));
       } catch (reportError) {
         if (priorPreview) {
           preview = priorPreview;
@@ -776,10 +782,11 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
           state.report = priorReport;
         }
         state.status = 'error';
-        state.message = job.mode === 'ped'
-          ? (error ? String(error) : 'Blender tidak menghasilkan report yang bisa dibaca: ' +
+        state.message = timeoutReason || (job.mode === 'ped'
+          ? (error ? String(error) + '; ' + (reportError?.message || 'tidak ada report') :
+              'Blender tidak menghasilkan report yang bisa dibaca: ' +
               (reportError?.message || 'report.json tidak tersedia'))
-          : error || 'Engine tidak menghasilkan report. Periksa log.';
+          : error || 'Engine tidak menghasilkan report. Periksa log.');
       }
       if (job.mode === 'probe') await fs.rm(root, { recursive: true, force: true }).catch(() => {});
       running = false;
