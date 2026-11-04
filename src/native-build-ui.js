@@ -150,6 +150,10 @@ export function mountNativeBuild({
   poseControls.innerHTML =
     '<label>Pose uji<select id="nbPedPose"><option value="rest">Pose awal</option></select></label><span class="muted">Pose statis untuk memeriksa deformasi weights. Periksa juga gerakan di FiveM.</span>';
   previewRoot.prepend(poseControls);
+  const previewPrompt = document.createElement('div');
+  previewPrompt.className = 'nb-ped-preview-prompt';
+  previewPrompt.innerHTML = '<strong>3D Ped Preview</strong><span class="muted">Select a GLB/FBX/OBJ, then preview it before rigging. Drag to rotate; scroll to zoom.</span><button type="button" id="nbPedPreviewAction">Preview selected model</button>';
+  previewRoot.prepend(previewPrompt);
   const poseSelect = $('nbPedPose');
   async function loadPreview(id, pose = 'rest', preserveCamera = false) {
     const serial = ++poseSerial;
@@ -275,7 +279,7 @@ export function mountNativeBuild({
     $('nbOutput').hidden = pedMode;
     preview.loadButton.hidden = pedMode;
     preview.setMode(pedMode ? 'ped' : value);
-    if (pedMode && state.previewId && matchesPreview()) centerPanel.prepend(previewRoot);
+    if (pedMode) centerPanel.prepend(previewRoot);
     else $('nbVehicle').after(previewRoot);
     syncTransform();
   }
@@ -324,8 +328,11 @@ export function mountNativeBuild({
     $('nbSave').disabled =
       state.running || requesting || !state.stagedId || !state.previewId || !previewReady;
     $('nbDiscard').disabled = state.running || requesting || !state.stagedId;
-    if (['ped', 'garment'].includes($('nbMode').value))
-      previewRoot.hidden = !state.previewId || !matchesPreview() || dialog.hidden;
+    if (['ped', 'garment'].includes($('nbMode').value)) {
+      previewRoot.hidden = dialog.hidden;
+      previewPrompt.hidden = Boolean(state.previewId && matchesPreview());
+      $('nbPedPreviewAction').disabled = state.running || requesting || !inputs.ped;
+    } else previewPrompt.hidden = true;
     $('nbReport').replaceChildren();
     const report = state.report;
     poseControls.hidden =
@@ -592,7 +599,6 @@ export function mountNativeBuild({
     if (
       state.previewId &&
       state.previewId !== loadedPreviewId &&
-      report.ok &&
       !state.running &&
       matchesPreview()
     ) {
@@ -794,6 +800,7 @@ export function mountNativeBuild({
   $('nbAnalyze').onclick = () => start('debadge_analyze');
   $('nbRun').onclick = () => start($('nbMode').value);
   sourceButton.onclick = () => start('ped_preview');
+  $('nbPedPreviewAction').onclick = () => start('ped_preview');
   $('nbCancel').onclick = async () => {
     await api()?.cancel();
     await refresh();
