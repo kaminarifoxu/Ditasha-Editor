@@ -32,3 +32,10 @@ test('rejects cross-gender textures even when files share drawable and component
  const t=file('hair_diff_001_a_uni.ytd','male');
  assert.equal(selectFreemodeTexture(m,[t],'a','female').status,'missing');
 });
+
+test('Character Maker retains its GLB freemode model import route', async () => {
+  const { freemodePart } = await import('../src/freemode-character.js');
+  const glb={name:'mp_f_freemode_01^hair_001_u.glb',webkitRelativePath:'female/mp_f_freemode_01^hair_001_u.glb'};
+  assert.equal(freemodePart(glb).part,'hair');
+  assert.equal(freemodePart(glb).texture,false);
+});
