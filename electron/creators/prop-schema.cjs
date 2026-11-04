@@ -11,7 +11,7 @@ function validateAssetToken(token) {
 }
 function validatePropRequest(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw Error('Invalid prop request');
-  const allowed = new Set(['schemaVersion', 'sourceToken', 'outputToken', 'projectName', 'sourceName', 'edition', 'collision', 'drawDistance', 'lodDistances']);
+  const allowed = new Set(['schemaVersion', 'sourceToken', 'outputToken', 'projectName', 'sourceName', 'edition', 'collision', 'drawDistance', 'lodDistances', 'scale']);
   if (Object.keys(value).some(k => !allowed.has(k))) throw Error('Unsupported prop setting');
   if (value.schemaVersion !== 1) throw Error('Unsupported prop schema version');
   const sourceToken = validateAssetToken(value.sourceToken);
@@ -26,10 +26,14 @@ function validatePropRequest(value) {
   if (!COLLISION_MODES.includes(collision)) throw Error('Unsupported collision mode');
   const drawDistance = value.drawDistance;
   if (typeof drawDistance !== 'number' || !Number.isFinite(drawDistance) || drawDistance < 1 || drawDistance > 2000) throw Error('Invalid draw distance');
+  const scale = value.scale ?? [1, 1, 1];
+  if (!Array.isArray(scale) || scale.length !== 3 ||
+      scale.some(v => typeof v !== 'number' || !Number.isFinite(v) || v < 0.01 || v > 100))
+    throw Error('Invalid prop scale (each axis must be 0.01 to 100)');
   const lodDistances = value.lodDistances ?? [];
   if (!Array.isArray(lodDistances) || lodDistances.length > 4 || lodDistances.some(v => typeof v !== 'number' || !Number.isFinite(v) || v < 1 || v > drawDistance)) throw Error('Invalid LOD distances');
   if (lodDistances.some((v,i) => i > 0 && v <= lodDistances[i - 1])) throw Error('LOD distances must increase');
-  return Object.freeze({ schemaVersion: 1, sourceToken, outputToken, projectName, sourceName: value.sourceName, format: ext, edition: 'legacy', collision, drawDistance, lodDistances: Object.freeze([...lodDistances]) });
+  return Object.freeze({ schemaVersion: 1, sourceToken, outputToken, projectName, sourceName: value.sourceName, format: ext, edition: 'legacy', collision, drawDistance, lodDistances: Object.freeze([...lodDistances]), scale: Object.freeze([...scale]) });
 }
 function probePropCapabilities(provider) {
   // This is provider negotiation, not a claim that native exporters already exist.
