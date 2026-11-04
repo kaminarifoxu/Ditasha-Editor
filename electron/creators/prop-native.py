@@ -111,7 +111,13 @@ def _shader_and_textures(bpy, mod, meshes, name):
             raise ValueError("Invalid image")
         txd.new_texture(image)
     if not txd.textures:
-        raise ValueError("YTD has no textures")
+        raise ValueError("YTD has no textures before serialization")
+    if any(slot.image is None for slot in txd.textures):
+        raise ValueError("YTD contains empty texture slots")
+    # The YTD writer can produce a valid container even with zero images.
+    native_txd = importlib.import_module(mod + ".ytd.ytdexport").create_txd_asset(txd)[0]
+    if len(native_txd.textures) < 1:
+        raise ValueError("YTD exporter resolved zero embedded textures")
     return txd
 
 def _make_collision(bpy, mod, meshes, project, mode):
@@ -175,7 +181,7 @@ def _export(bpy, mod, job, stream):
         obj.matrix_world = Matrix.Identity(4)
     bpy.context.view_layer.update()
     # Keep coordinates in Blender's native Z-up; no Three.js preview transform is applied.
-    _shader_and_textures(bpy, mod, meshes, job["name"])
+    txd = _shader_and_textures(bpy, mod, meshes, job["name"])
     helper = importlib.import_module(mod + ".tools.drawablehelper")
     drawable = helper.convert_objs_to_single_drawable(meshes)
     drawable.name = job["name"]
@@ -199,7 +205,7 @@ def _export(bpy, mod, job, stream):
         export_ytyps_include="ALL", export_ytds_include="ALL",
         apply_transforms=False, mesh_domain="FACE_CORNER")
     _check(result, "Native Sollumz export")
-    return {"meshes": len(meshes), "polygons": sum(len(o.data.polygons) for o in meshes)}
+    return {"meshes": len(meshes), "polygons": sum(len(o.data.polygons) for o in meshes), "sourceTextureCount": len(txd.textures)}
 
 def _validate_roundtrip(bpy, job, stream):
     required = [job["name"] + ext for ext in [".ydr", ".ytd", ".ytyp"]]
@@ -211,6 +217,8 @@ def _validate_roundtrip(bpy, job, stream):
             raise RuntimeError("Required native binary missing or invalid: " + filename)
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.object.delete(use_global=False)
+    # Remove source dictionaries to avoid counting unexported textures.
+    bpy.context.scene.sz_txds.texture_dictionaries.clear()
     before = len(bpy.context.scene.objects)
     result = bpy.ops.sollumz.import_assets(
         directory=str(stream), files=[{"name": n} for n in required],
@@ -222,7 +230,17 @@ def _validate_roundtrip(bpy, job, stream):
         raise RuntimeError("Reimported native resource lacks Drawable")
     if job["collision"] != "none" and not any(getattr(o, "sollum_type", "") == "sollumz_bound_composite" for o in bpy.context.scene.objects):
         raise RuntimeError("Reimported resource lacks collision bound")
-    return required
+    loaded_txds = [txd for txd in bpy.context.scene.sz_txds.texture_dictionaries if txd.name == job["name"]]
+    if not loaded_txds:
+        raise RuntimeError("YTD round-trip failed: texture dictionary was not imported")
+    texture_slots = [slot for txd in loaded_txds for slot in txd.textures if slot.image is not None]
+    if not texture_slots:
+        raise RuntimeError("YTD round-trip failed: exported dictionary contains no textures")
+    for slot in texture_slots:
+        image = slot.image
+        if image.size[0] < 1 or image.size[1] < 1:
+            raise RuntimeError("YTD round-trip failed: invalid texture dimensions")
+    return required, len(texture_slots)
 
 def main():
     import bpy
@@ -247,12 +265,12 @@ def main():
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.object.delete(use_global=False)
     stats = _export(bpy, module, job, stream)
-    verified = _validate_roundtrip(bpy, job, stream)
+    verified, loaded_textures = _validate_roundtrip(bpy, job, stream)
     artifacts = []
     for filename in verified:
         file = stream / filename
         artifacts.append({"relativePath": "stream/" + filename, "bytes": file.stat().st_size, "sha256": _sha256(file)})
-    report = {"schema": 1, "ok": True, "roundTrip": True, "assets": artifacts, "stats": stats}
+    report = {"schema": 1, "ok": True, "roundTrip": True, "textureCount": loaded_textures, "assets": artifacts, "stats": stats}
     (job_path.parent / "native-report.json").write_text(json.dumps(report), encoding="utf-8")
     print("DITASHA_PROP_NATIVE_OK", flush=True)
 
