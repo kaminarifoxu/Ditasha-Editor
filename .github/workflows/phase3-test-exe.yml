@@ -36,6 +36,9 @@ jobs:
       - name: Smoke test native weapon panel and Prop isolation
         run: npx electron scripts/smoke-weapon-m2c.cjs
         timeout-minutes: 4
+      - name: Smoke test Ped Workshop center preview and inspector
+        run: npx electron scripts/smoke-ped-workspace.cjs
+        timeout-minutes: 4
       - name: Build Windows portable and installer
         run: npm run build:win
       - name: Verify test binaries
