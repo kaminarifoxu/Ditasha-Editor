@@ -72,12 +72,14 @@ async function buildPropResource({
   const target = path.join(parent, spec.projectName + '-ditasha-' + randomUUID().slice(0, 8));
   let committed = false;
   try {
-    const script = await fs.realpath(path.join(__dirname, 'prop-native.py'));
+    // Electron packages sources in app.asar; external Blender cannot read inside it.
+    const script = path.join(staging, 'prop-native.py');
+    await fs.copyFile(path.join(__dirname, 'prop-native.py'), script);
     const jobFile = path.join(staging, 'prop-job.json');
     await fs.writeFile(jobFile, JSON.stringify({
       schema: 1, edition: spec.edition, source: source.path, name: spec.projectName,
       collision: spec.collision, drawDistance: spec.drawDistance,
-      lodDistances: spec.lodDistances,
+      lodDistances: spec.lodDistances, scale: spec.scale,
     }), { flag: 'wx', mode: 0o600 });
     await runner({
       executable: engine, cwd: root, signal, env: managedEnv(root),
@@ -92,7 +94,7 @@ async function buildPropResource({
     await fs.writeFile(path.join(staging, 'validation.json'), JSON.stringify({
       schema: 1, tool: 'ditasha-prop', edition: 'legacy',
       nativeRoundTripPassed: true, gameTestPassed: null,
-      model: spec.projectName, collision: spec.collision,
+      model: spec.projectName, collision: spec.collision, scale: spec.scale,
       files: validated,
     }, null, 2), { flag: 'wx' });
     const artifacts = [
