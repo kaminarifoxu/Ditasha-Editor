@@ -55,7 +55,7 @@ async function buildCustomWeapon({request,bytes,grants,userDataRoot,signal,runne
   const binary=assertGlb(bytes);
   const {engine,root}=await managedExecutable(path.join(userDataRoot,'native-tools'));
   signal?.throwIfAborted();
-  const staging=await fs.mkdtemp(path.join(output,'ditasha-weapon-custom-'));
+  const staging=await fs.mkdtemp(path.join(output,'ditasha-stage-custom-'));
   const destination=path.join(output,spec.modelName+'-native-'+randomUUID().slice(0,8));
   let committed=false;
   try{
