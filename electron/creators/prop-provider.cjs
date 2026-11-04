@@ -14,7 +14,8 @@ function extractProbe(log) {
   if (data.schema !== 1 || !Array.isArray(data.blenderVersion) || data.blenderVersion.length !== 3 ||
       data.blenderVersion.some(n => !Number.isInteger(n)) ||
       !Array.isArray(data.importers) || data.importers.some(i => !['glb','obj','fbx'].includes(i)) ||
-      typeof data.sollumzLoaded !== 'boolean')
+      typeof data.sollumzLoaded !== 'boolean' ||
+      (data.nativeProviderAvailable !== undefined && typeof data.nativeProviderAvailable !== 'boolean'))
     throw Error('Invalid native probe schema');
   return data;
 }
@@ -55,6 +56,7 @@ async function probeInstalledPropProvider({ root, signal, runner = runNativeProc
     ...status,
     blenderVersion: info.blenderVersion.join('.'),
     sollumzLoaded: info.sollumzLoaded,
+    nativeProviderAvailable: info.nativeProviderAvailable === true,
     reason: 'Native exporters require separate verified fixture round trips',
   });
 }
