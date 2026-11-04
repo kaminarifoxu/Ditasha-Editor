@@ -55,8 +55,14 @@ export function mountPropWorkspace({ nav, activate, register, capabilities }) {
     '<aside class="prop-right"><h2>Project overview</h2><div class="prop-summary">',
     '<div>Format <strong data-prop-format>—</strong></div><div>Meshes <strong data-prop-meshes>—</strong></div>',
     '<div>Size <strong data-prop-bounds>—</strong></div><div>Collision <strong>Preview only</strong></div></div>',
-    '<h2>FiveM export</h2><p>Native YDR / YTD / YBN / YTYP export is experimental and requires your managed Blender/Sollumz installation.</p>',
-    '<p class="prop-warning">Export controls are available only with the explicit native test flag. Previewing a model never silently exports it.</p>',
+    '<h2>Resize prop</h2><p>Scale the preview and exported mesh/collision together.</p>',
+    '<label class="prop-scale-lock"><input type="checkbox" data-prop-uniform checked> Uniform scale (lock X / Y / Z)</label>',
+    '<div class="prop-scale-fields"><label>X<input data-prop-scale="0" type="number" value="1" min="0.01" max="100" step="0.05"></label>',
+    '<label>Y<input data-prop-scale="1" type="number" value="1" min="0.01" max="100" step="0.05"></label>',
+    '<label>Z<input data-prop-scale="2" type="number" value="1" min="0.01" max="100" step="0.05"></label></div>',
+    '<button data-prop-scale-reset>Reset scale (1×)</button>',
+    '<h2>FiveM export</h2><p>Export YDR / YTD / YBN / YTYP via managed Blender/Sollumz. The native exporter remains experimental.</p>',
+    '<p class="prop-warning">Test the native engine first. Generated resources still require an in-game FiveM check.</p>',
     '<div data-prop-export></div></aside></div>',
     '<p class="prop-status" data-prop-message role="status">Ready to import a prop model.</p>',
   ].join('');
@@ -75,6 +81,8 @@ export function mountPropWorkspace({ nav, activate, register, capabilities }) {
   sun.position.set(6, 9, 7);
   scene.add(sun);
   let renderer = null, controls = null, model = new THREE.Group(), inspector = null, mounted = false, active = false, loading = false;
+  const scale = [1, 1, 1];
+  let intrinsicScale = new THREE.Vector3(1, 1, 1);
   scene.add(model);
   const notify = value => { message.textContent = value; };
   function paint() {
@@ -104,6 +112,58 @@ export function mountPropWorkspace({ nav, activate, register, capabilities }) {
     controls.update();
     paint();
   }
+  function updateBounds() {
+    if (!model.children.length) return;
+    const box = new THREE.Box3().setFromObject(model);
+    const size = box.getSize(new THREE.Vector3());
+    root.querySelector('[data-prop-bounds]').textContent =
+      size.toArray().map(value => value.toFixed(2)).join(' × ');
+  }
+  function applyScale() {
+    model.scale.set(
+      intrinsicScale.x * scale[0], intrinsicScale.y * scale[1], intrinsicScale.z * scale[2]
+    );
+    model.updateMatrixWorld(true);
+    updateBounds();
+    inspector?.refresh();
+    paint();
+  }
+  for (const field of root.querySelectorAll('[data-prop-scale]')) {
+    field.addEventListener('change', () => {
+      const n = Number(field.value);
+      if (!Number.isFinite(n) || n < 0.01 || n > 100) {
+        field.value = scale[Number(field.dataset.propScale)];
+        notify('Scale must be between 0.01 and 100 for each axis.');
+        return;
+      }
+      const index = Number(field.dataset.propScale);
+      if (root.querySelector('[data-prop-uniform]').checked) {
+        for (let axis = 0; axis < 3; axis++) {
+          scale[axis] = n;
+          root.querySelector('[data-prop-scale="' + axis + '"]').value = String(n);
+        }
+      } else {
+        scale[index] = n;
+      }
+      applyScale();
+    });
+  }
+  root.querySelector('[data-prop-uniform]').addEventListener('change', event => {
+    if (!event.target.checked) return;
+    const n = scale[0];
+    for (let axis = 0; axis < 3; axis++) {
+      scale[axis] = n;
+      root.querySelector('[data-prop-scale="' + axis + '"]').value = String(n);
+    }
+    applyScale();
+  });
+  root.querySelector('[data-prop-scale-reset]').addEventListener('click', () => {
+    for (let axis = 0; axis < 3; axis++) {
+      scale[axis] = 1;
+      root.querySelector('[data-prop-scale="' + axis + '"]').value = '1';
+    }
+    applyScale();
+  });
   function init() {
     if (mounted) return;
     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
@@ -127,6 +187,8 @@ export function mountPropWorkspace({ nav, activate, register, capabilities }) {
       scene.remove(model);
       disposeModel(model);
       model = next;
+      intrinsicScale = model.scale.clone();
+      applyScale();
       scene.add(model);
       empty.hidden = true;
       root.querySelector('[data-prop-name]').textContent = file.name;
@@ -134,9 +196,7 @@ export function mountPropWorkspace({ nav, activate, register, capabilities }) {
       const meshes = [];
       model.traverse(node => { if (node.isMesh) meshes.push(node); });
       root.querySelector('[data-prop-meshes]').textContent = String(meshes.length);
-      const box = new THREE.Box3().setFromObject(model);
-      const size = box.getSize(new THREE.Vector3());
-      root.querySelector('[data-prop-bounds]').textContent = size.toArray().map(n => n.toFixed(2)).join(' × ');
+      updateBounds();
       root.querySelector('[data-prop-meta]').textContent = (file.size / 1024 / 1024).toFixed(2) + ' MB · ' + meshes.length + ' meshes';
       root.querySelector('[data-prop-model-state]').textContent = file.name;
       frame();
@@ -182,6 +242,7 @@ export function mountPropWorkspace({ nav, activate, register, capabilities }) {
         getModel: () => model,
         scene,
         nativeAvailable,
+        getScale: () => [...scale],
         render: paint,
       });
       inspector.panel.open = true;
