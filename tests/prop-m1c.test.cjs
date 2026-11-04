@@ -56,7 +56,7 @@ async function prepare(t) {
   };
   return { nativeRoot, outputRoot, source, tokens, request };
 }
-function simulatedProvider({ fail, reportRoundTrip = true, invalidSignature = false, textureCount = 1 } = {}) {
+function simulatedProvider({ fail, reportRoundTrip = true, invalidSignature = false, textureCount = 1, emptyYtd = false } = {}) {
   return async ({ args, executable }) => {
     assert.equal(path.basename(executable).toLowerCase(), 'blender.exe');
     assert.ok(args.includes('--disable-autoexec'));
@@ -73,7 +73,13 @@ function simulatedProvider({ fail, reportRoundTrip = true, invalidSignature = fa
     const assets = [];
     for (const relativePath of nativeAssets(job.name, job.collision)) {
       const file = path.join(staging, relativePath);
-      await fs.writeFile(file, Buffer.concat([Buffer.from(invalidSignature ? 'FAIL' : 'RSC7'), Buffer.alloc(48, 0)]));
+      if (relativePath.endsWith('.ytd') && !emptyYtd && !invalidSignature) {
+        const { createYtd } = await import('../src/asset-tools.js');
+        const data = createYtd([{ name: 'diffuse_test', w: 4, h: 4, out: new Uint8Array(64).fill(255) }]);
+        await fs.writeFile(file, Buffer.from(data));
+      } else {
+        await fs.writeFile(file, Buffer.concat([Buffer.from(invalidSignature ? 'FAIL' : 'RSC7'), Buffer.alloc(48, 0)]));
+      }
       assets.push({ relativePath });
     }
     await fs.writeFile(path.join(staging, 'native-report.json'), JSON.stringify({
@@ -113,12 +119,12 @@ test('M1c native failure does not commit and cleans only its staging folder', as
   assert.equal((await fs.readFile(f.source, 'utf8')), 'synthetic GLB source token fixture');
 });
 test('M1c blocks forged reports, invalid native signatures, and unsupported collision modes', async t => {
-  for (const settings of [{ reportRoundTrip: false }, { invalidSignature: true }, { textureCount: 0 }]) {
+  for (const settings of [{ reportRoundTrip: false }, { invalidSignature: true }, { textureCount: 0 }, { emptyYtd: true }]) {
     const f = await prepare(t);
     await assert.rejects(buildPropResource({
       request: f.request, tokens: f.tokens, providerRoot: f.nativeRoot,
       runner: simulatedProvider(settings),
-    }), /roundtrip|roundTrip|Unverified|signature|YTD validation/i);
+    }), /roundtrip|roundTrip|Unverified|signature|YTD validation|YTD cannot be opened/i);
     assert.deepEqual(await fs.readdir(f.outputRoot), []);
   }
   const f = await prepare(t);
