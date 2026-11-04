@@ -3,7 +3,7 @@
  * workspace shell or moving any pre-existing tools.
  */
 export function mountPropCreatorEntry({ nav, activate, openWorkspace }) {
-  if (!nav || typeof activate !== 'function' || typeof mountInspector !== 'function') {
+  if (!nav || typeof activate !== 'function' || typeof openWorkspace !== 'function') {
     throw new Error('Prop Creator navigation dependencies missing');
   }
   const workshop = nav.querySelector('.workshop-nav');
