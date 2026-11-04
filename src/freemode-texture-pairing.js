@@ -14,7 +14,10 @@ export function freemodeIdentity(entry) {
   // A path may originate in a gender-separated collection folder.
   const genderFolder = path.match(/(?:^|\/)(male|female)(?:\/|$)/i)?.[1]?.toLowerCase();
   const gender = genderName === 'm' ? 'male' : genderName === 'f' ? 'female' : genderFolder || entry?.gender || null;
-  const collection = prefix?.toLowerCase() || entry?.collection?.toLowerCase() || null;
+  const collectionFolder = path.split('/').slice(0,-1).reverse().find(segment =>
+    /^mp_[mf]_freemode_01(?:_[a-z0-9_]+)?$/i.test(segment));
+  const collection = prefix?.toLowerCase() || entry?.collection?.toLowerCase() ||
+    collectionFolder?.toLowerCase() || null;
   return { component: component.toLowerCase(), drawable: Number(index),
     gender, collection, variant, texture: ext.toLowerCase() === 'ytd' };
 }
