@@ -5,6 +5,7 @@ name from image.filepath. Blender's packed PNG and generated images are not
 usable texture sources for its YTD writer.
 """
 import struct
+import math
 from pathlib import Path
 
 DDS_HEADER_SIZE = 128
@@ -44,9 +45,21 @@ def encode_dds_rgba(width, height, rgba):
     bgra[3::4] = rgba[3::4]
     return bytes(header) + bytes(bgra)
 
-def image_to_dds(bpy, image, dest):
-    """Copy a Blender image into new temporary DDS, never edit original pixels."""
+def _linear_to_srgb(value):
+    value = max(0.0, min(1.0, float(value)))
+    return 12.92 * value if value <= 0.0031308 else 1.055 * value ** (1.0 / 2.4) - 0.055
+
+
+def image_to_dds(bpy, image, dest, tint=(1.0, 1.0, 1.0, 1.0)):
+    """Copy Blender scene-linear pixels into a sRGB DDS with source material tint.
+
+    Do not edit the original image or source GLB. BaseColorFactor is multiplied
+    before converting to sRGB. Alpha is handled separately without gamma.
+    """
     from array import array
+    tint = tuple(float(v) for v in tint)
+    if len(tint) != 4 or not all(math.isfinite(v) and 0 <= v <= 1 for v in tint):
+        raise ValueError("Invalid source Base Color tint")
     width, height = (int(v) for v in image.size[:2])
     if width < 1 or height < 1 or width * height > MAX_PIXELS:
         raise ValueError("Texture too large for native DDS staging (max 4096² pixels)")
@@ -54,16 +67,21 @@ def image_to_dds(bpy, image, dest):
     pixels = array("f", [0.0]) * (width * height * 4)
     image.pixels.foreach_get(pixels)
     rgba = bytearray(len(pixels))
-    for i, value in enumerate(pixels):
-        # Blender provides RGBA floating point values, possibly outside [0, 1].
-        if not (float("-inf") < value < float("inf")):
-            raise ValueError("Texture has non-finite pixels")
-        rgba[i] = max(0, min(255, int(value * 255 + 0.5)))
+    for i in range(0, len(pixels), 4):
+        for channel in range(4):
+            value = float(pixels[i + channel]) * tint[channel]
+            if not math.isfinite(value):
+                raise ValueError("Texture has non-finite pixels")
+            if channel == 3:
+                normalized = max(0.0, min(1.0, value))
+            else:
+                normalized = _linear_to_srgb(value)
+            rgba[i + channel] = max(0, min(255, int(normalized * 255 + 0.5)))
     output = Path(dest)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_bytes(encode_dds_rgba(width, height, rgba))
-    # Creating a NEW image from DDS is essential. Merely replacing filepath on
-    # an already packed PNG image leaves non-DDS packed_file bytes in place.
+    # A newly loaded DDS image is required; a packed source PNG keeps PNG bytes
+    # even after changing filepath.
     imported = bpy.data.images.load(str(output), check_existing=False)
     if tuple(imported.size[:2]) != (width, height):
         raise ValueError("Staged DDS dimensions differ from source")
