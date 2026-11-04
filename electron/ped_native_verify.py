@@ -18,6 +18,8 @@ def native_inventory(root):
         raise ValueError("Native ped output directory is missing")
     entries = {}
     for file in root.rglob("*"):
+        if file.is_symlink():
+            raise ValueError("Native ped output has an unsafe symlink")
         if not file.is_file():
             continue
         ext = file.suffix.lower()
@@ -102,13 +104,20 @@ def inspect_skin(meshes, expected_bones=None):
             "headLocation": [float(v) for v in location.translation]}
 
 def verify_native_ped(bpy, output, source_bones=None):
-    """Native YDD round-trip; never claims unsupported YFT ragdoll verification."""
+    """Reimport native YDD from an empty scene to rule out false rig matches.
+
+    This runs after preview creation and after the correction .blend was saved.
+    Every YDD is reimported independently; never lend it a source-scene rig.
+    """
     inventory = native_inventory(output)
-    before = source_bones or set()
-    imported = []
+    before = set(source_bones or ())
+    if not before or "SKEL_Head" not in before:
+        raise ValueError("Muto source GTA skeleton is missing required SKEL_Head")
+    reports = []
     for entry in inventory[".ydd"]:
+        for obj in list(bpy.data.objects):
+            bpy.data.objects.remove(obj, do_unlink=True)
         source = Path(output) / entry["relativePath"]
-        existing = set(bpy.data.objects)
         result = bpy.ops.sollumz.import_assets(
             directory=str(source.parent), files=[{"name": source.name}],
             use_custom_settings=True, split_by_group=True,
@@ -116,10 +125,11 @@ def verify_native_ped(bpy, output, source_bones=None):
         )
         if "FINISHED" not in result:
             raise ValueError("Sollumz failed to reimport exported YDD: " + entry["name"])
-        fresh = [obj for obj in bpy.data.objects if obj not in existing]
-        imported.extend(fresh)
-    report = inspect_skin([obj for obj in imported if obj.type == "MESH"], before)
+        imported = [obj for obj in bpy.data.objects if obj.type == "MESH"]
+        current = inspect_skin(imported, before)
+        current["filename"] = entry["relativePath"]
+        reports.append(current)
     return {"schema": 1, "nativeYddRoundTrip": True,
             "nativeYftSignatureVerified": True, "nativeYftRagdollRoundTrip": False,
-            "sourceSkeletonMatched": bool(before),
-            "rig": report, "files": inventory, "gameTestPassed": None}
+            "sourceSkeletonMatched": True,
+            "rigs": reports, "files": inventory, "gameTestPassed": None}
