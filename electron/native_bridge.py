@@ -594,6 +594,11 @@ def export_vehicle(bpy, fragment, output):
     return [f.name for f in files]
 
 
+def ped_stage(label):
+    # A machine-readable progress event, independent from Blender's buffered console logs.
+    print('DITASHA_PED_STAGE ' + label, flush=True)
+
+
 def run(job):
     import bpy
     output = Path(job['output'])
@@ -644,12 +649,15 @@ def run(job):
             module = report['engine']['muto']
             if not module:
                 raise RuntimeError('Muto Ped Rig belum aktif pada Blender ini.')
+            ped_stage('Preparing the Muto rigging engine')
             worker = importlib.import_module(module + '.bl.batch_worker')
             review_spec = importlib.util.spec_from_file_location('ditasha_ped_review', Path(__file__).with_name('ped_review.py'))
             review = importlib.util.module_from_spec(review_spec)
             review_spec.loader.exec_module(review)
             options = job.get('pedOptions', {})
+            ped_stage('Muto is importing, fitting and skinning the full ped; complex meshes may take several minutes')
             result = review.run_muto(worker, bpy, {'src': job['source'], 'out': str(output), 'ped': job['name'], 'mode': 'ADDON', 'tex': 'YTD', 'rig': 'mp_m'}, options)
+            ped_stage('Muto returned; validating its output and preparing a correction project')
             report['pedOptions'] = options
             report['rigging'] = result
             # A self-contained correction project remains available even when
@@ -679,6 +687,7 @@ def run(job):
             if (not report['quality'].get('compatibleSkeletons') or
                     report['quality'].get('bones', 0) < 30):
                 raise RuntimeError('Ped native rigging requires matching GTA skeleton hierarchies')
+            ped_stage('Generating 3D preview and rigging test poses')
             report['preview'] = review.create_pose_previews(bpy, rigged, output, preview_scene)
             try:
                 report['preview']['motion'] = review.add_walk_preview(bpy, rigged, output, preview_scene)
@@ -696,9 +705,11 @@ def run(job):
             source_arm, matching_armatures, skeleton_bones = review.compatible_ped_armature(rigged)
             report['matchingArmatures'] = matching_armatures
             source_bones = {b.name for b in source_arm.data.bones}
+            ped_stage('Verifying native YDD, YFT, YTD and skeleton round-trip')
             report['nativeValidation'] = ped_native_verify.verify_native_ped(
                 bpy, output, source_bones
             )
+            ped_stage('Native verification complete; writing result report')
         else:
             fragment = import_vehicle(bpy, job['source'])
             report['candidates'] = badge_candidates(fragment)
