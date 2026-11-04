@@ -13,8 +13,7 @@ export const FREEMODE_PARTS = [
 export function freemodePart(file) {
   const identity = freemodeIdentity(file);
   if (identity) return { file, part:identity.component, drawable:identity.drawable,
-    texture:identity.texture, gender:identity.gender, variant:identity.variant,
-    collection:identity.collection };
+    texture:identity.texture, gender:identity.gender };
   // Preserve the existing GLB component import route (GLB has no separate YTD).
   const match = file?.name?.match(/(?:\^|^)(head|hair|uppr|lowr|feet|accs|jbib|teef)_(\d{3})_[^.]+\.glb$/i);
   if (!match) return null;
