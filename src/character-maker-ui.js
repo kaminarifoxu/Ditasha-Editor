@@ -358,6 +358,11 @@ export function mountCharacterMaker() {
   };
   $('[data-send]').onclick=async()=>{
     try {
+      const settings=readPedSettings();
+      const source=baseRefs.get($('[data-base]').value);
+      const check=inspectFreemodeSources(await window.ditashaClothing.list(),source,$('[data-gender]').value);
+      if(settings.skeletonMode==='strict' && check.skeleton!=='source-yft')
+        throw Error('Strict rig: import the matching original freemode YFT skeleton before Photo Booth.');
       const preset=await window.ditashaCharacters.save(read());id=preset.id;
       const outfits=await window.ditashaClothing.listOutfits();
       const outfit=outfits.find(x=>x.id===preset.outfitId);
