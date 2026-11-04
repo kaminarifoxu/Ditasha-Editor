@@ -6,6 +6,7 @@ const { managedEnv } = require('../native-setup.cjs');
 const { runNativeProcess, cleanupStaging } = require('./native-process.cjs');
 const { validatePropRequest } = require('./prop-schema.cjs');
 const { validateArtifacts, commitExport } = require('./export-validation.cjs');
+const { indexEditorYtd } = require('./ytd-compat.cjs');
 
 function nativeAssets(name, collision) {
   const names = [name + '.ydr', name + '.ytd', name + '.ytyp'];
@@ -53,6 +54,12 @@ async function validateNativeReport(staging, spec) {
     try { await handle.read(magic, 0, 4, 0); } finally { await handle.close(); }
     if (magic.toString('ascii') !== 'RSC7') throw Error('Invalid GTA V Legacy native resource signature');
   }
+  // A nonempty native YTD file can still have zero indexed textures, which
+  // makes Texture & Model report "Tidak ada tekstur dalam YTD".
+  const ytd = await fs.readFile(path.join(staging, 'stream', spec.projectName + '.ytd'));
+  const compatible = indexEditorYtd(ytd);
+  if (compatible.textureCount !== report.textureCount)
+    throw Error('YTD texture mismatch: native report and DITASHA reader disagree');
   return verified;
 }
 async function buildPropResource({
