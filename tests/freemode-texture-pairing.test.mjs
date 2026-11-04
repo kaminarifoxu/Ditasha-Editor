@@ -39,3 +39,10 @@ test('Character Maker retains its GLB freemode model import route', async () => 
   assert.equal(freemodePart(glb).part,'hair');
   assert.equal(freemodePart(glb).texture,false);
 });
+
+test('unqualified YTD files remain separated by addon collection folders',()=>{
+  const model={name:'hair_002_u.ydd',webkitRelativePath:'mp_f_freemode_01_mp_f_packa/hair_002_u.ydd'};
+  const correct={name:'hair_diff_002_a_uni.ytd',webkitRelativePath:'mp_f_freemode_01_mp_f_packa/hair_diff_002_a_uni.ytd'};
+  const wrong={name:'hair_diff_002_a_uni.ytd',webkitRelativePath:'mp_f_freemode_01_mp_f_packb/hair_diff_002_a_uni.ytd'};
+  assert.equal(selectFreemodeTexture(model,[wrong,correct],'a','female').file,correct);
+});
