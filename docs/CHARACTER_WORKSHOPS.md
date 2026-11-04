@@ -10,7 +10,7 @@ Import individual files, a folder, or a ZIP such as an RPEmotes resource. Only Y
 
 Use **+ Karakter freemode → Folder komponen freemode**. Import an exported local GTA/FiveM folder with head/hair/body YDDs and matching YTDs, plus the freemode YFT when available. Choose male/female, a head, hair, texture dictionaries and optional body/outfit parts. Add the assembled character as **one actor** to a group photo, then choose its emote. Save the result through the existing scene/outfit library to retain the selected model sources.
 
-Appearance JSON from illenium/fivem-appearance can select matching component drawable/texture numbers from the imported folder. Missing components require choosing the corresponding local model. Parent head blending, the game's facial sliders and head overlays are not reproduced offline; the UI states this. The app does not bundle Rockstar's complete model/texture library or infer missing skin textures. Original model UVs are retained.
+Appearance JSON from illenium/fivem-appearance can select matching component drawable/texture numbers from the imported folder. The freemode chooser now resolves YDD/YTD pairs by component, drawable number, gender, collection prefix/folder and exact A–Z texture variant; it does not silently select an unrelated variant. Duplicate matching YTDs remain unselected for manual review. The starter character importer chooses only an unambiguous variant A per component. Missing components require choosing the corresponding local model. Parent head blending, the game's facial sliders and head overlays are not reproduced offline; the UI states this. The app does not bundle Rockstar's complete model/texture library or infer missing skin textures. Original model UVs are retained.
 
 ## Halfped / head and separate hair
 
@@ -42,3 +42,7 @@ Game-ready weapon bones, magazine/muzzle positions, animations and metadata requ
 - [illenium-appearance](https://github.com/iLLeniumStudios/illenium-appearance): component/hair/head appearance structure; this offline editor does not execute its FiveM natives.
 
 Tests use synthetic meshes/animation resources and the separately installed engine reference. Uploaded emote/head artwork is not committed or redistributed. The previously supplied RPEmotes pack was also checked privately for ZIP import and preservation across a complete local browser restart.
+
+## A3.1 Texture pairing and validation boundary
+
+The Character Maker selector pairs *dictionary files* (YDD with the appropriate YTD); the geometry's actual texture samplers are still resolved by name/hash at preview time. A filename match cannot prove that a YTD contains the DiffuseSampler texture used by the mesh. The existing native preview reports absent UV layers, unavailable diffuse images and, when referenced samplers are present, missing normal/specular images; absent optional samplers are **unknown**, not missing. Normal/specular images must not be substituted for a missing diffuse texture. Native preview alpha/cutout is an approximation, and server rendering requires a FiveM check. No source YTD/YDD bytes are changed by A3.1.
