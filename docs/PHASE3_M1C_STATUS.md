@@ -56,3 +56,12 @@ The first argument must point to the actual managed native runtime containing `r
 3. On an actual Windows PC with installed managed provider, run the synthetic cube smoke; inspect `validation.json` and verify the exported YDR/YTD/YBN/YTYP with CodeWalker.
 4. Spawn the prop in a dedicated FiveM Legacy server. Check visuals, texture dictionary, YTYP registration and physics. Stop/restart resource and verify cleanup.
 5. Repeat with textured multi-material GLB and one complex OBJ/FBX. Unsupported materials should fail clearly; do not replace missing textures with black.
+
+
+## November 4 — exported YTD opens as empty in DITASHA
+
+A user-provided screenshot showed that the UV for the exported YDR opened, while its YTD reported `Tidak ada tekstur dalam YTD`. The screenshot alone cannot distinguish an actually empty native texture dictionary from a native dictionary unsupported by the editor's current resource index; the original YTD bytes were not provided.
+
+The exporter now fails closed unless: (1) Sollumz's texture dictionary contains image slots before serialization; (2) Sollumz can reimport the generated YTD with a positive texture count after clearing the source scene's original texture dictionaries; and (3) DITASHA's Legacy YTD metadata layout can index the generated binary and agrees with the reported count. Otherwise staging is cleaned and export does not report success. A header-only RSC7 check was insufficient.
+
+**Existing exported YTD files are not repaired by updating the application.** After testing a corrected native build, re-export from the original GLB/OBJ/FBX and inspect the resulting YTD. If an old YTD remains unreadable, request the actual binary YTD and source material information for further diagnosis. Synthetic CI artifacts test the validation logic, not the user's installed Blender-to-GTA pipeline.
