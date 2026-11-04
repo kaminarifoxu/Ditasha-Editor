@@ -437,6 +437,16 @@ export function mountNativeBuild({
       details.append(summary, list);
       $('nbReport').append(details);
     }
+    if (report.hairAlignment?.checked) {
+      const result = document.createElement('p');
+      result.className = report.hairAlignment.aligned ? 'muted' : 'warning';
+      result.textContent = 'Head/hair placement: ' +
+        (report.hairAlignment.aligned ? 'reasonable bounds' : 'review alignment') +
+        ' · center distance ' + Number(report.hairAlignment.centerDistanceMeters).toFixed(3) +
+        ' m · XY overlap ' + (report.hairAlignment.xyOverlap ? 'yes' : 'no') +
+        '. This is a bounds check, not an anatomical fit guarantee.';
+      $('nbReport').append(result);
+    }
     if (report.nativeValidation) {
       const native = report.nativeValidation;
       const box = document.createElement('section');
