@@ -84,6 +84,8 @@ async function buildPropResource({
     // Electron packages sources in app.asar; external Blender cannot read inside it.
     const script = path.join(staging, 'prop-native.py');
     await fs.copyFile(path.join(__dirname, 'prop-native.py'), script);
+    const ddsModule = path.join(staging, 'prop_dds.py');
+    await fs.copyFile(path.join(__dirname, 'prop_dds.py'), ddsModule);
     const jobFile = path.join(staging, 'prop-job.json');
     await fs.writeFile(jobFile, JSON.stringify({
       schema: 1, edition: spec.edition, source: source.path, name: spec.projectName,
@@ -102,6 +104,7 @@ async function buildPropResource({
     // publish it or the worker Python script inside the FiveM resource.
     await fs.rm(jobFile, { force: true });
     await fs.rm(script, { force: true });
+    await fs.rm(ddsModule, { force: true });
     const manifest = createPropManifest(spec.projectName);
     await fs.writeFile(path.join(staging, 'fxmanifest.lua'), manifest, { flag: 'wx' });
     await fs.writeFile(path.join(staging, 'validation.json'), JSON.stringify({
