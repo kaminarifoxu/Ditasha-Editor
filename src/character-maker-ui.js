@@ -36,7 +36,7 @@ export function mountCharacterMaker() {
             <label>Hair UV Y<input data-hair-uv-y type="number" min="-1" max="1" step=".01" value="0"></label>
             <label>Hair UV scale<input data-hair-uv-scale type="number" min=".1" max="4" step=".01" value="1"></label>
           </div>
-          <small>UV adjustments are saved with the character for future authoring. They do not rewrite YDD/YTD UVs or change the GTA native rig.</small>
+          <small>UV atlas adjustments apply to the selected head/hair 3D preview and are saved with this character. They do not rewrite the original YDD/YTD UVs or alter GTA native rigs.</small>
         </details>
         <div class="cm-actions"><button data-new>Baru</button><button data-save>Simpan karakter</button><button data-remove>Hapus</button><button data-export>Ekspor JSON FiveM</button><button data-import-json>Impor JSON FiveM</button><input data-json-file type="file" accept=".json,application/json" hidden></div>
       </aside>
@@ -85,7 +85,12 @@ export function mountCharacterMaker() {
     const api={read:async id => id==='base'?{data:data.bytes,companion}: {
       data:(await window.ditashaClothing.previewRead(pack.id,related.relativePath)).bytes
     }};
-    const controller=await modelPreview.show(model,api,{facePreview:true,morphPack:activeMorphPack});
+    const uvSettings=readPedSettings();
+    const uvCalibration=entry.component==='head'?uvSettings.headUv:
+      entry.component==='hair'?uvSettings.hairUv:null;
+    const controller=await modelPreview.show(model,api,{
+      facePreview:true,morphPack:activeMorphPack,uvCalibration,
+    });
     if(version!==previewSerial)return;
     faceController=controller?.applyFace?controller:null;
     updateFace();
@@ -180,6 +185,17 @@ export function mountCharacterMaker() {
     }
     $('[data-rig-status]').textContent='Rig and UV source check not run for this preset.';
   }
+  for(const part of uvAxes)
+    for(const axis of ['x','y','scale']){
+      $('[data-'+part+'-uv-'+axis+']').onchange=()=>{
+        try {
+          readPedSettings();
+          const selected=baseRefs.get($('[data-base]').value);
+          if(selected?.relativePath.toLowerCase().includes(part))
+            updatePreview().catch(e=>{$('[data-rig-status]').textContent=e.message;});
+        }catch(e){$('[data-rig-status]').textContent=e.message;}
+      };
+    }
   $('[data-check-rig]').onclick=async()=>{
     const button=$('[data-check-rig]');button.disabled=true;
     try {
@@ -252,7 +268,7 @@ export function mountCharacterMaker() {
     baseSelect.replaceChildren(new Option('Pilih model kepala/tubuh YDD',''));
     for(const pack of packs) for(const file of pack.files) {
       if(file.gender!==$('[data-gender]').value || !/\.ydd$/i.test(file.name))continue;
-      if(!['head','uppr','jbib'].includes(file.component))continue;
+      if(!['head','hair','uppr','jbib'].includes(file.component))continue;
       const key=pack.id+'|'+file.relativePath;
       baseRefs.set(key,{packId:pack.id,relativePath:file.relativePath});
       baseSelect.add(new Option(pack.pack+' · '+file.name,key));
