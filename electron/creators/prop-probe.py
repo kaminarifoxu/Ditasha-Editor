@@ -1,17 +1,39 @@
 # M1b read-only Blender capability inspection. No asset is written.
-import bpy, json
-names = {addon.__name__ for addon in bpy.context.preferences.addons}
-ops = bpy.ops
+# Use the same registered add-on lookup as native_bridge.py / engine_info().
+import bpy
+import json
+import importlib
+
+enabled = list(bpy.context.preferences.addons.keys())
+sollumz = next((name for name in enabled
+                if name.lower().split(".")[-1] in ("sollumz", "sollumz_dev")), None)
+
+def has_operator(namespace, operator):
+    try:
+        return bool(getattr(getattr(bpy.ops, namespace), operator).get_rna_type())
+    except (AttributeError, RuntimeError, TypeError):
+        return False
+
+importers = [
+    extension for extension, available in (
+        ("glb", has_operator("import_scene", "gltf")),
+        ("obj", has_operator("wm", "obj_import")),
+        ("fbx", has_operator("import_scene", "fbx")),
+    ) if available
+]
+native = False
+if sollumz:
+    try:
+        native = bool(importlib.import_module(
+            sollumz + ".dependencies").IS_SZIO_NATIVE_AVAILABLE)
+    except (ImportError, AttributeError):
+        native = False
+
 payload = {
-  "schema": 1,
-  "blenderVersion": list(bpy.app.version[:3]),
-  "sollumzLoaded": any("sollumz" in name.lower() for name in names),
-  "importers": [
-    ext for ext, present in [
-      ("glb", hasattr(ops.import_scene, "gltf")),
-      ("obj", hasattr(ops.wm, "obj_import")),
-      ("fbx", hasattr(ops.import_scene, "fbx")),
-    ] if present
-  ],
+    "schema": 1,
+    "blenderVersion": list(bpy.app.version[:3]),
+    "sollumzLoaded": bool(sollumz),
+    "nativeProviderAvailable": native,
+    "importers": importers,
 }
-print("DITASHA_PROP_PROBE=" + json.dumps(payload, separators=(",", ":")))
+print("DITASHA_PROP_PROBE=" + json.dumps(payload, separators=(",", ":")), flush=True)
