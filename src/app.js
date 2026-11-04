@@ -21,7 +21,7 @@ import { setProject } from './project-context.js';
 import { mountCanvasStudio } from './canvas-studio.js';
 import { mountSceneStudio } from './scene-studio.js';
 import { mountAssetWorkshopUi } from './asset-workshop-ui.js';
-import { mountPropPreview } from './creators/prop-preview.js';
+import { mountPropWorkspace } from './creators/prop-workspace.js';
 import { mountPropCreatorEntry } from './creators/prop-entry.js';
 import { mountWorkspaceShell } from './workspace-shell.js';
 import { mountNativeBuild } from './native-build-ui.js';
@@ -2580,25 +2580,18 @@ mountPerformance();
 mountMinimalUi();
 mountWorkspaceShell({ toast });
 mountAssetWorkshopUi();
-// Phase 3 is discoverable in the existing Asset Workshop navigation.
-// The normal workspace layout stays intact and native exports remain gated.
-let propInspector = null;
+// Prop Creator is an independent workspace with its own Three.js scene.
+// Normal Texture & Model editor remains untouched and separate.
+const propWorkspace = mountPropWorkspace({
+  nav: document.querySelector('.workspace-nav'),
+  activate: tools.activate,
+  register: tools.registerExternalWorkspace,
+  capabilities: { nativeAvailable: window.ditashaCreators?.nativeEnabled === true },
+});
 mountPropCreatorEntry({
   nav: document.querySelector('.workspace-nav'),
   activate: tools.activate,
-  mountInspector: async () => {
-    if (propInspector) return propInspector.panel;
-    const entries = await window.ditashaCreators?.state?.().catch(() => []) || [];
-    const prop = entries.find(entry => entry.type === 'prop');
-    propInspector = mountPropPreview({
-      container: sidebarInspector,
-      getModel: () => model,
-      scene,
-      nativeAvailable: prop?.available === true,
-      render: () => renderer?.render(scene, camera),
-    });
-    return propInspector.panel;
-  },
+  openWorkspace: () => tools.activate('propcreator'),
 });
 mountWorkspacePolish();
 mountCharacterMaker();
