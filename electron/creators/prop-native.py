@@ -154,6 +154,19 @@ def _make_collision(bpy, mod, meshes, project, mode):
 
 def _export(bpy, mod, job, stream):
     meshes = _import_source(bpy, Path(job["source"]))
+    from mathutils import Matrix
+    scale = job.get("scale", [1, 1, 1])
+    if (not isinstance(scale, list) or len(scale) != 3 or
+            any(not isinstance(v, (int, float)) or not math.isfinite(v)
+                or v < 0.01 or v > 100 for v in scale)):
+        raise ValueError("Invalid scale in prop job")
+    # Scale geometry AND relative mesh offsets in world space before creating
+    # the drawable/collision. All transforms use Blender Z-up consistently.
+    xform = Matrix.Diagonal((float(scale[0]), float(scale[1]), float(scale[2]), 1.0))
+    previous = {obj: obj.matrix_world.copy() for obj in meshes}
+    for obj in meshes:
+        obj.matrix_world = xform @ previous[obj]
+    bpy.context.view_layer.update()
     # Keep coordinates in Blender's native Z-up; no Three.js preview transform is applied.
     _shader_and_textures(bpy, mod, meshes, job["name"])
     helper = importlib.import_module(mod + ".tools.drawablehelper")
@@ -213,6 +226,11 @@ def main():
         raise ValueError("Unsupported native prop job")
     if not isinstance(job.get("name"), str) or not job["name"].islower() or len(job["name"]) > 48:
         raise ValueError("Invalid native prop name")
+    scale = job.get("scale", [1, 1, 1])
+    if (not isinstance(scale, list) or len(scale) != 3 or
+            any(not isinstance(v, (int, float)) or not math.isfinite(v)
+                or v < 0.01 or v > 100 for v in scale)):
+        raise ValueError("Invalid native prop scale")
     if job.get("collision") not in ("box", "convex", "none"):
         raise ValueError("Unsupported collision mode")
     stream = job_path.parent / "stream"
