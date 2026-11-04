@@ -49,7 +49,7 @@ function registerCreators({ ipcMain, trusted, app, dialog, win }) {
         blenderVersion: cap.blenderVersion };
     } catch (error) {
       return { installed: false, usable: false,
-        reason: 'Managed Blender/Sollumz unavailable: ' + String(error.message || error).slice(0, 240) };
+        reason: 'Prop Creator engine check failed (the engine may still be installed): ' + String(error.message || error).slice(-900) };
     }
   });
   ipcMain.handle('ditasha:prop-pick', pick);
