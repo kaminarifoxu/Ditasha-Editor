@@ -430,6 +430,34 @@ export function mountNativeBuild({
       details.append(summary, list);
       $('nbReport').append(details);
     }
+    if (report.nativeValidation) {
+      const native = report.nativeValidation;
+      const box = document.createElement('section');
+      const heading = document.createElement('h3');
+      heading.textContent = 'Native ped export · YDD/YFT/YTD';
+      const summary = document.createElement('p');
+      summary.textContent =
+        'Sollumz native YDD reimport: ' + (native.nativeYddRoundTrip ? 'Passed' : 'Not verified') +
+        ' · YFT Legacy RSC7: ' + (native.nativeYftSignatureVerified ? 'Passed' : 'Not verified') +
+        ' · YFT ragdoll physics: NOT VERIFIED';
+      const result = document.createElement('p');
+      const rigs = native.rigs || [];
+      const meshCount = rigs.reduce((sum, item) => sum + (item.meshes || 0), 0);
+      const vertices = rigs.reduce((sum, item) => sum + (item.weightedVertices || 0), 0);
+      result.textContent = 'Native meshes: ' + meshCount + ' · weighted vertices: ' + vertices +
+        ' · YDD files reimported: ' + rigs.length;
+      const alignment = document.createElement('p');
+      const hair = native.headHairAlignment;
+      alignment.textContent = hair?.checked
+        ? 'Head/hair alignment: ' + (hair.aligned ? 'checked' : 'failed') +
+          ' · center distance ' + Number(hair.centerDistanceMeters).toFixed(3) + ' m'
+        : 'Head/hair alignment: individual meshes were not identifiable; visual checking required.';
+      const warning = document.createElement('p');
+      warning.className = 'muted';
+      warning.textContent = 'This validates native files and skin weights, not real FiveM animations, facial rigs, ragdoll physics, or accurate hair UV mapping. Test in-game.';
+      box.append(heading, summary, result, alignment, warning);
+      $('nbReport').append(box);
+    }
     if (report.quality) {
       const q = report.quality,
         list = document.createElement('dl');
