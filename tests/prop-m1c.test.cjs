@@ -56,7 +56,7 @@ async function prepare(t) {
   };
   return { nativeRoot, outputRoot, source, tokens, request };
 }
-function simulatedProvider({ fail, reportRoundTrip = true, invalidSignature = false } = {}) {
+function simulatedProvider({ fail, reportRoundTrip = true, invalidSignature = false, textureCount = 1 } = {}) {
   return async ({ args, executable }) => {
     assert.equal(path.basename(executable).toLowerCase(), 'blender.exe');
     assert.ok(args.includes('--disable-autoexec'));
@@ -77,7 +77,7 @@ function simulatedProvider({ fail, reportRoundTrip = true, invalidSignature = fa
       assets.push({ relativePath });
     }
     await fs.writeFile(path.join(staging, 'native-report.json'), JSON.stringify({
-      schema: 1, ok: true, roundTrip: reportRoundTrip, assets,
+      schema: 1, ok: true, roundTrip: reportRoundTrip, textureCount, assets,
     }));
     return { log: 'synthetic provider test' };
   };
@@ -113,12 +113,12 @@ test('M1c native failure does not commit and cleans only its staging folder', as
   assert.equal((await fs.readFile(f.source, 'utf8')), 'synthetic GLB source token fixture');
 });
 test('M1c blocks forged reports, invalid native signatures, and unsupported collision modes', async t => {
-  for (const settings of [{ reportRoundTrip: false }, { invalidSignature: true }]) {
+  for (const settings of [{ reportRoundTrip: false }, { invalidSignature: true }, { textureCount: 0 }]) {
     const f = await prepare(t);
     await assert.rejects(buildPropResource({
       request: f.request, tokens: f.tokens, providerRoot: f.nativeRoot,
       runner: simulatedProvider(settings),
-    }), /roundtrip|roundTrip|Unverified|signature/i);
+    }), /roundtrip|roundTrip|Unverified|signature|YTD validation/i);
     assert.deepEqual(await fs.readdir(f.outputRoot), []);
   }
   const f = await prepare(t);
