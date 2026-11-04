@@ -30,6 +30,9 @@ function validateCustomReport(report,spec) {
      !Number.isSafeInteger(report.roundTripPolygonCount)||
      report.roundTripPolygonCount!==report.customPolygonCount||
      !Number.isSafeInteger(report.textureCount)||report.textureCount<1||
+     !Number.isSafeInteger(report.uvCornerCount)||report.uvCornerCount<3||
+     !Array.isArray(report.bounds)||report.bounds.length!==2||
+     report.bounds.some(v=>!Array.isArray(v)||v.length!==3||v.some(n=>!Number.isFinite(n)))||
      !report.anchors||!report.anchorsAfter)throw Error('Custom YDR/YTD exporter did not verify geometry, textures and skeleton');
   for(const kind of ['muzzle','magazine','grip']){
     const a=report.anchors[kind],b=report.anchorsAfter[kind];
@@ -96,7 +99,8 @@ async function buildCustomWeapon({request,bytes,grants,userDataRoot,signal,runne
       schema:1,format:'native-ydr-ytd',modelName:spec.modelName,
       nativeRoundTripPassed:true,gameTestPassed:null,
       customMeshCount:report.customMeshCount,customPolygonCount:report.customPolygonCount,
-      textureCount:report.textureCount,anchors:report.anchorsAfter,
+      textureCount:report.textureCount,uvCornerCount:report.uvCornerCount,
+      bounds:report.bounds,anchors:report.anchorsAfter,
       note:'YDR/YTD only. GTA weapon metadata and actual FiveM gameplay are not certified.',
     },null,2),{flag:'wx'});
     await grants.resolve(spec.sourceToken,'source');
