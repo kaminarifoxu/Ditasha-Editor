@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { auditWeaponAssembly } from './creators/weapon-readiness.js';
 import { mountWeaponAttachments } from './creators/weapon-attachment-panel.js';
+import { mountWeaponNativeExport } from './creators/weapon-native-panel.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -512,6 +513,11 @@ export function mountWeaponStudio({ root, download, toast, confirmDiscard }) {
     getReference: () => WEAPON_REFERENCES[Number($('wdReference').value)],
     getName: () => $('wdName').value,
     getSelected: () => selected,
+  });
+  mountWeaponNativeExport({
+    layout, toast,
+    getReference: () => WEAPON_REFERENCES[Number($('wdReference').value)],
+    getName: () => $('wdName').value,
   });
   const name = () => {
     const value = $('wdName').value;
