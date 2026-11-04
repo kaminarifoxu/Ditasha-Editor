@@ -164,12 +164,43 @@ test('Ped builds stage a preview before exporting; canceled/invalid saves preser
       process.stderr = new EventEmitter();
       setImmediate(async () => {
         const job = JSON.parse(await fs.readFile(specPath, 'utf8'));
+        let nativeValidation = null;
+        if (job.mode === 'ped' && !failBuild) {
+          const { createHash } = require('node:crypto');
+          const { createYtd } = await import('../src/asset-tools.js');
+          const legacy = Buffer.concat([
+            Buffer.from('RSC7'), Buffer.from([13,0,0,0]), Buffer.alloc(128),
+          ]);
+          const ytd = Buffer.from(createYtd([
+            { name:'ped_diffuse',w:4,h:4,out:new Uint8Array(64).fill(255) },
+          ]));
+          const stream = path.join(job.output, 'stream');
+          await fs.mkdir(stream, { recursive:true });
+          const files = {};
+          for(const [ext,buffer] of [['.ydd',legacy],['.yft',legacy],['.ytd',ytd]]){
+            const name = 'test_ped' + ext;
+            await fs.writeFile(path.join(stream,name),buffer);
+            files[ext] = [{
+              name, relativePath:'stream/'+name,bytes:buffer.length,
+              sha256:createHash('sha256').update(buffer).digest('hex'),
+            }];
+          }
+          nativeValidation = {
+            schema:1,nativeYddRoundTrip:true,nativeYftSignatureVerified:true,
+            sourceSkeletonMatched:true,nativeYftRagdollRoundTrip:false,
+            headHairAlignment:{checked:false,aligned:null},
+            rigs:[{meshes:1,vertices:3,weightedVertices:3,bones:128,
+              uvMeshes:1,headBone:'SKEL_Head'}],
+            files,gameTestPassed:null,
+          };
+        }
         await fs.writeFile(
           path.join(job.output, 'report.json'),
           JSON.stringify({
             ok: !failBuild,
             error: failBuild ? 'fixture rig validation failed' : undefined,
             mode: job.mode,
+            nativeValidation,
             preview:
               job.mode === 'ped'
                 ? { meshes: 1, poses: [{ id: 'rest' }, { id: 'arms' }] }
