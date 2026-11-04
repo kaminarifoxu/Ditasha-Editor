@@ -5,6 +5,7 @@ const fs = require('node:fs/promises'),
 const { spawn } = require('node:child_process');
 const { randomUUID } = require('node:crypto');
 const { setupNative, managedEnv } = require('./native-setup.cjs');
+const { verifyPedNativeArtifacts } = require('./ped-native-report.cjs');
 const PED_POSES = {
   rest: 'preview.json',
   arms: 'preview-arms.json',
@@ -507,6 +508,8 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
     running = true;
     let destination;
     try {
+      if (pending.kind === 'ped')
+        await verifyPedNativeArtifacts(pending.output, state.report);
       destination = await fs.mkdtemp(
         path.join(
           choice.filePaths[0],
