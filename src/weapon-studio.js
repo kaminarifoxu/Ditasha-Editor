@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { auditWeaponAssembly } from './creators/weapon-readiness.js';
+import { mountWeaponAttachments } from './creators/weapon-attachment-panel.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -364,6 +365,7 @@ export function mountWeaponStudio({ root, download, toast, confirmDiscard }) {
         }
       }
       assembly.add(object);
+      if (!partImport) attachmentPanel?.clearOnModelChange();
       dirty = true;
       serial++;
       list();
@@ -406,6 +408,7 @@ export function mountWeaponStudio({ root, download, toast, confirmDiscard }) {
         dispose(child);
       }
       assembly.add(createWeaponSketch(WEAPON_REFERENCES[Number($('wdReference').value)][3]));
+      attachmentPanel?.clearOnModelChange();
       dirty = true;
       serial++;
       list();
@@ -503,6 +506,13 @@ export function mountWeaponStudio({ root, download, toast, confirmDiscard }) {
     grid.visible = $('wdGrid').checked;
     budget?.invalidate();
   };
+  const attachmentPanel = mountWeaponAttachments({
+    layout, assembly, scene, download, toast,
+    invalidate: () => budget?.invalidate(),
+    getReference: () => WEAPON_REFERENCES[Number($('wdReference').value)],
+    getName: () => $('wdName').value,
+    getSelected: () => selected,
+  });
   const name = () => {
     const value = $('wdName').value;
     if (!/^[a-z][a-z0-9_]{2,47}$/.test(value))
