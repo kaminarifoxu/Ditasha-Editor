@@ -46,7 +46,7 @@ test('ped skin verification checks actual normalized bone weights, UV and head b
   ' def __init__(self): self.matrix_world=self',
   ' def __matmul__(self,b): return b',
   'arm=Arm()',
-  'mesh=S(type="MESH",name="head_000",data=S(polygons=[1],uv_layers=[1],vertices=[S(groups=[W(1)])]),vertex_groups=[S(index=0,name="SKEL_Head")],parent=arm,find_armature=lambda:arm)',
+  'mesh=S(type="MESH",name="body_000",data=S(polygons=[1],uv_layers=[1],vertices=[S(groups=[W(1)])]),vertex_groups=[S(index=0,name="SKEL_Head")],parent=arm,find_armature=lambda:arm)',
   'assert v.inspect_skin([mesh])["weightedVertices"]==1',
   'mesh.data.vertices=[S(groups=[W(0.3)])]',
   'try: v.inspect_skin([mesh]);raise AssertionError("accepted invalid normalization")',
