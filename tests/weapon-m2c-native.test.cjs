@@ -85,7 +85,7 @@ function simulateBuilder({loose=false,fail=false}={}) {
         await fs.writeFile(path.join(destination,'w_pi_ditashatest.ydr'),nativeBinary);
         await fs.writeFile(path.join(destination,'w_pi_ditashatest.ytd'),nativeBinary);
         for(const name of ['weapons.meta','weaponarchetypes.meta','weaponanimations.meta']){
-          await fs.writeFile(path.join(destination,name),'<CDataFileMgr__ContentsOfDataFileXml><Item>weapon</Item></CDataFileMgr__ContentsOfDataFileXml>');
+          await fs.writeFile(path.join(destination,name),'<CDataFileMgr__ContentsOfDataFileXml><Item>WEAPON_DITASHATEST w_pi_ditashatest</Item></CDataFileMgr__ContentsOfDataFileXml>');
         }
       }
       return {success:true,output:destination};
