@@ -89,7 +89,7 @@ test('M1c commits a staged, validated FiveM resource without overwriting origina
   const installed = await managedExecutable(f.nativeRoot);
   assert.equal(path.basename(installed.engine), 'blender.exe');
   const result = await buildPropResource({
-    request: f.request, tokens: f.tokens, providerRoot: f.nativeRoot,
+    request: validatePropRequest(f.request), tokens: f.tokens, providerRoot: f.nativeRoot,
     runner: simulatedProvider(),
   });
   assert.equal(result.nativeRoundTripPassed, true);
