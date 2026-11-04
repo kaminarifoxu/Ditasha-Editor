@@ -1,6 +1,7 @@
 'use strict';
 const fs = require('node:fs/promises');
 const path = require('node:path');
+const os = require('node:os');
 const { runNativeProcess } = require('./native-process.cjs');
 const { managedEnv } = require('../native-setup.cjs');
 const { probePropCapabilities } = require('./prop-schema.cjs');
@@ -27,12 +28,21 @@ async function probeInstalledPropProvider({ root, signal, runner = runNativeProc
   if (!blender.startsWith(installedRoot + path.sep) || path.basename(blender).toLowerCase() !== 'blender.exe')
     throw Error('Blender executable outside verified native installation');
   if (manifest.version !== 1) throw Error('Unsupported managed native installation');
-  const result = await runner({
-    executable: blender, args: ['--background','--disable-autoexec','--python-exit-code','2','--python',script],
-    cwd: installedRoot, signal, timeoutMs: 30 * 1000, maxOutputBytes: 128 * 1024,
-    env: managedEnv(installedRoot),
-  });
-  const info = extractProbe(result.log);
+  // Copy packaged Python from app.asar to a real temporary file for Blender.
+  const staging = await fs.mkdtemp(path.join(os.tmpdir(), 'ditasha-prop-probe-'));
+  let info;
+  try {
+    const executableScript = path.join(staging, 'prop-probe.py');
+    await fs.copyFile(script, executableScript);
+    const result = await runner({
+      executable: blender, args: ['--background','--disable-autoexec','--python-exit-code','2','--python',executableScript],
+      cwd: installedRoot, signal, timeoutMs: 30 * 1000, maxOutputBytes: 128 * 1024,
+      env: managedEnv(installedRoot),
+    });
+    info = extractProbe(result.log);
+  } finally {
+    await fs.rm(staging, { recursive: true, force: true });
+  }
   // Availability cannot be inferred from an installed addon. Until native YDR,
   // YBN and YTYP round-trip fixtures pass, all export writers are false.
   const status = probePropCapabilities({
