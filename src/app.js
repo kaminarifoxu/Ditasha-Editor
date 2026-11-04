@@ -2586,7 +2586,12 @@ const propWorkspace = mountPropWorkspace({
   nav: document.querySelector('.workspace-nav'),
   activate: tools.activate,
   register: tools.registerExternalWorkspace,
-  capabilities: { nativeAvailable: window.ditashaCreators?.nativeEnabled === true },
+  capabilities: {
+    getNativeAvailability: async () => {
+      const entries = await window.ditashaCreators?.state?.();
+      return entries?.some(item => item.type === 'prop' && item.available) === true;
+    },
+  },
 });
 mountPropCreatorEntry({
   nav: document.querySelector('.workspace-nav'),
