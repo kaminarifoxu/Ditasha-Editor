@@ -25,7 +25,7 @@ test('M1c validates native export names, manifest and required collisions', () =
     'stream/ditasha_prop.ydr',
     'stream/ditasha_prop.ytd',
     'stream/ditasha_prop.ytyp',
-    'stream/ditasha_prop.ybn',
+    'stream/ditasha_prop_col.ybn',
   ]);
   assert.equal(nativeAssets('ditasha_prop', 'none').includes('stream/ditasha_prop.ybn'), false);
   const fx = createPropManifest('ditasha_prop');
