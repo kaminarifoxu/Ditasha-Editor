@@ -421,6 +421,12 @@ def preview_scene(bpy, fragment, output, donor=None, filename='preview.json', ev
     def texture(material, role='diffuse'):
         node = sampler_node(material, role)
         image = getattr(node, 'image', None)
+        if image and not image.has_data:
+            # Some packed/external images are decoded lazily by the Blender importer.
+            try:
+                len(image.pixels)
+            except (RuntimeError, ValueError):
+                pass
         if not image or not image.has_data:
             return None
         key = image.as_pointer()
@@ -505,11 +511,12 @@ def preview_scene(bpy, fragment, output, donor=None, filename='preview.json', ev
                 for role, node in samplers.items():
                     info[role] = ('unknown' if node is None and role != 'diffuse' else
                                   'present' if indices[role] is not None else 'missing')
-                # Prevent a different UV coordinate set from silently displaying the wrong normal/spec map.
+                # Prevent absent or different UV coordinates from silently displaying invalid maps.
                 for role in ('normal', 'specular'):
                     uv_name = uv_names[role]
-                    if uv_name and (not mesh.uv_layers.get(uv_name) or
-                                    (selected_uv and uv_name != selected_uv)):
+                    if samplers[role] and (not selected_uv or
+                                           (uv_name and (not mesh.uv_layers.get(uv_name) or
+                                                         uv_name != selected_uv))):
                         indices[role] = None
                         info[role] = 'uv-mismatch'
                 groups[key] = {'name': obj.name, 'kind': kind, 'candidate': obj.name if badge else None,
