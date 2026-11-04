@@ -114,8 +114,7 @@ export function mountPropWorkspace({ nav, activate, register, capabilities }) {
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     mounted = true;
-    const animate = () => { if (!active) return; paint(); renderer.setAnimationLoop(animate); };
-    renderer.setAnimationLoop(animate);
+
   }
   function clearGuides() { inspector?.clear(); }
   async function importFile(file) {
@@ -170,15 +169,19 @@ export function mountPropWorkspace({ nav, activate, register, capabilities }) {
   });
   const resizer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(paint) : null;
   resizer?.observe(viewport);
-  function onEnter() {
+  async function onEnter() {
     active = true;
     try { init(); } catch (error) { notify('WebGL unavailable: ' + error.message); return; }
     if (!inspector) {
+      let nativeAvailable = false;
+      try { nativeAvailable = await capabilities?.getNativeAvailability?.() === true; }
+      catch { nativeAvailable = false; }
+      if (!active || inspector) return;
       inspector = mountPropPreview({
         container: root.querySelector('[data-prop-inspector]'),
         getModel: () => model,
         scene,
-        nativeAvailable: capabilities?.nativeAvailable === true,
+        nativeAvailable,
         render: paint,
       });
       inspector.panel.open = true;
