@@ -21,7 +21,7 @@ export function createFilePreview(container) {
     release();
     release = () => {};
   }
-  async function show(file, api, { snapshot = false, facePreview = false, morphPack = null, highPerformance = false, textureId = null } = {}) {
+  async function show(file, api, { snapshot = false, facePreview = false, morphPack = null, highPerformance = false, textureId = null, uvCalibration = null } = {}) {
     clear();
     const version = generation;
     container.textContent = 'Memuat preview…';
@@ -115,6 +115,17 @@ export function createFilePreview(container) {
           const map = new THREE.DataTexture(t.out, t.w, t.h, THREE.RGBAFormat);
           map.flipY = false;
           map.wrapS = map.wrapT = THREE.RepeatWrapping;
+          // Optional Character Maker-only atlas adjustment. Other preview
+          // callers omit this option and preserve their original UV behavior.
+          if (facePreview && Array.isArray(uvCalibration) &&
+              uvCalibration.length === 4 &&
+              uvCalibration.every(v => typeof v === 'number' && Number.isFinite(v)) &&
+              Math.abs(uvCalibration[0]) <= 1 && Math.abs(uvCalibration[1]) <= 1 &&
+              uvCalibration[2] >= 0.1 && uvCalibration[2] <= 4 &&
+              uvCalibration[3] >= 0.1 && uvCalibration[3] <= 4) {
+            map.offset.set(uvCalibration[0], uvCalibration[1]);
+            map.repeat.set(uvCalibration[2], uvCalibration[3]);
+          }
           map.colorSpace = role === 'data' ? THREE.NoColorSpace : THREE.SRGBColorSpace;
           map.needsUpdate = true;
           maps.push(map);
