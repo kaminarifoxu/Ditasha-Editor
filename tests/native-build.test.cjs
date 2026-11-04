@@ -309,8 +309,8 @@ test('Ped builds stage a preview before exporting; canceled/invalid saves preser
   }
   assert.equal(failed.status, 'error');
   assert(
-    failed.reviewId && !failed.stagedId && !failed.previewId,
-    'Failed builds offer correction only, not a successful game export',
+    failed.reviewId && !failed.stagedId && failed.previewId,
+    'Failed native builds allow diagnostic preview and correction but never a game export',
   );
   await assert.rejects(
     handlers.get('ditasha:native-preview')('trusted', saved.previewId),
