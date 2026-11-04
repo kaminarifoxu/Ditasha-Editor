@@ -2,7 +2,7 @@
 
 **Scope:** Reuse the existing Weapon Studio / AddonWeaponsBuilder and evolve it into a validated FiveM weapon creator, without changing the accepted Prop & Collision Creator baseline.
 
-**Status:** M2a readiness audit and M2b non-destructive skeleton/attachment guide editor implemented. Native GTA weapon export not yet implemented or verified.
+**Status:** M2a and M2b implemented. M2c GTA Legacy **verified-source** native pipeline is implemented behind a separate Weapon Studio panel; actual Windows Blender/Sollumz and FiveM runtime results are not yet certified.
 
 ## Frozen baseline
 
@@ -35,13 +35,16 @@ The report deliberately says `design-preview-only` for a valid Three.js design. 
 
 **Remaining M2b+ work:** native weapon YDR/YFT skeleton/bone ID extraction, real attachment alignment for a matched GTA reference weapon, explicit project-to-native bindings, and verified FiveM behavior. This M2b implementation does not certify animations or produce a weapon resource.
 
-## M2c — planned: verified native export
+## M2c — verified-source native export implementation
 
-1. Derive a **tested native weapon exporter** supported by the managed Blender/Sollumz toolchain, or explicitly require a working source GTA weapon skeleton; do not blindly reuse prop YDR conversion as a weapon builder.
-2. Verify native model parts, YTD texture names, skeleton/bones and weapon reference IDs.
-3. Generate and validate the necessary FiveM resource/weapon metadata from an allowlisted supported template; do not invent unsupported weapon archetypes.
-4. Round-trip native files through a real provider. Validate checksums, bounds, component names and templates. Preserve source files.
-5. Test in a disposable Windows / FiveM staging environment, including animations, grip, muzzle flash, projectiles, attachments and switching weapons.
+1. Weapon Studio contains a separate **Native GTA / FiveM weapon build (M2c)** panel. It requires a GTA Legacy **flat source directory** containing a matched `w_pi_pistol.ydr` / `w_pi_pistol.ytd` pair (or another explicitly allowlisted donor). It will **not** turn a raw GLB or unrigged sketch into a functioning weapon.
+2. The existing managed Blender 5.2/Sollumz 2.9 native importer reads the pair, verifies geometry, textures, bone hierarchy and non-overlapping muzzle/grip/magazine named anchor positions, exports a **disposable** native YDR/YTD pair, reimports it, and compares bone count and anchor position drift (maximum 2 mm). The original YDR/YTD remains unchanged.
+3. The existing verified AddonWeaponsBuilder 2.0 CLI builds a GTA V Legacy weapon DLC from the prepared donor. DITASHA re-verifies the installed CLI's SHA-256 hashes and uses `awbctl verify` for RPF7 archives before allowing a successful result.
+4. Safe export uses scoped OS directory grants, 20-minute grant lifetime, bounded worker queue, cancellation, sibling staging, artifact SHA-256 validation, exclusive reservation, and no-overwrite commit. Failed or interrupted jobs remove their staging.
+5. **Conditional FiveM output:** if AddonWeaponsBuilder also generates a complete, non-ambiguous loose set of `weapons.meta`, `weaponarchetypes.meta`, `weaponanimations.meta` and matching Legacy YDR/YTD, DITASHA can assemble a `FiveM-resource/` folder. An RPF-only DLC **is not a FiveM resource**; the UI reports it as GTA DLC only. No generated package is labeled game-tested.
+6. New regression tests validate native report schema, bone/anchor parity, directory grants, strict request rules, unsafe output rejection, staged AWB simulations, conditional FiveM packaging and cancellation/failure cleanup.
+
+**Honest scope:** Native weapon geometry creation from arbitrary GLB, source model re-rigging, automatic native bone placement, GTA animation editing, and conversion of packed RPF archives into FiveM loose resources remain outside this implementation. Prepared donor models are required. A successful native round-trip is not equivalent to successful GTA/FiveM runtime operation. Real Blender/AWB and in-game tests are still required.
 
 ## M2d — packaging and release gates
 
