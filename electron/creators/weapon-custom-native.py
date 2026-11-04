@@ -73,6 +73,31 @@ def signature(path):
 def stats(meshes):
     return sum(len(mesh.data.polygons) for mesh in meshes)
 
+def uv_signature(meshes):
+    """Compare face-corner UV values independent of mesh/surface order.
+
+    Quantization tolerates ordinary native float rounding but rejects UV
+    channel removal, missing seams and flipped texture coordinates.
+    """
+    samples=[]
+    for obj in meshes:
+        layers=obj.data.uv_layers
+        if not layers:
+            raise RuntimeError("Custom mesh lost its UV layer: "+obj.name)
+        for loop in layers.active.data:
+            values=loop.uv
+            if not all(math.isfinite(v) for v in values):
+                raise RuntimeError("Custom mesh has invalid UV coordinates")
+            samples.append((round(float(values[0]),4),round(float(values[1]),4)))
+    return sorted(samples)
+
+def geometry_bounds(meshes):
+    values=[obj.matrix_world @ v.co for obj in meshes for v in obj.data.vertices]
+    if not values:
+        raise RuntimeError("Weapon has no geometry bounds")
+    return [[float(min(v[i] for v in values)) for i in range(3)],
+            [float(max(v[i] for v in values)) for i in range(3)]]
+
 def verify_meshes(meshes):
     if not meshes or len(meshes)>64:
         raise RuntimeError("Custom assembly must have 1..64 nonempty meshes")
@@ -206,6 +231,8 @@ def export_native(addon_name,job,jobfile):
     stage=jobfile.parent/"dds-cache"
     dictionary,texture_count=make_materials(addon_name,customs,target_name,stage)
     merged=replace_donor_visuals(armature,donor,template,customs)
+    original_uv=uv_signature(merged)
+    original_bounds=geometry_bounds(merged)
     # No original donor textures are published in the custom YTD.
     bpy.context.scene.sz_txds.texture_dictionaries.remove(
         list(bpy.context.scene.sz_txds.texture_dictionaries).index(old_dict))
@@ -251,9 +278,12 @@ def export_native(addon_name,job,jobfile):
     final_polygons=stats(final_meshes)
     if final_polygons!=original_polygons:
         raise RuntimeError("Custom native YDR lost geometry: %d/%d polygons"%(final_polygons,original_polygons))
-    for mesh in final_meshes:
-        if not mesh.data.uv_layers:
-            raise RuntimeError("Custom weapon lost UVs after YDR reimport")
+    if uv_signature(final_meshes)!=original_uv:
+        raise RuntimeError("Custom YDR UV coordinates/seams changed on native round-trip")
+    imported_bounds=geometry_bounds(final_meshes)
+    if any(abs(a-b)>0.02 for original,final in zip(original_bounds,imported_bounds)
+           for a,b in zip(original,final)):
+        raise RuntimeError("Custom weapon world-space geometry drift exceeds 2 cm")
     textures=[tex for txd in bpy.context.scene.sz_txds.texture_dictionaries
               for tex in txd.textures if tex.image is not None]
     if len(textures)!=texture_count:
@@ -264,6 +294,7 @@ def export_native(addon_name,job,jobfile):
         "customPolygonCount":original_polygons,
         "roundTripPolygonCount":final_polygons,
         "textureCount":len(textures),
+        "uvCornerCount":len(original_uv), "bounds":imported_bounds,
         "anchors":original_anchors,"anchorsAfter":final_anchors,
         "artifacts":artifacts,"gameTestPassed":None,
     }
