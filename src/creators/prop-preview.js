@@ -86,7 +86,7 @@ export function makePropPreviewOverlay(model, options = {}) {
     },
   };
 }
-export function mountPropPreview({ container, getModel, scene, render }) {
+export function mountPropPreview({ container, getModel, scene, render, nativeAvailable = false }) {
   if (!container || !scene?.isScene || typeof getModel !== 'function') throw Error('Invalid prop preview mount');
   const panel = document.createElement('details');
   panel.className = 'workshop-fold prop-preview-inspector';
@@ -111,7 +111,76 @@ export function mountPropPreview({ container, getModel, scene, render }) {
       render?.();
     } catch (error) { status.textContent = error.message; }
   }
+  let timer = null, activeJob = null, inputGrant = null, outputGrant = null;
+  if (nativeAvailable && window.ditashaCreators?.startProp) {
+    const controls = document.createElement('details');
+    controls.className = 'workshop-fold prop-native-build';
+    controls.innerHTML = '<summary>Native FiveM prop export · experimental</summary><p class="muted">Requires managed Blender/Sollumz/PyMateria. This builds the selected file separately from the preview model. Native export is validated before saving.</p><button data-prop-source>Select GLB / OBJ / FBX</button><small data-prop-source-label>No model selected</small><button data-prop-output>Select export folder</button><small data-prop-output-label>No export folder selected</small><label>Resource name<input data-prop-name value="ditasha_prop" maxlength="48"></label><label>Draw distance<input data-prop-distance type="number" min="1" max="2000" value="120"></label><button data-prop-build>Build & validate native resource</button><button data-prop-cancel disabled>Cancel build</button><p data-prop-native-status class="muted" role="status">Idle. Native output is not certified until the installed provider and game are tested.</p>';
+    panel.append(controls);
+    const api = window.ditashaCreators;
+    const nativeStatus = controls.querySelector('[data-prop-native-status]');
+    const setStatus = message => nativeStatus.textContent = message;
+    controls.querySelector('[data-prop-source]').addEventListener('click', async () => {
+      try {
+        const grant = await api.pickProp('input');
+        if (!grant) return;
+        if (inputGrant) await api.revokeProp(inputGrant.token).catch(() => {});
+        inputGrant = grant;
+        controls.querySelector('[data-prop-source-label]').textContent = grant.name;
+      } catch (error) { setStatus(error.message); }
+    });
+    controls.querySelector('[data-prop-output]').addEventListener('click', async () => {
+      try {
+        const grant = await api.pickProp('output');
+        if (!grant) return;
+        if (outputGrant) await api.revokeProp(outputGrant.token).catch(() => {});
+        outputGrant = grant;
+        controls.querySelector('[data-prop-output-label]').textContent = grant.name;
+      } catch (error) { setStatus(error.message); }
+    });
+    const build = controls.querySelector('[data-prop-build]');
+    const cancel = controls.querySelector('[data-prop-cancel]');
+    controls.querySelector('[data-prop-build]').addEventListener('click', async () => {
+      if (activeJob) return;
+      if (!inputGrant || !outputGrant) { setStatus('Select both the source file and export folder.'); return; }
+      const distance = Number(controls.querySelector('[data-prop-distance]').value);
+      const lodDistances = panel.querySelector('[data-prop-lods]').value.split(',').map(s => Number(s.trim())).filter(Number.isFinite);
+      try {
+        const result = await api.startProp({
+          schemaVersion: 1,
+          sourceToken: inputGrant.token, outputToken: outputGrant.token,
+          sourceName: inputGrant.name,
+          projectName: controls.querySelector('[data-prop-name]').value.trim(),
+          edition: 'legacy', collision: panel.querySelector('[data-prop-collision]').value,
+          drawDistance: distance, lodDistances,
+        });
+        activeJob = result.jobId;
+        build.disabled = true;
+        cancel.disabled = false;
+        setStatus('Native job started. Output will only be saved after verification.');
+        const poll = async () => {
+          try {
+            const job = await api.propJob(activeJob);
+            if (!job) { setStatus('Job status unavailable.'); clearInterval(timer); timer = null; activeJob = null; build.disabled = false; cancel.disabled = true; return; }
+            if (job.state === 'queued' || job.state === 'running') return;
+            clearInterval(timer); timer = null; activeJob = null;
+            build.disabled = false; cancel.disabled = true;
+            if (job.state === 'succeeded') setStatus('Native files validated and saved: ' + job.result.output + '. In-game verification still required.');
+            else setStatus('Native build ' + job.state + ': ' + (job.error || 'No further details'));
+          } catch (error) { setStatus(error.message); clearInterval(timer); timer = null; activeJob = null; build.disabled = false; cancel.disabled = true; }
+        };
+        timer = setInterval(poll, 750);
+        await poll();
+      } catch (error) { setStatus(error.message); activeJob = null; build.disabled = false; cancel.disabled = true; }
+    });
+    cancel.addEventListener('click', async () => {
+      if (activeJob) {
+        try { await api.cancelProp(activeJob); setStatus('Cancelling native build…'); }
+        catch (error) { setStatus(error.message); }
+      }
+    });
+  }
   panel.querySelector('[data-prop-refresh]').addEventListener('click', refresh);
   panel.querySelector('[data-prop-clear]').addEventListener('click', clear);
-  return { panel, refresh, clear, dispose() { clear(); panel.remove(); } };
+  return { panel, refresh, clear, dispose() { if (timer) clearInterval(timer); clear(); panel.remove(); } };
 }
