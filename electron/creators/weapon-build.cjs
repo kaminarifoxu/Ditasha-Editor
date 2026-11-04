@@ -138,6 +138,13 @@ async function prepareFiveMPackage(staging, artifactList) {
   for (const [name,relative] of metaIndex) {
     const text=await fs.readFile(path.join(outputRoot,...relative.split('/')),'utf8');
     if (!text.trim().startsWith('<') || text.length>2*1024*1024) throw Error('Malformed native weapon metadata: '+name);
+    if (name === 'weaponarchetypes.meta') {
+      const drawables=ydr.map(item=>path.posix.basename(item).slice(0,-4).toLowerCase());
+      if (!drawables.some(model=>text.toLowerCase().includes(model)))
+        return {ready:false,reason:'Weapon archetypes do not reference any generated YDR model; FiveM packaging withheld'};
+    }
+    if (name === 'weapons.meta' && !/WEAPON_[A-Z0-9_]{3,64}/i.test(text))
+      return {ready:false,reason:'Weapon metadata has no named WEAPON_* identifier; FiveM packaging withheld'};
     await fs.copyFile(path.join(outputRoot,...relative.split('/')),path.join(dest,'meta',name));
     resources.push({relativePath:'FiveM-resource/meta/'+name});
   }
