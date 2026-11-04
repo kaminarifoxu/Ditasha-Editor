@@ -603,6 +603,14 @@ def run(job):
                 raise RuntimeError('Resource ped belum lengkap: YFT/YDD/YTD/YMT/fxmanifest diperlukan.')
             rigged = [obj for obj in bpy.data.objects if obj.type == 'MESH' and getattr(obj, 'sollum_type', '') == 'sollumz_drawable_model']
             report['quality'] = review.audit_rig(rigged, mesh_levels)
+            # A failed weight transfer must not be promoted into a usable ped,
+            # even when Muto writes binary output and a visual rest-pose preview.
+            for key in ('unweighted', 'overFour', 'unnormalized', 'invalidWeights'):
+                if report['quality'].get(key, 0):
+                    raise RuntimeError('Ped native skin validation failed: %s=%s' %
+                                       (key, report['quality'][key]))
+            if report['quality'].get('armatures') != 1 or report['quality'].get('bones', 0) < 30:
+                raise RuntimeError('Ped native rigging requires one compatible GTA skeleton')
             report['preview'] = review.create_pose_previews(bpy, rigged, output, preview_scene)
             try:
                 report['preview']['motion'] = review.add_walk_preview(bpy, rigged, output, preview_scene)
@@ -615,6 +623,17 @@ def run(job):
                     raise ValueError('Clip GTA memerlukan satu armature hasil rig.')
                 report['preview']['motion'] = add_clip_preview(bpy, next(iter(arms.values())), rigged, job['clip'], job['clipIndex'], output, preview_scene)
             report['warnings'] = report.get('warnings', []) + result.get('warnings', []) + report['quality']['warnings'] + report['preview']['warnings']
+            # Inspect the native files produced by Muto using the already
+            # installed Sollumz native importer. Do this AFTER creating pose
+            # previews so reimported objects never enter the preview scene.
+            import ped_native_verify
+            arms = {a.name: a for obj in rigged if (a := review.armature_for(obj)) is not None}
+            if len(arms) != 1:
+                raise RuntimeError('Native ped export has ambiguous source armatures')
+            source_bones = {b.name for b in next(iter(arms.values())).data.bones}
+            report['nativeValidation'] = ped_native_verify.verify_native_ped(
+                bpy, output, source_bones
+            )
         else:
             fragment = import_vehicle(bpy, job['source'])
             report['candidates'] = badge_candidates(fragment)
