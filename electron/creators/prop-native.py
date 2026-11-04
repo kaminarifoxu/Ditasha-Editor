@@ -68,40 +68,53 @@ def _load_dds_helper():
     spec.loader.exec_module(helper_module)
     return helper_module.image_to_dds
 
+def _load_material_helper():
+    helper = Path(__file__).resolve().with_name("prop_material.py")
+    if not helper.is_file():
+        raise RuntimeError("Required staged material helper missing: " + str(helper))
+    spec = importlib.util.spec_from_file_location("ditasha_prop_material", str(helper))
+    if spec is None or spec.loader is None:
+        raise RuntimeError("Cannot load staged material helper")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.material_diffuse_spec
+
+
 
 def _shader_and_textures(bpy, mod, meshes, name, staging):
     image_to_dds = _load_dds_helper()
 
     shader = importlib.import_module(mod + ".ydr.shader_materials").create_shader
     txd = bpy.context.scene.sz_txds.new_texture_dictionary(name=name)
-    # Cache by original Blender image identity to preserve shared materials.
+    material_diffuse_spec = _load_material_helper()
+    # Cache per original Blender image AND its source color factor. Several
+    # glTF materials may share an image but have different baseColorFactors.
     sources = {}
     generated_white = None
+    material_summaries = []
 
     def white_image():
         nonlocal generated_white
         if generated_white is None:
             generated_white = bpy.data.images.new(
-                name + "_default_white", width=4, height=4, alpha=True
+                name + "_solid_palette", width=4, height=4, alpha=True
             )
             generated_white.pixels = [1.0] * 64
         return generated_white
 
-    def stage(image):
-        key = image.as_pointer()
+    def stage(image, factor, material_name):
+        key = (image.as_pointer(), tuple(round(v, 7) for v in factor))
         if key not in sources:
             index = len(sources)
             if index >= 256:
                 raise ValueError("Prop has too many diffuse textures (max 256)")
-            # Sollumz extracts texture names from filepath, not image.name.
-            # A generated image has no filepath and a packed PNG is not DDS.
             filename = f"{name}_diff_{index:03d}.dds"
             try:
-                converted = image_to_dds(bpy, image, staging / filename)
+                converted = image_to_dds(bpy, image, staging / filename, tint=factor)
             except Exception as exc:
                 raise ValueError(
-                    "Cannot convert source texture '%s' into DDS: %s"
-                    % (image.name, exc)
+                    "Cannot convert material '%s' texture '%s' into DDS: %s"
+                    % (material_name, image.name, exc)
                 ) from exc
             sources[key] = converted
         return sources[key]
@@ -113,31 +126,31 @@ def _shader_and_textures(bpy, mod, meshes, name, staging):
             slots = list(obj.material_slots)
         for slot in slots:
             old = slot.material
-            candidate = None
-            if old and old.node_tree:
-                # Prefer the source base-color image when it is present.
-                nodes = [n for n in old.node_tree.nodes if n.type == "TEX_IMAGE" and n.image]
-                base = []
-                for node in nodes:
-                    if any(link.from_node == node and
-                           link.to_node.type == "BSDF_PRINCIPLED" and
-                           link.to_socket.name == "Base Color"
-                           for link in old.node_tree.links):
-                        base.append(node.image)
-                if len(base) == 1:
-                    candidate = base[0]
-                elif len(nodes) == 1:
-                    candidate = nodes[0].image
-                elif nodes:
-                    raise ValueError(
-                        "Multiple source images with no unambiguous Base Color; "
-                        "select a single diffuse map in Blender"
-                    )
-            if candidate is None:
-                candidate = white_image()
-                print("DITASHA_PROP_WARN: material has no diffuse image; "
-                      "using default white texture", flush=True)
-            diffuse = stage(candidate)
+            label = old.name if old else "<unassigned>"
+            try:
+                image, factor = material_diffuse_spec(old)
+            except ValueError as exc:
+                raise ValueError(
+                    "Material '%s' cannot be automatically converted: %s"
+                    % (label, exc)
+                ) from exc
+
+            if image is None:
+                # glTF materials can carry all of their yellow/purple/black
+                # color in the Principled Base Color without any image.
+                image = white_image()
+                material_summaries.append({
+                    "material": label, "mode": "solid",
+                    "baseColor": [round(float(n), 5) for n in factor],
+                })
+            else:
+                material_summaries.append({
+                    "material": label, "mode": "image",
+                    "image": image.name,
+                    "baseColorFactor": [round(float(n), 5) for n in factor],
+                })
+
+            diffuse = stage(image, factor, label)
             material = shader("default.sps")
             diffuse_nodes = [
                 node for node in material.node_tree.nodes
@@ -148,6 +161,9 @@ def _shader_and_textures(bpy, mod, meshes, name, staging):
             diffuse_nodes[0].image = diffuse
             slot.material = material
 
+    print("DITASHA_PROP_MATERIALS=" + json.dumps(material_summaries), flush=True)
+    if len(material_summaries) == 0:
+        raise ValueError("No materials found for exported prop")
     meshhelper = importlib.import_module(mod + ".tools.meshhelper")
     for obj in meshes:
         meshhelper.mesh_rename_uv_maps_by_order(obj.data)
