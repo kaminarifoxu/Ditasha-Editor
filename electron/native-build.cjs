@@ -631,6 +631,7 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
       'native_dds.py',
       'logo_prop.py',
       'half_ped.py',
+      'ped_native_verify.py',
     ])
       await fs.copyFile(path.join(__dirname, name), path.join(root, name));
     await fs.writeFile(spec, JSON.stringify(job));
