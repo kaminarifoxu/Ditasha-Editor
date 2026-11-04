@@ -54,70 +54,106 @@ def _import_addon():
         raise RuntimeError("Windows PyMateria native binary provider missing")
     return module
 
-def _shader_and_textures(bpy, mod, meshes, name):
+def _shader_and_textures(bpy, mod, meshes, name, staging):
+    from prop_dds import image_to_dds
+
     shader = importlib.import_module(mod + ".ydr.shader_materials").create_shader
     txd = bpy.context.scene.sz_txds.new_texture_dictionary(name=name)
-    images = {}
+    # Cache by original Blender image identity to preserve shared materials.
+    sources = {}
+    generated_white = None
+
+    def white_image():
+        nonlocal generated_white
+        if generated_white is None:
+            generated_white = bpy.data.images.new(
+                name + "_default_white", width=4, height=4, alpha=True
+            )
+            generated_white.pixels = [1.0] * 64
+        return generated_white
+
+    def stage(image):
+        key = image.as_pointer()
+        if key not in sources:
+            index = len(sources)
+            if index >= 256:
+                raise ValueError("Prop has too many diffuse textures (max 256)")
+            # Sollumz extracts texture names from filepath, not image.name.
+            # A generated image has no filepath and a packed PNG is not DDS.
+            filename = f"{name}_diff_{index:03d}.dds"
+            try:
+                converted = image_to_dds(bpy, image, staging / filename)
+            except Exception as exc:
+                raise ValueError(
+                    "Cannot convert source texture '%s' into DDS: %s"
+                    % (image.name, exc)
+                ) from exc
+            sources[key] = converted
+        return sources[key]
+
     for obj in meshes:
-        for slot in obj.material_slots:
+        slots = list(obj.material_slots)
+        if not slots:
+            obj.data.materials.append(None)
+            slots = list(obj.material_slots)
+        for slot in slots:
             old = slot.material
-            image = None
+            candidate = None
             if old and old.node_tree:
-                candidates = [n.image for n in old.node_tree.nodes if n.type == "TEX_IMAGE" and n.image]
-                if len(candidates) > 1:
-                    raise ValueError("Multiple material image maps need manual shader conversion")
-                if candidates:
-                    image = candidates[0]
-            if image is None:
-                image = images.get("_generated_white")
-                if image is None:
-                    image = bpy.data.images.new(name + "_white", width=4, height=4, alpha=True)
-                    image.pixels = [1.0, 1.0, 1.0, 1.0] * 16
-                    image.pack()
-                    images["_generated_white"] = image
-            if image.size[0] <= 0 or image.size[1] <= 0 or image.size[0] > 8192 or image.size[1] > 8192:
-                raise ValueError("Invalid diffuse texture dimensions")
-            if image.name not in images:
-                image.pack()
-                images[image.name] = image
+                # Prefer the source base-color image when it is present.
+                nodes = [n for n in old.node_tree.nodes if n.type == "TEX_IMAGE" and n.image]
+                base = []
+                for node in nodes:
+                    if any(link.from_node == node and
+                           link.to_node.type == "BSDF_PRINCIPLED" and
+                           link.to_socket.name == "Base Color"
+                           for link in old.node_tree.links):
+                        base.append(node.image)
+                if len(base) == 1:
+                    candidate = base[0]
+                elif len(nodes) == 1:
+                    candidate = nodes[0].image
+                elif nodes:
+                    raise ValueError(
+                        "Multiple source images with no unambiguous Base Color; "
+                        "select a single diffuse map in Blender"
+                    )
+            if candidate is None:
+                candidate = white_image()
+                print("DITASHA_PROP_WARN: material has no diffuse image; "
+                      "using default white texture", flush=True)
+            diffuse = stage(candidate)
             material = shader("default.sps")
-            diffuse_nodes = [n for n in material.node_tree.nodes if n.type == "TEX_IMAGE" and n.name == "DiffuseSampler"]
+            diffuse_nodes = [
+                node for node in material.node_tree.nodes
+                if node.type == "TEX_IMAGE" and node.name == "DiffuseSampler"
+            ]
             if len(diffuse_nodes) != 1:
-                raise RuntimeError("Sollumz default shader no longer exposes DiffuseSampler")
-            diffuse_nodes[0].image = image
+                raise RuntimeError("Sollumz default shader has no DiffuseSampler")
+            diffuse_nodes[0].image = diffuse
             slot.material = material
-        if not obj.material_slots:
-            # A source without material receives a simple compatible diffuse shader.
-            material = shader("default.sps")
-            image = images.get("_generated_white")
-            if image is None:
-                image = bpy.data.images.new(name + "_white", width=4, height=4, alpha=True)
-                image.pixels = [1.0, 1.0, 1.0, 1.0] * 16
-                image.pack()
-                images["_generated_white"] = image
-            nodes = [n for n in material.node_tree.nodes if n.type == "TEX_IMAGE" and n.name == "DiffuseSampler"]
-            if len(nodes) != 1:
-                raise RuntimeError("Sollumz shader diffuse node missing")
-            nodes[0].image = image
-            obj.data.materials.append(material)
+
     meshhelper = importlib.import_module(mod + ".tools.meshhelper")
     for obj in meshes:
         meshhelper.mesh_rename_uv_maps_by_order(obj.data)
         meshhelper.mesh_add_missing_uv_maps(obj.data)
         meshhelper.mesh_rename_color_attrs_by_order(obj.data)
         meshhelper.mesh_add_missing_color_attrs(obj.data)
-    for image in dict.fromkeys(images.values()):
-        if image.size[0] < 1 or image.size[1] < 1:
-            raise ValueError("Invalid image")
+
+    for image in sources.values():
         txd.new_texture(image)
     if not txd.textures:
         raise ValueError("YTD has no textures before serialization")
-    if any(slot.image is None for slot in txd.textures):
-        raise ValueError("YTD contains empty texture slots")
-    # The YTD writer can produce a valid container even with zero images.
+    # Fail if Sollumz still cannot resolve the staged DDS textures.
     native_txd = importlib.import_module(mod + ".ytd.ytdexport").create_txd_asset(txd)[0]
-    if len(native_txd.textures) < 1:
-        raise ValueError("YTD exporter resolved zero embedded textures")
+    textures = native_txd.textures
+    if len(textures) != len(sources):
+        raise ValueError(
+            "YTD conversion mismatch: expected %d DDS textures; got %d"
+            % (len(sources), len(textures))
+        )
+    if any(tex.data is None for tex in textures.values()):
+        raise ValueError("YTD has texture entries without embedded DDS bytes")
     return txd
 
 def _make_collision(bpy, mod, meshes, project, mode):
@@ -181,7 +217,7 @@ def _export(bpy, mod, job, stream):
         obj.matrix_world = Matrix.Identity(4)
     bpy.context.view_layer.update()
     # Keep coordinates in Blender's native Z-up; no Three.js preview transform is applied.
-    txd = _shader_and_textures(bpy, mod, meshes, job["name"])
+    txd = _shader_and_textures(bpy, mod, meshes, job["name"], stream.parent / "texture-cache")
     helper = importlib.import_module(mod + ".tools.drawablehelper")
     drawable = helper.convert_objs_to_single_drawable(meshes)
     drawable.name = job["name"]
@@ -266,6 +302,10 @@ def main():
     bpy.ops.object.delete(use_global=False)
     stats = _export(bpy, module, job, stream)
     verified, loaded_textures = _validate_roundtrip(bpy, job, stream)
+    # Temporary source DDS files are only used during native serialization.
+    # The finished resource contains only GTA files, reports, and manifests.
+    import shutil
+    shutil.rmtree(job_path.parent / "texture-cache", ignore_errors=True)
     artifacts = []
     for filename in verified:
         file = stream / filename
