@@ -89,6 +89,10 @@ async function buildPropResource({
     });
     signal?.throwIfAborted();
     const validated = await validateNativeReport(staging, spec);
+    // The temporary job contains the original absolute file path; do not
+    // publish it or the worker Python script inside the FiveM resource.
+    await fs.rm(jobFile, { force: true });
+    await fs.rm(script, { force: true });
     const manifest = createPropManifest(spec.projectName);
     await fs.writeFile(path.join(staging, 'fxmanifest.lua'), manifest, { flag: 'wx' });
     await fs.writeFile(path.join(staging, 'validation.json'), JSON.stringify({
