@@ -13,7 +13,8 @@ test('preview has separate cutout and blend rendering', () => {
 test('native bridge sends cutout hair classification and explicit missing maps', () => {
   assert.match(bridge, /'hair', 'eyelash', 'eyebrow', 'ped_fur'/);
   assert.match(bridge, /'materialInfo': info/);
-  assert.match(bridge, /'normal': 'unknown', 'specular': 'unknown'/);
+  assert.match(bridge, /'unknown' if node is None and role != 'diffuse'/);
+  assert.match(bridge, /'present' if indices\[role\] is not None else 'missing'/);
 });
 test('preview never color-keys black pixels or substitutes a diffuse map', () => {
   assert.doesNotMatch(renderer, /black.*transparent|colorKey/);
