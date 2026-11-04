@@ -160,12 +160,19 @@ def _export(bpy, mod, job, stream):
             any(not isinstance(v, (int, float)) or not math.isfinite(v)
                 or v < 0.01 or v > 100 for v in scale)):
         raise ValueError("Invalid scale in prop job")
-    # Scale geometry AND relative mesh offsets in world space before creating
-    # the drawable/collision. All transforms use Blender Z-up consistently.
+    # Bake world transforms and user resize into each static mesh's vertices.
+    # This preserves non-uniform scale, parent offsets and collision parity even
+    # if a native exporter ignores object-level scale / parent transforms.
+    # Preserve shared source geometry by making a copy before mutating it.
     xform = Matrix.Diagonal((float(scale[0]), float(scale[1]), float(scale[2]), 1.0))
-    previous = {obj: obj.matrix_world.copy() for obj in meshes}
+    bpy.context.view_layer.update()
+    original = {obj: obj.matrix_world.copy() for obj in meshes}
     for obj in meshes:
-        obj.matrix_world = xform @ previous[obj]
+        baked = xform @ original[obj]
+        obj.data = obj.data.copy()
+        obj.data.transform(baked)
+        obj.parent = None
+        obj.matrix_world = Matrix.Identity(4)
     bpy.context.view_layer.update()
     # Keep coordinates in Blender's native Z-up; no Three.js preview transform is applied.
     _shader_and_textures(bpy, mod, meshes, job["name"])
