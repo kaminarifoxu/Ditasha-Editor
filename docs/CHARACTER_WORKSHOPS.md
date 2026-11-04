@@ -20,6 +20,9 @@ Fit the head to the male/female reference, or keep its prepared placement. Adjus
 
 Separate hair receives the head transform and optional hair offset/scale. It follows `SKEL_Head`; native hair uses a cutout shader. Hat squash bones, physics and automatic hat compatibility are not generated.
 
+The source/head preview now distinguishes opaque, cutout and blended materials. Hair, eyelashes and brows default to cutout in the bounded Blender preview, without treating black RGB as transparent. Native model preview reports unresolved diffuse/UV and explicitly missing normal/specular sampler images; absent unspecified samplers remain *unknown*, not falsely missing. Head/hair fitting now reports center distance and XY overlap as diagnostic warnings without changing the artist's hair placement. These checks do not rewrite YTD files or prove exact FiveM shader parity.
+
+
 The installed Muto engine supplies the default weight reference. Its NPZ reference does not include original freemode UVs. To export an **actual freemode UV reference SVG**, choose a `.blend` containing one GTA armature and a weighted mesh named `head` with its original UV layer. Source head UV SVG is exported when present; the head's UVs are preserved, not replaced with a guessed freemode layout.
 
 Output: skinned GLB, editable packed Blender project and available UV SVGs. Optional native YDDs replace the specified **existing** head/hair slots with embedded diffuse textures. Set the collection prefix and slot names to match the server's existing collection/YMT/halfped configuration. This does not register arbitrary new slots or modify illenium server files. Each YDD is reimported to validate UVs, textures and normalized skin weights before success. Test the final head, hair and expressions on the target FiveM server.
