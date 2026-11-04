@@ -11,7 +11,7 @@ function validateAssetToken(token) {
 }
 function validatePropRequest(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw Error('Invalid prop request');
-  const allowed = new Set(['schemaVersion', 'sourceToken', 'outputToken', 'projectName', 'sourceName', 'edition', 'collision', 'drawDistance', 'lodDistances', 'scale']);
+  const allowed = new Set(['schemaVersion', 'sourceToken', 'outputToken', 'projectName', 'sourceName', 'edition', 'collision', 'drawDistance', 'lodDistances', 'scale', 'format']);
   if (Object.keys(value).some(k => !allowed.has(k))) throw Error('Unsupported prop setting');
   if (value.schemaVersion !== 1) throw Error('Unsupported prop schema version');
   const sourceToken = validateAssetToken(value.sourceToken);
@@ -22,6 +22,9 @@ function validatePropRequest(value) {
   if (typeof value.sourceName !== 'string' || value.sourceName.length > 255 || value.sourceName.includes('/') || value.sourceName.includes('\\')) throw Error('Invalid source filename');
   const ext = path.extname(value.sourceName).slice(1).toLowerCase();
   if (!INPUT_FORMATS.includes(ext)) throw Error('Unsupported prop input format');
+  // Requests are validated at IPC ingress and again before native execution.
+  // Accept only the canonical derived format; never trust a mismatched override.
+  if (value.format !== undefined && value.format !== ext) throw Error('Prop format does not match source filename');
   const collision = value.collision;
   if (!COLLISION_MODES.includes(collision)) throw Error('Unsupported collision mode');
   const drawDistance = value.drawDistance;
