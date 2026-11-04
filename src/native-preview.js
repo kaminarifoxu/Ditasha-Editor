@@ -286,13 +286,15 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
             : item.kind === 'donor'
               ? 0x9d9dff
               : 0xb3bbc8;
+      const alphaMode = ['cutout', 'blend'].includes(item.alpha) ? item.alpha : 'opaque';
       const material = new THREE.MeshStandardMaterial({
         map: map || null,
         color,
         side: THREE.DoubleSide,
         roughness: 0.7,
-        transparent: !!map && item.alpha === 'blend',
-        alphaTest: map && item.alpha === 'blend' ? 0.02 : 0,
+        transparent: alphaMode === 'blend',
+        alphaTest: alphaMode === 'cutout' ? 0.35 : alphaMode === 'blend' ? 0.02 : 0,
+        depthWrite: alphaMode !== 'blend',
       });
       const mesh = new THREE.Mesh(geometry, material);
       mesh.name = item.name;
@@ -330,7 +332,11 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
         ? ' triangles · model sumber, belum dirig.'
         : mode === 'ped'
           ? ' triangles · pose uji weights hasil Blender.'
-          : ' triangles · merah = badge dipilih · sumbu = posisi donor.');
+          : ' triangles · merah = badge dipilih · sumbu = posisi donor.') +
+      (data.meshes.some((m) => m.materialInfo?.diffuse === 'missing') ? ' · CHECK diffuse texture missing' : '') +
+      (data.meshes.some((m) => m.materialInfo?.uv === 'missing') ? ' · CHECK UV missing' : '') +
+      (data.meshes.some((m) => m.materialInfo?.normal === 'missing') ? ' · CHECK normal map missing' : '') +
+      (data.meshes.some((m) => m.materialInfo?.specular === 'missing') ? ' · CHECK specular map missing' : '');
   }
   function stopMotion() {
     if (motionFrame !== null) cancelAnimationFrame(motionFrame);
