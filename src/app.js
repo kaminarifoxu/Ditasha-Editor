@@ -2587,6 +2587,7 @@ window.ditashaCreators?.state?.().then((entries) => {
     container: sidebarInspector,
     getModel: () => model,
     scene,
+    nativeAvailable: entry.available,
     render: () => renderer?.render(scene, camera),
   });
 }).catch(() => {});
