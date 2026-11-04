@@ -55,7 +55,18 @@ def _import_addon():
     return module
 
 def _shader_and_textures(bpy, mod, meshes, name, staging):
-    from prop_dds import image_to_dds
+    # Blender's --python execution does not guarantee the script directory is
+    # present on sys.path (in particular with managed/custom startup paths).
+    # Load the already staged helper by its absolute, sibling file path.
+    helper = Path(__file__).resolve().with_name("prop_dds.py")
+    if not helper.is_file():
+        raise RuntimeError("Required staged DDS helper missing: " + str(helper))
+    spec = importlib.util.spec_from_file_location("ditasha_prop_dds", str(helper))
+    if spec is None or spec.loader is None:
+        raise RuntimeError("Cannot load staged DDS helper")
+    helper_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(helper_module)
+    image_to_dds = helper_module.image_to_dds
 
     shader = importlib.import_module(mod + ".ydr.shader_materials").create_shader
     txd = bpy.context.scene.sz_txds.new_texture_dictionary(name=name)
