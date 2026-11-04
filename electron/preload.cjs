@@ -71,6 +71,7 @@ contextBridge.exposeInMainWorld('ditashaWeaponCreator', Object.freeze({
   revoke: (token) => ipcRenderer.invoke('ditasha:weapon-revoke', token),
   deps: () => ipcRenderer.invoke('ditasha:weapon-deps'),
   start: (request) => ipcRenderer.invoke('ditasha:weapon-start', request),
+  startCustom: (request, glb) => ipcRenderer.invoke('ditasha:weapon-custom-start', request, glb),
   job: (id) => ipcRenderer.invoke('ditasha:weapon-job', id),
   cancel: (id) => ipcRenderer.invoke('ditasha:weapon-cancel', id),
 }));
