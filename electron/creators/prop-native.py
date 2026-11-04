@@ -189,6 +189,7 @@ def _export(bpy, mod, job, stream):
         directory=str(stream), direct_export=True, use_custom_settings=True,
         target_formats={"NATIVE"}, target_versions={"GEN8"},
         limit_to_selected=False, export_ytyps=True, export_ytds=True,
+        export_ytyps_include="ALL", export_ytds_include="ALL",
         apply_transforms=False, mesh_domain="FACE_CORNER")
     _check(result, "Native Sollumz export")
     return {"meshes": len(meshes), "polygons": sum(len(o.data.polygons) for o in meshes)}
