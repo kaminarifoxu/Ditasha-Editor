@@ -66,6 +66,7 @@ function simulatedProvider({ fail, reportRoundTrip = true, invalidSignature = fa
     assert.equal(job.edition, 'legacy');
     assert.deepEqual(job.scale, [1.5, 0.75, 2]);
     assert.equal(await fs.readFile(args[args.indexOf('--python') + 1], 'utf8').then(s=>s.includes('def main')), true);
+    assert.match(await fs.readFile(path.join(path.dirname(jobFile), 'prop_dds.py'), 'utf8'), /def encode_dds_rgba/);
     const staging = path.dirname(jobFile);
     const stream = path.join(staging, 'stream');
     await fs.mkdir(stream);
