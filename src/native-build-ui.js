@@ -751,6 +751,11 @@ export function mountNativeBuild({
             preview.clear();
             rigSettings.open = true;
             draw();
+            // A selected humanoid should appear in the center automatically,
+            // as in Weapon Studio. Blender builds this read-only preview;
+            // native ped export is a separate explicit action.
+            if (state.engine && !state.running && $('nbMode').value === 'ped')
+              await start('ped_preview');
           }
         } catch (e) {
           toast(e.message);
