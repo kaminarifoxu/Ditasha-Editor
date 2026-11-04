@@ -54,10 +54,10 @@ def _import_addon():
         raise RuntimeError("Windows PyMateria native binary provider missing")
     return module
 
-def _shader_and_textures(bpy, mod, meshes, name, staging):
+def _load_dds_helper():
     # Blender's --python execution does not guarantee the script directory is
-    # present on sys.path (in particular with managed/custom startup paths).
-    # Load the already staged helper by its absolute, sibling file path.
+    # present on sys.path (notably with managed/custom startup paths).
+    # Resolve the helper against this worker's physical staged location.
     helper = Path(__file__).resolve().with_name("prop_dds.py")
     if not helper.is_file():
         raise RuntimeError("Required staged DDS helper missing: " + str(helper))
@@ -66,7 +66,11 @@ def _shader_and_textures(bpy, mod, meshes, name, staging):
         raise RuntimeError("Cannot load staged DDS helper")
     helper_module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(helper_module)
-    image_to_dds = helper_module.image_to_dds
+    return helper_module.image_to_dds
+
+
+def _shader_and_textures(bpy, mod, meshes, name, staging):
+    image_to_dds = _load_dds_helper()
 
     shader = importlib.import_module(mod + ".ydr.shader_materials").create_shader
     txd = bpy.context.scene.sz_txds.new_texture_dictionary(name=name)
