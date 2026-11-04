@@ -40,6 +40,8 @@ async function validateNativeReport(staging, spec) {
   if (report.schema !== 1 || report.ok !== true || report.roundTrip !== true ||
       !Array.isArray(report.assets) || report.assets.length !== nativeAssets(spec.projectName, spec.collision).length)
     throw Error('Unverified native conversion report');
+  if (!Number.isSafeInteger(report.textureCount) || report.textureCount < 1 || report.textureCount > 4096)
+    throw Error('Native YTD validation failed: no verified embedded textures were reimported');
   const expected = nativeAssets(spec.projectName, spec.collision);
   if (new Set(report.assets.map(a => a.relativePath)).size !== expected.length ||
       expected.some(name => !report.assets.some(a => a.relativePath === name)))
