@@ -144,6 +144,25 @@ export function mountNativeBuild({
   });
   $('nbViewport').querySelector('p').textContent =
     'Pilih model di panel kiri, lalu buat preview rig. Periksa ukuran dan deformasi sebelum menyimpan hasil.';
+  // Available even if Blender crashes before writing report.json.
+  // The previous Save error report control was only rendered when a report existed.
+  const saveEngineLog = document.createElement('button');
+  saveEngineLog.type = 'button';
+  saveEngineLog.id = 'nbSaveEngineLog';
+  saveEngineLog.textContent = 'Simpan log error Blender';
+  saveEngineLog.onclick = () => download?.(
+    new TextEncoder().encode(JSON.stringify({
+      status: state.status,
+      message: state.message,
+      step: state.step,
+      elapsedSeconds: state.startedAt ? Math.max(0, Math.floor((Date.now() - state.startedAt) / 1000)) : null,
+      report: state.report,
+      log: state.log,
+    }, null, 2)),
+    'ditasha-blender-diagnostics.json',
+    'application/json',
+  );
+  $('nbLog').closest('details').after(saveEngineLog);
   const poseControls = document.createElement('div');
   poseControls.className = 'rig-pose-controls';
   poseControls.hidden = true;
