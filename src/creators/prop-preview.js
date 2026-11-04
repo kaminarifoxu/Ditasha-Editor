@@ -86,7 +86,7 @@ export function makePropPreviewOverlay(model, options = {}) {
     },
   };
 }
-export function mountPropPreview({ container, getModel, scene, render, nativeAvailable = false }) {
+export function mountPropPreview({ container, getModel, scene, render, nativeAvailable = false, getScale = () => [1, 1, 1] }) {
   if (!container || !scene?.isScene || typeof getModel !== 'function') throw Error('Invalid prop preview mount');
   const panel = document.createElement('details');
   panel.className = 'workshop-fold prop-preview-inspector';
@@ -115,11 +115,26 @@ export function mountPropPreview({ container, getModel, scene, render, nativeAva
   if (nativeAvailable && window.ditashaCreators?.startProp) {
     const controls = document.createElement('details');
     controls.className = 'workshop-fold prop-native-build';
-    controls.innerHTML = '<summary>Native FiveM prop export · experimental</summary><p class="muted">Requires managed Blender/Sollumz/PyMateria. This builds the selected file separately from the preview model. Native export is validated before saving.</p><button data-prop-source>Select GLB / OBJ / FBX</button><small data-prop-source-label>No model selected</small><button data-prop-output>Select export folder</button><small data-prop-output-label>No export folder selected</small><label>Resource name<input data-prop-name value="ditasha_prop" maxlength="48"></label><label>Draw distance<input data-prop-distance type="number" min="1" max="2000" value="120"></label><button data-prop-build>Build & validate native resource</button><button data-prop-cancel disabled>Cancel build</button><p data-prop-native-status class="muted" role="status">Idle. Native output is not certified until the installed provider and game are tested.</p>';
+    controls.innerHTML = '<summary>Native FiveM prop export · experimental</summary><p class="muted">Requires managed Blender/Sollumz/PyMateria. Choose the original file again for export; preview and export share the same resize settings.</p><button data-prop-deps>Check native engine</button><button data-prop-setup>Install Blender / Sollumz</button><button data-prop-source>Select source GLB / OBJ / FBX</button><small data-prop-source-label>No model selected</small><button data-prop-output>Select export folder</button><small data-prop-output-label>No export folder selected</small><label>Resource name<input data-prop-name value="ditasha_prop" maxlength="48"></label><label>Draw distance<input data-prop-distance type="number" min="1" max="2000" value="120"></label><button data-prop-build>Export to FiveM</button><button data-prop-cancel disabled>Cancel build</button><p data-prop-native-status class="muted" role="status">Idle. Native output is not certified until the installed provider and game are tested.</p>';
     panel.append(controls);
     const api = window.ditashaCreators;
     const nativeStatus = controls.querySelector('[data-prop-native-status]');
     const setStatus = message => nativeStatus.textContent = message;
+    controls.querySelector('[data-prop-deps]').addEventListener('click', async () => {
+      setStatus('Checking Blender and Sollumz…');
+      try {
+        const result = await api.checkPropDeps();
+        setStatus(result.reason + (result.blenderVersion ? ' Blender ' + result.blenderVersion : ''));
+      } catch (error) { setStatus('Engine check failed: ' + error.message); }
+    });
+    controls.querySelector('[data-prop-setup]').addEventListener('click', async () => {
+      try {
+        if (!window.ditashaNative?.setup) throw Error('Native setup unavailable in this build');
+        setStatus('Starting managed Blender / Sollumz installation. Open Auto rig ped to monitor installation.');
+        await window.ditashaNative.setup();
+        setStatus('Setup request sent. Check native engine again after installation completes.');
+      } catch (error) { setStatus('Setup failed: ' + error.message); }
+    });
     controls.querySelector('[data-prop-source]').addEventListener('click', async () => {
       try {
         const grant = await api.pickProp('input');
@@ -152,7 +167,7 @@ export function mountPropPreview({ container, getModel, scene, render, nativeAva
           sourceName: inputGrant.name,
           projectName: controls.querySelector('[data-prop-name]').value.trim(),
           edition: 'legacy', collision: panel.querySelector('[data-prop-collision]').value,
-          drawDistance: distance, lodDistances,
+          drawDistance: distance, lodDistances, scale: getScale(),
         });
         activeJob = result.jobId;
         build.disabled = true;
