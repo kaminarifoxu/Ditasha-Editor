@@ -123,6 +123,7 @@ export function mountTools({
   let packOptimizationReport = [];
   const previewFiles = new WeakMap();
   const previewPanelState = new Map();
+  const externalWorkspaces = new Map();
   const viewers = mountViewers({
     nav,
     download,
@@ -196,7 +197,10 @@ export function mountTools({
       archives.openCode();
       return;
     }
-    if (page !== next) selection = null;
+    if (page !== next) {
+      externalWorkspaces.get(page)?.onLeave?.();
+      selection = null;
+    }
     if (page === 'pack' && next !== 'pack') {
       for (const [panel, open] of previewPanelState) panel.open = open;
       previewPanelState.clear();
@@ -263,6 +267,8 @@ export function mountTools({
     if (next === 'home') homepage.refresh();
     if (next === 'code') ide.activate();
     editor.hidden = next !== 'editor';
+    for (const [id, external] of externalWorkspaces) external.root.hidden = next !== id;
+    if (externalWorkspaces.has(next)) externalWorkspaces.get(next).onEnter?.();
     root.hidden = !['converter', 'pack'].includes(next);
     archives.root.hidden = next !== 'archives';
     viewers.textureRoot.hidden = next !== 'textureviewer';
@@ -792,6 +798,11 @@ export function mountTools({
   return {
     getVehicleSource: viewers.getVehicleSource,
     activate,
+    registerExternalWorkspace: (id, workspace) => {
+      if (id !== 'propcreator' || !workspace?.root || externalWorkspaces.has(id)) throw Error('Invalid external workspace');
+      externalWorkspaces.set(id, workspace);
+      workspace.root.hidden = true;
+    },
     attachNative: (element, mode) => {
       if (nativeRoot && nativeRoot !== element) nativeRoot.hidden = true;
       nativeRoot = element;
