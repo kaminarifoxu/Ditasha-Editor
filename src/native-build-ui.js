@@ -660,6 +660,13 @@ export function mountNativeBuild({
   async function start(task) {
     if (!api()) return toast('Game build tersedia pada aplikasi desktop Windows.');
     if (requesting || state.running) return;
+    // Never start expensive Muto rigging with an empty middle viewport. Generate
+    // the read-only source scene first, then let the user review and start rig.
+    if (task === 'ped' && (!state.previewId || !previewReady || !matchesPreview())) {
+      toast('Memuat preview model sumber dulu. Setelah model tampil, klik Buat preview rig.');
+      await start('ped_preview');
+      return;
+    }
     if (state.stagedId) {
       toast('Simpan atau buang hasil preview sebelumnya sebelum memulai proses baru.');
       return;
