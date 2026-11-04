@@ -1,14 +1,14 @@
-export function mountWeaponNativeExport({layout,getReference,getName,toast}) {
+export function mountWeaponNativeExport({layout,getReference,getName,getAssemblyGlb,toast}) {
   const panel=document.createElement('details');
   panel.className='wd-native-weapon';
-  panel.innerHTML="<summary>Native GTA / FiveM weapon build (M2c)</summary>\n<p class=\"muted\">Requires an existing GTA V Legacy rigged weapon donor with matching YDR and YTD. A plain GLB or sketch is not enough. Blender/Sollumz verifies skeleton, muzzle, magazine and grip bones; AddonWeaponsBuilder packages GTA DLC. FiveM resource output requires complete loose metadata.</p>\n<button type=\"button\" data-wn-deps>Check Blender &amp; AddonWeaponsBuilder</button><p data-wn-dep-status role=\"status\" class=\"muted\">Native tools not checked.</p>\n<button type=\"button\" data-wn-source>Select prepared YDR + YTD folder</button><small data-wn-source-name>No source selected</small>\n<button type=\"button\" data-wn-output>Select output folder</button><small data-wn-output-name>No output selected</small>\n<label>New weapon model name<input data-wn-model value=\"w_pi_ditashaweapon\" maxlength=\"48\" spellcheck=\"false\"></label>\n<label>Weapon price<input data-wn-price type=\"number\" value=\"5000\" min=\"0\" max=\"10000000\" step=\"1\"></label>\n<p class=\"muted\">The source reference comes from Acuan FiveM above. Install the verified AddonWeaponsBuilder using the existing panel if necessary.</p>\n<button type=\"button\" data-wn-build class=\"primary\">Validate &amp; build GTA weapon DLC</button>\n<button type=\"button\" data-wn-cancel disabled>Cancel build</button>\n<pre data-wn-result role=\"status\" aria-live=\"polite\">No weapon build started.</pre>";
+  panel.innerHTML="<summary>Native GTA / FiveM weapon build (M2c)</summary>\n<p class=\"muted\">Requires an existing GTA V Legacy rigged weapon donor with matching YDR and YTD. The editable GLB/OBJ/YDR assembly is merged into a donor rig to create a new native YDR/YTD. This requires a compatible source skeleton and is not yet gameplay-certified. Blender/Sollumz verifies skeleton, muzzle, magazine and grip bones; AddonWeaponsBuilder packages GTA DLC. FiveM resource output requires complete loose metadata.</p>\n<button type=\"button\" data-wn-deps>Check Blender &amp; AddonWeaponsBuilder</button><p data-wn-dep-status role=\"status\" class=\"muted\">Native tools not checked.</p>\n<button type=\"button\" data-wn-source>Select prepared YDR + YTD folder</button><small data-wn-source-name>No source selected</small>\n<button type=\"button\" data-wn-output>Select output folder</button><small data-wn-output-name>No output selected</small>\n<label>New weapon model name<input data-wn-model value=\"w_pi_ditashaweapon\" maxlength=\"48\" spellcheck=\"false\"></label>\n<label>Weapon price<input data-wn-price type=\"number\" value=\"5000\" min=\"0\" max=\"10000000\" step=\"1\"></label>\n<p class=\"muted\">The source reference comes from Acuan FiveM above. Install the verified AddonWeaponsBuilder using the existing panel if necessary.</p>\n<button type=\"button\" data-wn-custom class=\"primary\">Export custom weapon YDR + YTD</button>\n<button type=\"button\" data-wn-build>Build GTA DLC (advanced)</button>\n<button type=\"button\" data-wn-cancel disabled>Cancel build</button>\n<pre data-wn-result role=\"status\" aria-live=\"polite\">Primary output: custom YDR + YTD. GLB backup remains optional.</pre>";
   layout.querySelector('.wd-export').append(panel);
   const find=key=>panel.querySelector('[data-wn-'+key+']');
   const api=()=>window.ditashaWeaponCreator;
   const status=s=>{find('result').textContent=s;};
   let source=null,output=null,activeJob=null,pollTimer=null;
   const busy=value=>{
-    for(const key of ['source','output','model','price','build'])find(key).disabled=value;
+    for(const key of ['source','output','model','price','build','custom'])find(key).disabled=value;
     find('cancel').disabled=!value;
   };
   find('deps').onclick=async()=>{
@@ -32,21 +32,23 @@ export function mountWeaponNativeExport({layout,getReference,getName,toast}) {
       }catch(error){status(error.message);}
     };
   }
-  find('build').onclick=async()=>{
+  const begin=async(custom)=>{
     if(activeJob)return;
     if(!source||!output)return status('Select the prepared native source and output folders.');
     const reference=getReference();
     if(!reference)return status('Select a supported GTA reference first.');
     try{
       if(!api())throw Error('Weapon export requires DITASHA desktop Windows.');
-      const response=await api().start({
+      const request={
         schemaVersion:1,edition:'legacy',sourceToken:source.token,outputToken:output.token,
         reference:reference[1],name:getName().trim(),modelName:find('model').value.trim(),
         price:Number(find('price').value),
-      });
+      };
+      const glb=custom?await getAssemblyGlb():null;
+      const response=custom?await api().startCustom(request,glb):await api().start(request);
       activeJob=response.jobId;
       busy(true);
-      status('Blender/Sollumz native skeleton and attachment verification started…');
+      status(custom?'Converting custom assembly into native YDR/YTD…':'Blender/Sollumz donor verification started…');
       const poll=async()=>{
         if(!activeJob)return;
         try{
@@ -56,7 +58,11 @@ export function mountWeaponNativeExport({layout,getReference,getName,toast}) {
           clearInterval(pollTimer);pollTimer=null;activeJob=null;busy(false);
           if(job.state==='succeeded'){
             const result=job.result;
-            status('GTA DLC validated: '+result.output+
+            status(custom?
+              'Native YDR + YTD exported: '+result.output+
+              '\nCustom meshes: '+result.customMeshCount+' · Textures: '+result.textureCount+
+              '\nDonor skeleton and anchors checked. FiveM gameplay not verified.':
+              'GTA DLC validated: '+result.output+
               '\nNative skeleton round-trip passed.'+
               '\nFiveM resource: '+(result.fiveMReady?'generated, not game-tested':'not generated')+
               '\n'+(result.notes||'')+
@@ -71,6 +77,8 @@ export function mountWeaponNativeExport({layout,getReference,getName,toast}) {
       await poll();
     }catch(error){activeJob=null;busy(false);status(error.message);toast?.(error.message);}
   };
+  find('custom').onclick=()=>{void begin(true);};
+  find('build').onclick=()=>{void begin(false);};
   find('cancel').onclick=async()=>{
     if(!activeJob)return;
     try{await api().cancel(activeJob);status('Cancelling weapon build…');}
