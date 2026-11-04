@@ -91,7 +91,7 @@ export function selectBoothRig(ownRig, skin, candidates = [], { family, choice =
         rig: template,
         indices: remapped,
         required,
-        source: 'Auto Head/Hair Skeleton (' + gender + ')',
+        source: (/(?:^|[\\^/])hair_/i.test(modelName) ? 'Auto Hair Skeleton (' : 'Auto Head Skeleton (') + gender + ')',
         approximate: true,
         warning: 'Auto Head/Hair Skeleton preview: kepala/rambut mengikuti SKEL_Head. Ini rigid fallback; bone wajah/rahang dan gerakan rambut asli memerlukan YFT yang cocok.',
       };
