@@ -47,4 +47,28 @@ material.node_tree.nodes['DiffuseSampler'].image.has_data = False
 report = m.audit_rig([obj], lambda o: [o.data] * 3)
 assert report['missingUV'] == ['body'] and report['missingTextures'] == ['skin']
 assert report['missingLOD'] == []
+# Muto can create multiple copies of an identical GTA freemode skeleton
+# for separate native drawable LOD groups. Compare names and parent structure.
+def make_full_arm(name, divergent=False):
+    root = N(name='SKEL_ROOT', parent=None)
+    head = N(name='SKEL_Head', parent=root)
+    bones = [root, head]
+    for i in range(126):
+        bones.append(N(name='SKEL_Test_' + str(i),
+                       parent=head if i == 0 and divergent else root))
+    return N(name=name, data=N(bones=bones))
+rig_a = make_full_arm('Rig_001')
+rig_b = make_full_arm('Rig_002')
+rig_c = make_full_arm('Rig_bad', divergent=True)
+def rig_object(rig):
+    return N(name='skinned_mesh', find_armature=lambda: rig)
+selected, copies, count = m.compatible_ped_armature([rig_object(rig_a), rig_object(rig_b)])
+assert copies == 2 and count == 128
+assert selected is rig_a
+try:
+    m.compatible_ped_armature([rig_object(rig_a), rig_object(rig_c)])
+except ValueError as exc:
+    assert 'incompatible' in str(exc)
+else:
+    raise AssertionError('Different native ped bone hierarchy must be rejected')
 print('PASS_PED_REVIEW')
