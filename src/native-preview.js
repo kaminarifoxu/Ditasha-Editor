@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { managePreview } from './performance.js';
+import { validateNativeMaterialReferences } from './native-material-report.js';
 export function nativeOffsetFromThree(position) {
   return [position.x, -position.z, position.y].map(
     (v) => Math.round(Math.max(-20, Math.min(20, v)) * 1000) / 1000,
@@ -284,6 +285,8 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
       textures.forEach((t) => t.dispose());
       return;
     }
+    // Reject out-of-range sampler indices and malformed UVs before uploading geometry.
+    validateNativeMaterialReferences(data.meshes, textures.length);
     maps = textures;
     maps.forEach((map) => {
       map.colorSpace = THREE.SRGBColorSpace;
