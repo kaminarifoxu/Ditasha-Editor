@@ -54,12 +54,15 @@ test('Custom weapon report requires matching meshes, textures, filename and anch
   const good={schema:1,ok:true,nativeRoundTrip:true,modelName:model,
     donorModel:donor,customMeshCount:2,customPolygonCount:18,
     roundTripPolygonCount:18,textureCount:3,
+    uvCornerCount:54,bounds:[[0,0,0],[1,1,1]],
     anchors,anchorsAfter:anchors,artifacts:[
       {name:model+'.ydr'},{name:model+'.ytd'},
     ]};
   assert.deepEqual(validateCustomReport(good,spec),[model+'.ydr',model+'.ytd']);
   for(const broken of [
     {...good,textureCount:0},
+    {...good,uvCornerCount:0},
+    {...good,bounds:[[0,0,0],[Number.NaN,1,1]]},
     {...good,customPolygonCount:19},
     {...good,artifacts:[{name:model+'.ydr'},{name:model+'.ydr'}]},
     {...good,anchorsAfter:{...anchors,muzzle:{name:'WAPSupp',position:[0,0,1]}}},
@@ -93,7 +96,7 @@ test('Native custom weapon builds YDR + YTD without exposing original GLB or ove
     await fs.writeFile(path.join(root,'weapon-custom-report.json'),JSON.stringify({
       schema:1,ok:true,nativeRoundTrip:true,modelName:model,donorModel:donor,
       customMeshCount:1,customPolygonCount:12,roundTripPolygonCount:12,
-      textureCount:1,anchors,anchorsAfter:anchors,artifacts,
+      textureCount:1,uvCornerCount:36,bounds:[[0,0,0],[1,1,1]],anchors,anchorsAfter:anchors,artifacts,
     }));
   };
   const result=await buildCustomWeapon({request:f.request,bytes:glb(),grants:f.grants,userDataRoot:f.data,runner});
