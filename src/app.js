@@ -22,6 +22,7 @@ import { mountCanvasStudio } from './canvas-studio.js';
 import { mountSceneStudio } from './scene-studio.js';
 import { mountAssetWorkshopUi } from './asset-workshop-ui.js';
 import { mountPropPreview } from './creators/prop-preview.js';
+import { mountPropCreatorEntry } from './creators/prop-entry.js';
 import { mountWorkspaceShell } from './workspace-shell.js';
 import { mountNativeBuild } from './native-build-ui.js';
 import { decodeResource } from './resource-client.js';
@@ -2579,18 +2580,26 @@ mountPerformance();
 mountMinimalUi();
 mountWorkspaceShell({ toast });
 mountAssetWorkshopUi();
-// Experimental Prop Creator only: never insert controls in the current UI
-// unless the creator is explicitly enabled and its backend is verified.
-window.ditashaCreators?.state?.().then((entries) => {
-  if (!entries?.find((entry) => entry.type === 'prop' && entry.enabled)) return;
-  mountPropPreview({
-    container: sidebarInspector,
-    getModel: () => model,
-    scene,
-    nativeAvailable: entry.available,
-    render: () => renderer?.render(scene, camera),
-  });
-}).catch(() => {});
+// Phase 3 is discoverable in the existing Asset Workshop navigation.
+// The normal workspace layout stays intact and native exports remain gated.
+let propInspector = null;
+mountPropCreatorEntry({
+  nav: document.querySelector('.workspace-nav'),
+  activate: tools.activate,
+  mountInspector: async () => {
+    if (propInspector) return propInspector.panel;
+    const entries = await window.ditashaCreators?.state?.().catch(() => []) || [];
+    const prop = entries.find(entry => entry.type === 'prop');
+    propInspector = mountPropPreview({
+      container: sidebarInspector,
+      getModel: () => model,
+      scene,
+      nativeAvailable: prop?.available === true,
+      render: () => renderer?.render(scene, camera),
+    });
+    return propInspector.panel;
+  },
+});
 mountWorkspacePolish();
 mountCharacterMaker();
 mountClothingCatalog({ openPreview: async (modelFiles) => {
