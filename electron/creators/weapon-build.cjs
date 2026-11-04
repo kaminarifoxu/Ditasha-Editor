@@ -6,7 +6,7 @@ const { managedEnv } = require('../native-setup.cjs');
 const { managedExecutable } = require('./prop-build.cjs'); // Reuse existing read-only native installation verification.
 const { runNativeProcess, cleanupStaging } = require('./native-process.cjs');
 const { validateArtifacts, commitExport, safeRelative } = require('./export-validation.cjs');
-const { createGtaTools } = require('../gta-tools.cjs');
+const { createGtaTools, SPECS, digest } = require('../gta-tools.cjs');
 const { validateWeaponBuildRequest, inspectWeaponSource, WEAPON_REFERENCES } = require('./weapon-schema.cjs');
 
 const DATA_FILES = Object.freeze({
@@ -157,8 +157,32 @@ async function prepareFiveMPackage(staging, artifactList) {
   return {ready:true,reason:'Loose FiveM package assembled; in-game verification pending',resources};
 }
 
+async function verifyAddonArchives(staging, files, userDataRoot, signal, runner=runNativeProcess) {
+  const archives=files.filter(a=>a.relativePath.toLowerCase().endsWith('.rpf'));
+  if (!archives.length) throw Error('AddonWeaponsBuilder produced no GTA weapon archive');
+  const toolRoot=path.join(userDataRoot,'gta-tools','weapons','current');
+  const manifest=JSON.parse(await fs.readFile(path.join(toolRoot,'ready.json'),'utf8'));
+  if (manifest.version!==SPECS.weapons.version || manifest.sha256!==SPECS.weapons.sha256)
+    throw Error('Unverified AddonWeaponsBuilder installation');
+  const base=path.join(toolRoot,SPECS.weapons.folder);
+  for(const [name,hash] of Object.entries(SPECS.weapons.files)){
+    if(await digest(path.join(base,name))!==hash) throw Error('AddonWeaponsBuilder binary checksum mismatch');
+  }
+  const exe=path.join(base,SPECS.weapons.cli);
+  for(const artifact of archives){
+    const file=path.join(staging,...artifact.relativePath.split('/'));
+    const magic=Buffer.alloc(4),handle=await fs.open(file,'r');
+    try{await handle.read(magic,0,4,0)}finally{await handle.close()}
+    if(magic.toString('ascii')!=='RPF7') throw Error('Invalid Legacy RPF archive signature');
+    await runner({executable:exe,cwd:base,signal,args:['verify',file],
+      timeoutMs:2*60*1000,maxOutputBytes:128*1024});
+    signal?.throwIfAborted();
+  }
+  return archives.length;
+}
 async function buildNativeWeapon({request,grants,userDataRoot,signal,runner=runNativeProcess,
-  makeBuilder=()=>createGtaTools({root:path.join(userDataRoot,'gta-tools')})}={}) {
+  makeBuilder=()=>createGtaTools({root:path.join(userDataRoot,'gta-tools')}),
+  verifyArchives=verifyAddonArchives}={}) {
   const spec=validateWeaponBuildRequest(request);
   if (!grants?.resolve || typeof userDataRoot!=='string' || !path.isAbsolute(userDataRoot))
     throw Error('Trusted weapon source, output and user data directories required');
@@ -205,12 +229,13 @@ async function buildNativeWeapon({request,grants,userDataRoot,signal,runner=runN
     await fs.rename(built.output,resultDir);
     await fs.rm(parent,{recursive:true,force:true});
     const dlcFiles=await collectWeaponArtifacts(resultDir,'GTA-DLC');
+    const verifiedArchives=await verifyArchives(staging,dlcFiles,userDataRoot,signal);
     const fiveM=await prepareFiveMPackage(staging,dlcFiles);
     await fs.rm(path.join(staging,'native-roundtrip'),{recursive:true,force:true});
     await fs.rm(script,{force:true}); await fs.rm(jobFile,{force:true});
     const sourceNative={sourceModel:donor.model,anchors:nativeReport.before.anchors,
       boneCount:nativeReport.before.boneCount,textureCount:nativeReport.before.textureCount,
-      nativeRoundTripPassed:true,addonWeaponsBuilderPassed:true,fiveMReady:fiveM.ready,
+      nativeRoundTripPassed:true,addonWeaponsBuilderPassed:true,verifiedArchives,fiveMReady:fiveM.ready,
       gameTestPassed:null,notes:fiveM.reason};
     await fs.writeFile(path.join(staging,'weapon-validation.json'),JSON.stringify(sourceNative,null,2),{flag:'wx'});
     const files=[...dlcFiles,...(fiveM.resources||[]),
@@ -223,11 +248,11 @@ async function buildNativeWeapon({request,grants,userDataRoot,signal,runner=runN
     const committedResult=await commitExport({stagingRoot:staging,destinationRoot:destination,artifacts:files});
     committed=true;
     return {output:committedResult.output,artifacts:committedResult.artifacts,
-      nativeRoundTripPassed:true,addonWeaponsBuilderPassed:true,
+      nativeRoundTripPassed:true,addonWeaponsBuilderPassed:true,verifiedArchives,
       fiveMReady:fiveM.ready,gameTestPassed:null,notes:fiveM.reason};
   } finally {
     if (!committed) await cleanupStaging(staging,output);
   }
 }
 module.exports={validAnchorSet,validateNativeWeaponReport,collectWeaponArtifacts,
-  generateFiveMManifest,prepareFiveMPackage,buildNativeWeapon};
+  generateFiveMManifest,prepareFiveMPackage,verifyAddonArchives,buildNativeWeapon};
