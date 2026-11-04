@@ -1,0 +1,62 @@
+name: DITASHA Phase 3 Windows test EXE
+on:
+  push:
+    branches: [feature/phase3-creators]
+    paths:
+      - '.github/workflows/phase3-test-exe.yml'
+      - 'electron/**'
+      - 'src/**'
+      - 'scripts/**'
+      - 'tests/**'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ditasha-phase3-test-exe-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  windows-test-exe:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Run regression tests
+        run: npm test
+      - name: Build Windows portable and installer
+        run: npm run build:win
+      - name: Verify test binaries
+        shell: pwsh
+        run: |
+          $portable = 'release/DITASHA-Editor.exe'
+          $installer = 'release/DITASHA-Setup.exe'
+          foreach ($file in @($portable, $installer)) {
+            if (!(Test-Path $file)) { throw "Missing test binary: $file" }
+            $item = Get-Item $file
+            if ($item.Length -lt 1048576) { throw "Suspiciously small test binary: $file" }
+            Write-Host "$($item.Name) $($item.Length) bytes"
+            Get-FileHash $file -Algorithm SHA256
+          }
+      - name: Upload Phase 3 portable test EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: DITASHA-Phase3-M1c-Portable-Test
+          path: |
+            release/DITASHA-Editor.exe
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload Phase 3 installer test EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: DITASHA-Phase3-M1c-Installer-Test
+          path: |
+            release/DITASHA-Setup.exe
+          if-no-files-found: error
+          retention-days: 7
