@@ -730,7 +730,8 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
         }
         // A failed native validation can still have a safely generated rest
         // preview; make it inspectable without enabling save/export.
-        if (rep.preview && !state.cancelled && ['ped','ped_preview','garment'].includes(job.mode)) {
+        if (rep.preview && !state.cancelled && ['ped','ped_preview','garment'].includes(job.mode) &&
+            (!priorPreview || (rep.ok && !error))) {
           const previewPath = path.join(job.output, 'preview.json');
           if ((await fs.stat(previewPath)).size > 48 * 1024 * 1024)
             throw Error('Preview terlalu besar.');
