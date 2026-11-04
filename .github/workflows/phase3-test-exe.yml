@@ -33,6 +33,9 @@ jobs:
       - name: Smoke test isolated Prop Creator workspace and OBJ import
         run: npx electron scripts/smoke-prop-workspace.cjs
         timeout-minutes: 4
+      - name: Smoke test native weapon panel and Prop isolation
+        run: npx electron scripts/smoke-weapon-m2c.cjs
+        timeout-minutes: 4
       - name: Build Windows portable and installer
         run: npm run build:win
       - name: Verify test binaries
