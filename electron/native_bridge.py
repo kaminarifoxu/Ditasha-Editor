@@ -609,8 +609,9 @@ def run(job):
                 if report['quality'].get(key, 0):
                     raise RuntimeError('Ped native skin validation failed: %s=%s' %
                                        (key, report['quality'][key]))
-            if report['quality'].get('armatures') != 1 or report['quality'].get('bones', 0) < 30:
-                raise RuntimeError('Ped native rigging requires one compatible GTA skeleton')
+            if (not report['quality'].get('compatibleSkeletons') or
+                    report['quality'].get('bones', 0) < 30):
+                raise RuntimeError('Ped native rigging requires matching GTA skeleton hierarchies')
             report['preview'] = review.create_pose_previews(bpy, rigged, output, preview_scene)
             try:
                 report['preview']['motion'] = review.add_walk_preview(bpy, rigged, output, preview_scene)
@@ -618,19 +619,16 @@ def run(job):
                 report['preview']['warnings'].append('Walk preview: ' + str(exc))
             if job.get('clip'):
                 from clip_review import add_clip_preview
-                arms = {a.name:a for obj in rigged if (a := review.armature_for(obj)) is not None}
-                if len(arms) != 1:
-                    raise ValueError('Clip GTA memerlukan satu armature hasil rig.')
-                report['preview']['motion'] = add_clip_preview(bpy, next(iter(arms.values())), rigged, job['clip'], job['clipIndex'], output, preview_scene)
+                clip_arm, _, _ = review.compatible_ped_armature(rigged)
+                report['preview']['motion'] = add_clip_preview(bpy, clip_arm, rigged, job['clip'], job['clipIndex'], output, preview_scene)
             report['warnings'] = report.get('warnings', []) + result.get('warnings', []) + report['quality']['warnings'] + report['preview']['warnings']
             # Inspect the native files produced by Muto using the already
             # installed Sollumz native importer. Do this AFTER creating pose
             # previews so reimported objects never enter the preview scene.
             import ped_native_verify
-            arms = {a.name: a for obj in rigged if (a := review.armature_for(obj)) is not None}
-            if len(arms) != 1:
-                raise RuntimeError('Native ped export has ambiguous source armatures')
-            source_bones = {b.name for b in next(iter(arms.values())).data.bones}
+            source_arm, matching_armatures, skeleton_bones = review.compatible_ped_armature(rigged)
+            report['matchingArmatures'] = matching_armatures
+            source_bones = {b.name for b in source_arm.data.bones}
             report['nativeValidation'] = ped_native_verify.verify_native_ped(
                 bpy, output, source_bones
             )
