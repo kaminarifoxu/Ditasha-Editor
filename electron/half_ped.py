@@ -138,6 +138,19 @@ def run(bpy,job,output,review,preview_scene):
         place(hair,transform)
         extra=Matrix.Translation(target+Vector(options['hairOffset']))@Matrix.Scale(options['hairScale'],4)@Matrix.Translation(-target)
         place(hair,extra);rigid(hair)
+    # Diagnostic only: do not deform or silently recenter user hair geometry.
+    # Compare the fitted hair to the actual positioned head, not the original import.
+    hair_alignment={'checked':False,'aligned':None}
+    if hair:
+        head_low,head_high=bounds(source)
+        hair_low,hair_high=bounds(hair)
+        head_center=(head_low+head_high)/2
+        hair_center=(hair_low+hair_high)/2
+        distance=(head_center-hair_center).length
+        head_height=max(1e-6,head_high.z-head_low.z)
+        xy_overlap=all(hair_low[i]<=head_high[i] and hair_high[i]>=head_low[i] for i in (0,1))
+        hair_alignment={'checked':True,'aligned':bool(xy_overlap and distance<=head_height*3),
+                        'centerDistanceMeters':round(distance,4),'xyOverlap':bool(xy_overlap)}
     source_uv=uv_svg(source,output/'uv-head-source.svg')
     from clothing_workflow import export_native
     native=[]
@@ -217,4 +230,6 @@ def run(bpy,job,output,review,preview_scene):
     warnings=['Transfer wajah mengikuti permukaan acuan; periksa mata, rahang dan leher di Blender/FiveM.', 'Rambut rigid mengikuti SKEL_Head; deformasi topi dan physics rambut belum dibuat.', 'YDD mengganti slot yang sudah ada. Collection/YMT dan konfigurasi halfped server tetap diperlukan.']
     if not reference_uv:warnings.append('Acuan engine tidak membawa UV asli freemode. Pilih template .blend dengan kepala dan UV untuk mengekspor UV acuan; UV sumber tetap dipertahankan.')
     files=[glb.name,'ditasha-result.blend']+(['uv-head-source.svg'] if source_uv else [])+(['uv-freemode-reference.svg'] if reference_uv else [])
-    return {'halfPed':True,'referenceUvAvailable':reference_uv,'transferQuality':quality,'nativeHead':native,'preview':preview,'files':files,'warnings':warnings+preview['warnings']}
+    if hair_alignment['checked'] and not hair_alignment['aligned']:
+        warnings.append('Rambut terdeteksi jauh dari kepala atau tidak overlap XY; periksa posisi, scale dan offset di preview.')
+    return {'halfPed':True,'referenceUvAvailable':reference_uv,'hairAlignment':hair_alignment,'transferQuality':quality,'nativeHead':native,'preview':preview,'files':files,'warnings':warnings+preview['warnings']}
