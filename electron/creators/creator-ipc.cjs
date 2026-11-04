@@ -42,8 +42,8 @@ function registerCreators({ ipcMain, trusted, app, dialog, win }) {
       const { managedExecutable } = require('./prop-build.cjs');
       await managedExecutable(root);
       const cap = await probeInstalledPropProvider({ root });
-      return { installed: true, usable: Boolean(cap.importer && cap.sollumzLoaded),
-        reason: cap.importer && cap.sollumzLoaded
+      return { installed: true, usable: Boolean(cap.importer && cap.sollumzLoaded && cap.nativeProviderAvailable),
+        reason: cap.importer && cap.sollumzLoaded && cap.nativeProviderAvailable
           ? 'Blender and Sollumz detected. Native export is experimental; in-game validation is still required.'
           : 'Sollumz importer is missing or incomplete. Install the managed native tools.',
         blenderVersion: cap.blenderVersion };
@@ -68,7 +68,8 @@ function registerCreators({ ipcMain, trusted, app, dialog, win }) {
     const root = path.join(app.getPath('userData'), 'native-tools');
     const job = jobs.submit('prop', async ({ signal }) => {
       const cap = await probeInstalledPropProvider({ root, signal });
-      if (!cap.sollumzLoaded || !cap.importer) throw Error('Managed Blender/Sollumz importer is not ready');
+      if (!cap.sollumzLoaded || !cap.importer || !cap.nativeProviderAvailable)
+        throw Error('Managed Blender/Sollumz/PyMateria native provider is not ready');
       return registry.get('prop')({ request: validated, tokens: grants, providerRoot: root, signal });
     });
     return { jobId: job.id };
