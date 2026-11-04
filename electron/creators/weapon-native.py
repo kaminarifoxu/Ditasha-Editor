@@ -99,8 +99,12 @@ def inspect_round_trip(path, before):
     after = inspect(None)
     if after["boneCount"] != before["boneCount"]:
         raise RuntimeError("Weapon skeleton bone count changed during Sollumz round-trip")
-    for kind, original in before["anchors"].items():
-        current = after["anchors"][kind]
+    for kind, original in {**before["anchors"], **before["optional"]}.items():
+        source = before["anchors"] if kind in before["anchors"] else before["optional"]
+        target = after["anchors"] if kind in after["anchors"] else after["optional"]
+        if kind not in target:
+            raise RuntimeError("Weapon %s optional attachment lost on native export" % kind)
+        current = target[kind]
         if current["name"].lower() != original["name"].lower():
             raise RuntimeError("Weapon %s bone name changed on native round-trip" % kind)
         if math.dist(current["position"], original["position"]) > 0.002:
