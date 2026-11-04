@@ -149,7 +149,7 @@ def _make_collision(bpy, mod, meshes, project, mode):
             bm.free()
     collision_mesh.name = project + "_collision"
     composite = helper.convert_obj_to_composite(collision_mesh, props.SollumType.BOUND_GEOMETRYBVH)
-    composite.name = project
+    composite.name = project + '_col'
     return composite
 
 def _export(bpy, mod, job, stream):
@@ -166,7 +166,7 @@ def _export(bpy, mod, job, stream):
     arch.name = job["name"]
     arch.asset = drawable
     arch.texture_dictionary = job["name"]
-    arch.physics_dictionary = job["name"] if collision else ""
+    arch.physics_dictionary = job["name"] + '_col' if collision else ""
     arch.lod_dist = float(job["drawDistance"])
     if len(bpy.context.scene.ytyps) != 1:
         raise ValueError("Unexpected YTYP state")
@@ -183,7 +183,7 @@ def _export(bpy, mod, job, stream):
 def _validate_roundtrip(bpy, job, stream):
     required = [job["name"] + ext for ext in [".ydr", ".ytd", ".ytyp"]]
     if job["collision"] != "none":
-        required.append(job["name"] + ".ybn")
+        required.append(job["name"] + "_col.ybn")
     for filename in required:
         file = stream / filename
         if not file.is_file() or file.stat().st_size < 32 or file.read_bytes()[:4] != b"RSC7":
