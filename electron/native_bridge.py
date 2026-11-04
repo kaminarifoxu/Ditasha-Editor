@@ -389,10 +389,37 @@ def preview_scene(bpy, fragment, output, donor=None, filename='preview.json', ev
     cache = texture_cache if texture_cache is not None else {'ids': {}, 'textures': []}
     result = {'version': 1, 'meshes': [], 'textures': cache['textures'], 'basis': 'gta-z-up', 'triangles': 0, 'source': source}
     images = cache['ids']
-    def texture(material):
+    def sampler_node(material, role):
         if not material or not material.node_tree:
             return None
-        node = (source_image_node(material) if source or source_materials else None) or next((material.node_tree.nodes.get(n) for n in ('DiffuseSampler', 'TextureSampler', 'DiffuseSampler2') if material.node_tree.nodes.get(n)), None)
+        nodes = material.node_tree.nodes
+        aliases = {
+            'diffuse': ('DiffuseSampler', 'TextureSampler', 'DiffuseSampler2'),
+            'normal': ('BumpSampler', 'NormalSampler', 'PlateBgBumpSampler'),
+            'specular': ('SpecSampler', 'SpecularSampler'),
+        }
+        native = next((nodes.get(name) for name in aliases[role] if nodes.get(name)), None)
+        if native:
+            return native
+        # Source GLB/FBX materials may contain a Principled graph, not Sollumz sampler names.
+        if not (source or source_materials):
+            return None
+        if role == 'diffuse':
+            return source_image_node(material)
+        output = next((n for n in nodes if n.type == 'OUTPUT_MATERIAL' and n.is_active_output), None)
+        surface = output.inputs.get('Surface') if output else None
+        bsdf = surface.links[0].from_node if surface and surface.links else None
+        if not bsdf or bsdf.type != 'BSDF_PRINCIPLED':
+            return None
+        socket = bsdf.inputs.get('Normal' if role == 'normal' else 'Specular IOR Level')
+        linked = socket.links[0].from_node if socket and socket.links else None
+        if role == 'normal' and linked and linked.type == 'NORMAL_MAP':
+            color = linked.inputs.get('Color')
+            linked = color.links[0].from_node if color and color.links else None
+        return linked if linked and linked.type == 'TEX_IMAGE' else None
+
+    def texture(material, role='diffuse'):
+        node = sampler_node(material, role)
         image = getattr(node, 'image', None)
         if not image or not image.has_data:
             return None
@@ -454,29 +481,45 @@ def preview_scene(bpy, fragment, output, donor=None, filename='preview.json', ev
                     opacity = bsdf.inputs.get('Alpha') if bsdf else None
                     if opacity and (opacity.is_linked or opacity.default_value < .999):
                         alpha = 'cutout' if cutout else 'blend'
-                diffuse_index = texture(material)
-                info = {'uv': 'present' if mesh.uv_layers else 'missing',
-                        'diffuse': 'present' if diffuse_index is not None else 'missing',
-                        'normal': 'unknown', 'specular': 'unknown'}
-                if material and material.node_tree and not (source or source_materials):
-                    nodes = material.node_tree.nodes
-                    for label, aliases in (('normal', ('BumpSampler', 'NormalSampler')),
-                                           ('specular', ('SpecSampler', 'SpecularSampler'))):
-                        sampler = next((nodes.get(alias) for alias in aliases if nodes.get(alias)), None)
-                        if sampler:
-                            info[label] = 'present' if getattr(getattr(sampler, 'image', None), 'has_data', False) else 'missing'
-                groups[key] = {'name': obj.name, 'kind': kind, 'candidate': obj.name if badge else None, 'positions': [], 'uvs': [], 'texture': diffuse_index, 'alpha': alpha, 'materialInfo': info}
+                samplers = {role: sampler_node(material, role) for role in ('diffuse', 'normal', 'specular')}
+                indices = {role: texture(material, role) if samplers[role] else None for role in samplers}
+                def sampler_uv(node):
+                    if not node:
+                        return None
+                    vector = node.inputs.get('Vector') if hasattr(node, 'inputs') else None
+                    input_node = vector.links[0].from_node if vector and vector.links else None
+                    return input_node.uv_map if input_node and input_node.type == 'UVMAP' else None
+                uv_names = {role: sampler_uv(node) for role, node in samplers.items()}
+                diffuse_uv = uv_names['diffuse']
+                uv_layer = (mesh.uv_layers.get(diffuse_uv) if diffuse_uv else mesh.uv_layers.active)
+                uv_problem = not uv_layer or any(
+                    name and (not mesh.uv_layers.get(name) or
+                              (diffuse_uv and name != diffuse_uv))
+                    for role, name in uv_names.items() if role != 'diffuse'
+                )
+                info = {'uv': 'missing' if uv_problem else 'present',
+                        'samplers': {role: getattr(node, 'name', None) for role, node in samplers.items()},
+                        'material': material.name if material else '(no material)',
+                        'uvLayer': uv_layer.name if uv_layer else None}
+                for role, node in samplers.items():
+                    info[role] = ('unknown' if node is None and role != 'diffuse' else
+                                  'present' if indices[role] is not None else 'missing')
+                # Prevent a different UV coordinate set from silently displaying the wrong normal/spec map.
+                for role in ('normal', 'specular'):
+                    uv_name = uv_names[role]
+                    if uv_name and (not mesh.uv_layers.get(uv_name) or
+                                    (diffuse_uv and uv_name != diffuse_uv)):
+                        indices[role] = None
+                        info[role] = 'uv-mismatch'
+                groups[key] = {'name': obj.name, 'kind': kind, 'candidate': obj.name if badge else None,
+                               'positions': [], 'uvs': [], 'texture': indices['diffuse'],
+                               'normalTexture': indices['normal'], 'specularTexture': indices['specular'],
+                               'alpha': alpha, 'materialInfo': info}
                 if source or source_materials:
                     groups[key]['color'] = source_color(material)
             item = groups[key]
-            uv_layer = mesh.uv_layers.active
-            if material and material.node_tree:
-                image_node = (source_image_node(material) if source or source_materials else None) or next((material.node_tree.nodes.get(n) for n in ('DiffuseSampler', 'TextureSampler', 'DiffuseSampler2') if material.node_tree.nodes.get(n)), None)
-                vector = image_node.inputs.get('Vector') if image_node else None
-                if vector and vector.links:
-                    uv_node = vector.links[0].from_node
-                    if uv_node.type == 'UVMAP':
-                        uv_layer = mesh.uv_layers.get(uv_node.uv_map) or uv_layer
+            uv_name = item['materialInfo']['uvLayer']
+            uv_layer = mesh.uv_layers.get(uv_name) if uv_name else None
             # Sollumz UV values are Blender-oriented here; Three texture loader flips PNG by default.
             for loop in tri.loops:
                 point = world @ mesh.vertices[mesh.loops[loop].vertex_index].co
