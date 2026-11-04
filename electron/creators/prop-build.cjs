@@ -81,7 +81,7 @@ async function buildPropResource({
     }), { flag: 'wx', mode: 0o600 });
     await runner({
       executable: engine, cwd: root, signal, env: managedEnv(root),
-      args: ['--background', '--factory-startup', '--disable-autoexec',
+      args: ['--background', '--disable-autoexec',
         '--python-exit-code', '2', '--python', script, '--', jobFile],
       timeoutMs: 15 * 60 * 1000, maxOutputBytes: 256 * 1024,
     });
