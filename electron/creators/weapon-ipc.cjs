@@ -3,6 +3,7 @@ const path = require('node:path');
 const { createJobManager } = require('./job-manager.cjs');
 const { createWeaponFolderGrants, validateWeaponBuildRequest, inspectWeaponSource } = require('./weapon-schema.cjs');
 const { buildNativeWeapon } = require('./weapon-build.cjs');
+const { buildCustomWeapon, assertGlb } = require('./weapon-custom-build.cjs');
 const { SPECS } = require('../gta-tools.cjs');
 
 function registerWeaponCreator({ipcMain,trusted,app,dialog,win}={}) {
@@ -48,6 +49,20 @@ function registerWeaponCreator({ipcMain,trusted,app,dialog,win}={}) {
     await inspectWeaponSource(source,validated.reference);
     const job=jobs.submit('weapon',({signal})=>buildNativeWeapon({
       request:validated,grants,userDataRoot:app.getPath('userData'),signal,
+    }));
+    return {jobId:job.id};
+  });
+  ipcMain.handle('ditasha:weapon-custom-start',async(event,request,bytes)=>{
+    auth(event);
+    const validated=validateWeaponBuildRequest(request);
+    const donor=await grants.resolve(validated.sourceToken,'source');
+    await grants.resolve(validated.outputToken,'output');
+    await inspectWeaponSource(donor,validated.reference);
+    // Make one bounded private copy before returning to the caller.
+    const immutableBytes=Buffer.from(assertGlb(bytes));
+    const job=jobs.submit('weapon',({signal})=>buildCustomWeapon({
+      request:validated,bytes:immutableBytes,grants,
+      userDataRoot:app.getPath('userData'),signal,
     }));
     return {jobId:job.id};
   });
