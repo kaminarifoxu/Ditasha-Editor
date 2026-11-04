@@ -601,7 +601,13 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
     if (job.mode === 'strobo')
       for (const kind of ['donor', 'carcols', 'variations', 'vehicles'])
         job[kind] = await get(kind);
-    if (sourcePreviewRoot) {
+    // Full-ped rigging must not delete the separately generated source preview.
+    // Keep its IPC id and JSON alive while Muto works (and on a failed build).
+    const keepPedSourcePreview =
+      job.mode === 'ped' && !!sourcePreviewRoot && !!preview &&
+      !!state.previewId && state.previewId === preview.id &&
+      preview.path.startsWith(path.join(sourcePreviewRoot, 'output') + path.sep);
+    if (sourcePreviewRoot && !keepPedSourcePreview) {
       await fs.rm(sourcePreviewRoot, { recursive: true, force: true }).catch(() => {});
       sourcePreviewRoot = null;
     }
@@ -638,17 +644,20 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
     ])
       await fs.copyFile(path.join(__dirname, name), path.join(root, name));
     await fs.writeFile(spec, JSON.stringify(job));
-    preview = null;
+    const priorPreview = keepPedSourcePreview ? preview : null;
+    const priorReport = keepPedSourcePreview ? state.report : null;
+    if (!priorPreview) preview = null;
     reviewFile = null;
     state = {
       status: 'running',
       message: job.mode === 'ped'
-        ? 'Blender dimulai. Menyiapkan Muto untuk rigging full ped…'
+        ? 'Blender dimulai. Preview sumber tetap tampil saat Muto melakukan rigging…'
         : 'Menjalankan Blender…',
       step: job.mode === 'ped' ? 'Starting Blender and loading the rigging engine' : null,
       startedAt: Date.now(),
       log: '',
-      report: null,
+      report: priorReport,
+      ...(priorPreview ? { previewId: priorPreview.id, sourcePreviewActive: true } : {}),
       output: ['probe', 'ped', 'ped_preview', 'garment'].includes(job.mode)
         ? null
         : job.mode === 'logo'
@@ -735,11 +744,18 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
               : [],
           };
           state.previewId = preview.id;
+          delete state.sourcePreviewActive;
         }
         if (['ped', 'garment'].includes(job.mode) && rep.ok && !error && !state.cancelled) {
-          if (!state.previewId) throw Error('Engine tidak menghasilkan preview ped.');
+          if (!rep.preview || !state.previewId || state.sourcePreviewActive)
+            throw Error('Engine tidak menghasilkan preview rig yang baru.');
           stagedPed = { id: randomUUID(), root, output: job.output, kind: job.mode };
           state.stagedId = stagedPed.id;
+        }
+        // A failed/cancelled native job retains the source preview, never an
+        // export-ready staged rig. The viewer must remain usable for inspection.
+        if (state.sourcePreviewActive && (!rep.preview || state.cancelled)) {
+          state.report = priorReport;
         }
         state.status = rep.ok && !error && !state.cancelled ? 'success' : 'error';
         state.message = state.cancelled
@@ -752,6 +768,12 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
                 ? 'Preview rig siap. Periksa model 3D, lalu Simpan hasil ped.'
                 : 'Proses selesai. Periksa report dan hasil sebelum dipakai di game.');
       } catch (reportError) {
+        if (priorPreview) {
+          preview = priorPreview;
+          state.previewId = priorPreview.id;
+          state.sourcePreviewActive = true;
+          state.report = priorReport;
+        }
         state.status = 'error';
         state.message = job.mode === 'ped'
           ? (error ? String(error) : 'Blender tidak menghasilkan report yang bisa dibaca: ' +
