@@ -53,10 +53,29 @@ def inspect_skin(meshes, expected_bones=None):
     weighted = 0
     uv = 0
     armatures = {}
+    role_bounds = {}
     for obj in meshes:
         if obj.type != "MESH" or not len(obj.data.polygons):
             continue
         geometry += 1
+        role = next((part for part in ("head", "hair")
+                     if part in obj.name.lower()), None)
+        if role:
+            # Compare actual native geometry location, not guessed hair UVs.
+            try:
+                coords = [obj.matrix_world @ vertex.co for vertex in obj.data.vertices]
+                if coords:
+                    lo = [min(float(p[i]) for p in coords) for i in range(3)]
+                    hi = [max(float(p[i]) for p in coords) for i in range(3)]
+                    if any(not math.isfinite(v) for v in lo + hi):
+                        raise ValueError("Invalid native head/hair geometry bounds")
+                    previous = role_bounds.get(role)
+                    if previous:
+                        lo = [min(a,b) for a,b in zip(previous[0],lo)]
+                        hi = [max(a,b) for a,b in zip(previous[1],hi)]
+                    role_bounds[role] = [lo,hi]
+            except (TypeError, AttributeError) as exc:
+                raise ValueError("Unable to inspect native head/hair alignment") from exc
         if not obj.data.uv_layers:
             raise ValueError("Native YDD lost UV maps: " + obj.name)
         uv += 1
@@ -101,7 +120,8 @@ def inspect_skin(meshes, expected_bones=None):
     return {"meshes": geometry, "vertices": count, "weightedVertices": weighted,
             "uvMeshes": uv, "bones": len(arm.data.bones),
             "headBone": head.name,
-            "headLocation": [float(v) for v in location.translation]}
+            "headLocation": [float(v) for v in location.translation],
+            "roleBounds": role_bounds}
 
 def verify_native_ped(bpy, output, source_bones=None):
     """Reimport native YDD from an empty scene to rule out false rig matches.
@@ -129,7 +149,29 @@ def verify_native_ped(bpy, output, source_bones=None):
         current = inspect_skin(imported, before)
         current["filename"] = entry["relativePath"]
         reports.append(current)
+    roles = {}
+    for item in reports:
+        for role, bounds in item["roleBounds"].items():
+            if role not in roles:
+                roles[role] = bounds
+            else:
+                low, high = roles[role]
+                roles[role] = [
+                    [min(a,b) for a,b in zip(low,bounds[0])],
+                    [max(a,b) for a,b in zip(high,bounds[1])],
+                ]
+    aligned = None
+    distance = None
+    if "head" in roles and "hair" in roles:
+        head = [sum(axis)/2 for axis in zip(*roles["head"])]
+        hair = [sum(axis)/2 for axis in zip(*roles["hair"])]
+        distance = math.dist(head,hair)
+        aligned = distance <= 0.65
+        if not aligned:
+            raise ValueError("Hair and head native positions diverge by more than 65 cm")
     return {"schema": 1, "nativeYddRoundTrip": True,
             "nativeYftSignatureVerified": True, "nativeYftRagdollRoundTrip": False,
             "sourceSkeletonMatched": True,
+            "headHairAlignment": {"checked": aligned is not None,
+                                  "aligned": aligned, "centerDistanceMeters": distance},
             "rigs": reports, "files": inventory, "gameTestPassed": None}
