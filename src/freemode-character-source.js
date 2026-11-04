@@ -1,3 +1,4 @@
+import { selectFreemodeTexture } from './freemode-texture-pairing.js';
 // Pick a coherent starter freemode body from the same imported pack as the selected face.
 // The caller reads binary bytes; this module only resolves validated library records.
 const required=['head','hair','uppr','hand','lowr','feet'];
@@ -22,8 +23,12 @@ export function resolveCharacterBodyEntries(packs, baseModel, gender) {
   const result=[];
   const seen=new Set();
   for(const model of picked){
-    const related=pack.files.filter(f=>/\.ytd$/i.test(f.name) && f.component===model.component &&
-      f.drawable===model.drawable && (!f.textureVariant || f.textureVariant==='a'));
+    // Choose variant A only when an unambiguous same-gender/collection YTD exists.
+    // Never attach another collection's hair/head diffuse by drawable number alone.
+    const matching=pack.files.filter(f=>/\.ytd$/i.test(f.name) &&
+      f.component===model.component && f.drawable===model.drawable && f.gender===gender);
+    const resolved=selectFreemodeTexture(model,matching,'a',gender);
+    const related=resolved.status==='matched'?[resolved.file]:[];
     for(const entry of [model,...related]){
       if(!seen.has(entry.relativePath)){seen.add(entry.relativePath);result.push({packId:pack.id,entry});}
     }
