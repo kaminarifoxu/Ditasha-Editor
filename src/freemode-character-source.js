@@ -1,6 +1,6 @@
 // Pick a coherent starter freemode body from the same imported pack as the selected face.
 // The caller reads binary bytes; this module only resolves validated library records.
-const required=['head','uppr','hand','lowr','feet'];
+const required=['head','hair','uppr','hand','lowr','feet'];
 export function resolveCharacterBodyEntries(packs, baseModel, gender) {
   if(!['male','female'].includes(gender) || !baseModel) return [];
   const pack=packs.find(p=>p.id===baseModel.packId);
@@ -29,7 +29,9 @@ export function resolveCharacterBodyEntries(packs, baseModel, gender) {
     }
   }
   // The matching freemode YFT supplies the original GTA skeleton when available.
-  const skeleton=pack.files.find(f=>/\.yft$/i.test(f.name) && f.gender===gender);
+  const native=pack.files.filter(f=>/\.yft$/i.test(f.name) && f.gender===gender);
+  const expected=gender==='male'?'mp_m_freemode':'mp_f_freemode';
+  const skeleton=native.find(f=>(f.name+' '+f.relativePath).toLowerCase().includes(expected))||native[0];
   if(skeleton && !seen.has(skeleton.relativePath))result.push({packId:pack.id,entry:skeleton});
   return result;
 }
