@@ -72,7 +72,7 @@ export function selectBoothRig(ownRig, skin, candidates = [], { family, choice =
   // This is more predictable than treating its original palette as the template's
   // unrelated numeric bone order. Facial sub-bone motion is not reconstructable.
   if (allowApproximate && choice === 'auto' && !own.length && required > 0 &&
-      /(?:^|[\\^/])head_/i.test(modelName)) {
+      /(?:^|[\\^/])(?:head|hair)_/i.test(modelName)) {
     const gender = family === 'female' ? 'female' : 'male';
     const template = references[gender];
     const head = template.findIndex(b => /^(?:skel_)?head$/i.test(b.name));
@@ -91,9 +91,9 @@ export function selectBoothRig(ownRig, skin, candidates = [], { family, choice =
         rig: template,
         indices: remapped,
         required,
-        source: 'Auto Head Skeleton (' + gender + ')',
+        source: 'Auto Head/Hair Skeleton (' + gender + ')',
         approximate: true,
-        warning: 'Auto Head Skeleton: kepala mengikuti SKEL_Head dan pose dasar. Bone wajah/rahang khusus tidak dapat dipulihkan tanpa skeleton asli.',
+        warning: 'Auto Head/Hair Skeleton preview: kepala/rambut mengikuti SKEL_Head. Ini rigid fallback; bone wajah/rahang dan gerakan rambut asli memerlukan YFT yang cocok.',
       };
     }
   }
