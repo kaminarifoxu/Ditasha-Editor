@@ -47,6 +47,8 @@ def encode_dds_rgba(width, height, rgba):
 
 def _linear_to_srgb(value):
     value = max(0.0, min(1.0, float(value)))
+    if value == 0.0 or value == 1.0:
+        return value
     return 12.92 * value if value <= 0.0031308 else 1.055 * value ** (1.0 / 2.4) - 0.055
 
 
