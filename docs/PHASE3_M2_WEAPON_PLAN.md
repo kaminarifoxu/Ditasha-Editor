@@ -2,7 +2,7 @@
 
 **Scope:** Reuse the existing Weapon Studio / AddonWeaponsBuilder and evolve it into a validated FiveM weapon creator, without changing the accepted Prop & Collision Creator baseline.
 
-**Status:** M2a readiness audit implementation; native GTA weapon export not yet implemented or verified.
+**Status:** M2a readiness audit and M2b non-destructive skeleton/attachment guide editor implemented. Native GTA weapon export not yet implemented or verified.
 
 ## Frozen baseline
 
@@ -25,13 +25,15 @@ Use `feature/phase3-creators` until a different branch is requested. Do not merg
 
 The report deliberately says `design-preview-only` for a valid Three.js design. Skeleton, muzzle position, grip alignment, animation and GTA native metadata are **not** certified by the presence of a visual preview.
 
-## M2b — planned: attachment and skeleton inspector
+## M2b — implemented foundation: skeleton and attachment guides
 
-1. Load an owner-supplied legally obtained GTA weapon model with the matching YTD and identify the actual native weapon skeleton/attachment hierarchy.
-2. Display muzzle, grip, magazine, moving slide/bolt and optional accessory mount guides in a distinct weapon-only overlay.
-3. Detect mismatched reference skeleton and nonuniform transformations. Read-only diagnostics first.
-4. Save a versioned weapon design project with attachment transforms and no destructive alteration of imported originals.
-5. Tests for missing/duplicated nodes, invalid bone IDs, source-format parity and camera/lifecycle regression.
+1. Reuses local Weapon Studio imports and examines available Three.js bone and named-part hierarchies. **Native GTA bone IDs are not currently decoded or verified.**
+2. Offers a collapsible weapon-only inspector for muzzle, grip, magazine, slide, optic, flashlight and suppressor guides, with 3D preview markers and safe numerical position/rotation controls.
+3. Detects duplicate node names, missing skeletons, nonuniform transforms and attachment candidates. Invalid or empty sources produce diagnostics rather than an invented skeleton.
+4. Saves/loads versioned `.weapon-guides.json` authoring projects with strict validation, bounded sizes, and no source overwrites. These JSON files are **not** native GTA attachments.
+5. Tests cover hierarchy detection, schema rejection, non-destructive helper overlays and GTA reference continuity.
+
+**Remaining M2b+ work:** native weapon YDR/YFT skeleton/bone ID extraction, real attachment alignment for a matched GTA reference weapon, explicit project-to-native bindings, and verified FiveM behavior. This M2b implementation does not certify animations or produce a weapon resource.
 
 ## M2c — planned: verified native export
 
