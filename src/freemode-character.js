@@ -12,9 +12,15 @@ export const FREEMODE_PARTS = [
 ];
 export function freemodePart(file) {
   const identity = freemodeIdentity(file);
-  return identity ? { file, part:identity.component, drawable:identity.drawable,
+  if (identity) return { file, part:identity.component, drawable:identity.drawable,
     texture:identity.texture, gender:identity.gender, variant:identity.variant,
-    collection:identity.collection } : null;
+    collection:identity.collection };
+  // Preserve the existing GLB component import route (GLB has no separate YTD).
+  const match = file?.name?.match(/(?:\^|^)(head|hair|uppr|lowr|feet|accs|jbib|teef)_(\d{3})_[^.]+\.glb$/i);
+  if (!match) return null;
+  const path = file.webkitRelativePath || file.name;
+  return { file, part:match[1].toLowerCase(), drawable:Number(match[2]), texture:false,
+    gender:/mp_f_freemode/i.test(path)?'female':/mp_m_freemode/i.test(path)?'male':null };
 }
 export function validateAppearance(value) {
   let data = typeof value === 'string' ? JSON.parse(value) : value;
