@@ -755,7 +755,7 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
         }
         // A failed/cancelled native job retains the source preview, never an
         // export-ready staged rig. The viewer must remain usable for inspection.
-        if (state.sourcePreviewActive && (!rep.preview || state.cancelled)) {
+        if (state.sourcePreviewActive && (!rep.ok || error || state.cancelled || !rep.preview)) {
           state.report = priorReport;
         }
         state.status = rep.ok && !error && !state.cancelled ? 'success' : 'error';
