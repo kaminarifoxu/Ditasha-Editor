@@ -295,6 +295,12 @@ export function mountNativeBuild({
       : '';
     $('nbStatus').textContent =
       (state.message || 'Siap.').split(/Traceback|\r?\n/)[0] + elapsedLabel;
+    if (state.running && $('nbMode').value === 'ped' && !state.previewId) {
+      const hint = $('nbViewport').querySelector('p');
+      if (hint) hint.textContent = 'Full ped rigging sedang berlangsung. Preview 3D hasil rig akan muncul setelah Blender/Muto selesai. ' +
+        'Tahap sekarang: ' + (state.step || 'memulai Blender') +
+        '. Log engine di panel kanan menampilkan detail; Batalkan build menghentikan proses.';
+    }
     $('nbLog').textContent = state.log || '';
     $('nbSetupProgress').hidden = !state.progress;
     if (state.progress)
