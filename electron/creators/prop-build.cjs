@@ -9,7 +9,7 @@ const { validateArtifacts, commitExport } = require('./export-validation.cjs');
 
 function nativeAssets(name, collision) {
   const names = [name + '.ydr', name + '.ytd', name + '.ytyp'];
-  if (collision !== 'none') names.push(name + '.ybn');
+  if (collision !== 'none') names.push(name + '_col.ybn');
   return names.map(filename => 'stream/' + filename);
 }
 function createPropManifest(name) {
