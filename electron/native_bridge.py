@@ -444,12 +444,28 @@ def preview_scene(bpy, fragment, output, donor=None, filename='preview.json', ev
             badge = kind == 'base' and bool(re.search(r'badge|emblem', ' '.join([obj.name, material.name if material else '', shader]).lower()))
             key = (tri.material_index, badge)
             if key not in groups:
-                alpha = 'blend' if any(n in shader.lower() for n in ('glass', 'badge', 'decal', 'lightsemissive', 'alpha')) else 'opaque'
+                shader_name = shader.lower()
+                role = ' '.join((obj.name.lower(), material.name.lower() if material else '', shader_name))
+                # Cutout preserves opaque black hair pixels and avoids transparency sorting.
+                cutout = any(token in role for token in ('hair', 'eyelash', 'eyebrow', 'ped_fur'))
+                alpha = 'cutout' if cutout else ('blend' if any(n in shader_name for n in ('glass', 'badge', 'decal', 'lightsemissive', 'alpha')) else 'opaque')
                 if (source or source_materials) and material and material.node_tree:
-                    bsdf=material.node_tree.nodes.get('Principled BSDF')
-                    opacity=bsdf.inputs.get('Alpha') if bsdf else None
-                    if opacity and (opacity.is_linked or opacity.default_value<.999):alpha='blend'
-                groups[key] = {'name': obj.name, 'kind': kind, 'candidate': obj.name if badge else None, 'positions': [], 'uvs': [], 'texture': texture(material), 'alpha': alpha}
+                    bsdf = material.node_tree.nodes.get('Principled BSDF')
+                    opacity = bsdf.inputs.get('Alpha') if bsdf else None
+                    if opacity and (opacity.is_linked or opacity.default_value < .999):
+                        alpha = 'cutout' if cutout else 'blend'
+                diffuse_index = texture(material)
+                info = {'uv': 'present' if mesh.uv_layers else 'missing',
+                        'diffuse': 'present' if diffuse_index is not None else 'missing',
+                        'normal': 'unknown', 'specular': 'unknown'}
+                if material and material.node_tree and not (source or source_materials):
+                    nodes = material.node_tree.nodes
+                    for label, aliases in (('normal', ('BumpSampler', 'NormalSampler')),
+                                           ('specular', ('SpecSampler', 'SpecularSampler'))):
+                        sampler = next((nodes.get(alias) for alias in aliases if nodes.get(alias)), None)
+                        if sampler:
+                            info[label] = 'present' if getattr(getattr(sampler, 'image', None), 'has_data', False) else 'missing'
+                groups[key] = {'name': obj.name, 'kind': kind, 'candidate': obj.name if badge else None, 'positions': [], 'uvs': [], 'texture': diffuse_index, 'alpha': alpha, 'materialInfo': info}
                 if source or source_materials:
                     groups[key]['color'] = source_color(material)
             item = groups[key]
