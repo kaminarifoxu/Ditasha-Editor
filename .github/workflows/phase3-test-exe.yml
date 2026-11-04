@@ -30,6 +30,9 @@ jobs:
         run: npm ci
       - name: Run regression tests
         run: npm test
+      - name: Smoke test isolated Prop Creator workspace and OBJ import
+        run: npx electron scripts/smoke-prop-workspace.cjs
+        timeout-minutes: 4
       - name: Build Windows portable and installer
         run: npm run build:win
       - name: Verify test binaries
