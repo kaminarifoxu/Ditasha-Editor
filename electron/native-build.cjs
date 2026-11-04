@@ -753,10 +753,10 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
                 : 'Proses selesai. Periksa report dan hasil sebelum dipakai di game.');
       } catch (reportError) {
         state.status = 'error';
-        state.message = error
-          ? String(error)
-          : 'Blender tidak menghasilkan report yang bisa dibaca. Periksa log engine; ' +
-            (reportError?.message || 'report.json tidak tersedia');
+        state.message = job.mode === 'ped'
+          ? (error ? String(error) : 'Blender tidak menghasilkan report yang bisa dibaca: ' +
+              (reportError?.message || 'report.json tidak tersedia'))
+          : error || 'Engine tidak menghasilkan report. Periksa log.';
       }
       if (job.mode === 'probe') await fs.rm(root, { recursive: true, force: true }).catch(() => {});
       running = false;
