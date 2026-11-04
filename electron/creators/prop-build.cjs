@@ -86,6 +86,8 @@ async function buildPropResource({
     await fs.copyFile(path.join(__dirname, 'prop-native.py'), script);
     const ddsModule = path.join(staging, 'prop_dds.py');
     await fs.copyFile(path.join(__dirname, 'prop_dds.py'), ddsModule);
+    const materialModule = path.join(staging, 'prop_material.py');
+    await fs.copyFile(path.join(__dirname, 'prop_material.py'), materialModule);
     const jobFile = path.join(staging, 'prop-job.json');
     await fs.writeFile(jobFile, JSON.stringify({
       schema: 1, edition: spec.edition, source: source.path, name: spec.projectName,
@@ -105,6 +107,7 @@ async function buildPropResource({
     await fs.rm(jobFile, { force: true });
     await fs.rm(script, { force: true });
     await fs.rm(ddsModule, { force: true });
+    await fs.rm(materialModule, { force: true });
     const manifest = createPropManifest(spec.projectName);
     await fs.writeFile(path.join(staging, 'fxmanifest.lua'), manifest, { flag: 'wx' });
     await fs.writeFile(path.join(staging, 'validation.json'), JSON.stringify({
