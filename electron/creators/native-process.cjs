@@ -46,7 +46,14 @@ function runNativeProcess({ executable, args = [], cwd, signal, timeoutMs = 15 *
         });
       }
       child.once('error', finish);
-      child.once('close', code => finish(stopped || signal?.aborted ? Error('Native build cancelled or timed out') : code !== 0 ? Error('Native process exited with code ' + code) : null));
+      child.once('close', code => {
+        const diagnosis = output.trim().slice(-3000);
+        finish(stopped || signal?.aborted
+          ? Error('Native build cancelled or timed out')
+          : code !== 0
+            ? Error('Native process exited with code ' + code + (diagnosis ? ': ' + diagnosis : ''))
+            : null);
+      });
       if (signal?.aborted) abort();
     } catch (error) { finish(error); }
   });
