@@ -73,6 +73,10 @@ function createJobManager({ concurrency = 1, maxQueued = 16, maxHistory = 128, t
     closed = true;
     for (const [id, j] of jobs) if (j.finishedAt === null) cancel(id);
   }
-  return Object.freeze({ submit, cancel, snapshot, close });
+  function result(id) {
+    const job = jobs.get(id);
+    return job?.state === 'succeeded' ? job.result : null;
+  }
+  return Object.freeze({ submit, cancel, snapshot, result, close });
 }
 module.exports = { createJobManager };
