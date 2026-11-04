@@ -107,9 +107,21 @@ def inspect_skin(meshes, expected_bones=None):
                 raise ValueError("Ped skin verification exceeds vertex safety limit")
     if not geometry or weighted == 0:
         raise ValueError("No usable skinned native ped meshes")
-    if len(armatures) != 1:
-        raise ValueError("Native YDD has ambiguous or multiple skeletons")
-    arm = next(iter(armatures.values()))
+    if not armatures:
+        raise ValueError("Native YDD contains no source skeleton")
+    # Sollumz can load one compatible GTA armature per drawable/LOD.
+    # Compare actual bone names/parent relationships, not the object count.
+    rigs=list(armatures.values())
+    def signature(arm):
+        bones=list(arm.data.bones)
+        names=[bone.name for bone in bones]
+        if len(names)<30 or len(names)!=len(set(names)):
+            raise ValueError("Native YDD has an incomplete or duplicated bone hierarchy")
+        return {bone.name:bone.parent.name if bone.parent else None for bone in bones}
+    reference=signature(rigs[0])
+    if any(signature(arm)!=reference for arm in rigs[1:]):
+        raise ValueError("Native YDD has incompatible drawable skeletons")
+    arm=rigs[0]
     head = next((bone for bone in arm.data.bones if bone.name.lower() in
                  ("skel_head", "head")), None)
     if head is None:
@@ -118,7 +130,7 @@ def inspect_skin(meshes, expected_bones=None):
     if any(not math.isfinite(float(v)) for v in location.translation):
         raise ValueError("Native ped has invalid head bone transform")
     return {"meshes": geometry, "vertices": count, "weightedVertices": weighted,
-            "uvMeshes": uv, "bones": len(arm.data.bones),
+            "uvMeshes": uv, "armatureCount":len(rigs), "bones": len(arm.data.bones),
             "headBone": head.name,
             "headLocation": [float(v) for v in location.translation],
             "roleBounds": role_bounds}
