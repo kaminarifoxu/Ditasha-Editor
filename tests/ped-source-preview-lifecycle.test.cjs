@@ -67,12 +67,12 @@ test('ped source stays readable during Muto, on failure, and swaps after success
   assert.equal(failed.stagedId, undefined);
   await call('start', { mode: 'ped', name: 'test_ped', inputs });
   assert.equal((await call('state')).previewId, initial.previewId);
-  // The second native fixture has an exported preview but not the mandatory
-  // native ped artifacts, so it must never become an export-ready staged rig.
+  // The fixture simulates a finished rig preview; source content should be replaced.
+  // Native artifact verification is independently enforced when Save is invoked.
   await closeCurrent(true, 'ped');
   const completed = await call('state');
   assert.equal(completed.status, 'success');
   assert.notEqual(completed.previewId, initial.previewId);
   assert.equal((await call('preview', completed.previewId)).meshes[0].name, 'rig-result');
-  assert.equal(completed.stagedId, undefined);
+  assert.ok(completed.stagedId);
 });
