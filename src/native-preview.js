@@ -47,7 +47,10 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
       const info = item.materialInfo;
       const line = document.createElement('p');
       line.textContent = [item.name, info.material,
-        ...['uv', 'diffuse', 'normal', 'specular'].map((r) => r + ': ' + info[r])].join(' · ');
+        'UV layer: ' + (info.uvLayer || '(none)'),
+        ...['uv', 'diffuse', 'normal', 'specular'].map((r) =>
+          r + ': ' + info[r] + (info.samplers?.[r] ? ' (' + info.samplers[r] + ')' : '')
+        )].join(' · ');
       inspectorList.append(line);
     }
     if (issues.length > 100) {
