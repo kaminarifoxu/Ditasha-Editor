@@ -24,6 +24,8 @@ test('M1a allows bounded Legacy GLB/FBX/OBJ and collision options', () => {
     assert.equal(req.format, sourceName.split('.').at(-1).toLowerCase());
   }
   assert.equal(validatePropRequest(baseline).drawDistance, 120);
+  assert.deepEqual(validatePropRequest(baseline).scale, [1,1,1]);
+  assert.deepEqual(validatePropRequest({ ...baseline, scale:[2,0.5,3] }).scale, [2,0.5,3]);
 });
 test('M1a rejects invalid project settings and unsupported formats/editions', () => {
   for (const request of [
@@ -33,6 +35,8 @@ test('M1a rejects invalid project settings and unsupported formats/editions', ()
     { edition: 'enhanced' }, { collision: 'mesh' }, { drawDistance: Infinity },
     { drawDistance: 0 }, { lodDistances: [100, 60] },
     { lodDistances: [20, 20] }, { lodDistances: [200] }, { lodDistances: [1,2,3,4,5] },
+    { scale: [0,1,1] }, { scale: [1,101,1] }, { scale: [1,NaN,1] },
+    { scale: [1,2] }, { scale: [-1,1,1] },
     { arbitraryCommand: 'powershell' }, { schemaVersion: 2 },
   ]) assert.throws(() => validatePropRequest({ ...baseline, ...request }));
 });
