@@ -4,7 +4,7 @@ import * as THREE from 'three';
 // be inferred safely from a visual GLB, so guides never claim native validity.
 export const WEAPON_ATTACHMENT_TYPES = Object.freeze(['grip', 'muzzle', 'magazine', 'slide', 'optic', 'flashlight', 'suppressor']);
 export const WEAPON_PROJECT_SCHEMA = 1;
-const SAFE_NAME = /^[A-Za-z0-9_. -]{1,64}$/;
+const SAFE_NAME = /^[A-Za-z0-9_ .-]{1,64}$/;
 const finiteVector = (values, limit = 1000) => Array.isArray(values) && values.length === 3 &&
   values.every(n => typeof n === 'number' && Number.isFinite(n) && Math.abs(n) <= limit);
 const cleanName = name => String(name || '').replace(/\s+/g, ' ').trim();
