@@ -100,6 +100,12 @@ def _shader_and_textures(bpy, mod, meshes, name):
                 raise RuntimeError("Sollumz shader diffuse node missing")
             nodes[0].image = image
             obj.data.materials.append(material)
+    meshhelper = importlib.import_module(mod + ".tools.meshhelper")
+    for obj in meshes:
+        meshhelper.mesh_rename_uv_maps_by_order(obj.data)
+        meshhelper.mesh_add_missing_uv_maps(obj.data)
+        meshhelper.mesh_rename_color_attrs_by_order(obj.data)
+        meshhelper.mesh_add_missing_color_attrs(obj.data)
     for image in dict.fromkeys(images.values()):
         if image.size[0] < 1 or image.size[1] < 1:
             raise ValueError("Invalid image")
@@ -114,9 +120,7 @@ def _make_collision(bpy, mod, meshes, project, mode):
     if mode == "authored":
         raise ValueError("Authored collision requires a validated explicit collision input")
     from mathutils import Vector
-    from mathutils.geometry import convex_hull_2d
     import bmesh
-    from bpy_extras.object_utils import world_to_camera_view
     helper = importlib.import_module(mod + ".tools.boundhelper")
     props = importlib.import_module(mod + ".sollumz_properties")
     coords = [obj.matrix_world @ vert.co for obj in meshes for vert in obj.data.vertices]
