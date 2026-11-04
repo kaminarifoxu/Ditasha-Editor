@@ -119,7 +119,7 @@ test('M2c native, AddonWeaponsBuilder, DLC export produce report and no source c
   const f=await fixture(t);
   const result=await buildNativeWeapon({
     request:f.request,grants:f.grants,userDataRoot:f.data,
-    runner:simulateNative(),makeBuilder:simulateBuilder(),
+    runner:simulateNative(),makeBuilder:simulateBuilder(),verifyArchives:async()=>1,
   });
   assert.equal(result.nativeRoundTripPassed,true);
   assert.equal(result.addonWeaponsBuilderPassed,true);
@@ -137,7 +137,7 @@ test('M2c package FiveM only if native stream and all weapon metadata are loose'
   const f=await fixture(t);
   const result=await buildNativeWeapon({
     request:f.request,grants:f.grants,userDataRoot:f.data,
-    runner:simulateNative(),makeBuilder:simulateBuilder({loose:true}),
+    runner:simulateNative(),makeBuilder:simulateBuilder({loose:true}),verifyArchives:async()=>1,
   });
   assert.equal(result.fiveMReady,true);
   const manifest=await fs.readFile(path.join(result.output,'FiveM-resource','fxmanifest.lua'),'utf8');
@@ -151,7 +151,7 @@ test('M2c rejects invalid skeleton and never commits partial failed native build
     const f=await fixture(t);
     await assert.rejects(buildNativeWeapon({
       request:f.request,grants:f.grants,userDataRoot:f.data,runner:simulateNative(option),
-      makeBuilder:simulateBuilder(),
+      makeBuilder:simulateBuilder(),verifyArchives:async()=>1,
     }),/drift|Blender crash/);
     assert.deepEqual(await fs.readdir(f.output),[]);
   }
@@ -160,7 +160,7 @@ test('M2c AddonWeaponsBuilder failure cannot leave user export folders',async t=
   const f=await fixture(t);
   await assert.rejects(buildNativeWeapon({
     request:f.request,grants:f.grants,userDataRoot:f.data,runner:simulateNative(),
-    makeBuilder:simulateBuilder({fail:true}),
+    makeBuilder:simulateBuilder({fail:true}),verifyArchives:async()=>1,
   }),/AddonWeaponsBuilder/);
   assert.deepEqual(await fs.readdir(f.output),[]);
 });
