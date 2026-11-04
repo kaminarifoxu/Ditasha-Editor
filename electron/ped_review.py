@@ -146,6 +146,32 @@ def run_muto(worker, bpy, arguments, options):
         worker._import = original_import
 
 
+
+def compatible_ped_armature(objects):
+    """Muto can export separate identical LOD armatures. Verify, do not count
+    duplicated 128-bone rigs as 256 different GTA bones.
+    """
+    rigs = {}
+    for obj in objects:
+        arm = armature_for(obj)
+        if arm is not None:
+            rigs[arm.name] = arm
+    if not rigs:
+        raise ValueError('No GTA rig is attached to exported ped drawable meshes')
+    def signature(arm):
+        bones = list(arm.data.bones)
+        names = [bone.name for bone in bones]
+        if len(names) < 30 or len(names) != len(set(names)) or 'SKEL_Head' not in names:
+            raise ValueError('Exported ped skeleton has missing or duplicated GTA bones')
+        return {bone.name: bone.parent.name if bone.parent else None for bone in bones}
+    arms = list(rigs.values())
+    expected = signature(arms[0])
+    for arm in arms[1:]:
+        if signature(arm) != expected:
+            raise ValueError('Native ped drawable meshes use incompatible skeleton hierarchies')
+    return arms[0], len(arms), len(expected)
+
+
 def audit_rig(objects, mesh_levels):
     result = dict(vertices=0, unweighted=0, overFour=0, unnormalized=0, invalidWeights=0,
                   missingUV=[], missingTextures=[], missingLOD=[], armatures=0, bones=0)
@@ -185,6 +211,13 @@ def audit_rig(objects, mesh_levels):
                 result['unnormalized'] += int(bool(positive) and abs(sum(positive) - 1) > .02)
     result['armatures'] = len(arms)
     result['bones'] = sum(len(a.data.bones) for a in arms.values())
+    if arms:
+        primary, count, bones = compatible_ped_armature(objects)
+        result['armatures'] = count
+        result['compatibleSkeletons'] = True
+        result['bones'] = bones
+    else:
+        result['compatibleSkeletons'] = False
     result['missingTextures'] = sorted(missing_textures)[:64]
     result['missingUV'] = result['missingUV'][:64]
     result['missingLOD'] = result['missingLOD'][:64]
