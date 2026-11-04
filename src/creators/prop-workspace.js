@@ -247,7 +247,10 @@ export function mountPropWorkspace({ nav, activate, register, capabilities }) {
       });
       inspector.panel.open = true;
       const nativePanel = inspector.panel.querySelector('.prop-native-build');
-      if (nativePanel) root.querySelector('[data-prop-export]').append(nativePanel);
+      if (nativePanel) {
+        root.querySelector('[data-prop-export]').append(nativePanel);
+        nativePanel.open = true; // Export to FiveM is visible in normal launches.
+      }
     }
     renderer.setAnimationLoop(() => paint());
     paint();
