@@ -492,9 +492,10 @@ def preview_scene(bpy, fragment, output, donor=None, filename='preview.json', ev
                 uv_names = {role: sampler_uv(node) for role, node in samplers.items()}
                 diffuse_uv = uv_names['diffuse']
                 uv_layer = (mesh.uv_layers.get(diffuse_uv) if diffuse_uv else mesh.uv_layers.active)
+                selected_uv = uv_layer.name if uv_layer else None
                 uv_problem = not uv_layer or any(
                     name and (not mesh.uv_layers.get(name) or
-                              (diffuse_uv and name != diffuse_uv))
+                              (selected_uv and name != selected_uv))
                     for role, name in uv_names.items() if role != 'diffuse'
                 )
                 info = {'uv': 'missing' if uv_problem else 'present',
@@ -508,7 +509,7 @@ def preview_scene(bpy, fragment, output, donor=None, filename='preview.json', ev
                 for role in ('normal', 'specular'):
                     uv_name = uv_names[role]
                     if uv_name and (not mesh.uv_layers.get(uv_name) or
-                                    (diffuse_uv and uv_name != diffuse_uv)):
+                                    (selected_uv and uv_name != selected_uv)):
                         indices[role] = None
                         info[role] = 'uv-mismatch'
                 groups[key] = {'name': obj.name, 'kind': kind, 'candidate': obj.name if badge else None,
