@@ -24,6 +24,9 @@ test('M1a allows bounded Legacy GLB/FBX/OBJ and collision options', () => {
     assert.equal(req.format, sourceName.split('.').at(-1).toLowerCase());
   }
   assert.equal(validatePropRequest(baseline).drawDistance, 120);
+  const parsed = validatePropRequest(baseline);
+  assert.deepEqual(validatePropRequest(parsed), parsed);
+  assert.throws(() => validatePropRequest({ ...parsed, format: 'fbx' }), /format does not match/);
   assert.deepEqual(validatePropRequest(baseline).scale, [1,1,1]);
   assert.deepEqual(validatePropRequest({ ...baseline, scale:[2,0.5,3] }).scale, [2,0.5,3]);
 });
