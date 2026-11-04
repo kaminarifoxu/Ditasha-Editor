@@ -20,10 +20,7 @@ function fakeNavigation() {
 test('Prop Creator has its own persistent Asset Workshop button', async () => {
   const { nav, items, members } = fakeNavigation();
   const oldDocument = globalThis.document;
-  const label = { textContent: '' };
-  const panel = { open: false, scrollIntoView() { this.scrolled = true; } };
   const activated = [];
-  let mounted = 0;
   const listeners = {};
   try {
     globalThis.document = {
@@ -38,28 +35,19 @@ test('Prop Creator has its own persistent Asset Workshop button', async () => {
         items.push(node);
         return node;
       },
-      querySelector(selector) {
-        assert.equal(selector, '#workspaceLabel');
-        return label;
-      },
     };
     const config = {
       nav,
       activate: page => activated.push(page),
-      mountInspector: async () => { mounted++; return panel; },
+      openWorkspace: () => activated.push('propcreator'),
     };
     const button = mountPropCreatorEntry(config);
     assert.equal(button.dataset.page, 'propcreator');
     assert.match(button.innerHTML, /Prop & Collision Creator/);
     assert.equal(members.get('propcreator'), button);
     assert.equal(mountPropCreatorEntry(config), button);
-    await listeners.click();
-    assert.deepEqual(activated, ['editor']);
-    assert.equal(mounted, 1);
-    assert.equal(panel.open, true);
-    assert.equal(panel.scrolled, true);
-    assert.equal(label.textContent, 'Prop & Collision Creator');
-    assert.equal(button.lastClass, 'active');
+    listeners.click();
+    assert.deepEqual(activated, ['propcreator']);
   } finally {
     globalThis.document = oldDocument;
   }
@@ -68,6 +56,6 @@ test('Prop Creator navigation rejects missing existing Model viewer', () => {
   assert.throws(() => mountPropCreatorEntry({
     nav: { querySelector() { return null; } },
     activate() {},
-    mountInspector() {},
+    openWorkspace() {},
   }), /navigation not found/);
 });
