@@ -52,7 +52,7 @@ async function prepare(t) {
   const request = {
     schemaVersion: 1, sourceToken: input.token, outputToken: output.token,
     projectName: 'ditasha_crate', sourceName: 'crate.glb', edition: 'legacy',
-    collision: 'box', drawDistance: 100, lodDistances: [20, 50],
+    collision: 'box', drawDistance: 100, lodDistances: [20, 50], scale: [1.5, 0.75, 2],
   };
   return { nativeRoot, outputRoot, source, tokens, request };
 }
@@ -64,6 +64,8 @@ function simulatedProvider({ fail, reportRoundTrip = true, invalidSignature = fa
     const jobFile = args[args.length - 1];
     const job = JSON.parse(await fs.readFile(jobFile, 'utf8'));
     assert.equal(job.edition, 'legacy');
+    assert.deepEqual(job.scale, [1.5, 0.75, 2]);
+    assert.equal(await fs.readFile(args[args.indexOf('--python') + 1], 'utf8').then(s=>s.includes('def main')), true);
     const staging = path.dirname(jobFile);
     const stream = path.join(staging, 'stream');
     await fs.mkdir(stream);
@@ -91,6 +93,7 @@ test('M1c commits a staged, validated FiveM resource without overwriting origina
     runner: simulatedProvider(),
   });
   assert.equal(result.nativeRoundTripPassed, true);
+  assert.equal(JSON.parse(await fs.readFile(path.join(result.output, 'validation.json'), 'utf8')).scale[0], 1.5);
   assert.equal(result.gameTestPassed, null);
   assert.equal((await fs.readFile(path.join(result.output, 'stream/ditasha_crate.ydr'))).subarray(0,4).toString(), 'RSC7');
   assert.match(await fs.readFile(path.join(result.output, 'fxmanifest.lua'), 'utf8'), /DLC_ITYP_REQUEST/);
