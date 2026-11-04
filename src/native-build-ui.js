@@ -287,7 +287,14 @@ export function mountNativeBuild({
     headSettings.querySelectorAll('input,select,button').forEach((control) => {
       control.disabled = requesting || state.running || !!state.stagedId;
     });
-    $('nbStatus').textContent = (state.message || 'Siap.').split(/Traceback|\r?\n/)[0];
+    const elapsed = state.running && state.startedAt
+      ? Math.max(0, Math.floor((Date.now() - state.startedAt) / 1000))
+      : 0;
+    const elapsedLabel = elapsed
+      ? ' · ' + Math.floor(elapsed / 60) + 'm ' + (elapsed % 60) + 's'
+      : '';
+    $('nbStatus').textContent =
+      (state.message || 'Siap.').split(/Traceback|\r?\n/)[0] + elapsedLabel;
     $('nbLog').textContent = state.log || '';
     $('nbSetupProgress').hidden = !state.progress;
     if (state.progress)
