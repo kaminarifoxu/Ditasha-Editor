@@ -642,7 +642,11 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
     reviewFile = null;
     state = {
       status: 'running',
-      message: 'Menjalankan Blender…',
+      message: job.mode === 'ped'
+        ? 'Blender dimulai. Menyiapkan Muto untuk rigging full ped…'
+        : 'Menjalankan Blender…',
+      step: job.mode === 'ped' ? 'Starting Blender and loading the rigging engine' : null,
+      startedAt: Date.now(),
       log: '',
       report: null,
       output: ['probe', 'ped', 'ped_preview', 'garment'].includes(job.mode)
@@ -669,15 +673,28 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
       throw e;
     }
     let settled = false;
-    const append = (chunk) => {
-      state.log = (state.log + chunk.toString()).slice(-24000);
+    let stageBuffer = '';
+    const append = (chunk, isStdout = false) => {
+      const text = chunk.toString();
+      state.log = (state.log + text).slice(-24000);
+      if (job.mode !== 'ped' || !isStdout) return;
+      stageBuffer += text;
+      // Events can be fragmented across stdout chunks. Keep a bounded line buffer.
+      const lines = stageBuffer.split(/\r?\n/);
+      stageBuffer = lines.pop().slice(-2048);
+      for (const line of lines) {
+        const match = /^DITASHA_PED_STAGE (.{1,300})$/.exec(line.trim());
+        if (!match) continue;
+        state.step = match[1];
+        state.message = match[1];
+      }
     };
-    child.stdout.on('data', append);
-    child.stderr.on('data', append);
+    child.stdout.on('data', (chunk) => append(chunk, true));
+    child.stderr.on('data', (chunk) => append(chunk, false));
     const timer = setTimeout(
       () => {
         state.cancelled = true;
-        state.message = 'Build melebihi 15 menit; dihentikan.';
+        state.message = 'Build melebihi 15 menit. Blender dihentikan; lihat log engine dan coba model yang lebih ringan.';
         cancel();
       },
       15 * 60 * 1000,
@@ -734,9 +751,12 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
               : ['ped', 'garment'].includes(job.mode)
                 ? 'Preview rig siap. Periksa model 3D, lalu Simpan hasil ped.'
                 : 'Proses selesai. Periksa report dan hasil sebelum dipakai di game.');
-      } catch {
+      } catch (reportError) {
         state.status = 'error';
-        state.message = error || 'Engine tidak menghasilkan report. Periksa log.';
+        state.message = error
+          ? String(error)
+          : 'Blender tidak menghasilkan report yang bisa dibaca. Periksa log engine; ' +
+            (reportError?.message || 'report.json tidak tersedia');
       }
       if (job.mode === 'probe') await fs.rm(root, { recursive: true, force: true }).catch(() => {});
       running = false;
