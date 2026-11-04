@@ -211,13 +211,17 @@ def audit_rig(objects, mesh_levels):
                 result['unnormalized'] += int(bool(positive) and abs(sum(positive) - 1) > .02)
     result['armatures'] = len(arms)
     result['bones'] = sum(len(a.data.bones) for a in arms.values())
+    result['compatibleSkeletons'] = False
     if arms:
-        primary, count, bones = compatible_ped_armature(objects)
-        result['armatures'] = count
-        result['compatibleSkeletons'] = True
-        result['bones'] = bones
-    else:
-        result['compatibleSkeletons'] = False
+        try:
+            primary, count, bones = compatible_ped_armature(objects)
+            result['armatures'] = count
+            result['compatibleSkeletons'] = True
+            result['bones'] = bones
+        except ValueError as error:
+            # Keep diagnostic reports usable for malformed source rigs.
+            # native_bridge.py will independently refuse native export.
+            result['skeletonWarning'] = str(error)
     result['missingTextures'] = sorted(missing_textures)[:64]
     result['missingUV'] = result['missingUV'][:64]
     result['missingLOD'] = result['missingLOD'][:64]
