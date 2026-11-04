@@ -114,3 +114,13 @@ body.workspace-shell > .prop-creator-workspace[hidden] { display: none !importan
   .prop-creator-workspace .prop-layout { grid-template-columns: 210px minmax(0,1fr); }
   .prop-creator-workspace .prop-right { display: none; }
 }
+
+/* M1c: resize controls and always-visible export action */
+.prop-creator-workspace .prop-scale-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+.prop-creator-workspace .prop-scale-fields label { display: block; font-size: 11px; }
+.prop-creator-workspace .prop-scale-fields input { width: 100%; min-width: 0; }
+.prop-creator-workspace .prop-scale-lock { display: flex; align-items: center; gap: 7px; color: var(--muted); }
+.prop-creator-workspace .prop-scale-lock input { width: auto; margin: 0; }
+.prop-creator-workspace .prop-native-build [data-prop-build] { background: #d5b444; color: #161a1d; font-weight: 700; border-color: #d5b444; }
+.prop-creator-workspace .prop-native-build [data-prop-deps] { border-color: #647e95; }
+.prop-creator-workspace .prop-native-build small { display: block; margin: 6px 0 11px; color: var(--muted); }
