@@ -60,6 +60,7 @@ contextBridge.exposeInMainWorld('ditashaCreators', Object.freeze({
   state: () => ipcRenderer.invoke('ditasha:creators-state'),
   pickProp: (kind) => ipcRenderer.invoke('ditasha:prop-pick', kind),
   revokeProp: (token) => ipcRenderer.invoke('ditasha:prop-revoke', token),
+  checkPropDeps: () => ipcRenderer.invoke('ditasha:prop-deps'),
   startProp: (request) => ipcRenderer.invoke('ditasha:prop-start', request),
   propJob: (jobId) => ipcRenderer.invoke('ditasha:prop-job', jobId),
   cancelProp: (jobId) => ipcRenderer.invoke('ditasha:prop-cancel', jobId),
