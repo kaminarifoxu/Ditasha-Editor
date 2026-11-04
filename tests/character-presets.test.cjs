@@ -45,3 +45,24 @@ test('character presets validate gender, IDs and normalize unsafe input',async()
    assert.equal(saved.appearance.overlays[0],255);
  }finally{await fs.rm(root,{recursive:true,force:true});}
 });
+
+test('saved character retains rig mode and hair/head UV calibration across reload', async()=>{
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'ditasha-character-rig-'));
+ try {
+  const store=new CharacterPresets(root);
+  const settings={skeletonMode:'strict',headUv:[0.1,-0.05,1.15,1.15],hairUv:[-0.2,0.15,0.9,0.9]};
+  const saved=await store.save({name:'Rigged female',gender:'female',pedSettings:settings});
+  const another=new CharacterPresets(root);
+  const loaded=(await another.list()).find(c=>c.id===saved.id);
+  assert.deepEqual(loaded.pedSettings,settings);
+  await another.save({...loaded,name:'Updated head UV'});
+  assert.equal((await store.list()).length,1);
+  assert.deepEqual((await store.list())[0].pedSettings,settings);
+  for(const invalid of [
+   {...settings,headUv:[Infinity,0,1,1]},
+   {...settings,headUv:[0,0,0,1]},
+   {...settings,skeletonMode:'unsafe'},
+   {...settings,extra:'shell'},
+  ])await assert.rejects(store.save({name:'Invalid',gender:'female',pedSettings:invalid}),/Invalid/);
+ }finally{await fs.rm(root,{recursive:true,force:true});}
+});
