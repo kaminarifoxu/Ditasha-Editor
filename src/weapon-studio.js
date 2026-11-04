@@ -519,7 +519,7 @@ export function mountWeaponStudio({ root, download, toast, confirmDiscard }) {
       'Textured meshes: ' + audit.stats.texturedMeshes + ' · Skinned meshes: ' + audit.stats.skinnedMeshes,
       ...audit.issues.map(issue => '[' + issue.severity.toUpperCase() + '] ' + issue.message),
     ];
-    readinessPanel.querySelector('[data-weapon-report]').textContent = lines.join('\\n');
+    readinessPanel.querySelector('[data-weapon-report]').textContent = lines.join('\n');
     readinessPanel.open = true;
   };
   $('wdExport').onclick = () =>
