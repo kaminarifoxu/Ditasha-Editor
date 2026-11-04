@@ -37,6 +37,19 @@ async function verify() {
   }
   if (root.querySelector('[data-prop-meshes]').textContent !== '1')
     throw Error('Dedicated OBJ model importer did not load the mesh');
+  const scaleX = root.querySelector('[data-prop-scale="0"]');
+  if (!scaleX) throw Error('Resize controls are missing');
+  scaleX.value = '2';
+  scaleX.dispatchEvent(new Event('change', { bubbles: true }));
+  const boundsText = root.querySelector('[data-prop-bounds]').textContent;
+  if (!boundsText.includes('2.00')) throw Error('Resize failed to update 3D bounds: ' + boundsText);
+  for (const axis of ['0','1','2']) {
+    if (root.querySelector('[data-prop-scale="' + axis + '"]').value !== '2')
+      throw Error('Uniform resize did not synchronize all axes');
+  }
+  root.querySelector('[data-prop-scale-reset]').click();
+  if (root.querySelector('[data-prop-scale="0"]').value !== '1')
+    throw Error('Reset scale did not restore original dimensions');
   document.querySelector('[data-page="editor"]').click();
   if (!root.hidden || editor.hidden || document.body.dataset.workspace !== 'editor')
     throw Error('Texture & Model workspace did not restore correctly');
