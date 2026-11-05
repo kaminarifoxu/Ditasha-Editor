@@ -15,7 +15,7 @@ test('preflight reports mesh count and complexity before Muto mesh join',()=>{
   assert.match(review,/original_import\(source\)/);
   assert.match(review,/DITASHA_PED_STAGE Imported model:/);
   assert.match(review,/preparing mesh join and auto markers/);
-  assert.match(review,/vertices>2000000 or faces>2000000/);
+  assert.match(review,/vertices\s*>\s*2000000 or faces\s*>\s*2000000/);
 });
 test('diagnostic download exists even when the Blender report is absent',()=>{
   assert.match(ui,/id = 'nbSaveEngineLog'/);
