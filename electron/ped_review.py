@@ -119,6 +119,19 @@ def configure_muto(settings, options):
     return height
 
 
+def muto_failure_message(result):
+    """Keep Muto's actual failing operation in the user-visible error."""
+    if not isinstance(result, dict):
+        return 'Muto tidak mengembalikan laporan rigging yang valid.'
+    steps = result.get('steps') or {}
+    failed = next(((name, value) for name, value in steps.items()
+                   if value not in ('FINISHED', 'SKIPPED')), None)
+    last = failed or next(reversed(steps.items()), ('unknown', 'no steps recorded'))
+    error = str(result.get('error') or last[1]).strip().splitlines()
+    reason = error[-1][:500] if error else 'unknown error'
+    return 'Muto gagal pada tahap %s: %s. Periksa batch_report.json atau proyek .blend.' % (last[0], reason)
+
+
 def armature_for(obj):
     arm = obj.find_armature()
     if arm is not None:
