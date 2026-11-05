@@ -139,16 +139,21 @@ def run_muto(worker, bpy, arguments, options):
     def configured_import(source):
         original_import(source)
         configure_muto(bpy.context.scene.mpr, options)
-        meshes=[o for o in bpy.data.objects if o.type=='MESH' and len(o.data.polygons)>0]
-        vertices=sum(len(o.data.vertices) for o in meshes)
-        faces=sum(len(o.data.polygons) for o in meshes)
-        # The next Muto operation is a join of all imported meshes. Knowing
-        # its exact size is essential when Blender times out after GLB import.
-        print('DITASHA_PED_STAGE Imported model: %s meshes, %s vertices, %s faces; preparing mesh join and auto markers' %
-              (len(meshes),vertices,faces),flush=True)
-        if vertices>2000000 or faces>2000000 or len(meshes)>500:
-            raise ValueError('Model terlalu berat untuk auto rig: %s meshes, %s vertices, %s faces. Decimate/merge in Blender first.' %
-                             (len(meshes),vertices,faces))
+        # Blender has bpy.data.objects; isolated Muto worker tests intentionally
+        # supply a minimal bpy context. Only count meshes when the scene exists.
+        objects = getattr(getattr(bpy, 'data', None), 'objects', ())
+        meshes = [o for o in objects
+                  if getattr(o, 'type', None) == 'MESH' and
+                  len(getattr(getattr(o, 'data', None), 'polygons', ())) > 0]
+        if objects:
+            vertices = sum(len(o.data.vertices) for o in meshes)
+            faces = sum(len(o.data.polygons) for o in meshes)
+            # Muto joins all imported meshes next. Report size before expensive fitting.
+            print('DITASHA_PED_STAGE Imported model: %s meshes, %s vertices, %s faces; preparing mesh join and auto markers' %
+                  (len(meshes), vertices, faces), flush=True)
+            if vertices > 2000000 or faces > 2000000 or len(meshes) > 500:
+                raise ValueError('Model terlalu berat untuk auto rig: %s meshes, %s vertices, %s faces. Decimate/merge in Blender first.' %
+                                 (len(meshes), vertices, faces))
     worker._import = configured_import
     try:
         return worker.run({**arguments, 'height': height})
