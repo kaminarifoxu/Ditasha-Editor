@@ -26,3 +26,19 @@ test('File Manager exposes opt-in override and reset with per-model scope',()=>{
  assert.match(preview,/setTextureVariant = async \(textureId, force = false\)/);
  assert.match(preview,/forcedPreviewDiffuse\(/);
 });
+
+test('forced YTD can replace embedded placeholder when only one valid diffuse is supplied',()=>{
+ const embedded=tex('original-grey');const external=tex('female_face_diff_a_uni');
+ const resolver=(name, textures, local) => local.find(t=>t.name===name)||textures.find(t=>t.name===name)||null;
+ assert.equal(forcedPreviewDiffuse('original-grey',[external],[embedded],'head.ydd',resolver,true),external);
+});
+test('manual YTD selection reads only same-folder candidates through trusted IPC',()=>{
+ const backend=readFileSync(new URL('../electron/file-manager.cjs',import.meta.url),'utf8');
+ const preload=readFileSync(new URL('../electron/preload.cjs',import.meta.url),'utf8');
+ const ui=readFileSync(new URL('../src/file-manager-ui.js',import.meta.url),'utf8');
+ assert.match(backend,/texturesFor\(id\)/);
+ assert.match(backend,/path\.posix\.dirname\(f\.relative\) === folder/);
+ assert.match(preload,/ditasha:files-texturesFor/);
+ assert.match(ui,/api\(\)\.texturesFor\(file\.id\)/);
+ assert.match(ui,/forcePick\.onchange/);
+});
