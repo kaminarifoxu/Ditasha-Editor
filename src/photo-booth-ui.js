@@ -15,6 +15,7 @@ import { MOVIE_DEFAULTS } from './booth-movie.js';
 import { createBoothFisheye } from './booth-fisheye.js';
 import { recordBoothVideo } from './booth-video.js';
 import { mountEmotePicker } from './booth-emote-picker.js';
+import { recoverSavedExternalEmote } from './booth-emote-restore.js';
 import { createBoothViewCulling } from './booth-view-culling.js';
 import { installedStudioFiles } from './gta-install-ui.js';
 import { expandStudioFiles, prepareStudioPack, buildMapStudio } from './booth-map-studio.js';
@@ -3244,23 +3245,9 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
       emoteIssues = restoreWarnings.slice(0, 200);
       if (restoreWarnings.length > 200)
         emoteIssues.push(restoreWarnings.length - 200 + ' peringatan lain tidak ditampilkan.');
+      const availableClipIds = new Set(newClips.map((clip) => clip.id));
       for (const a of pending)
-        if (
-          a.motion.clip.startsWith('external:') &&
-          !newClips.some((c) => c.id === a.motion.clip)
-        ) {
-          // A missing/unreadable YCD cannot safely drive this ped. Restore a
-          // known valid pose and explain the fallback instead of silently
-          // showing a T-pose or claiming the saved emote was recovered.
-          restoreWarnings.push(
-            a.name + ': emote tersimpan ' + a.motion.clip +
-            ' tidak ditemukan atau gagal dibaca. Pose diganti Relaxed; impor ulang file YCD/GLB.'
-          );
-          a.motion.clip = '';
-          a.motion.pose = 'relaxed';
-          a.motion.time = 0;
-          a.motion.playing = false;
-        }
+        recoverSavedExternalEmote(a, availableClipIds, restoreWarnings);
 
       $('pbClipSearch').value = '';
       clipSerial = Math.max(clipSerial, ...clipFiles.map((c) => Number(c.prefix.split(':')[1])));
