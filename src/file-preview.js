@@ -39,14 +39,14 @@ export function createFilePreview(container) {
     release();
     release = () => {};
   }
-  async function show(file, api, { snapshot = false, facePreview = false, morphPack = null, highPerformance = false, textureId = null, textureCandidateIds = [], onTextureResolved = null, uvCalibration = null } = {}) {
+  async function show(file, api, { snapshot = false, facePreview = false, morphPack = null, highPerformance = false, textureId = null, textureCandidateIds = [], onTextureResolved = null, uvCalibration = null, prepared = null } = {}) {
     clear();
     const version = generation;
     container.textContent = 'Memuat preview…';
     try {
-      const data = await api.read(file.id);
+      const data = prepared?.data || await api.read(file.id);
       if (version !== generation) return;
-      const buffer = new Uint8Array(data.data).buffer;
+      const buffer = data.data ? new Uint8Array(data.data).buffer : null;
       if (/\.(ytd|dds)$/i.test(file.name)) {
         const textures = /\.dds$/i.test(file.name)
           ? [readDds(buffer, file.name)]
@@ -90,7 +90,7 @@ export function createFilePreview(container) {
         return;
       }
       const ext = file.name.split('.').at(-1).toLowerCase();
-      const drawables = await decodeResource(ext, buffer);
+      const drawables = prepared?.drawables || await decodeResource(ext, buffer);
       if (version !== generation) return;
       const drawable = drawableView(drawables, defaultDrawableSelection(drawables)),
         level = drawable?.lods?.[0];
@@ -108,9 +108,12 @@ export function createFilePreview(container) {
       let bestScore = -1;
       for (const id of candidateIds) {
         try {
-          const dictionary = await api.read(id);
-          if (version !== generation) return;
-          const decoded = (await decodeResource('ytd', new Uint8Array(dictionary.data).buffer)).textures;
+          let decoded = prepared?.textures?.get(id);
+          if (!decoded) {
+            const dictionary = await api.read(id);
+            if (version !== generation) return;
+            decoded = (await decodeResource('ytd', new Uint8Array(dictionary.data).buffer)).textures;
+          }
           if (version !== generation) return;
           const matched = scorePreviewDictionary(geometric, decoded, file.name);
           const score = matched * 100 + (availableDiffuseTextures(decoded).length === 1 ? 1 : 0);
