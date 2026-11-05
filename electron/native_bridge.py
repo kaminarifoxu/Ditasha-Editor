@@ -681,12 +681,16 @@ def run(job):
             except (OSError, RuntimeError, ValueError):
                 pass
             try:
-                result = review.run_muto(worker, bpy, {'src': job['source'], 'out': str(output), 'ped': job['name'], 'mode': 'ADDON', 'tex': 'YTD', 'rig': 'mp_m'}, options, stage_callback=ped_stage)
+                result = review.run_muto(worker, bpy, {'src': job['source'], 'out': str(output), 'ped': job['name'], 'mode': 'ADDON', 'tex': 'YTD', 'rig': 'mp_m'}, options, stage_callback=ped_stage, image_node=source_image_node)
             finally:
                 faulthandler.cancel_dump_traceback_later()
             ped_stage('Muto returned; validating its output and preparing a correction project')
             report['pedOptions'] = options
             report['rigging'] = result
+            if result.get('sourceMaterialAudit'):
+                report['sourceMaterialAudit'] = result['sourceMaterialAudit']
+                report.setdefault('warnings', []).extend(
+                    result['sourceMaterialAudit'].get('warnings', []))
             # A self-contained correction project remains available even when
             # marker fitting/weights fail before native export completes.
             try:
@@ -698,7 +702,12 @@ def run(job):
             except Exception as exc:
                 report.setdefault('warnings', []).append('Proyek koreksi: ' + str(exc))
             if not result.get('ok'):
-                raise RuntimeError('Auto rig gagal. Buka .blend untuk memeriksa marker/weights dan lihat batch_report.json.')
+                failed = next(((name, value) for name, value in result.get('steps', {}).items()
+                               if value not in ('FINISHED', 'SKIPPED')), None)
+                last = failed or next(reversed(result.get('steps', {}).items()), ('unknown', 'no steps recorded'))
+                reason = str(result.get('error') or last[1]).strip().splitlines()[-1][:500]
+                raise RuntimeError('Muto gagal pada tahap %s: %s. Periksa batch_report.json atau proyek .blend.' %
+                                   (last[0], reason))
             required = {'.yft', '.ydd', '.ytd', '.ymt'}
             present = {f.suffix.lower() for f in output.rglob('*') if f.is_file()}
             if not required.issubset(present) or not list(output.rglob('fxmanifest.lua')):
