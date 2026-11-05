@@ -1,9 +1,13 @@
 // Explicit preview override only. It never changes the native model material
 // sampler, YDD, or YTD file, and cannot enable itself without user action.
-const dataMapName = /(?:^|[_\-.])(normal|nrm|norm|bump|spec|specular|rough|metal|mask|ao)(?:[_\-.]|$)/i;
+const dataMapName = /(?:^|[_\-.])(normal|nrm|norm|bump|spec|specular|rough|metal|mask|ao|n|s)(?:[_\-.]|$)/i;
 export function forcedPreviewDiffuse(name, textures, embedded, sourceName, resolver, force = false) {
   const matched = resolver(name, textures, embedded, sourceName);
-  if (matched || !force || !Array.isArray(textures)) return matched;
+  if (!force || !Array.isArray(textures)) return matched;
+  // A forced dictionary wins over an embedded fallback if it contains the
+  // actual named diffuse sampler. Never steal a map from a different YTD.
+  const externalMatch = resolver(name, textures, [], sourceName);
+  if (externalMatch) return externalMatch;
   const candidates = textures.filter((t) => t && typeof t.name === 'string' &&
     t.out && Number.isInteger(t.w) && Number.isInteger(t.h) &&
     !dataMapName.test(t.name));
