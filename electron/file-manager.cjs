@@ -293,6 +293,21 @@ function createFileManager({
         throw Error('Folder berubah menjadi tautan atau berada di luar sumber.');
       return filesApp.open(target);
     },
+    // Explicit File Manager selection. Include unpaired dictionaries in the
+    // current folder without guessing which YDD they belong to.
+    texturesFor(id) {
+      idle();
+      const model = ready().files.find((f) => f.id === id);
+      if (!model || !/\.(ydd|ydr|yft)$/i.test(model.name))
+        throw Error('Pilih model YDD/YDR/YFT terlebih dahulu.');
+      const folder = path.posix.dirname(model.relative);
+      return ready().files.filter((f) =>
+        /\.ytd$/i.test(f.name) &&
+        path.posix.dirname(f.relative) === folder &&
+        f.size <= 384 * 1024 * 1024
+      ).sort((a,b)=>a.name.localeCompare(b.name)).slice(0,200)
+        .map(({id,name,relative})=>({id,name,relative}));
+    },
     async read(id) {
       idle();
       const entry = ready().files.find((f) => f.id === id);
@@ -476,6 +491,7 @@ function registerFileManager({ ipcMain, trusted, win, ...options }) {
     'choose',
     'list',
     'read',
+    'texturesFor',
     'plan',
     'sort',
     'cancel',
