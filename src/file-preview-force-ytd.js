@@ -1,17 +1,27 @@
-// Explicit preview override only. It never changes the native model material
-// sampler, YDD, or YTD file, and cannot enable itself without user action.
+// Preview-only automatic filename-paired diffuse recovery.
+// Native YDD/YTD bytes and material shader names are never modified.
 const dataMapName = /(?:^|[_\-.])(normal|nrm|norm|bump|spec|specular|rough|metal|mask|ao|n|s)(?:[_\-.]|$)/i;
-export function forcedPreviewDiffuse(name, textures, embedded, sourceName, resolver, force = false) {
-  const matched = resolver(name, textures, embedded, sourceName);
-  if (!force || !Array.isArray(textures)) return matched;
-  // A forced dictionary wins over an embedded fallback if it contains the
-  // actual named diffuse sampler. Never steal a map from a different YTD.
-  const externalMatch = resolver(name, textures, [], sourceName);
-  if (externalMatch) return externalMatch;
-  const candidates = textures.filter((t) => t && typeof t.name === 'string' &&
+export function availableDiffuseTextures(textures) {
+  if (!Array.isArray(textures)) return [];
+  return textures.filter((t) => t && typeof t.name === 'string' &&
     t.out && Number.isInteger(t.w) && Number.isInteger(t.h) &&
     !dataMapName.test(t.name));
-  // Fallback only when unambiguous. Multiple diffuse maps require a selected map
-  // per material, otherwise forcing one atlas across all submeshes is unsafe.
-  return candidates.length === 1 ? candidates[0] : null;
+}
+export function automaticPairedDiffuse(name, textures, embedded, sourceName, resolve) {
+  if (!name) return null;
+  // The external YTD was paired by *filename/collection* upstream.
+  // Prefer its exact sampler match over an embedded grey placeholder.
+  const matched = resolve(name, textures, [], sourceName);
+  if (matched) return matched;
+  const candidates = availableDiffuseTextures(textures);
+  if (candidates.length === 1) return candidates[0];
+  // Several images without a matching sampler are ambiguous; leave the
+  // original embedded map intact rather than painting an unrelated atlas.
+  return resolve(name, [], embedded, sourceName);
+}
+// Compatibility for existing preview consumers; the UI no longer provides
+// a manual Force YTD control.
+export function forcedPreviewDiffuse(name, textures, embedded, sourceName, resolve, force = false) {
+  return force ? automaticPairedDiffuse(name, textures, embedded, sourceName, resolve)
+    : resolve(name, textures, embedded, sourceName);
 }
