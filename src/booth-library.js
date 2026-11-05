@@ -13,6 +13,11 @@ export function validateBoothScene(record) {
     !Array.isArray(record.clipFiles)
   )
     throw Error('Preset Photo Booth tidak valid.');
+  if (record.selectedActorIndex !== undefined &&
+      record.selectedActorIndex !== -1 &&
+      (!Number.isInteger(record.selectedActorIndex) ||
+       !['ped', 'vehicle', 'object'].includes(record.assets[record.selectedActorIndex]?.kind)))
+    throw Error('Pilihan ped dalam preset tidak valid.');
   if (record.studio !== undefined) {
     const s = record.studio;
     if (
