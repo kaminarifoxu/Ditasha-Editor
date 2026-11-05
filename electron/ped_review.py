@@ -131,7 +131,7 @@ def armature_for(obj):
     return None
 
 
-def run_muto(worker, bpy, arguments, options):
+def run_muto(worker, bpy, arguments, options, stage_callback=None):
     # The pinned batch worker imports the model before reading Scene.mpr. Apply
     # settings after import too, in case a multi-scene GLB changes active scenes.
     height = configure_muto(bpy.context.scene.mpr, options)
@@ -154,11 +154,24 @@ def run_muto(worker, bpy, arguments, options):
             if vertices > 2000000 or faces > 2000000 or len(meshes) > 500:
                 raise ValueError('Model terlalu berat untuk auto rig: %s meshes, %s vertices, %s faces. Decimate/merge in Blender first.' %
                                  (len(meshes), vertices, faces))
+    original_steps = getattr(worker, 'STEPS', None)
+    if original_steps is not None and stage_callback is not None:
+        # Muto's batch worker iterates STEPS for the full ped pipeline.
+        # A tuple-compatible wrapper emits the CURRENT operation without
+        # modifying operator functions, rig weights, or export logic.
+        class TrackedSteps(tuple):
+            def __iter__(self):
+                for stage in super().__iter__():
+                    stage_callback('Muto step: ' + str(stage[0])[:48])
+                    yield stage
+        worker.STEPS = TrackedSteps(original_steps)
     worker._import = configured_import
     try:
         return worker.run({**arguments, 'height': height})
     finally:
         worker._import = original_import
+        if original_steps is not None and stage_callback is not None:
+            worker.STEPS = original_steps
 
 
 
