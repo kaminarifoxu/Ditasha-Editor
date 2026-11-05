@@ -12,6 +12,12 @@ Use **+ Karakter freemode → Folder komponen freemode**. Import an exported loc
 
 Appearance JSON from illenium/fivem-appearance can select matching component drawable/texture numbers from the imported folder. The freemode chooser now resolves YDD/YTD pairs by component, drawable number, gender, collection prefix/folder and exact A–Z texture variant; it does not silently select an unrelated variant. Duplicate matching YTDs remain unselected for manual review. The starter character importer chooses only an unambiguous variant A per component. Missing components require choosing the corresponding local model. Parent head blending, the game's facial sliders and head overlays are not reproduced offline; the UI states this. The app does not bundle Rockstar's complete model/texture library or infer missing skin textures. Original model UVs are retained.
 
+### Character Maker ↔ Photo Booth preset consistency
+
+A Character Maker handoff now assembles a single freemode ped using the actual head YDD as the actor, even when folder enumeration places hair/clothing or a YFT first. Separate hair/teeth, torso and a compatible freemode YFT attach to the head actor. Automatic starter body selection prefers the head's collection and falls back to the supplied unqualified/original freemode components; it does not borrow unrelated addon collection pieces. Duplicate or absent head files are rejected instead of silently constructing a headless character.
+
+Photo Booth scene presets now retain the Character Maker ID, appearance parameters and optional calibrated facial morph pack alongside native source files. Calibrated morph deltas still require exact head topology and do not recreate GTA head blend or overlays. Imported YCD/GLB emotes and per-ped time are preserved when their source is available. When an emote source cannot be decoded during a preset reload, the app warns and restores that ped to Relaxed instead of silently claiming playback succeeded. Neither freemode assembly nor Photo Booth guarantees that a custom rig plays every GTA animation without manual validation.
+
 ## Halfped / head and separate hair
 
 Open **Auto rig ped → Kepala / halfped & rambut**. Export a head, eyes/teeth as needed, and optional separate hair from Sims 4 Studio/Blender as GLB/FBX/OBJ or a Blender project. Import **head meshes only**; native Sims `.package` files and full-character automatic head segmentation are not supported.
