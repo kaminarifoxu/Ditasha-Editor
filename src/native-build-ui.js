@@ -395,8 +395,8 @@ export function mountNativeBuild({
         (report.pedOptions.height ? report.pedOptions.height + ' m' : 'ukuran model');
       $('nbReport').append(p);
     }
-    if (report.sourceQuality) {
-      const q = report.sourceQuality,
+    if (report.sourceQuality || report.sourceMaterialAudit) {
+      const q = report.sourceQuality || report.sourceMaterialAudit,
         title = document.createElement('h3'),
         list = document.createElement('dl');
       title.textContent = 'Pemeriksaan model sumber';
