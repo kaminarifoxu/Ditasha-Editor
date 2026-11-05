@@ -1,4 +1,6 @@
 import { createFilePreview } from './file-preview.js';
+import { createThumbnailDecoderPool } from './file-thumbnail-decoder.js';
+import { prepareThumbnailModel } from './file-thumbnail-prepare.js';
 import { ICON_CODES } from './ui-icons.js';
 import { setProject } from './project-context.js';
 const categories = {
@@ -598,6 +600,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
   }
   // Keep a small in-memory cache: revisiting a page should not re-read/redecode
   // every YDD/YTD. Cache only finished PNG Blob snapshots (not WebGL contexts).
+  const thumbnailDecoder = createThumbnailDecoderPool(2);
   const thumbnailCache = new Map();
   const MAX_THUMBNAIL_CACHE = 80;
   function cacheThumbnail(key, blob) {
@@ -612,7 +615,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
       ...(file.textures || []).map((t) => t.id),
     ].join(':');
   }
-  async function renderThumbnailBlob(file) {
+  async function renderThumbnailBlob(file, prepared = null) {
     if (/\.(ydd|ydr|yft)$/i.test(file.name)) {
       const host = document.createElement('div');
       host.className = 'fm-thumbnail-render-host';
@@ -624,6 +627,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
           highPerformance: previewOptions.gpu,
           textureId: file.textures?.[0]?.id || null,
           textureCandidateIds: (file.textures || []).map((t) => t.id),
+          prepared,
         });
       } finally {
         preview.clear();
@@ -654,6 +658,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
         .map((row) => [row.dataset.fileId, row]));
     const queue = [];
     const queued = new Set();
+    let preparing = 0;
     let running = false;
     let observer = null;
     const current = () => version === thumbnailGeneration && view === 'grid';
@@ -667,17 +672,37 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
       img.src = url;
       row.querySelector('span')?.prepend(img);
     };
+    const pumpPrefetch = () => {
+      if (!current()) return;
+      // Bounded 2-item lookahead: decode CPU-heavy YDD/YTD resources on two
+      // dedicated workers while the GPU renders the current snapshot.
+      while (preparing < 2) {
+        const next = queue.find((task) =>
+          task.prepared === null && /\.(ydd|ydr|yft)$/i.test(task.file.name) &&
+          !thumbnailCache.has(thumbnailKey(task.file)));
+        if (!next) break;
+        preparing++;
+        next.prepared = prepareThumbnailModel(next.file, api(), thumbnailDecoder.decode)
+          .catch(() => null)
+          .finally(() => { preparing--; pumpPrefetch(); });
+      }
+    };
     const drain = async () => {
       if (running) return;
       running = true;
       try {
         while (queue.length && current()) {
-          const {file,row} = queue.shift();
+          const task = queue.shift();
+          const {file,row} = task;
+          pumpPrefetch();
           if (!row.isConnected || row.querySelector('.fm-thumbnail')) continue;
           const key = thumbnailKey(file);
           let blob = thumbnailCache.get(key);
           if (!blob) {
-            try { blob = await renderThumbnailBlob(file); }
+            try {
+              const prepared = task.prepared ? await task.prepared : null;
+              blob = await renderThumbnailBlob(file, prepared);
+            }
             catch { continue; } // Invalid models retain their icon.
             if (!current()) return;
             if (blob) cacheThumbnail(key,blob);
@@ -699,7 +724,8 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
     const enqueue = (file,row) => {
       if (!current() || queued.has(file.id)) return;
       queued.add(file.id);
-      queue.push({file,row});
+      queue.push({file,row,prepared:null});
+      pumpPrefetch();
       void drain();
     };
     if (typeof IntersectionObserver !== 'undefined') {
