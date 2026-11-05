@@ -1,44 +1,33 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { forcedPreviewDiffuse } from '../src/file-preview-force-ytd.js';
 import { readFileSync } from 'node:fs';
-const tex = (name) => ({name,w:1,h:1,out:new Uint8Array([10,20,30,255])});
-const noMatch = () => null;
-test('manual force maps one diffuse without rewriting model sampler',()=>{
- const chosen=tex('head_skin_a_uni');
- assert.equal(forcedPreviewDiffuse('unknown', [chosen], [], 'head.ydd', noMatch, true),chosen);
- assert.equal(forcedPreviewDiffuse('unknown', [chosen], [], 'head.ydd', noMatch, false),null);
+import { automaticPairedDiffuse, availableDiffuseTextures } from '../src/file-preview-force-ytd.js';
+const tex=(name)=>({name,w:1,h:1,out:new Uint8Array([10,20,30,255])});
+const resolver=(name,external,embedded)=>external.find((t)=>t.name===name) || embedded.find((t)=>t.name===name) || null;
+test('automatically uses uniquely named diffuse in a verified filename-paired YTD',()=>{
+ const texture=tex('head_skin_a_uni');
+ assert.equal(automaticPairedDiffuse('unresolved_head_sampler',[texture],[],'head_000_u.ydd',resolver),texture);
 });
-test('never force normal/specular as diffuse or guess among multiple atlases',()=>{
- assert.equal(forcedPreviewDiffuse('unknown',[tex('head_normal')],[], 'head.ydd',noMatch,true),null);
- assert.equal(forcedPreviewDiffuse('unknown',[tex('face'),tex('hair')],[], 'head.ydd',noMatch,true),null);
+test('normal, specular and ambiguous atlases are never forced as skin',()=>{
+ assert.equal(automaticPairedDiffuse('skin',[tex('head_normal')],[],'head.ydd',resolver),null);
+ assert.equal(automaticPairedDiffuse('skin',[tex('head_spec_s')],[],'head.ydd',resolver),null);
+ assert.equal(automaticPairedDiffuse('skin',[tex('face'),tex('hair')],[],'head.ydd',resolver),null);
+ assert.equal(availableDiffuseTextures([tex('skin'),tex('face_n')]).length,1);
 });
-test('matching shader sampler retains the existing diffuse material',()=>{
- const existing=tex('requested');const fallback=tex('other');
- assert.equal(forcedPreviewDiffuse('requested',[fallback],[], 'head.ydd',()=>existing,true),existing);
+test('matched external YTD diffuse overrides embedded grey placeholder',()=>{
+ const embedded=tex('original-grey'),external=tex('new_skin');
+ assert.equal(automaticPairedDiffuse('original-grey',[external],[embedded],'head.ydd',resolver),external);
 });
-test('File Manager exposes opt-in override and reset with per-model scope',()=>{
+test('multiple external images leave valid embedded sampler unchanged',()=>{
+ const original=tex('original');
+ assert.equal(automaticPairedDiffuse('original',[tex('face'),tex('tattoo')],[original],'head.ydd',resolver),original);
+});
+test('File Manager removes manual force control and attaches automatically by paired family',()=>{
  const ui=readFileSync(new URL('../src/file-manager-ui.js',import.meta.url),'utf8');
  const preview=readFileSync(new URL('../src/file-preview.js',import.meta.url),'utf8');
- assert.match(ui,/fmForceYtd/);
- assert.match(ui,/preview saja/);
- assert.match(ui,/activeTextureVariant, forcedYtd/);
- assert.match(preview,/setTextureVariant = async \(textureId, force = false\)/);
- assert.match(preview,/forcedPreviewDiffuse\(/);
-});
-
-test('forced YTD can replace embedded placeholder when only one valid diffuse is supplied',()=>{
- const embedded=tex('original-grey');const external=tex('female_face_diff_a_uni');
- const resolver=(name, textures, local) => local.find(t=>t.name===name)||textures.find(t=>t.name===name)||null;
- assert.equal(forcedPreviewDiffuse('original-grey',[external],[embedded],'head.ydd',resolver,true),external);
-});
-test('manual YTD selection reads only same-folder candidates through trusted IPC',()=>{
- const backend=readFileSync(new URL('../electron/file-manager.cjs',import.meta.url),'utf8');
- const preload=readFileSync(new URL('../electron/preload.cjs',import.meta.url),'utf8');
- const ui=readFileSync(new URL('../src/file-manager-ui.js',import.meta.url),'utf8');
- assert.match(backend,/texturesFor\(id\)/);
- assert.match(backend,/path\.posix\.dirname\(f\.relative\) === folder/);
- assert.match(preload,/ditasha:files-texturesFor/);
- assert.match(ui,/api\(\)\.texturesFor\(file\.id\)/);
- assert.match(ui,/forcePick\.onchange/);
+ const backend=readFileSync(new URL('../electron/ytd-groups.cjs',import.meta.url),'utf8');
+ assert.doesNotMatch(ui,/fmForceYtd|forcePick|forcedYtd/);
+ assert.match(ui,/textureCandidateIds: \(file\.textures \|\| \[\]\)\.map/);
+ assert.match(preview,/automaticPairedDiffuse\(g\.diffuseTexture/);
+ assert.match(backend,/pairedTextureNames/);
 });
