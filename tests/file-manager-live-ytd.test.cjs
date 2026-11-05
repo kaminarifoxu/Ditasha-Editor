@@ -8,9 +8,9 @@ test('right-side YTD selection updates the existing 3D preview controller',()=>{
  const ui=source('src/file-manager-ui.js');
  const viewer=source('src/file-preview.js');
  assert.match(ui,/activeTextureVariant = texture\.id/);
- assert.match(ui,/modelController\.setTextureVariant\(texture\.id, forcedYtd\)/);
+ assert.match(ui,/modelController\.setTextureVariant\(texture\.id\)/);
  assert.match(ui,/modelController = previewController\?\.setTextureVariant/);
- assert.match(viewer,/const setTextureVariant = async \(textureId, force = false\)/);
+ assert.match(viewer,/const setTextureVariant = async \(textureId\)/);
  assert.match(viewer,/mesh\.material\.map = texture/);
  assert.match(viewer,/request !== textureRequest/);
  assert.match(viewer,/return snapshot \? thumbnail : \{ applyFace, supported:faceMeshes\.length>0, setTextureVariant, setCharacterModel, selectedTextureId: resolvedTextureId \}/);
