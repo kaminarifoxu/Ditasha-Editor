@@ -58,4 +58,13 @@ with TemporaryDirectory(prefix='ditasha-stage-test-') as temp:
         raise AssertionError('worker exception swallowed')
     assert worker.STEPS is original
     assert json.loads(bridge._ped_stage_file.read_text(encoding='utf8'))['step']=='Muto step: weights'
+# A reported operator failure must not be hidden behind a generic exit code.
+assert 'markers' in review.muto_failure_message({
+    'ok':False, 'steps':{'strip':'FINISHED','markers':'CANCELLED'}, 'error':None})
+assert 'weights' in review.muto_failure_message({
+    'ok':False, 'steps':{'markers':'FINISHED','weights':'ERROR: missing bones'}})
+assert 'missing bones' in review.muto_failure_message({
+    'ok':False, 'steps':{'markers':'FINISHED','weights':'ERROR: missing bones'}})
+assert 'unknown' in review.muto_failure_message({'ok':False,'steps':{}})
+assert 'laporan rigging' in review.muto_failure_message(None)
 print('PASS_PED_STAGE_SIDECAR_AND_WORKER_RESTORE')
