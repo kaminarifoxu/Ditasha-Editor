@@ -702,12 +702,7 @@ def run(job):
             except Exception as exc:
                 report.setdefault('warnings', []).append('Proyek koreksi: ' + str(exc))
             if not result.get('ok'):
-                failed = next(((name, value) for name, value in result.get('steps', {}).items()
-                               if value not in ('FINISHED', 'SKIPPED')), None)
-                last = failed or next(reversed(result.get('steps', {}).items()), ('unknown', 'no steps recorded'))
-                reason = str(result.get('error') or last[1]).strip().splitlines()[-1][:500]
-                raise RuntimeError('Muto gagal pada tahap %s: %s. Periksa batch_report.json atau proyek .blend.' %
-                                   (last[0], reason))
+                raise RuntimeError(review.muto_failure_message(result))
             required = {'.yft', '.ydd', '.ytd', '.ymt'}
             present = {f.suffix.lower() for f in output.rglob('*') if f.is_file()}
             if not required.issubset(present) or not list(output.rglob('fxmanifest.lua')):
