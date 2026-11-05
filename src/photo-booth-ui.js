@@ -3081,6 +3081,8 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
     return {
       version: 1,
       movie: movie.snapshot(),
+      // Preserve the ped selected for emote and viewport controls.
+      selectedActorIndex: assets.findIndex((a) => a.id === selectedActor),
       name: $('pbLibraryName').value,
       thumbnail: small.toDataURL('image/png'),
       assets: assets.map((a) => ({
@@ -3251,7 +3253,14 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
 
       $('pbClipSearch').value = '';
       clipSerial = Math.max(clipSerial, ...clipFiles.map((c) => Number(c.prefix.split(':')[1])));
-      selectedActor = actors()[0]?.id;
+      const restoredSelection = Number.isInteger(record.selectedActorIndex) &&
+        record.selectedActorIndex >= 0
+        ? pending[record.selectedActorIndex]
+        : null;
+      selectedActor = restoredSelection &&
+        ['ped', 'vehicle', 'object'].includes(restoredSelection.kind)
+        ? restoredSelection.id
+        : actors()[0]?.id;
       if (record.studio) {
         studioPacks = restoredPacks;
         updateStudioOptions();
