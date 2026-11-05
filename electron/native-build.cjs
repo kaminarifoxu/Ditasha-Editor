@@ -700,9 +700,29 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
     };
     child.stdout.on('data', (chunk) => append(chunk, true));
     child.stderr.on('data', (chunk) => append(chunk, false));
+    const stagePath = job.mode === 'ped' ? path.join(job.output, 'ped-stage.json') : null;
+    const updateStageFromFile = async () => {
+      if (!stagePath || settled) return;
+      try {
+        const stat = await fs.stat(stagePath);
+        if (stat.size > 2048 || stat.size === 0) return;
+        const stage = JSON.parse(await fs.readFile(stagePath, 'utf8'));
+        if (typeof stage.step !== 'string' || stage.step.length > 300) return;
+        if (state.step !== stage.step) {
+          state.step = stage.step;
+          state.message = stage.step;
+        }
+      } catch {
+        // The first stage may not exist yet; atomic writer replaces the file.
+      }
+    };
+    const stagePoll = stagePath ? setInterval(updateStageFromFile, 800) : null;
+    stagePoll?.unref?.();
     let timeoutReason = null;
     const timer = setTimeout(
       () => {
+        // The final atomic stage can arrive between polling ticks.
+        void updateStageFromFile();
         timeoutReason =
           'Blender/Muto melewati batas 15 menit pada tahap: ' +
           (state.step || 'tidak diketahui') +
@@ -716,8 +736,11 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
     );
     const finish = async (error) => {
       if (settled) return;
+      // Inspect the persisted marker once more before reporting a failed build.
+      await updateStageFromFile();
       settled = true;
       clearTimeout(timer);
+      if (stagePoll) clearInterval(stagePoll);
       child = null;
       try {
         const reportFile = path.join(job.output, 'report.json');
@@ -783,7 +806,8 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
         }
         state.status = 'error';
         state.message = timeoutReason || (job.mode === 'ped'
-          ? (error ? String(error) + '; ' + (reportError?.message || 'tidak ada report') :
+          ? (error ? String(error) + ' · Tahap terakhir: ' + (state.step || 'unknown') +
+              '; ' + (reportError?.message || 'tidak ada report') :
               'Blender tidak menghasilkan report yang bisa dibaca: ' +
               (reportError?.message || 'report.json tidak tersedia'))
           : error || 'Engine tidak menghasilkan report. Periksa log.');
