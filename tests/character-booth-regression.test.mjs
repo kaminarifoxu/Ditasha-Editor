@@ -42,3 +42,19 @@ test('Photo Booth snapshot stores Character Maker metadata and makes head primar
  assert.match(source,/planFreemodeActor\(pending\)/);
  assert.match(source,/await restoreScene\(await library\.get\(row\.id\)\)/);
 });
+
+test('Photo Booth scene validation preserves the selected ped for emote preview',()=>{
+ const record=scene();
+ record.selectedActorIndex=0;
+ assert.equal(validateBoothScene(record),record);
+ record.selectedActorIndex=2;
+ assert.throws(()=>validateBoothScene(record),/Pilihan ped/);
+ const old=scene();
+ delete old.selectedActorIndex;
+ assert.equal(validateBoothScene(old),old);
+});
+test('saved and reloaded Photo Booth scenes retain selected ped index',()=>{
+ const source=readFileSync(new URL('../src/photo-booth-ui.js',import.meta.url),'utf8');
+ assert.match(source,/selectedActorIndex: assets\.findIndex/);
+ assert.match(source,/pending\[record\.selectedActorIndex\]/);
+});
