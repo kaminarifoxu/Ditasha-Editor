@@ -61,17 +61,17 @@ Buka **Auto rig ped → Download & set up** untuk memasang engine dan add-on sec
 Setelah selesai, pilih model humanoid GLB/FBX/OBJ dalam A/T-pose dan nama ped, lalu klik
 **Buat preview rig**. Periksa model 3D, kemudian **Simpan hasil ped** untuk memilih folder hasil. Panduan lengkap: [NATIVE_BUILD.md](docs/NATIVE_BUILD.md).
 
-## Ped Workshop / Auto Rig — FROZEN (5 November 2026)
+## Ped Workshop / Auto Rig — ACTIVE REPAIR (5 November 2026)
 
-**Status: dikunci pada implementasi yang ada atas permintaan pemilik proyek.** Baseline: `a7f8bf94e80a0582f0ae4079e2c064ad1c4bdc90` (commit README sebelumnya) pada branch `feature/phase3-creators`. Jangan mengubah kode, UI, tata letak, atau alur **Ped Workshop**, **Full ped rig**, **Kepala / halfped & rambut**, dan **Skin clothing** dalam pekerjaan selanjutnya tanpa persetujuan eksplisit. Perbaikan keamanan atau kerusakan yang terbukti memerlukan persetujuan terlebih dahulu dan harus terbatas pada modul terkait. Jangan merge ke `main` tanpa instruksi.
+**Status: aktif diperbaiki, BELUM selesai atau terkunci.** Pemilik proyek mengklarifikasi bahwa hanya File Manager / Clothing Library V2 yang frozen. Fokus sekarang adalah memperbaiki **Full Ped Rig / Muto** yang macet atau mengeluarkan kode 1 setelah impor GLB, serta material/tekstur head, hair dan full ped yang salah atau hilang. Kerjakan hanya `feature/phase3-creators`; jangan merge `main`. Jaga UI utama, File Manager frozen, Weapon Studio, Prop & Collision Creator, dan modul lain tetap tidak berubah.
 
-Cakupan yang harus dipertahankan:
-- Workflow Blender/Sollumz/Muto terkelola, impor sumber GLB/FBX/OBJ, referensi skeleton freemode dan pilihan rig.
-- Preview 3D sumber dan hasil rig, validasi pose/weights/bones/UV, serta diagnostik head/hair, material YTD dan transparansi.
-- Progress/tahap Muto, timeout, log error Blender yang bisa disimpan, pelaporan native dan pemeriksaan hasil export.
-- Pengujian/regression suite Ped Workshop yang sudah ada; hindari refactor lintas-modul yang mengubah perilakunya.
+Prioritas verifikasi:
+1. Bandingkan log dari model GLB nyata dan fixture Blender/Sollumz. Catat marker Muto, kompleksitas mesh, orientasi, skeleton, bobot tulang, dan penyebab akhir timeout; jangan samakan CI sintetis yang lulus dengan perbaikan runtime pada semua ped.
+2. Tinjau apakah ped memakai **skeleton freemode kompatibel**, bone hierarchy dan max empat bobot pengaruh per vertex. Periksa ekspor dan reimport YDD/YFT/YTD serta pose untuk mendeteksi T-pose.
+3. Resolusi diffuse/normal/specular per material; referensi YTD, alpha/cutout rambut, UV, dan penanganan atlas yang hilang. Jangan mengganti pixel hitam menjadi transparan atau memaksa atlas tidak relevan.
+4. Tambahkan tes regresi serta Windows native verification untuk tiap perbaikan; uji dalam FiveM dengan aset nyata sebelum menyebut modul selesai.
 
-**Batas status:** `FROZEN` **bukan** berarti full-ped auto-rigging terbukti selesai atau bebas bug. Pada pengujian model nyata sebelumnya pernah terjadi timeout Muto setelah impor GLB dan model tidak muncul pada viewport, meski sejumlah pengujian sintetis Windows/Blender lulus. Perubahan dan uji lanjut dibekukan untuk saat ini, bukan diklaim berhasil. Tidak ada jaminan semua YDD/YFT/YTD berhasil export dan berfungsi di FiveM tanpa pengujian nyata. File Manager / Clothing Library V2 tetap frozen secara terpisah.
+**Known issues remain open:** full-ped Muto bisa timeout sesudah `glTF import finished`, rigging tertentu mengembalikan kode 1, dan sejumlah tekstur salah/abu-abu/hitam. Ped Workshop **tidak frozen** sampai pemilik proyek menyatakan selesai secara eksplisit.
 
 ## Update aplikasi
 
