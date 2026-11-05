@@ -164,6 +164,38 @@ export function validateBoothScene(record) {
         throw Error('Metadata part kendaraan tidak valid.');
     if (a.vehicleAlt !== undefined && typeof a.vehicleAlt !== 'boolean')
       throw Error('LOD kendaraan tidak valid.');
+    // Character Maker linkage is optional for older Photo Booth presets.
+    // Never accept functions, unbounded arrays or arbitrary executable payloads.
+    if (a.characterPresetId !== undefined &&
+        a.characterPresetId !== null &&
+        (typeof a.characterPresetId !== 'string' ||
+         !/^[a-z0-9_-]{1,128}$/i.test(a.characterPresetId)))
+      throw Error('ID Character Maker preset tidak valid.');
+    if (a.characterAppearance !== undefined && a.characterAppearance !== null) {
+      const appearance = a.characterAppearance;
+      if (!appearance || typeof appearance !== 'object' || Array.isArray(appearance) ||
+          (appearance.features !== undefined &&
+            (!Array.isArray(appearance.features) || appearance.features.length > 20 ||
+             !appearance.features.every((v) => v === null || Number.isFinite(v)))) ||
+          (appearance.overlays !== undefined &&
+            (!Array.isArray(appearance.overlays) || appearance.overlays.length > 24 ||
+             !appearance.overlays.every((v) => v === null || Number.isFinite(v)))) ||
+          JSON.stringify(appearance).length > 8192)
+        throw Error('Appearance karakter dalam preset tidak valid.');
+    }
+    if (a.characterMorphPack !== undefined && a.characterMorphPack !== null) {
+      const morph = a.characterMorphPack;
+      if (!morph || morph.version !== 1 ||
+          !Number.isInteger(morph.vertexCount) || morph.vertexCount < 1 || morph.vertexCount > 1000000 ||
+          !Array.isArray(morph.targets) || morph.targets.length > 128 ||
+          !morph.targets.every((target) =>
+            target && typeof target === 'object' &&
+            /^(?:feature:(?:[0-9]|1[0-9])|parent:(?:first|second))$/.test(target.key) &&
+            Array.isArray(target.deltas) &&
+            target.deltas.length === morph.vertexCount * 3 &&
+            target.deltas.every(Number.isFinite)))
+        throw Error('Morph wajah preset tidak valid.');
+    }
     validateActorMotion(a.motion);
     if (
       typeof a.motion.clip !== 'string' ||
