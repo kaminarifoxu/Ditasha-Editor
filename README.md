@@ -25,6 +25,18 @@ opacity, kuas, penghapus, urutan, duplikat, kunci, undo/redo dan tab.
 UV biru tidak ikut diekspor. Pengeditan mesh/ekspor YFT/YDD/YDR belum tersedia.
 Ekspor desain sebelum menutup; proyek tersimpan di memori selama aplikasi terbuka.
 
+## File Manager / Clothing Library V2 — FROZEN (5 November 2026)
+
+**Status: selesai untuk sementara, dikunci atas permintaan pemilik proyek.** Baseline kode: `fefb3fd22757a456c448b5a109efcd540910d569` pada branch `feature/phase3-creators`. Jangan mengubah perilaku, desain, tata letak, atau alur File Manager/Clothing Library V2 dalam pekerjaan modul berikutnya tanpa persetujuan eksplisit. Perbaikan darurat untuk keamanan atau kerusakan yang terbukti harus dibatasi dan disetujui terlebih dahulu; jangan melakukan refactor lintas-modul yang tidak diperlukan. Jangan merge perubahan ini ke `main` tanpa instruksi.
+
+Baseline yang dipertahankan:
+- Pemindaian folder/subfolder, pengurutan, filter, pagination, tampilan grid/list, thumbnail aset dan preview 3D kanan.
+- Pengelompokan YDD dengan YTD terkait, termasuk varian tekstur; pencocokan otomatis berdasarkan nama file/family, drawable, collection, dan folder yang sesuai.
+- Penerapan otomatis satu diffuse YTD yang tidak ambigu ketika referensi sampler YDD berbeda; **tanpa tombol Force YTD**. Model yang tidak mempunyai pasangan aman tetap ditampilkan tanpa memaksakan atlas yang tidak terkait.
+- Preview dan pemilihan varian YTD yang sudah ada, serta batas perlindungan saat membuka aset besar. File sumber YDD/YTD tidak ditulis ulang oleh pencocokan preview.
+
+**Batas verifikasi:** status frozen adalah keputusan ruang lingkup proyek, bukan klaim bahwa semua aset GTA/FiveM selalu tampil sempurna atau sebuah GitHub branch protection rule sudah terpasang. Perubahan terbaru telah melewati pemeriksaan yang tersedia pada branch; kecocokan materi untuk setiap aset asli dan build Windows akhir tetap perlu validasi tersendiri. Pekerjaan selanjutnya difokuskan pada modul lain.
+
 ## GTA V Explorer & editor kode
 
 Klik sekali YFT/YDD/YDR untuk preview 3D langsung di Explorer; daftar file tetap terlihat.
