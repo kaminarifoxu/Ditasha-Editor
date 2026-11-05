@@ -3088,6 +3088,12 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         kind: a.kind,
         rigChoice: a.rigChoice || 'auto',
         referenceOnly: !!a.referenceOnly,
+        // A booth scene must retain its Character Maker origin and morph targets.
+        ...(a.kind === 'ped' && a.characterPresetId ? {
+          characterPresetId: a.characterPresetId,
+          characterAppearance: a.characterAppearance || null,
+          characterMorphPack: a.characterMorphPack || null,
+        } : {}),
         targetHeightCm: a.targetHeightCm || null,
         textureOverride: a.textureOverride || '',
         category: a.category,
