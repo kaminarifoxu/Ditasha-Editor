@@ -473,10 +473,27 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
         if (current === serial) $('fmImage').textContent = e.message;
       }
     } else if (/\.(ydd|ydr|yft|ytd|dds)$/i.test(file.name)) {
-      const previewController = await assetPreview.show(file, api(), {textureId:activeTextureVariant || file.textures?.[0]?.id || null});
+      const previewController = await assetPreview.show(file, api(), {
+        textureId: activeTextureVariant || file.textures?.[0]?.id || null,
+        textureCandidateIds: (file.textures || []).map((t) => t.id),
+        onTextureResolved: (id) => {
+          if (current !== serial || id === activeTextureVariant) return;
+          const chosen = (file.textures || []).find((t) => t.id === id);
+          if (!chosen) return;
+          activeTextureVariant = id;
+          $('fmYtdName').textContent = chosen.name;
+          $('fmCompanion').querySelectorAll('[data-texture-id]').forEach((button) =>
+            button.setAttribute('aria-pressed', String(button.dataset.textureId === String(id))));
+          ytdPreview.show({ id, name: chosen.name }, api()).catch((error) => {
+            if (current === serial) $('fmYtdCanvas').textContent = 'YTD gagal dimuat: ' + error.message;
+          });
+        },
+      });
       if(current!==serial)return;
       modelController = previewController?.setTextureVariant ? previewController : null;
-      if(activeTextureVariant && modelController)await modelController.setTextureVariant(activeTextureVariant);
+      if(activeTextureVariant && modelController &&
+          activeTextureVariant !== previewController.selectedTextureId)
+        await modelController.setTextureVariant(activeTextureVariant);
       if(modelController && withCharacter && characterReference && characterReference.id!==file.id)
         await modelController.setCharacterModel(characterReference);
     }
@@ -592,7 +609,12 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
           host.className = 'fm-thumbnail-render-host';
           document.body.append(host);
           const preview = createFilePreview(host);
-          try { blob = await preview.show(file, api(), {snapshot:true, highPerformance:previewOptions.gpu, textureId:file.textures?.[0]?.id || null}); }
+          try { blob = await preview.show(file, api(), {
+            snapshot: true,
+            highPerformance: previewOptions.gpu,
+            textureId: file.textures?.[0]?.id || null,
+            textureCandidateIds: (file.textures || []).map((t) => t.id),
+          }); }
           finally { preview.clear(); host.remove(); }
         } else {
           const data = await api().read(file.id);
