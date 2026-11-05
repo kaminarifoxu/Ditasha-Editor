@@ -593,49 +593,130 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
     currentPageFiles=data.files;
     if (view === 'grid') loadThumbnails(data.files, thumbnailGeneration);
   }
-  async function loadThumbnails(files, version) {
-    // Images are cheap; YDD/YDR/YFT need the existing GTA decoder and WebGL renderer.
-    const candidates = files.filter(f => /\.(png|jpe?g|webp|gif|bmp|ydd|ydr|yft)$/i.test(f.name) &&
-      f.size <= 64 * 1024 * 1024).slice(0, previewOptions.limit);
-    let rendered = 0;
-    for (const file of candidates) {
-      if (version !== thumbnailGeneration || view !== 'grid') return;
-      const row = [...$('fmList').querySelectorAll('[data-file-id]')].find(r => r.dataset.fileId === file.id);
-      if (!row) continue;
+  // Keep a small in-memory cache: revisiting a page should not re-read/redecode
+  // every YDD/YTD. Cache only finished PNG Blob snapshots (not WebGL contexts).
+  const thumbnailCache = new Map();
+  const MAX_THUMBNAIL_CACHE = 80;
+  function cacheThumbnail(key, blob) {
+    if (thumbnailCache.has(key)) thumbnailCache.delete(key);
+    thumbnailCache.set(key, blob);
+    if (thumbnailCache.size > MAX_THUMBNAIL_CACHE)
+      thumbnailCache.delete(thumbnailCache.keys().next().value);
+  }
+  function thumbnailKey(file) {
+    return [
+      file.id, file.size, file.modified, previewOptions.gpu,
+      ...(file.textures || []).map((t) => t.id),
+    ].join(':');
+  }
+  async function renderThumbnailBlob(file) {
+    if (/\.(ydd|ydr|yft)$/i.test(file.name)) {
+      const host = document.createElement('div');
+      host.className = 'fm-thumbnail-render-host';
+      document.body.append(host);
+      const preview = createFilePreview(host);
       try {
-        let blob;
-        if (/\.(ydd|ydr|yft)$/i.test(file.name)) {
-          const host = document.createElement('div');
-          host.className = 'fm-thumbnail-render-host';
-          document.body.append(host);
-          const preview = createFilePreview(host);
-          try { blob = await preview.show(file, api(), {
-            snapshot: true,
-            highPerformance: previewOptions.gpu,
-            textureId: file.textures?.[0]?.id || null,
-            textureCandidateIds: (file.textures || []).map((t) => t.id),
-          }); }
-          finally { preview.clear(); host.remove(); }
-        } else {
-          const data = await api().read(file.id);
-          const bitmap = await createImageBitmap(new Blob([data.data]), {resizeWidth:180,resizeQuality:'high'});
-          const canvas = document.createElement('canvas');
-          canvas.width = bitmap.width; canvas.height = bitmap.height;
-          canvas.getContext('2d').drawImage(bitmap,0,0);
-          bitmap.close();
-          blob = await new Promise(resolve => canvas.toBlob(resolve,'image/png'));
-          canvas.width = canvas.height = 1;
-        }
-        if (!blob || version !== thumbnailGeneration) return;
-        const url = URL.createObjectURL(blob);
-        thumbnails.push(url);
-        const img = document.createElement('img');
-        img.className = 'fm-thumbnail'; img.alt = 'Preview 3D '+file.name; img.src = url;
-        row.querySelector('span').prepend(img);
-      } catch {
-        // Invalid or unsupported RSC assets retain the normal icon.
+        return await preview.show(file, api(), {
+          snapshot: true,
+          highPerformance: previewOptions.gpu,
+          textureId: file.textures?.[0]?.id || null,
+          textureCandidateIds: (file.textures || []).map((t) => t.id),
+        });
+      } finally {
+        preview.clear();
+        host.remove();
       }
-      if (++rendered % previewOptions.batch === 0) await new Promise(resolve => setTimeout(resolve,0));
+    }
+    const data = await api().read(file.id);
+    const bitmap = await createImageBitmap(new Blob([data.data]), {resizeWidth:180,resizeQuality:'high'});
+    const canvas = document.createElement('canvas');
+    try {
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      canvas.getContext('2d').drawImage(bitmap,0,0);
+      return await new Promise((resolve) => canvas.toBlob(resolve,'image/png'));
+    } finally {
+      bitmap.close();
+      canvas.width = canvas.height = 1;
+    }
+  }
+  async function loadThumbnails(files, version) {
+    // Don't decode 100-250 assets while only a fraction of the grid is visible.
+    // Prioritize the visible cells and preserve the old source and renderer.
+    const candidates = files.filter((f) =>
+      /\.(png|jpe?g|webp|gif|bmp|ydd|ydr|yft)$/i.test(f.name) &&
+      f.size <= 64 * 1024 * 1024).slice(0,previewOptions.limit);
+    const rows = new Map(
+      [...$('fmList').querySelectorAll('[data-file-id]')]
+        .map((row) => [row.dataset.fileId, row]));
+    const queue = [];
+    const queued = new Set();
+    let running = false;
+    let observer = null;
+    const current = () => version === thumbnailGeneration && view === 'grid';
+    const assign = (file, row, blob) => {
+      if (!current() || !blob || !row.isConnected || row.dataset.fileId !== String(file.id)) return;
+      const url = URL.createObjectURL(blob);
+      thumbnails.push(url);
+      const img = document.createElement('img');
+      img.className = 'fm-thumbnail';
+      img.alt = 'Preview 3D ' + file.name;
+      img.src = url;
+      row.querySelector('span')?.prepend(img);
+    };
+    const drain = async () => {
+      if (running) return;
+      running = true;
+      try {
+        while (queue.length && current()) {
+          const {file,row} = queue.shift();
+          if (!row.isConnected || row.querySelector('.fm-thumbnail')) continue;
+          const key = thumbnailKey(file);
+          let blob = thumbnailCache.get(key);
+          if (!blob) {
+            try { blob = await renderThumbnailBlob(file); }
+            catch { continue; } // Invalid models retain their icon.
+            if (!current()) return;
+            if (blob) cacheThumbnail(key,blob);
+          } else {
+            // Update LRU order for frequently viewed models.
+            thumbnailCache.delete(key);
+            thumbnailCache.set(key,blob);
+          }
+          assign(file,row,blob);
+          // Yield between heavy CPU texture-decoding jobs so navigation and
+          // scrolling stay responsive even if the GPU is available.
+          await new Promise((resolve) => setTimeout(resolve,0));
+        }
+      } finally {
+        running = false;
+        if (!current()) observer?.disconnect();
+      }
+    };
+    const enqueue = (file,row) => {
+      if (!current() || queued.has(file.id)) return;
+      queued.add(file.id);
+      queue.push({file,row});
+      void drain();
+    };
+    if (typeof IntersectionObserver !== 'undefined') {
+      observer = new IntersectionObserver((entries) => {
+        if (!current()) { observer?.disconnect(); return; }
+        for (const entry of entries) if (entry.isIntersecting) {
+          const file = candidates.find((f)=>String(f.id)===entry.target.dataset.fileId);
+          if (file) enqueue(file,entry.target);
+          observer?.unobserve(entry.target);
+        }
+      }, {rootMargin:'320px 0px'});
+      for (const file of candidates) {
+        const row = rows.get(String(file.id));
+        if (row) observer.observe(row);
+      }
+    } else {
+      for (const file of candidates) {
+        const row=rows.get(String(file.id));
+        if (row) enqueue(file,row);
+      }
     }
   }
   async function choose(refresh = false) {
