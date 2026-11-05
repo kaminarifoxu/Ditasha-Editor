@@ -131,11 +131,11 @@ def armature_for(obj):
     return None
 
 
-def run_muto(worker, bpy, arguments, options, stage_callback=None):
-    # The pinned batch worker imports the model before reading Scene.mpr. Apply
-    # settings after import too, in case a multi-scene GLB changes active scenes.
+def run_muto(worker, bpy, arguments, options, stage_callback=None, image_node=None):
+    # Muto imports before it reads Scene.mpr; preserve its own fitted rig.
     height = configure_muto(bpy.context.scene.mpr, options)
     original_import = worker._import
+    source_audit = None
     def configured_import(source):
         original_import(source)
         configure_muto(bpy.context.scene.mpr, options)
@@ -154,6 +154,15 @@ def run_muto(worker, bpy, arguments, options, stage_callback=None):
             if vertices > 2000000 or faces > 2000000 or len(meshes) > 500:
                 raise ValueError('Model terlalu berat untuk auto rig: %s meshes, %s vertices, %s faces. Decimate/merge in Blender first.' %
                                  (len(meshes), vertices, faces))
+            if image_node is not None:
+                nonlocal source_audit
+                source_audit = audit_source(bpy, meshes, image_node)
+                missing = source_audit.get('missingTextures', [])
+                absent_uv = source_audit.get('missingUV', [])
+                solid = source_audit.get('solidMaterials', [])
+                if stage_callback is not None and (missing or absent_uv or solid):
+                    stage_callback('Source material audit: %d unreadable textures, %d missing UV meshes, %d untextured materials' %
+                                   (len(missing), len(absent_uv), len(solid)))
     original_steps = getattr(worker, 'STEPS', None)
     if original_steps is not None and stage_callback is not None:
         # Muto's batch worker iterates STEPS for the full ped pipeline.
@@ -167,7 +176,10 @@ def run_muto(worker, bpy, arguments, options, stage_callback=None):
         worker.STEPS = TrackedSteps(original_steps)
     worker._import = configured_import
     try:
-        return worker.run({**arguments, 'height': height})
+        result = worker.run({**arguments, 'height': height})
+        if isinstance(result, dict) and source_audit is not None:
+            result['sourceMaterialAudit'] = source_audit
+        return result
     finally:
         worker._import = original_import
         if original_steps is not None and stage_callback is not None:
