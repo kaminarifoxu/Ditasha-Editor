@@ -164,6 +164,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
   let tabs = [{ id: 1, folder: '' }],
     activeTab = tabs[0];
   let thumbnailGeneration = 0;
+  let thumbnailObserver = null;
   const thumbnails = [];
   let currentPageFiles=[];
   const previewOptions = { limit: 250, batch: 12, gpu: true };
@@ -173,6 +174,8 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
   previewOptions.gpu = previewOptions.gpu !== false;
   const savePreviewOptions = () => localStorage.setItem('ditasha-file-preview-options',JSON.stringify(previewOptions));
   function clearThumbnails() {
+    thumbnailObserver?.disconnect();
+    thumbnailObserver = null;
     thumbnailGeneration++;
     thumbnails.splice(0).forEach((url) => URL.revokeObjectURL(url));
   }
@@ -708,6 +711,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
           observer?.unobserve(entry.target);
         }
       }, {rootMargin:'320px 0px'});
+      thumbnailObserver = observer;
       for (const file of candidates) {
         const row = rows.get(String(file.id));
         if (row) observer.observe(row);
