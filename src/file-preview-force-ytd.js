@@ -8,16 +8,15 @@ export function availableDiffuseTextures(textures) {
     !dataMapName.test(t.name));
 }
 export function automaticPairedDiffuse(name, textures, embedded, sourceName, resolve) {
-  if (!name) return null;
   // The external YTD was paired by *filename/collection* upstream.
   // Prefer its exact sampler match over an embedded grey placeholder.
-  const matched = resolve(name, textures, [], sourceName);
+  const matched = name ? resolve(name, textures, [], sourceName) : null;
   if (matched) return matched;
   const candidates = availableDiffuseTextures(textures);
   if (candidates.length === 1) return candidates[0];
   // Several images without a matching sampler are ambiguous; leave the
   // original embedded map intact rather than painting an unrelated atlas.
-  return resolve(name, [], embedded, sourceName);
+  return name ? resolve(name, [], embedded, sourceName) : null;
 }
 // Compatibility for existing preview consumers; the UI no longer provides
 // a manual Force YTD control.
