@@ -13,6 +13,22 @@ import { resolveModelTexture, modelAlphaMode, modelPreviewAlpha } from './model-
 import { resolveVehicleLivery, setVehicleLivery } from './vehicle-livery.js';
 import { createModelMaterial, resolveSurfaceMaps, setSurfaceMaps } from './vehicle-surface.js';
 
+// A single renderer is reused for static File Manager thumbnail snapshots.
+// Recreating a WebGL context for every YDD causes repeated shader compilation,
+// context creation and GPU data uploads; never share with an interactive preview.
+let thumbnailRenderer = null;
+function snapshotRenderer() {
+  if (!thumbnailRenderer) {
+    thumbnailRenderer = new THREE.WebGLRenderer({
+      antialias: true, alpha: true,
+      preserveDrawingBuffer: true, powerPreference: 'high-performance',
+    });
+    thumbnailRenderer.outputColorSpace = THREE.SRGBColorSpace;
+    thumbnailRenderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+  }
+  return thumbnailRenderer;
+}
+
 // One owned preview at a time; selecting a different file releases its WebGL
 // context, controls, decoded resources and observer before displaying the next.
 export function createFilePreview(container) {
@@ -113,9 +129,14 @@ export function createFilePreview(container) {
       const host = document.createElement('div');
       host.className = 'fm-model-preview';
       container.replaceChildren(host);
-      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: snapshot, powerPreference: highPerformance ? 'high-performance' : 'default' });
-      renderer.outputColorSpace = THREE.SRGBColorSpace;
-      renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+      const renderer = snapshot ? snapshotRenderer() : new THREE.WebGLRenderer({
+        antialias: true, alpha: true, preserveDrawingBuffer: false,
+        powerPreference: highPerformance ? 'high-performance' : 'default',
+      });
+      if (!snapshot) {
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+        renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+      }
       host.append(renderer.domElement);
       const scene = new THREE.Scene(),
         group = new THREE.Group(),
@@ -254,7 +275,11 @@ export function createFilePreview(container) {
       camera.far = d * 1000;
       camera.position.copy(center).add(new THREE.Vector3(d * 0.85, d * 0.4, d * 1.8));
       camera.updateProjectionMatrix();
-      const controls = new OrbitControls(camera, renderer.domElement);
+      // Snapshot thumbnails are static: OrbitControls allocates event
+      // handlers and gesture listeners only needed by the inspector.
+      const controls = snapshot
+        ? { target: new THREE.Vector3(), update() {}, dispose() {}, addEventListener() {} }
+        : new OrbitControls(camera, renderer.domElement);
       controls.target.copy(center);
       controls.update();
       const draw = () => {
@@ -327,13 +352,13 @@ export function createFilePreview(container) {
         maps.push(map);
         return map;
       }
-      controls.addEventListener('change', draw);
-      const observer = new ResizeObserver(draw);
-      observer.observe(host);
+      if (!snapshot) controls.addEventListener('change', draw);
+      const observer = snapshot ? null : new ResizeObserver(draw);
+      observer?.observe(host);
       draw();
       const thumbnail = snapshot ? await new Promise(resolve => renderer.domElement.toBlob(resolve, 'image/png')) : null;
       release = () => {
-        observer.disconnect();
+        observer?.disconnect();
         controls.dispose();
         group.traverse((o) => {
           if (o.isMesh) {
@@ -342,8 +367,13 @@ export function createFilePreview(container) {
           }
         });
         maps.forEach((m) => m.dispose());
-        renderer.dispose();
-        renderer.forceContextLoss();
+        if (snapshot) {
+          // Release per-model references while retaining the shared GPU context.
+          renderer.renderLists.dispose();
+        } else {
+          renderer.dispose();
+          renderer.forceContextLoss();
+        }
         host.remove();
       };
       return snapshot ? thumbnail : { applyFace, supported:faceMeshes.length>0, setTextureVariant, setCharacterModel, selectedTextureId: resolvedTextureId };
