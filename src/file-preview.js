@@ -3,6 +3,7 @@ import { deformFacePositions } from './offline-face-deform.js';
 import { defaultDrawableSelection, drawableView } from './drawable-selection.js';
 import * as THREE from 'three';
 import { previewMaterialAlpha, resolveVariantDiffuse } from './preview-texture-material.js';
+import { scorePreviewDictionary, shouldTryPreviewFallback } from './file-preview-texture-selection.js';
 import { createSafeGeometry } from './safe-model-geometry.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { decodeResource } from './resource-client.js';
@@ -21,7 +22,7 @@ export function createFilePreview(container) {
     release();
     release = () => {};
   }
-  async function show(file, api, { snapshot = false, facePreview = false, morphPack = null, highPerformance = false, textureId = null, uvCalibration = null } = {}) {
+  async function show(file, api, { snapshot = false, facePreview = false, morphPack = null, highPerformance = false, textureId = null, textureCandidateIds = [], onTextureResolved = null, uvCalibration = null } = {}) {
     clear();
     const version = generation;
     container.textContent = 'Memuat preview…';
@@ -73,18 +74,43 @@ export function createFilePreview(container) {
       }
       const ext = file.name.split('.').at(-1).toLowerCase();
       const drawables = await decodeResource(ext, buffer);
-      let external = [];
-      if (textureId || data.companion)
-        try {
-          const companion = await api.read(textureId || data.companion.id);
-          external = (await decodeResource('ytd', new Uint8Array(companion.data).buffer)).textures;
-        } catch {
-          /* An unavailable companion must not hide readable geometry. */
-        }
       if (version !== generation) return;
       const drawable = drawableView(drawables, defaultDrawableSelection(drawables)),
         level = drawable?.lods?.[0];
       if (!level?.geometries.length) throw Error('Geometri model tidak tersedia.');
+      let external = [];
+      let resolvedTextureId = null;
+      // Try the initial paired YTD first. When it contains no diffuse sampler
+      // requested by this YDD, try other *already paired* YTD variants.
+      // No cross-collection/global fallback: those can paint a different face.
+      const candidateIds = [...new Set([
+        textureId || data.companion?.id,
+        ...textureCandidateIds.slice(0, 12),
+      ].filter(Boolean))].slice(0, 8);
+      const geometric = level.geometries;
+      for (const id of candidateIds) {
+        try {
+          const dictionary = await api.read(id);
+          if (version !== generation) return;
+          const decoded = (await decodeResource('ytd', new Uint8Array(dictionary.data).buffer)).textures;
+          if (version !== generation) return;
+          if (!resolvedTextureId) {
+            external = decoded;
+            resolvedTextureId = id;
+          }
+          const matching = scorePreviewDictionary(geometric, decoded, file.name);
+          if (matching > 0) {
+            external = decoded;
+            resolvedTextureId = id;
+            break;
+          }
+          if (!shouldTryPreviewFallback(geometric, decoded, file.name)) break;
+        } catch {
+          // Missing/corrupt dictionaries must not hide valid model geometry.
+        }
+      }
+      if (resolvedTextureId && typeof onTextureResolved === 'function')
+        onTextureResolved(resolvedTextureId);
       const host = document.createElement('div');
       host.className = 'fm-model-preview';
       container.replaceChildren(host);
@@ -318,7 +344,7 @@ export function createFilePreview(container) {
         renderer.forceContextLoss();
         host.remove();
       };
-      return snapshot ? thumbnail : { applyFace, supported:faceMeshes.length>0, setTextureVariant, setCharacterModel };
+      return snapshot ? thumbnail : { applyFace, supported:faceMeshes.length>0, setTextureVariant, setCharacterModel, selectedTextureId: resolvedTextureId };
     } catch (error) {
       if (version === generation) {
         clear();
