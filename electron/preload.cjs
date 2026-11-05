@@ -19,7 +19,6 @@ contextBridge.exposeInMainWorld('ditashaFiles', {
   networkSettings: (value) => ipcRenderer.invoke('ditasha:files-networkSettings', value),
   list: (query) => ipcRenderer.invoke('ditasha:files-list', query),
   read: (id) => ipcRenderer.invoke('ditasha:files-read', id),
-  texturesFor: (id) => ipcRenderer.invoke('ditasha:files-texturesFor', id),
   plan: (query) => ipcRenderer.invoke('ditasha:files-plan', query),
   sort: (id) => ipcRenderer.invoke('ditasha:files-sort', id),
   cancel: () => ipcRenderer.invoke('ditasha:files-cancel'),
