@@ -8,7 +8,10 @@ const {execFileSync}=require('node:child_process');
 
 const worker=path.resolve(__dirname,'../electron/ped_native_verify.py');
 const python=process.platform==='win32'?'python':'python3';
-const run=(code,...args)=>execFileSync(python,['-c',code,...args],{encoding:'utf8',timeout:12000});
+// Windows CI runs Python smoke checks alongside hundreds of JS tests.
+// Process startup can exceed 12s under runner contention; production timeouts
+// and Ped Workshop rigging behavior remain unchanged.
+const run=(code,...args)=>execFileSync(python,['-c',code,...args],{encoding:'utf8',timeout:30000});
 
 test('ped native validation worker parses without Blender and has no external dependencies',()=>{
  const code='import ast,pathlib,sys; ast.parse(pathlib.Path(sys.argv[1]).read_text()); print("OK")';
