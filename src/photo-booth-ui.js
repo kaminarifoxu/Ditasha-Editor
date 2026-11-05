@@ -3249,8 +3249,17 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
           a.motion.clip.startsWith('external:') &&
           !newClips.some((c) => c.id === a.motion.clip)
         ) {
+          // A missing/unreadable YCD cannot safely drive this ped. Restore a
+          // known valid pose and explain the fallback instead of silently
+          // showing a T-pose or claiming the saved emote was recovered.
+          restoreWarnings.push(
+            a.name + ': emote tersimpan ' + a.motion.clip +
+            ' tidak ditemukan atau gagal dibaca. Pose diganti Relaxed; impor ulang file YCD/GLB.'
+          );
           a.motion.clip = '';
           a.motion.pose = 'relaxed';
+          a.motion.time = 0;
+          a.motion.playing = false;
         }
 
       $('pbClipSearch').value = '';
