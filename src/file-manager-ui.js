@@ -132,17 +132,6 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
   characterTools.hidden=true;
   characterTools.innerHTML='<label><input type="checkbox" data-with-character> Di badan</label><button type="button" data-use-base title="Gunakan model terpilih sebagai karakter referensi">Jadikan referensi badan</button><span data-character-hint>Item saja · pilih referensi badan terlebih dahulu</span>';
   root.querySelector('.fm-inspector-head').append(characterTools);
-  const forceYtd = document.createElement('label');
-  forceYtd.id = 'fmForceYtdBox';
-  forceYtd.className = 'fm-force-ytd';
-  forceYtd.hidden = true;
-  forceYtd.innerHTML = '<input type="checkbox" id="fmForceYtd" /> Paksa YTD ke YDD (preview saja) <small>Hanya jika diffuse tidak cocok. Tidak mengubah file asli; pilih satu YTD di bawah.</small>';
-  const forcePick = document.createElement('select');
-  forcePick.id = 'fmForceYtdPick';
-  forcePick.setAttribute('aria-label', 'Pilih YTD manual dari folder');
-  forcePick.title = 'Tersedia hanya YTD pada folder yang sama agar tidak tertukar dengan model lain.';
-  forceYtd.append(forcePick);
-  root.querySelector('.fm-inspector-meta').append(forceYtd);
   const assetPreview = createFilePreview($('fmImage'));
   const ytdPreview = createFilePreview($('fmYtdCanvas'));
   let activeGender='';
@@ -153,7 +142,6 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
   let withCharacter = false;
   let pendingCharacter = 0;
   let activeTextureVariant = null;
-  let forcedYtd = false;
   let location = '',
     offset = 0,
     total = 0,
@@ -389,9 +377,6 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
     ytdPreview.clear();
     modelController = null;
     activeTextureVariant = null;
-    forcedYtd = false;
-    $('fmForceYtd').checked = false;
-    forceYtd.hidden = true;
     serial++;
     $('fmYtdPreview').hidden = true;
     $('fmYtdName').textContent = '';
@@ -426,23 +411,6 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
     $('fmCompanion').replaceChildren();
     if (/\.(ydd|ydr|yft)$/i.test(file.name)) {
       const current = serial;
-      api().texturesFor(file.id).then((options) => {
-        if (current !== serial) return;
-        forcePick.replaceChildren();
-        const empty = document.createElement('option');
-        empty.value = ''; empty.textContent = 'Pilih YTD dari folder';
-        forcePick.append(empty);
-        for (const option of options) {
-          const entry = document.createElement('option');
-          entry.value = option.id; entry.textContent = option.name;
-          forcePick.append(entry);
-        }
-        forceYtd.hidden = !options.length;
-        if (options.some((entry) => entry.id === activeTextureVariant))
-          forcePick.value = activeTextureVariant;
-      }).catch((error) => {
-        if (current === serial) $('fmNote').textContent = 'Daftar YTD tidak tersedia: ' + error.message;
-      });
       const grouped = file.textures || [];
       const presentTextures = textures => {
         if(current!==serial || !textures.length)return;
@@ -454,9 +422,7 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
           if(current!==serial)return;
           $('fmYtdName').textContent=texture.name;
           activeTextureVariant = texture.id;
-          if ([...forcePick.options].some((entry) => entry.value === texture.id))
-            forcePick.value = texture.id;
-          if(modelController?.setTextureVariant)modelController.setTextureVariant(texture.id, forcedYtd).catch(error=>{
+          if(modelController?.setTextureVariant)modelController.setTextureVariant(texture.id).catch(error=>{
             if(current===serial)$('fmNote').textContent='Gagal mengganti tekstur 3D: '+error.message;
           });
           $('fmYtdPreview').hidden=false;
@@ -473,7 +439,6 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
           buttons.append(button);
         }
         box.replaceChildren(title,buttons);box.hidden=false;
-        forceYtd.hidden = false;
         show(textures[0]);
       };
       if(grouped.length)presentTextures(grouped);
@@ -527,47 +492,13 @@ export function mountFileManager({ nav, activate, toast, openFile }) {
       if(current!==serial)return;
       modelController = previewController?.setTextureVariant ? previewController : null;
       if(activeTextureVariant && modelController &&
-          (forcedYtd || activeTextureVariant !== previewController.selectedTextureId))
-        await modelController.setTextureVariant(activeTextureVariant, forcedYtd);
+          activeTextureVariant !== previewController.selectedTextureId)
+        await modelController.setTextureVariant(activeTextureVariant);
       if(modelController && withCharacter && characterReference && characterReference.id!==file.id)
         await modelController.setCharacterModel(characterReference);
     }
     else $('fmImage').innerHTML = icon('document');
   }
-  forcePick.onchange = async () => {
-    if (!picked || !forcePick.value) return;
-    const id = forcePick.value;
-    const name = forcePick.selectedOptions[0]?.textContent || 'YTD manual';
-    activeTextureVariant = id;
-    $('fmYtdName').textContent = name;
-    $('fmYtdPreview').hidden = false;
-    try {
-      await ytdPreview.show({ id, name }, api());
-      if (modelController?.setTextureVariant)
-        await modelController.setTextureVariant(id, forcedYtd);
-      $('fmNote').textContent = forcedYtd
-        ? 'Force YTD hanya untuk preview. Tekstur diffuse tunggal dipakai jika sampler asli tidak cocok.'
-        : 'YTD dipilih secara manual. Aktifkan Force YTD jika nama diffuse tidak cocok.';
-    } catch (error) { $('fmNote').textContent = 'YTD manual gagal: ' + error.message; }
-  };
-  $('fmForceYtd').onchange = async () => {
-    forcedYtd = $('fmForceYtd').checked;
-    if (!picked || !/\.(ydd|ydr|yft)$/i.test(picked.name) || !activeTextureVariant) return;
-    // Reload on disable so a forced atlas never remains stuck on the material.
-    if (!forcedYtd) {
-      const current = picked;
-      const row = [...$('fmList').querySelectorAll('[data-file-id]')]
-        .find((node) => node.dataset.fileId === current.id);
-      if (row) await select(current, row, true);
-      return;
-    }
-    if (modelController?.setTextureVariant) {
-      try {
-        await modelController.setTextureVariant(activeTextureVariant, true);
-        $('fmNote').textContent = 'YTD dipaksa untuk preview saja; hanya diffuse tunggal yang tidak ambigu. File asli tetap aman.';
-      } catch (error) { $('fmNote').textContent = 'Force YTD gagal: ' + error.message; }
-    }
-  };
   async function list() {
     const previous = picked?.id;
     const data = await api().list(query());
