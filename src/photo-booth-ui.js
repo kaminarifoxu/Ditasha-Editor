@@ -1,5 +1,6 @@
 import { applyMorphPack } from './freemode-morph-pack.js';
 import { resolveCharacterBodyEntries } from './freemode-character-source.js';
+import { planFreemodeActor } from './freemode-assembly.js';
 import { transferSkinWeights } from './booth-weight-transfer.js';
 import { resolveOutfitEntries, freemodeImportName } from './clothing-outfit-files.js';
 import { mountFreemodeCharacter } from './freemode-character.js';
@@ -2334,15 +2335,13 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         pending.push(a);
       }
       if (assetKind === 'ped' && options.singleActor) {
-        const primary = pending.find((a) => !/\.yft$/i.test(a.name));
-        if (!primary) throw Error('Karakter freemode memerlukan model kepala.');
-        for (const a of pending)
-          if (a !== primary) {
-            a.kind = /hair_|teef_|\.yft$/i.test(a.name) ? 'accessory' : 'clothing';
-            a.category = outfitCategory(a.name, 'auto', a.kind);
-            a.owner = primary.id;
-            a.offset = [0, 0, 0];
-          }
+        const assembly = planFreemodeActor(pending);
+        for (const { entry: a, kind, category } of assembly.attachments) {
+          a.kind = kind;
+          a.category = category || outfitCategory(a.name, 'auto', kind);
+          a.owner = assembly.primary.id;
+          a.offset = [0, 0, 0];
+        }
       }
       if (assetKind === 'vehicle') groupBoothVehicles(pending, assets, metadata);
       if (assetKind === 'ped') {
