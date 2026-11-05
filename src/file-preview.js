@@ -2,9 +2,9 @@ import { applyMorphPack } from './freemode-morph-pack.js';
 import { deformFacePositions } from './offline-face-deform.js';
 import { defaultDrawableSelection, drawableView } from './drawable-selection.js';
 import * as THREE from 'three';
-import { previewMaterialAlpha, resolveVariantDiffuse } from './preview-texture-material.js';
+import { previewMaterialAlpha } from './preview-texture-material.js';
 import { scorePreviewDictionary, shouldTryPreviewFallback } from './file-preview-texture-selection.js';
-import { forcedPreviewDiffuse } from './file-preview-force-ytd.js';
+import { automaticPairedDiffuse, availableDiffuseTextures } from './file-preview-force-ytd.js';
 import { createSafeGeometry } from './safe-model-geometry.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { decodeResource } from './resource-client.js';
@@ -81,33 +81,31 @@ export function createFilePreview(container) {
       if (!level?.geometries.length) throw Error('Geometri model tidak tersedia.');
       let external = [];
       let resolvedTextureId = null;
-      // Try the initial paired YTD first. When it contains no diffuse sampler
-      // requested by this YDD, try other *already paired* YTD variants.
-      // No cross-collection/global fallback: those can paint a different face.
+      // Only consider YTDs already paired to this YDD by family/collection.
+      // Exact internal sampler coverage wins; when names differ, prefer a
+      // dictionary with one unambiguous diffuse image.
       const candidateIds = [...new Set([
         textureId || data.companion?.id,
         ...textureCandidateIds.slice(0, 12),
       ].filter(Boolean))].slice(0, 8);
       const geometric = level.geometries;
+      let bestScore = -1;
       for (const id of candidateIds) {
         try {
           const dictionary = await api.read(id);
           if (version !== generation) return;
           const decoded = (await decodeResource('ytd', new Uint8Array(dictionary.data).buffer)).textures;
           if (version !== generation) return;
-          if (!resolvedTextureId) {
+          const matched = scorePreviewDictionary(geometric, decoded, file.name);
+          const score = matched * 100 + (availableDiffuseTextures(decoded).length === 1 ? 1 : 0);
+          if (score > bestScore) {
+            bestScore = score;
             external = decoded;
             resolvedTextureId = id;
           }
-          const matching = scorePreviewDictionary(geometric, decoded, file.name);
-          if (matching > 0) {
-            external = decoded;
-            resolvedTextureId = id;
-            break;
-          }
-          if (!shouldTryPreviewFallback(geometric, decoded, file.name)) break;
+          if (matched && matched === geometric.filter((g) => g.diffuseTexture).length) break;
         } catch {
-          // Missing/corrupt dictionaries must not hide valid model geometry.
+          // Missing or corrupt paired YTDs cannot hide valid model geometry.
         }
       }
       if (resolvedTextureId && typeof onTextureResolved === 'function')
@@ -135,7 +133,9 @@ export function createFilePreview(container) {
         let geometry;
         try { geometry = createSafeGeometry(g); }
         catch (error) { console.warn('[DITASHA 3D] Skipping invalid submesh:', error.message); continue; }
-        const t = resolveModelTexture(g.diffuseTexture, external, embedded, file.name);
+        const t = resolvedTextureId
+          ? automaticPairedDiffuse(g.diffuseTexture, external, embedded, file.name, resolveModelTexture)
+          : resolveModelTexture(g.diffuseTexture, external, embedded, file.name);
         const textureMap = (t, role = 'color') => {
           if (!t) return null;
           if (mapCache.get(t)?.has(role)) return mapCache.get(t).get(role);
@@ -293,7 +293,7 @@ export function createFilePreview(container) {
       // Switch YTD variants in-place: materials update without recreating model,
       // camera, controls or renderer. Source files remain untouched.
       let textureRequest = 0;
-      const setTextureVariant = async (textureId, force = false) => {
+      const setTextureVariant = async (textureId) => {
         const request = ++textureRequest;
         if (version !== generation) return false;
         const selected = await api.read(textureId);
@@ -301,10 +301,9 @@ export function createFilePreview(container) {
         const variant = (await decodeResource('ytd', new Uint8Array(selected.data).buffer)).textures;
         if (version !== generation || request !== textureRequest) return false;
         for (const { mesh, g, embedded } of materialBindings) {
-          const diffuse = force
-            ? forcedPreviewDiffuse(g.diffuseTexture, variant, embedded, file.name, resolveModelTexture, true)
-            : resolveVariantDiffuse(g.diffuseTexture, variant, embedded, file.name, resolveModelTexture);
-          // Without an explicit user override, preserve matching shader samplers.
+          // Filename-paired YTDs automatically supply a single diffuse when
+          // their internal sampler name differs from this YDD's reference.
+          const diffuse = automaticPairedDiffuse(g.diffuseTexture, variant, embedded, file.name, resolveModelTexture);
           if (!diffuse) continue;
           const texture = textureMapForVariant(diffuse);
           mesh.material.map = texture;
