@@ -20,3 +20,26 @@ test('same filename in different folder does not group',()=>{
  ];
  assert.equal(pairTextureGroups(files).visible.length,2);
 });
+
+test('freemode head and hair YTDs pair automatically only within matching named collection',()=>{
+ const files=[
+  {id:'head',name:'mp_f_freemode_01_cpxhead^head_000_u.ydd',relative:'stream/mp_f_freemode_01_cpxhead^head_000_u.ydd'},
+  {id:'head-ytd',name:'mp_f_freemode_01_cpxhead^head_diff_000_a_uni.ytd',relative:'stream/mp_f_freemode_01_cpxhead^head_diff_000_a_uni.ytd'},
+  {id:'hair',name:'mp_f_freemode_01_cpxhead^hair_001_u.ydd',relative:'stream/mp_f_freemode_01_cpxhead^hair_001_u.ydd'},
+  {id:'hair-ytd',name:'mp_f_freemode_01_cpxhead^hair_diff_001_b_uni.ytd',relative:'stream/mp_f_freemode_01_cpxhead^hair_diff_001_b_uni.ytd'},
+  {id:'other',name:'mp_f_freemode_01_other^head_diff_000_a_uni.ytd',relative:'stream/mp_f_freemode_01_other^head_diff_000_a_uni.ytd'},
+  {id:'male',name:'mp_m_freemode_01_cpxhead^head_diff_000_a_uni.ytd',relative:'stream/mp_m_freemode_01_cpxhead^head_diff_000_a_uni.ytd'},
+ ];
+ const grouped=pairTextureGroups(files);
+ assert.deepEqual(grouped.groups.get('head').map(t=>t.id),['head-ytd']);
+ assert.deepEqual(grouped.groups.get('hair').map(t=>t.id),['hair-ytd']);
+ assert.equal(grouped.hidden.has('other'),false);
+ assert.equal(grouped.hidden.has('male'),false);
+});
+test('same folder and same base-name vehicle YFT/YTD pairing still works',()=>{
+ const files=[
+  {id:'model',name:'buffalo_hi.yft',relative:'cars/buffalo_hi.yft'},
+  {id:'dict',name:'buffalo.ytd',relative:'cars/buffalo.ytd'},
+ ];
+ assert.deepEqual(pairTextureGroups(files).groups.get('model').map(f=>f.id),['dict']);
+});
