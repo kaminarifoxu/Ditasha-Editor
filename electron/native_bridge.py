@@ -8,6 +8,9 @@ import math
 import re
 import sys
 import traceback
+import os
+import time
+import faulthandler
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import xml.etree.ElementTree as ET
@@ -594,14 +597,29 @@ def export_vehicle(bpy, fragment, output):
     return [f.name for f in files]
 
 
+_ped_stage_file = None
+
 def ped_stage(label):
-    # A machine-readable progress event, independent from Blender's buffered console logs.
+    # Output buffering differs across Blender builds. Persist each stage as an
+    # atomic sidecar so Electron can read it even when stdout is delayed.
+    label = str(label)[:300]
     print('DITASHA_PED_STAGE ' + label, flush=True)
+    if _ped_stage_file is not None:
+        temp = _ped_stage_file.with_suffix('.tmp')
+        try:
+            temp.write_text(json.dumps({'step': label, 'timestamp': time.time()}), encoding='utf-8')
+            os.replace(temp, _ped_stage_file)
+        except OSError as exc:
+            print('DITASHA_PED_STAGE_WRITE_ERROR ' + str(exc), flush=True)
 
 
 def run(job):
     import bpy
     output = Path(job['output'])
+    global _ped_stage_file
+    _ped_stage_file = output / 'ped-stage.json' if job['mode'] == 'ped' else None
+    if _ped_stage_file is not None:
+        ped_stage('Blender Python bridge active; checking Sollumz and Muto engine')
     report = {'ok': False, 'mode': job['mode'], 'engine': engine_info(bpy)}
     try:
         if job['mode'] == 'probe':
@@ -656,7 +674,16 @@ def run(job):
             review_spec.loader.exec_module(review)
             options = job.get('pedOptions', {})
             ped_stage('Muto is importing, fitting and skinning the full ped; complex meshes may take several minutes')
-            result = review.run_muto(worker, bpy, {'src': job['source'], 'out': str(output), 'ped': job['name'], 'mode': 'ADDON', 'tex': 'YTD', 'rig': 'mp_m'}, options)
+            # On a worker stall, provide Python stack traces in Blender stderr.
+            # Do not terminate a native exporter merely for taking >75 seconds.
+            try:
+                faulthandler.dump_traceback_later(75, repeat=True, file=sys.stderr)
+            except (OSError, RuntimeError, ValueError):
+                pass
+            try:
+                result = review.run_muto(worker, bpy, {'src': job['source'], 'out': str(output), 'ped': job['name'], 'mode': 'ADDON', 'tex': 'YTD', 'rig': 'mp_m'}, options, stage_callback=ped_stage)
+            finally:
+                faulthandler.cancel_dump_traceback_later()
             ped_stage('Muto returned; validating its output and preparing a correction project')
             report['pedOptions'] = options
             report['rigging'] = result
