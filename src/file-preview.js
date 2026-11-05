@@ -4,6 +4,7 @@ import { defaultDrawableSelection, drawableView } from './drawable-selection.js'
 import * as THREE from 'three';
 import { previewMaterialAlpha, resolveVariantDiffuse } from './preview-texture-material.js';
 import { scorePreviewDictionary, shouldTryPreviewFallback } from './file-preview-texture-selection.js';
+import { forcedPreviewDiffuse } from './file-preview-force-ytd.js';
 import { createSafeGeometry } from './safe-model-geometry.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { decodeResource } from './resource-client.js';
@@ -292,7 +293,7 @@ export function createFilePreview(container) {
       // Switch YTD variants in-place: materials update without recreating model,
       // camera, controls or renderer. Source files remain untouched.
       let textureRequest = 0;
-      const setTextureVariant = async (textureId) => {
+      const setTextureVariant = async (textureId, force = false) => {
         const request = ++textureRequest;
         if (version !== generation) return false;
         const selected = await api.read(textureId);
@@ -300,8 +301,10 @@ export function createFilePreview(container) {
         const variant = (await decodeResource('ytd', new Uint8Array(selected.data).buffer)).textures;
         if (version !== generation || request !== textureRequest) return false;
         for (const { mesh, g, embedded } of materialBindings) {
-          const diffuse = resolveVariantDiffuse(g.diffuseTexture, variant, embedded, file.name, resolveModelTexture);
-          // Keep the current diffuse if the selected dictionary lacks a match.
+          const diffuse = force
+            ? forcedPreviewDiffuse(g.diffuseTexture, variant, embedded, file.name, resolveModelTexture, true)
+            : resolveVariantDiffuse(g.diffuseTexture, variant, embedded, file.name, resolveModelTexture);
+          // Without an explicit user override, preserve matching shader samplers.
           if (!diffuse) continue;
           const texture = textureMapForVariant(diffuse);
           mesh.material.map = texture;
