@@ -31,3 +31,9 @@ test('File Manager removes manual force control and attaches automatically by pa
  assert.match(preview,/automaticPairedDiffuse\(g\.diffuseTexture/);
  assert.match(backend,/pairedTextureNames/);
 });
+
+test('single uniquely paired YTD diffuse can color a YDD mesh with no named sampler',()=>{
+ const selected=tex('head_diff_000_a_uni');
+ assert.equal(automaticPairedDiffuse(null,[selected],[],'head_000_u.ydd',resolver),selected);
+ assert.equal(automaticPairedDiffuse(null,[tex('eyes'),tex('skin')],[],'head_000_u.ydd',resolver),null);
+});
