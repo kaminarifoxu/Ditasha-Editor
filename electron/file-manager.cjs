@@ -293,21 +293,6 @@ function createFileManager({
         throw Error('Folder berubah menjadi tautan atau berada di luar sumber.');
       return filesApp.open(target);
     },
-    // Explicit File Manager selection. Include unpaired dictionaries in the
-    // current folder without guessing which YDD they belong to.
-    texturesFor(id) {
-      idle();
-      const model = ready().files.find((f) => f.id === id);
-      if (!model || !/\.(ydd|ydr|yft)$/i.test(model.name))
-        throw Error('Pilih model YDD/YDR/YFT terlebih dahulu.');
-      const folder = path.posix.dirname(model.relative);
-      return ready().files.filter((f) =>
-        /\.ytd$/i.test(f.name) &&
-        path.posix.dirname(f.relative) === folder &&
-        f.size <= 384 * 1024 * 1024
-      ).sort((a,b)=>a.name.localeCompare(b.name)).slice(0,200)
-        .map(({id,name,relative})=>({id,name,relative}));
-    },
     async read(id) {
       idle();
       const entry = ready().files.find((f) => f.id === id);
@@ -325,18 +310,11 @@ function createFileManager({
         );
       const handle = await source(entry);
       try {
-        const paired = /\.(ydd|ydr|yft)$/i.test(entry.name)
-          ? ready()
-              .files.filter(
-                (f) =>
-                  /\.ytd$/i.test(f.name) &&
-                  path.posix.dirname(f.relative) === path.posix.dirname(entry.relative) &&
-                  ((entry.group && f.group === entry.group && f.category === entry.category) ||
-                    f.name.toLowerCase() ===
-                      entry.name.toLowerCase().replace(/(?:_hi)?\.[^.]+$/, '.ytd')),
-              )
-              .sort((a, b) => a.name.localeCompare(b.name))[0]
-          : null;
+        // Reuse the same strict filename family grouping as the thumbnail grid.
+        const pairIds = /\.(ydd|ydr|yft)$/i.test(entry.name)
+          ? pairTextureGroups(ready().files).groups.get(entry.id) || []
+          : [];
+        const paired = pairIds[0] || null;
         return {
           name: entry.name,
           data: new Uint8Array(await handle.readFile()),
@@ -491,7 +469,6 @@ function registerFileManager({ ipcMain, trusted, win, ...options }) {
     'choose',
     'list',
     'read',
-    'texturesFor',
     'plan',
     'sort',
     'cancel',
