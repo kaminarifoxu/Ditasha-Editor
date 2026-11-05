@@ -1,4 +1,4 @@
-import { selectFreemodeTexture } from './freemode-texture-pairing.js';
+import { freemodeIdentity, selectFreemodeTexture } from './freemode-texture-pairing.js';
 // Pick a coherent starter freemode body from the same imported pack as the selected face.
 // The caller reads binary bytes; this module only resolves validated library records.
 const required=['head','hair','uppr','hand','lowr','feet'];
@@ -8,13 +8,26 @@ export function resolveCharacterBodyEntries(packs, baseModel, gender) {
   const original=pack?.files.find(f=>f.relativePath===baseModel.relativePath && /\.ydd$/i.test(f.name));
   if(!original || original.gender!==gender)throw Error('Model dasar freemode tidak ditemukan atau salah gender.');
   const models=pack.files.filter(f=>/\.ydd$/i.test(f.name) && f.gender===gender);
+  const primaryCollection=freemodeIdentity(original)?.collection || null;
+  const vanilla=gender==='female'?'mp_f_freemode_01':'mp_m_freemode_01';
   const picked=[];
   const selectedComponents=new Set();
   for(const component of required){
     const available=models.filter(f=>f.component===component);
+    // Prefer the selected head's collection; only fall back to unqualified or
+    // original freemode pieces, never a random unrelated addon collection.
+    const related=available.filter(f=>{
+      const collection=freemodeIdentity(f)?.collection || null;
+      return collection===primaryCollection;
+    });
+    const base=available.filter(f=>{
+      const collection=freemodeIdentity(f)?.collection || null;
+      return collection===vanilla || collection===null;
+    });
+    const safe=related.length?related:base;
     const chosen=original.component===component?original:
-      available.find(f=>f.drawable===0)||
-      available.sort((a,b)=>(a.drawable??999)-(b.drawable??999))[0];
+      safe.find(f=>f.drawable===0)||
+      [...safe].sort((a,b)=>(a.drawable??999)-(b.drawable??999))[0];
     if(chosen && !selectedComponents.has(component)){
       picked.push(chosen);selectedComponents.add(component);
     }
