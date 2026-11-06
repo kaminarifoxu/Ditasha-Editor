@@ -6,6 +6,7 @@ import { previewMaterialAlpha } from './preview-texture-material.js';
 import { scorePreviewDictionary, shouldTryPreviewFallback } from './file-preview-texture-selection.js';
 import { automaticPairedDiffuse, availableDiffuseTextures } from './file-preview-force-ytd.js';
 import { createSafeGeometry } from './safe-model-geometry.js';
+import { captureThumbnailRenderTarget } from './file-thumbnail-capture.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { decodeResource } from './resource-client.js';
 import { readDds } from './asset-tools.js';
@@ -290,9 +291,14 @@ export function createFilePreview(container) {
         const w = host.clientWidth,
           h = host.clientHeight;
         if (!w || !h) return;
-        renderer.setSize(w, h);
         camera.aspect = w / h;
         camera.updateProjectionMatrix();
+        if (snapshot) {
+          // Use the dedicated render target below, not the offscreen DOM
+          // canvas. Off-viewport WebGL readback can show clipped fragments.
+          return;
+        }
+        renderer.setSize(w, h);
         renderer.render(scene, camera);
       };
       const applyFace = (appearance) => {
@@ -359,7 +365,9 @@ export function createFilePreview(container) {
       const observer = snapshot ? null : new ResizeObserver(draw);
       observer?.observe(host);
       draw();
-      const thumbnail = snapshot ? await new Promise(resolve => renderer.domElement.toBlob(resolve, 'image/png')) : null;
+      const thumbnail = snapshot
+        ? await captureThumbnailRenderTarget(renderer, scene, camera, host.clientWidth, host.clientHeight)
+        : null;
       release = () => {
         observer?.disconnect();
         controls.dispose();
