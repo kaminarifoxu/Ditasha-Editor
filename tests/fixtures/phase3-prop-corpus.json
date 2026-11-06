@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "scope": "M1a fixture requirements, generation pending M1b",
+  "cases": [
+    {
+      "id": "uv-cube",
+      "purpose": "units and UV orientation",
+      "formats": [
+        "glb"
+      ]
+    },
+    {
+      "id": "multi-material-chair",
+      "purpose": "material slots and external images",
+      "formats": [
+        "glb",
+        "fbx"
+      ]
+    },
+    {
+      "id": "transparent-prop",
+      "purpose": "alpha and normal map preservation",
+      "formats": [
+        "glb"
+      ]
+    },
+    {
+      "id": "missing-texture",
+      "purpose": "missing YTD dependency fails closed",
+      "formats": [
+        "obj"
+      ]
+    },
+    {
+      "id": "nonuniform-scale",
+      "purpose": "collision transformation normalization",
+      "formats": [
+        "glb"
+      ]
+    },
+    {
+      "id": "degenerate-mesh",
+      "purpose": "invalid triangles and impossible bounds rejection",
+      "formats": [
+        "obj"
+      ]
+    },
+    {
+      "id": "authored-collision",
+      "purpose": "collision hierarchy and provider gating",
+      "formats": [
+        "fbx"
+      ]
+    }
+  ],
+  "nativeRuntimeValidation": "required in M1c/M1d",
+  "assetsIncluded": false
+}

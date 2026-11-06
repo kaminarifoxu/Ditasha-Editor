@@ -8,6 +8,9 @@ import math
 import re
 import sys
 import traceback
+import os
+import time
+import faulthandler
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import xml.etree.ElementTree as ET
@@ -389,11 +392,44 @@ def preview_scene(bpy, fragment, output, donor=None, filename='preview.json', ev
     cache = texture_cache if texture_cache is not None else {'ids': {}, 'textures': []}
     result = {'version': 1, 'meshes': [], 'textures': cache['textures'], 'basis': 'gta-z-up', 'triangles': 0, 'source': source}
     images = cache['ids']
-    def texture(material):
+    def sampler_node(material, role):
         if not material or not material.node_tree:
             return None
-        node = (source_image_node(material) if source or source_materials else None) or next((material.node_tree.nodes.get(n) for n in ('DiffuseSampler', 'TextureSampler', 'DiffuseSampler2') if material.node_tree.nodes.get(n)), None)
+        nodes = material.node_tree.nodes
+        aliases = {
+            'diffuse': ('DiffuseSampler', 'TextureSampler', 'DiffuseSampler2'),
+            'normal': ('BumpSampler', 'NormalSampler', 'PlateBgBumpSampler'),
+            'specular': ('SpecSampler', 'SpecularSampler'),
+        }
+        native = next((nodes.get(name) for name in aliases[role] if nodes.get(name)), None)
+        if native:
+            return native
+        # Source GLB/FBX materials may contain a Principled graph, not Sollumz sampler names.
+        if not (source or source_materials):
+            return None
+        if role == 'diffuse':
+            return source_image_node(material)
+        output = next((n for n in nodes if n.type == 'OUTPUT_MATERIAL' and n.is_active_output), None)
+        surface = output.inputs.get('Surface') if output else None
+        bsdf = surface.links[0].from_node if surface and surface.links else None
+        if not bsdf or bsdf.type != 'BSDF_PRINCIPLED':
+            return None
+        socket = bsdf.inputs.get('Normal' if role == 'normal' else 'Specular IOR Level')
+        linked = socket.links[0].from_node if socket and socket.links else None
+        if role == 'normal' and linked and linked.type == 'NORMAL_MAP':
+            color = linked.inputs.get('Color')
+            linked = color.links[0].from_node if color and color.links else None
+        return linked if linked and linked.type == 'TEX_IMAGE' else None
+
+    def texture(material, role='diffuse'):
+        node = sampler_node(material, role)
         image = getattr(node, 'image', None)
+        if image and not image.has_data:
+            # Some packed/external images are decoded lazily by the Blender importer.
+            try:
+                len(image.pixels)
+            except (RuntimeError, ValueError):
+                pass
         if not image or not image.has_data:
             return None
         key = image.as_pointer()
@@ -444,23 +480,57 @@ def preview_scene(bpy, fragment, output, donor=None, filename='preview.json', ev
             badge = kind == 'base' and bool(re.search(r'badge|emblem', ' '.join([obj.name, material.name if material else '', shader]).lower()))
             key = (tri.material_index, badge)
             if key not in groups:
-                alpha = 'blend' if any(n in shader.lower() for n in ('glass', 'badge', 'decal', 'lightsemissive', 'alpha')) else 'opaque'
+                shader_name = shader.lower()
+                role = ' '.join((obj.name.lower(), material.name.lower() if material else '', shader_name))
+                # Cutout preserves opaque black hair pixels and avoids transparency sorting.
+                cutout = any(token in role for token in ('hair', 'eyelash', 'eyebrow', 'ped_fur'))
+                alpha = 'cutout' if cutout else ('blend' if any(n in shader_name for n in ('glass', 'badge', 'decal', 'lightsemissive', 'alpha')) else 'opaque')
                 if (source or source_materials) and material and material.node_tree:
-                    bsdf=material.node_tree.nodes.get('Principled BSDF')
-                    opacity=bsdf.inputs.get('Alpha') if bsdf else None
-                    if opacity and (opacity.is_linked or opacity.default_value<.999):alpha='blend'
-                groups[key] = {'name': obj.name, 'kind': kind, 'candidate': obj.name if badge else None, 'positions': [], 'uvs': [], 'texture': texture(material), 'alpha': alpha}
+                    bsdf = material.node_tree.nodes.get('Principled BSDF')
+                    opacity = bsdf.inputs.get('Alpha') if bsdf else None
+                    if opacity and (opacity.is_linked or opacity.default_value < .999):
+                        alpha = 'cutout' if cutout else 'blend'
+                samplers = {role: sampler_node(material, role) for role in ('diffuse', 'normal', 'specular')}
+                indices = {role: texture(material, role) if samplers[role] else None for role in samplers}
+                def sampler_uv(node):
+                    if not node:
+                        return None
+                    vector = node.inputs.get('Vector') if hasattr(node, 'inputs') else None
+                    input_node = vector.links[0].from_node if vector and vector.links else None
+                    return input_node.uv_map if input_node and input_node.type == 'UVMAP' else None
+                uv_names = {role: sampler_uv(node) for role, node in samplers.items()}
+                diffuse_uv = uv_names['diffuse']
+                uv_layer = (mesh.uv_layers.get(diffuse_uv) if diffuse_uv else mesh.uv_layers.active)
+                selected_uv = uv_layer.name if uv_layer else None
+                uv_problem = not uv_layer or any(
+                    name and (not mesh.uv_layers.get(name) or
+                              (selected_uv and name != selected_uv))
+                    for role, name in uv_names.items() if role != 'diffuse'
+                )
+                info = {'uv': 'missing' if uv_problem else 'present',
+                        'samplers': {role: getattr(node, 'name', None) for role, node in samplers.items()},
+                        'material': material.name if material else '(no material)',
+                        'uvLayer': uv_layer.name if uv_layer else None}
+                for role, node in samplers.items():
+                    info[role] = ('unknown' if node is None and role != 'diffuse' else
+                                  'present' if indices[role] is not None else 'missing')
+                # Prevent absent or different UV coordinates from silently displaying invalid maps.
+                for role in ('normal', 'specular'):
+                    uv_name = uv_names[role]
+                    if samplers[role] and (not selected_uv or
+                                           (uv_name and (not mesh.uv_layers.get(uv_name) or
+                                                         uv_name != selected_uv))):
+                        indices[role] = None
+                        info[role] = 'uv-mismatch'
+                groups[key] = {'name': obj.name, 'kind': kind, 'candidate': obj.name if badge else None,
+                               'positions': [], 'uvs': [], 'texture': indices['diffuse'],
+                               'normalTexture': indices['normal'], 'specularTexture': indices['specular'],
+                               'alpha': alpha, 'materialInfo': info}
                 if source or source_materials:
                     groups[key]['color'] = source_color(material)
             item = groups[key]
-            uv_layer = mesh.uv_layers.active
-            if material and material.node_tree:
-                image_node = (source_image_node(material) if source or source_materials else None) or next((material.node_tree.nodes.get(n) for n in ('DiffuseSampler', 'TextureSampler', 'DiffuseSampler2') if material.node_tree.nodes.get(n)), None)
-                vector = image_node.inputs.get('Vector') if image_node else None
-                if vector and vector.links:
-                    uv_node = vector.links[0].from_node
-                    if uv_node.type == 'UVMAP':
-                        uv_layer = mesh.uv_layers.get(uv_node.uv_map) or uv_layer
+            uv_name = item['materialInfo']['uvLayer']
+            uv_layer = mesh.uv_layers.get(uv_name) if uv_name else None
             # Sollumz UV values are Blender-oriented here; Three texture loader flips PNG by default.
             for loop in tri.loops:
                 point = world @ mesh.vertices[mesh.loops[loop].vertex_index].co
@@ -527,9 +597,29 @@ def export_vehicle(bpy, fragment, output):
     return [f.name for f in files]
 
 
+_ped_stage_file = None
+
+def ped_stage(label):
+    # Output buffering differs across Blender builds. Persist each stage as an
+    # atomic sidecar so Electron can read it even when stdout is delayed.
+    label = str(label)[:300]
+    print('DITASHA_PED_STAGE ' + label, flush=True)
+    if _ped_stage_file is not None:
+        temp = _ped_stage_file.with_suffix('.tmp')
+        try:
+            temp.write_text(json.dumps({'step': label, 'timestamp': time.time()}), encoding='utf-8')
+            os.replace(temp, _ped_stage_file)
+        except OSError as exc:
+            print('DITASHA_PED_STAGE_WRITE_ERROR ' + str(exc), flush=True)
+
+
 def run(job):
     import bpy
     output = Path(job['output'])
+    global _ped_stage_file
+    _ped_stage_file = output / 'ped-stage.json' if job['mode'] == 'ped' else None
+    if _ped_stage_file is not None:
+        ped_stage('Blender Python bridge active; checking Sollumz and Muto engine')
     report = {'ok': False, 'mode': job['mode'], 'engine': engine_info(bpy)}
     try:
         if job['mode'] == 'probe':
@@ -577,14 +667,30 @@ def run(job):
             module = report['engine']['muto']
             if not module:
                 raise RuntimeError('Muto Ped Rig belum aktif pada Blender ini.')
+            ped_stage('Preparing the Muto rigging engine')
             worker = importlib.import_module(module + '.bl.batch_worker')
             review_spec = importlib.util.spec_from_file_location('ditasha_ped_review', Path(__file__).with_name('ped_review.py'))
             review = importlib.util.module_from_spec(review_spec)
             review_spec.loader.exec_module(review)
             options = job.get('pedOptions', {})
-            result = review.run_muto(worker, bpy, {'src': job['source'], 'out': str(output), 'ped': job['name'], 'mode': 'ADDON', 'tex': 'YTD', 'rig': 'mp_m'}, options)
+            ped_stage('Muto is importing, fitting and skinning the full ped; complex meshes may take several minutes')
+            # On a worker stall, provide Python stack traces in Blender stderr.
+            # Do not terminate a native exporter merely for taking >75 seconds.
+            try:
+                faulthandler.dump_traceback_later(75, repeat=True, file=sys.stderr)
+            except (OSError, RuntimeError, ValueError):
+                pass
+            try:
+                result = review.run_muto(worker, bpy, {'src': job['source'], 'out': str(output), 'ped': job['name'], 'mode': 'ADDON', 'tex': 'YTD', 'rig': 'mp_m'}, options, stage_callback=ped_stage, image_node=source_image_node)
+            finally:
+                faulthandler.cancel_dump_traceback_later()
+            ped_stage('Muto returned; validating its output and preparing a correction project')
             report['pedOptions'] = options
             report['rigging'] = result
+            if result.get('sourceMaterialAudit'):
+                report['sourceMaterialAudit'] = result['sourceMaterialAudit']
+                report.setdefault('warnings', []).extend(
+                    result['sourceMaterialAudit'].get('warnings', []))
             # A self-contained correction project remains available even when
             # marker fitting/weights fail before native export completes.
             try:
@@ -596,13 +702,23 @@ def run(job):
             except Exception as exc:
                 report.setdefault('warnings', []).append('Proyek koreksi: ' + str(exc))
             if not result.get('ok'):
-                raise RuntimeError('Auto rig gagal. Buka .blend untuk memeriksa marker/weights dan lihat batch_report.json.')
+                raise RuntimeError(review.muto_failure_message(result))
             required = {'.yft', '.ydd', '.ytd', '.ymt'}
             present = {f.suffix.lower() for f in output.rglob('*') if f.is_file()}
             if not required.issubset(present) or not list(output.rglob('fxmanifest.lua')):
                 raise RuntimeError('Resource ped belum lengkap: YFT/YDD/YTD/YMT/fxmanifest diperlukan.')
             rigged = [obj for obj in bpy.data.objects if obj.type == 'MESH' and getattr(obj, 'sollum_type', '') == 'sollumz_drawable_model']
             report['quality'] = review.audit_rig(rigged, mesh_levels)
+            # A failed weight transfer must not be promoted into a usable ped,
+            # even when Muto writes binary output and a visual rest-pose preview.
+            for key in ('unweighted', 'overFour', 'unnormalized', 'invalidWeights'):
+                if report['quality'].get(key, 0):
+                    raise RuntimeError('Ped native skin validation failed: %s=%s' %
+                                       (key, report['quality'][key]))
+            if (not report['quality'].get('compatibleSkeletons') or
+                    report['quality'].get('bones', 0) < 30):
+                raise RuntimeError('Ped native rigging requires matching GTA skeleton hierarchies')
+            ped_stage('Generating 3D preview and rigging test poses')
             report['preview'] = review.create_pose_previews(bpy, rigged, output, preview_scene)
             try:
                 report['preview']['motion'] = review.add_walk_preview(bpy, rigged, output, preview_scene)
@@ -610,11 +726,21 @@ def run(job):
                 report['preview']['warnings'].append('Walk preview: ' + str(exc))
             if job.get('clip'):
                 from clip_review import add_clip_preview
-                arms = {a.name:a for obj in rigged if (a := review.armature_for(obj)) is not None}
-                if len(arms) != 1:
-                    raise ValueError('Clip GTA memerlukan satu armature hasil rig.')
-                report['preview']['motion'] = add_clip_preview(bpy, next(iter(arms.values())), rigged, job['clip'], job['clipIndex'], output, preview_scene)
+                clip_arm, _, _ = review.compatible_ped_armature(rigged)
+                report['preview']['motion'] = add_clip_preview(bpy, clip_arm, rigged, job['clip'], job['clipIndex'], output, preview_scene)
             report['warnings'] = report.get('warnings', []) + result.get('warnings', []) + report['quality']['warnings'] + report['preview']['warnings']
+            # Inspect the native files produced by Muto using the already
+            # installed Sollumz native importer. Do this AFTER creating pose
+            # previews so reimported objects never enter the preview scene.
+            import ped_native_verify
+            source_arm, matching_armatures, skeleton_bones = review.compatible_ped_armature(rigged)
+            report['matchingArmatures'] = matching_armatures
+            source_bones = {b.name for b in source_arm.data.bones}
+            ped_stage('Verifying native YDD, YFT, YTD and skeleton round-trip')
+            report['nativeValidation'] = ped_native_verify.verify_native_ped(
+                bpy, output, source_bones
+            )
+            ped_stage('Native verification complete; writing result report')
         else:
             fragment = import_vehicle(bpy, job['source'])
             report['candidates'] = badge_candidates(fragment)

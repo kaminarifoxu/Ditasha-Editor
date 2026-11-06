@@ -1,4 +1,5 @@
 import { hashName } from './asset-tools.js';
+import { freemodeIdentity, matchingFreemodeTextures, selectFreemodeTexture } from './freemode-texture-pairing.js';
 export const FREEMODE_PARTS = [
   ['head', 'Kepala', 0, 'ped', 'ped'],
   ['hair', 'Rambut', 2, 'accessory', 'hair'],
@@ -10,18 +11,15 @@ export const FREEMODE_PARTS = [
   ['teef', 'Gigi / mata', 7, 'accessory', 'jewelry'],
 ];
 export function freemodePart(file) {
-  const path = file.webkitRelativePath || file.name;
-  const match = file.name.match(
-    /(?:\^|\/|^)(head|hair|uppr|lowr|feet|accs|jbib|teef)_(?:diff_)?(\d{3})_([^.]*)\.(ydd|ytd|glb)$/i,
-  );
+  const identity = freemodeIdentity(file);
+  if (identity) return { file, part:identity.component, drawable:identity.drawable,
+    texture:identity.texture, gender:identity.gender };
+  // Preserve the existing GLB component import route (GLB has no separate YTD).
+  const match = file?.name?.match(/(?:\^|^)(head|hair|uppr|lowr|feet|accs|jbib|teef)_(\d{3})_[^.]+\.glb$/i);
   if (!match) return null;
-  return {
-    file,
-    part: match[1].toLowerCase(),
-    drawable: Number(match[2]),
-    texture: match[4].toLowerCase() === 'ytd',
-    gender: /mp_f_freemode/i.test(path) ? 'female' : /mp_m_freemode/i.test(path) ? 'male' : null,
-  };
+  const path = file.webkitRelativePath || file.name;
+  return { file, part:match[1].toLowerCase(), drawable:Number(match[2]), texture:false,
+    gender:/mp_f_freemode/i.test(path)?'female':/mp_m_freemode/i.test(path)?'male':null };
 }
 export function validateAppearance(value) {
   let data = typeof value === 'string' ? JSON.parse(value) : value;
@@ -143,25 +141,24 @@ export function mountFreemodeCharacter({ container, guard, importFiles, setStatu
         empty.textContent = 'Embedded / belum ada YTD';
         texture.append(empty);
         const model = select.value === '' ? null : freemodePart(files[Number(select.value)]);
-        const choices = parts.filter(
-          (p) =>
-            p.texture &&
-            p.part === part &&
-            (!p.gender || p.gender === gender) &&
-            model &&
-            p.drawable === model.drawable,
-        );
+        const choices = model
+          ? matchingFreemodeTextures(files[Number(select.value)], parts.filter((p) => p.texture).map((p) => p.file), { gender })
+              .map(({ file }) => parts.find((p) => p.file === file))
+          : [];
         for (const item of choices) {
           const option = document.createElement('option');
           option.value = String(files.indexOf(item.file));
           option.textContent = item.file.name;
           texture.append(option);
         }
-        if (choices.length)
-          texture.selectedIndex = Math.min(
-            choices.length,
-            1 + (appearance?.components.find((c) => c.component_id === id)?.texture || 0),
-          );
+        const variantIndex = appearance?.components.find((c) => c.component_id === id)?.texture || 0;
+        const variant = String.fromCharCode(97 + variantIndex);
+        if (model) {
+          const matched = selectFreemodeTexture(files[Number(select.value)], choices.map((p) => p.file), variant, gender);
+          if (matched.status === 'matched') texture.value = String(files.indexOf(matched.file));
+          else if (matched.status !== 'missing') empty.textContent = 'YTD ambiguous — select manually';
+          else empty.textContent = 'YTD variant ' + variant.toUpperCase() + ' missing — embedded only';
+        }
       }
       select.onchange = () => {
         textureOptions();
@@ -223,6 +220,9 @@ export function mountFreemodeCharacter({ container, guard, importFiles, setStatu
         .map((p) => $(`[data-freemode-texture=${p.part}]`).value)
         .filter((value) => value !== '')
         .map((value) => files[Number(value)]);
+      const missing = selected.filter((p) =>
+        !$(`[data-freemode-texture=${p.part}]`).value
+      ).map((p) => p.part);
       const skeleton = files.find((f) =>
         new RegExp('mp_' + (gender === 'female' ? 'f' : 'm') + '_freemode_01\\.yft$', 'i').test(
           f.name,
@@ -239,7 +239,8 @@ export function mountFreemodeCharacter({ container, guard, importFiles, setStatu
         { rigChoice, singleActor: true },
       );
       setStatus(
-        'Karakter freemode ditambahkan. Atur emote per ped; simpan scene untuk memakai karakter ini lagi. Periksa tekstur yang belum tersedia.',
+        'Karakter freemode ditambahkan. Atur emote per ped; simpan scene untuk memakai karakter ini lagi.' +
+        (missing.length ? ' Tidak ada YTD terpilih untuk: ' + missing.join(', ') + '. Periksa embedded atau masukkan YTD yang cocok.' : ''),
       );
     });
   draw();

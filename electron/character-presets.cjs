@@ -40,12 +40,28 @@ class CharacterPresets {
       if(Buffer.byteLength(serialized)>8*1024*1024)throw Error('Morph pack maksimum 8MB per karakter.');
       morphPack=JSON.parse(serialized);
     }
+    // Optional, versioned ped-workspace preferences. Existing saved characters
+    // without this field remain valid and load with safe defaults.
+    const settings = data.pedSettings ?? {skeletonMode:'auto',headUv:[0,0,1,1],hairUv:[0,0,1,1]};
+    if (!settings || typeof settings !== 'object' || Array.isArray(settings) ||
+        Object.keys(settings).some(k=>!['skeletonMode','headUv','hairUv'].includes(k)) ||
+        !['auto','strict'].includes(settings.skeletonMode)) throw Error('Invalid ped rig settings');
+    const checkedUv = (key) => {
+      const v=settings[key];
+      if(!Array.isArray(v)||v.length!==4||v.some(n=>typeof n!=='number'||!Number.isFinite(n))||
+         v.slice(0,2).some(n=>Math.abs(n)>1)||v.slice(2).some(n=>n<0.1||n>4))
+        throw Error('Invalid '+key+' calibration');
+      return [...v];
+    };
+    const pedSettings={skeletonMode:settings.skeletonMode,
+      headUv:checkedUv('headUv'),hairUv:checkedUv('hairUv')};
     const item = {
       id: /^[0-9a-f-]{36}$/i.test(data.id || '') ? data.id : crypto.randomUUID(),
       name:data.name.trim(),gender:data.gender,
       outfitId:data.outfitId || null,
       baseModel:data.baseModel || null,
       morphPack,
+      pedSettings,
       appearance:{
         shapeFirst:clamp(appearance.shapeFirst||0,0,45),
         shapeSecond:clamp(appearance.shapeSecond||0,0,45),

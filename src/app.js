@@ -21,6 +21,8 @@ import { setProject } from './project-context.js';
 import { mountCanvasStudio } from './canvas-studio.js';
 import { mountSceneStudio } from './scene-studio.js';
 import { mountAssetWorkshopUi } from './asset-workshop-ui.js';
+import { mountPropWorkspace } from './creators/prop-workspace.js';
+import { mountPropCreatorEntry } from './creators/prop-entry.js';
 import { mountWorkspaceShell } from './workspace-shell.js';
 import { mountNativeBuild } from './native-build-ui.js';
 import { decodeResource } from './resource-client.js';
@@ -2578,6 +2580,24 @@ mountPerformance();
 mountMinimalUi();
 mountWorkspaceShell({ toast });
 mountAssetWorkshopUi();
+// Prop Creator is an independent workspace with its own Three.js scene.
+// Normal Texture & Model editor remains untouched and separate.
+const propWorkspace = mountPropWorkspace({
+  nav: document.querySelector('.workspace-nav'),
+  activate: tools.activate,
+  register: tools.registerExternalWorkspace,
+  capabilities: {
+    getNativeAvailability: async () => {
+      const entries = await window.ditashaCreators?.state?.();
+      return entries?.some(item => item.type === 'prop' && item.available) === true;
+    },
+  },
+});
+mountPropCreatorEntry({
+  nav: document.querySelector('.workspace-nav'),
+  activate: tools.activate,
+  openWorkspace: () => tools.activate('propcreator'),
+});
 mountWorkspacePolish();
 mountCharacterMaker();
 mountClothingCatalog({ openPreview: async (modelFiles) => {

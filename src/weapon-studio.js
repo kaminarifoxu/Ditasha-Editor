@@ -1,4 +1,8 @@
 import * as THREE from 'three';
+import { auditWeaponAssembly } from './creators/weapon-readiness.js';
+import { mountWeaponAttachments } from './creators/weapon-attachment-panel.js';
+import { mountWeaponNativeExport } from './creators/weapon-native-panel.js';
+import { validateWeaponImportSelection } from './creators/weapon-imports.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -55,7 +59,12 @@ export function createWeaponSketch(kind = 'pistol') {
 export function mountWeaponStudio({ root, download, toast, confirmDiscard }) {
   const layout = document.createElement('div');
   layout.className = 'wd-layout';
-  layout.innerHTML = `<aside class="wd-settings"><h2>Model & desain senjata</h2><label>Acuan FiveM<select id="wdReference">${WEAPON_REFERENCES.map(([label, code, model], i) => `<option value="${i}">${label} · ${model}</option>`).join('')}</select></label><p id="wdReferenceInfo" class="muted"></p><button id="wdImport" class="primary">+ Model GLB / OBJ / YDR</button><button id="wdPart">+ Model part / attachment</button><input id="wdInput" type="file" accept=".glb,.obj,.ydr,.ydd,.ytd" multiple hidden><button id="wdSketch">Buat sketsa desain generik</button><p class="muted">Model GTA asli diimpor dari file lokal beserta YTD. Sketsa bawaan adalah blockout orisinal untuk desain, bukan model senjata GTA.</p><label>Bagian<select id="wdObject"></select></label><label>Material<select id="wdMaterial"><option value="all">Semua material terpilih</option></select></label><label>Alat<select id="wdTransform"><option value="translate">Geser</option><option value="rotate">Putar</option><option value="scale">Skala</option></select></label><button id="wdDelete">Hapus bagian terpilih</button><label>Warna material<input id="wdColor" type="color" value="#d5b444"></label><button id="wdApplyColor">Terapkan warna</button><button id="wdTexture">+ PNG tekstur / desain UV</button><input id="wdTextureInput" type="file" accept=".png,.jpg,.jpeg,.webp" hidden><label>Ulang tekstur<input id="wdRepeat" type="number" min=".1" max="10" step=".1" value="1"></label><label>Geser UV X<input id="wdUvX" type="number" min="-10" max="10" step=".01" value="0"></label><label>Geser UV Y<input id="wdUvY" type="number" min="-10" max="10" step=".01" value="0"></label><button id="wdUvApply">Terapkan penempatan UV</button><p class="muted">Tekstur mengikuti UV mesh terpilih. Gunakan PNG atlas untuk desain penuh; vertex/UV asli dipertahankan.</p></aside><section class="wd-stage"><div class="wd-toolbar"><button id="wdFit">Lihat semua</button><button id="wdSide">Samping</button><label class="check"><input id="wdWire" type="checkbox">Wireframe</label><label class="check"><input id="wdGrid" type="checkbox" checked>Grid</label></div><div id="wdViewport"><p>Impor model senjata atau mulai dari sketsa desain.</p></div><p id="wdStatus" class="muted" role="status">Siap mendesain model.</p><details><summary>UV mesh terpilih</summary><canvas id="wdUv" width="512" height="512"></canvas><button id="wdUvSave">Simpan UV PNG</button></details></section><aside class="wd-export"><h2>Ekspor desain</h2><label>Nama desain<input id="wdName" value="ditasha_weapon" maxlength="48"></label><button id="wdExport" class="primary">Simpan model GLB</button><button id="wdTextureSave">Simpan tekstur PNG terpilih</button><p class="muted">GLB menyimpan bentuk, material, tekstur dan transform part. Rig tulang senjata, muzzle/magazine, animasi dan metadata GTA tetap perlu disiapkan di Blender/Sollumz sebelum dipaketkan sebagai senjata game.</p><details class="wd-engine"><summary>Build DLC · AddonWeaponsBuilder</summary><p class="muted">Gunakan sumber senjata GTA yang sudah memiliki model, skeleton dan metadata. Engine DLC tidak mengubah GLB mentah menjadi senjata siap game.</p></details></aside>`;
+  layout.innerHTML = `<aside class="wd-settings"><h2>Model & desain senjata</h2><label>Acuan FiveM<select id="wdReference">${WEAPON_REFERENCES.map(([label, code, model], i) => `<option value="${i}">${label} · ${model}</option>`).join('')}</select></label><p id="wdReferenceInfo" class="muted"></p><button id="wdImport" class="primary">+ Custom weapon (GLB / OBJ)</button><button id="wdPart">+ Add prop / GLB / YDR part</button><button id="wdNativePair">+ Import YDR + YTD weapon</button><input id="wdInput" type="file" accept=".glb,.obj,.ydr,.ydd,.ytd" multiple hidden><button id="wdSketch">Buat sketsa desain generik</button><p class="muted">Impor GLB/OBJ untuk desain custom, tambahkan prop/part GLB, OBJ, YDR/YDD, atau impor sepasang YDR+YTD. Material dan posisi part bisa diedit di preview; simpan GLB untuk mempertahankan perubahan. Native weapon build M2c tetap membutuhkan donor GTA dengan skeleton, tidak otomatis memakai part preview.</p><label>Bagian<select id="wdObject"></select></label><label>Material<select id="wdMaterial"><option value="all">Semua material terpilih</option></select></label><label>Alat<select id="wdTransform"><option value="translate">Geser</option><option value="rotate">Putar</option><option value="scale">Skala</option></select></label><button id="wdDelete">Hapus bagian terpilih</button><label>Warna material<input id="wdColor" type="color" value="#d5b444"></label><button id="wdApplyColor">Terapkan warna</button><button id="wdTexture">+ PNG tekstur / desain UV</button><input id="wdTextureInput" type="file" accept=".png,.jpg,.jpeg,.webp" hidden><label>Ulang tekstur<input id="wdRepeat" type="number" min=".1" max="10" step=".1" value="1"></label><label>Geser UV X<input id="wdUvX" type="number" min="-10" max="10" step=".01" value="0"></label><label>Geser UV Y<input id="wdUvY" type="number" min="-10" max="10" step=".01" value="0"></label><button id="wdUvApply">Terapkan penempatan UV</button><p class="muted">Tekstur mengikuti UV mesh terpilih. Gunakan PNG atlas untuk desain penuh; vertex/UV asli dipertahankan.</p></aside><section class="wd-stage"><div class="wd-toolbar"><button id="wdFit">Lihat semua</button><button id="wdSide">Samping</button><label class="check"><input id="wdWire" type="checkbox">Wireframe</label><label class="check"><input id="wdGrid" type="checkbox" checked>Grid</label></div><div id="wdViewport"><p>Impor model senjata atau mulai dari sketsa desain.</p></div><p id="wdStatus" class="muted" role="status">Siap mendesain model.</p><details><summary>UV mesh terpilih</summary><canvas id="wdUv" width="512" height="512"></canvas><button id="wdUvSave">Simpan UV PNG</button></details></section><aside class="wd-export"><h2>Ekspor desain</h2><label>Nama desain<input id="wdName" value="ditasha_weapon" maxlength="48"></label><button id="wdExport">Save GLB backup (optional)</button><button id="wdTextureSave">Simpan tekstur PNG terpilih</button><p class="muted">Primary export: native YDR + YTD in the panel below, using a compatible GTA donor skeleton. GLB is an optional editable backup. Real firing/reload gameplay still needs testing.</p><details class="wd-engine"><summary>Build DLC · AddonWeaponsBuilder</summary><p class="muted">Gunakan sumber senjata GTA yang sudah memiliki model, skeleton dan metadata. Engine DLC tidak mengubah GLB mentah menjadi senjata siap game.</p></details></aside>`;
+  // M2a: read-only diagnostics. Existing GLB export and weapon builder stay as-is.
+  const readinessPanel = document.createElement('details');
+  readinessPanel.className = 'wd-readiness';
+  readinessPanel.innerHTML = '<summary>FiveM weapon readiness (M2a)</summary><p class="muted">Checks the current 3D design. This does not generate or certify a native GTA weapon.</p><button type="button" data-weapon-audit>Check model & attachments</button><pre data-weapon-report role="status" aria-live="polite"></pre>';
+  layout.querySelector('.wd-export').append(readinessPanel);
   root.querySelector('.gt-heading').after(layout);
   layout
     .querySelector('.wd-engine')
@@ -358,6 +367,7 @@ export function mountWeaponStudio({ root, download, toast, confirmDiscard }) {
         }
       }
       assembly.add(object);
+      if (!partImport) attachmentPanel?.clearOnModelChange();
       dirty = true;
       serial++;
       list();
@@ -373,12 +383,20 @@ export function mountWeaponStudio({ root, download, toast, confirmDiscard }) {
       `${code} · file acuan ${model}.ydr + YTD pasangannya. Impor model asli untuk mengedit ${label}.`;
   };
   $('wdReference').onchange();
+  let importMode = 'base';
   $('wdImport').onclick = () => {
     partImport = false;
+    importMode = 'base';
     $('wdInput').click();
   };
   $('wdPart').onclick = () => {
     partImport = true;
+    importMode = 'part';
+    $('wdInput').click();
+  };
+  $('wdNativePair').onclick = () => {
+    partImport = false;
+    importMode = 'native';
     $('wdInput').click();
   };
   $('wdInput').onchange = (e) => {
@@ -386,6 +404,8 @@ export function mountWeaponStudio({ root, download, toast, confirmDiscard }) {
     e.target.value = '';
     if (files.length)
       action(() => {
+        const checked = validateWeaponImportSelection(files, importMode);
+        partImport = checked.mode === 'part';
         init();
         return load(files);
       });
@@ -400,6 +420,7 @@ export function mountWeaponStudio({ root, download, toast, confirmDiscard }) {
         dispose(child);
       }
       assembly.add(createWeaponSketch(WEAPON_REFERENCES[Number($('wdReference').value)][3]));
+      attachmentPanel?.clearOnModelChange();
       dirty = true;
       serial++;
       list();
@@ -497,11 +518,42 @@ export function mountWeaponStudio({ root, download, toast, confirmDiscard }) {
     grid.visible = $('wdGrid').checked;
     budget?.invalidate();
   };
+  const attachmentPanel = mountWeaponAttachments({
+    layout, assembly, scene, download, toast,
+    invalidate: () => budget?.invalidate(),
+    getReference: () => WEAPON_REFERENCES[Number($('wdReference').value)],
+    getName: () => $('wdName').value,
+    getSelected: () => selected,
+  });
+  mountWeaponNativeExport({
+    layout, toast,
+    getReference: () => WEAPON_REFERENCES[Number($('wdReference').value)],
+    getName: () => $('wdName').value,
+    getAssemblyGlb: async () => {
+      if (!objects().length) throw Error('Import a custom weapon or add 3D parts first.');
+      const bytes = await new GLTFExporter().parseAsync(assembly, {binary:true});
+      if (bytes.byteLength > 64*1024*1024) throw Error('Custom native assembly exceeds 64 MiB.');
+      return new Uint8Array(bytes);
+    },
+  });
   const name = () => {
     const value = $('wdName').value;
     if (!/^[a-z][a-z0-9_]{2,47}$/.test(value))
       throw Error('Nama desain 3–48 huruf kecil/angka/underscore.');
     return value;
+  };
+  readinessPanel.querySelector('[data-weapon-audit]').onclick = () => {
+    const reference = WEAPON_REFERENCES[Number($('wdReference').value)] || null;
+    const audit = auditWeaponAssembly(assembly, { reference });
+    const lines = [
+      audit.readiness === 'invalid-model' ? 'MODEL CHECK FAILED' : 'DESIGN CHECK COMPLETE — GTA export NOT VERIFIED',
+      'Meshes: ' + audit.stats.meshes + ' · Triangles: ' + audit.stats.triangles,
+      'Vertices: ' + audit.stats.vertices + ' · UV meshes: ' + audit.stats.uvMeshes,
+      'Textured meshes: ' + audit.stats.texturedMeshes + ' · Skinned meshes: ' + audit.stats.skinnedMeshes,
+      ...audit.issues.map(issue => '[' + issue.severity.toUpperCase() + '] ' + issue.message),
+    ];
+    readinessPanel.querySelector('[data-weapon-report]').textContent = lines.join('\n');
+    readinessPanel.open = true;
   };
   $('wdExport').onclick = () =>
     action(async () => {

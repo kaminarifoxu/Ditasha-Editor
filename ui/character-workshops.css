@@ -269,3 +269,37 @@
 .workspace-shell .native-prop-layout .native-preview > .viewer-button-row {
   padding: 8px 12px;
 }
+
+
+/* Ped Workshop only: match Weapon Studio's always-visible middle viewport.
+   The narrow inspector must not render multi-column forms one character wide. */
+.native-build-workspace #nbSourcePanel .studio-fields,
+.native-build-workspace #nbSourcePanel .rig-option-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 9px;
+  width: 100%;
+}
+.native-build-workspace #nbSourcePanel :is(label, select, input, button, details) {
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+.native-build-workspace #nbSourcePanel :is(select, input) {
+  width: 100%;
+}
+.native-build-workspace .nb-ped-preview-prompt {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.native-build-workspace .nb-ped-preview-prompt > .muted { flex: 1 1 200px; }
+.native-build-workspace .nb-ped-preview-prompt > button { flex: 0 0 auto; }
+.native-build-workspace .nb-ped-preview-prompt[hidden] { display: none !important; }
+.native-build-workspace .native-prop-layout > section:has(> .native-preview) {
+  min-height: 360px;
+}

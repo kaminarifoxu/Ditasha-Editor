@@ -2,14 +2,33 @@ import { applyMorphPack } from './freemode-morph-pack.js';
 import { deformFacePositions } from './offline-face-deform.js';
 import { defaultDrawableSelection, drawableView } from './drawable-selection.js';
 import * as THREE from 'three';
-import { previewMaterialAlpha, resolveVariantDiffuse } from './preview-texture-material.js';
+import { previewMaterialAlpha } from './preview-texture-material.js';
+import { scorePreviewDictionary, shouldTryPreviewFallback } from './file-preview-texture-selection.js';
+import { automaticPairedDiffuse, availableDiffuseTextures } from './file-preview-force-ytd.js';
 import { createSafeGeometry } from './safe-model-geometry.js';
+import { captureThumbnailRenderTarget } from './file-thumbnail-capture.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { decodeResource } from './resource-client.js';
 import { readDds } from './asset-tools.js';
 import { resolveModelTexture, modelAlphaMode, modelPreviewAlpha } from './model-material.js';
 import { resolveVehicleLivery, setVehicleLivery } from './vehicle-livery.js';
 import { createModelMaterial, resolveSurfaceMaps, setSurfaceMaps } from './vehicle-surface.js';
+
+// A single renderer is reused for static File Manager thumbnail snapshots.
+// Recreating a WebGL context for every YDD causes repeated shader compilation,
+// context creation and GPU data uploads; never share with an interactive preview.
+let thumbnailRenderer = null;
+function snapshotRenderer() {
+  if (!thumbnailRenderer) {
+    thumbnailRenderer = new THREE.WebGLRenderer({
+      antialias: true, alpha: true,
+      preserveDrawingBuffer: true, powerPreference: 'high-performance',
+    });
+    thumbnailRenderer.outputColorSpace = THREE.SRGBColorSpace;
+    thumbnailRenderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+  }
+  return thumbnailRenderer;
+}
 
 // One owned preview at a time; selecting a different file releases its WebGL
 // context, controls, decoded resources and observer before displaying the next.
@@ -21,14 +40,14 @@ export function createFilePreview(container) {
     release();
     release = () => {};
   }
-  async function show(file, api, { snapshot = false, facePreview = false, morphPack = null, highPerformance = false, textureId = null } = {}) {
+  async function show(file, api, { snapshot = false, facePreview = false, morphPack = null, highPerformance = false, textureId = null, textureCandidateIds = [], onTextureResolved = null, uvCalibration = null, prepared = null } = {}) {
     clear();
     const version = generation;
     container.textContent = 'Memuat preview…';
     try {
-      const data = await api.read(file.id);
+      const data = prepared?.data || await api.read(file.id);
       if (version !== generation) return;
-      const buffer = new Uint8Array(data.data).buffer;
+      const buffer = data.data ? new Uint8Array(data.data).buffer : null;
       if (/\.(ytd|dds)$/i.test(file.name)) {
         const textures = /\.dds$/i.test(file.name)
           ? [readDds(buffer, file.name)]
@@ -72,25 +91,56 @@ export function createFilePreview(container) {
         return;
       }
       const ext = file.name.split('.').at(-1).toLowerCase();
-      const drawables = await decodeResource(ext, buffer);
-      let external = [];
-      if (textureId || data.companion)
-        try {
-          const companion = await api.read(textureId || data.companion.id);
-          external = (await decodeResource('ytd', new Uint8Array(companion.data).buffer)).textures;
-        } catch {
-          /* An unavailable companion must not hide readable geometry. */
-        }
+      const drawables = prepared?.drawables || await decodeResource(ext, buffer);
       if (version !== generation) return;
       const drawable = drawableView(drawables, defaultDrawableSelection(drawables)),
         level = drawable?.lods?.[0];
       if (!level?.geometries.length) throw Error('Geometri model tidak tersedia.');
+      let external = [];
+      let resolvedTextureId = null;
+      // Only consider YTDs already paired to this YDD by family/collection.
+      // Exact internal sampler coverage wins; when names differ, prefer a
+      // dictionary with one unambiguous diffuse image.
+      const candidateIds = [...new Set([
+        textureId || data.companion?.id,
+        ...textureCandidateIds.slice(0, 12),
+      ].filter(Boolean))].slice(0, 8);
+      const geometric = level.geometries;
+      let bestScore = -1;
+      for (const id of candidateIds) {
+        try {
+          let decoded = prepared?.textures?.get(id);
+          if (!decoded) {
+            const dictionary = await api.read(id);
+            if (version !== generation) return;
+            decoded = (await decodeResource('ytd', new Uint8Array(dictionary.data).buffer)).textures;
+          }
+          if (version !== generation) return;
+          const matched = scorePreviewDictionary(geometric, decoded, file.name);
+          const score = matched * 100 + (availableDiffuseTextures(decoded).length === 1 ? 1 : 0);
+          if (score > bestScore) {
+            bestScore = score;
+            external = decoded;
+            resolvedTextureId = id;
+          }
+          if (matched && matched === geometric.filter((g) => g.diffuseTexture).length) break;
+        } catch {
+          // Missing or corrupt paired YTDs cannot hide valid model geometry.
+        }
+      }
+      if (resolvedTextureId && typeof onTextureResolved === 'function')
+        onTextureResolved(resolvedTextureId);
       const host = document.createElement('div');
       host.className = 'fm-model-preview';
       container.replaceChildren(host);
-      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: snapshot, powerPreference: highPerformance ? 'high-performance' : 'default' });
-      renderer.outputColorSpace = THREE.SRGBColorSpace;
-      renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+      const renderer = snapshot ? snapshotRenderer() : new THREE.WebGLRenderer({
+        antialias: true, alpha: true, preserveDrawingBuffer: false,
+        powerPreference: highPerformance ? 'high-performance' : 'default',
+      });
+      if (!snapshot) {
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+        renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+      }
       host.append(renderer.domElement);
       const scene = new THREE.Scene(),
         group = new THREE.Group(),
@@ -108,13 +158,26 @@ export function createFilePreview(container) {
         let geometry;
         try { geometry = createSafeGeometry(g); }
         catch (error) { console.warn('[DITASHA 3D] Skipping invalid submesh:', error.message); continue; }
-        const t = resolveModelTexture(g.diffuseTexture, external, embedded, file.name);
+        const t = resolvedTextureId
+          ? automaticPairedDiffuse(g.diffuseTexture, external, embedded, file.name, resolveModelTexture)
+          : resolveModelTexture(g.diffuseTexture, external, embedded, file.name);
         const textureMap = (t, role = 'color') => {
           if (!t) return null;
           if (mapCache.get(t)?.has(role)) return mapCache.get(t).get(role);
           const map = new THREE.DataTexture(t.out, t.w, t.h, THREE.RGBAFormat);
           map.flipY = false;
           map.wrapS = map.wrapT = THREE.RepeatWrapping;
+          // Optional Character Maker-only atlas adjustment. Other preview
+          // callers omit this option and preserve their original UV behavior.
+          if (facePreview && Array.isArray(uvCalibration) &&
+              uvCalibration.length === 4 &&
+              uvCalibration.every(v => typeof v === 'number' && Number.isFinite(v)) &&
+              Math.abs(uvCalibration[0]) <= 1 && Math.abs(uvCalibration[1]) <= 1 &&
+              uvCalibration[2] >= 0.1 && uvCalibration[2] <= 4 &&
+              uvCalibration[3] >= 0.1 && uvCalibration[3] <= 4) {
+            map.offset.set(uvCalibration[0], uvCalibration[1]);
+            map.repeat.set(uvCalibration[2], uvCalibration[3]);
+          }
           map.colorSpace = role === 'data' ? THREE.NoColorSpace : THREE.SRGBColorSpace;
           map.needsUpdate = true;
           maps.push(map);
@@ -216,17 +279,34 @@ export function createFilePreview(container) {
       camera.far = d * 1000;
       camera.position.copy(center).add(new THREE.Vector3(d * 0.85, d * 0.4, d * 1.8));
       camera.updateProjectionMatrix();
-      const controls = new OrbitControls(camera, renderer.domElement);
+      // Snapshot thumbnails are static: OrbitControls allocates event
+      // handlers and gesture listeners only needed by the inspector.
+      const controls = snapshot
+        ? { target: new THREE.Vector3(), update() {}, dispose() {}, addEventListener() {} }
+        : new OrbitControls(camera, renderer.domElement);
       controls.target.copy(center);
       controls.update();
+      // OrbitControls.update() aims interactive cameras at its target.
+      // Snapshot thumbnails skip OrbitControls for speed, so their camera
+      // must explicitly look at the model. Without this, only an edge of a
+      // head/hair/clothing mesh is visible when its bounds are off-origin.
+      if (snapshot) {
+        camera.lookAt(center);
+        camera.updateMatrixWorld(true);
+      }
       const draw = () => {
         if (!host.isConnected) return;
         const w = host.clientWidth,
           h = host.clientHeight;
         if (!w || !h) return;
-        renderer.setSize(w, h);
         camera.aspect = w / h;
         camera.updateProjectionMatrix();
+        if (snapshot) {
+          // Use the dedicated render target below, not the offscreen DOM
+          // canvas. Off-viewport WebGL readback can show clipped fragments.
+          return;
+        }
+        renderer.setSize(w, h);
         renderer.render(scene, camera);
       };
       const applyFace = (appearance) => {
@@ -263,8 +343,9 @@ export function createFilePreview(container) {
         const variant = (await decodeResource('ytd', new Uint8Array(selected.data).buffer)).textures;
         if (version !== generation || request !== textureRequest) return false;
         for (const { mesh, g, embedded } of materialBindings) {
-          const diffuse = resolveVariantDiffuse(g.diffuseTexture, variant, embedded, file.name, resolveModelTexture);
-          // Keep the current diffuse if the selected dictionary lacks a match.
+          // Filename-paired YTDs automatically supply a single diffuse when
+          // their internal sampler name differs from this YDD's reference.
+          const diffuse = automaticPairedDiffuse(g.diffuseTexture, variant, embedded, file.name, resolveModelTexture);
           if (!diffuse) continue;
           const texture = textureMapForVariant(diffuse);
           mesh.material.map = texture;
@@ -288,13 +369,15 @@ export function createFilePreview(container) {
         maps.push(map);
         return map;
       }
-      controls.addEventListener('change', draw);
-      const observer = new ResizeObserver(draw);
-      observer.observe(host);
+      if (!snapshot) controls.addEventListener('change', draw);
+      const observer = snapshot ? null : new ResizeObserver(draw);
+      observer?.observe(host);
       draw();
-      const thumbnail = snapshot ? await new Promise(resolve => renderer.domElement.toBlob(resolve, 'image/png')) : null;
+      const thumbnail = snapshot
+        ? await captureThumbnailRenderTarget(renderer, scene, camera, host.clientWidth, host.clientHeight)
+        : null;
       release = () => {
-        observer.disconnect();
+        observer?.disconnect();
         controls.dispose();
         group.traverse((o) => {
           if (o.isMesh) {
@@ -303,11 +386,16 @@ export function createFilePreview(container) {
           }
         });
         maps.forEach((m) => m.dispose());
-        renderer.dispose();
-        renderer.forceContextLoss();
+        if (snapshot) {
+          // Release per-model references while retaining the shared GPU context.
+          renderer.renderLists.dispose();
+        } else {
+          renderer.dispose();
+          renderer.forceContextLoss();
+        }
         host.remove();
       };
-      return snapshot ? thumbnail : { applyFace, supported:faceMeshes.length>0, setTextureVariant, setCharacterModel };
+      return snapshot ? thumbnail : { applyFace, supported:faceMeshes.length>0, setTextureVariant, setCharacterModel, selectedTextureId: resolvedTextureId };
     } catch (error) {
       if (version === generation) {
         clear();
