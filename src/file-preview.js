@@ -286,6 +286,14 @@ export function createFilePreview(container) {
         : new OrbitControls(camera, renderer.domElement);
       controls.target.copy(center);
       controls.update();
+      // OrbitControls.update() aims interactive cameras at its target.
+      // Snapshot thumbnails skip OrbitControls for speed, so their camera
+      // must explicitly look at the model. Without this, only an edge of a
+      // head/hair/clothing mesh is visible when its bounds are off-origin.
+      if (snapshot) {
+        camera.lookAt(center);
+        camera.updateMatrixWorld(true);
+      }
       const draw = () => {
         if (!host.isConnected) return;
         const w = host.clientWidth,
