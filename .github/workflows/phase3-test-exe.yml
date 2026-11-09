@@ -30,6 +30,8 @@ jobs:
         run: npm ci
       - name: Run regression tests
         run: npm test
+      - name: Validate GLB 2.0 native prop fixture
+        run: node --test tests/prop-glb-fixture.test.cjs
       - name: Smoke test isolated Prop Creator workspace and OBJ import
         run: npx electron scripts/smoke-prop-workspace.cjs
         timeout-minutes: 4
