@@ -10,7 +10,13 @@ Import individual files, a folder, or a ZIP such as an RPEmotes resource. Only Y
 
 Use **+ Karakter freemode → Folder komponen freemode**. Import an exported local GTA/FiveM folder with head/hair/body YDDs and matching YTDs, plus the freemode YFT when available. Choose male/female, a head, hair, texture dictionaries and optional body/outfit parts. Add the assembled character as **one actor** to a group photo, then choose its emote. Save the result through the existing scene/outfit library to retain the selected model sources.
 
-Appearance JSON from illenium/fivem-appearance can select matching component drawable/texture numbers from the imported folder. Missing components require choosing the corresponding local model. Parent head blending, the game's facial sliders and head overlays are not reproduced offline; the UI states this. The app does not bundle Rockstar's complete model/texture library or infer missing skin textures. Original model UVs are retained.
+Appearance JSON from illenium/fivem-appearance can select matching component drawable/texture numbers from the imported folder. The freemode chooser now resolves YDD/YTD pairs by component, drawable number, gender, collection prefix/folder and exact A–Z texture variant; it does not silently select an unrelated variant. Duplicate matching YTDs remain unselected for manual review. The starter character importer chooses only an unambiguous variant A per component. Missing components require choosing the corresponding local model. Parent head blending, the game's facial sliders and head overlays are not reproduced offline; the UI states this. The app does not bundle Rockstar's complete model/texture library or infer missing skin textures. Original model UVs are retained.
+
+### Character Maker ↔ Photo Booth preset consistency
+
+A Character Maker handoff now assembles a single freemode ped using the actual head YDD as the actor, even when folder enumeration places hair/clothing or a YFT first. Separate hair/teeth, torso and a compatible freemode YFT attach to the head actor. Automatic starter body selection prefers the head's collection and falls back to the supplied unqualified/original freemode components; it does not borrow unrelated addon collection pieces. Duplicate or absent head files are rejected instead of silently constructing a headless character.
+
+Photo Booth scene presets now retain the Character Maker ID, appearance parameters and optional calibrated facial morph pack alongside native source files. Calibrated morph deltas still require exact head topology and do not recreate GTA head blend or overlays. Imported YCD/GLB emotes and per-ped time are preserved when their source is available. When an emote source cannot be decoded during a preset reload, the app warns and restores that ped to Relaxed instead of silently claiming playback succeeded. Neither freemode assembly nor Photo Booth guarantees that a custom rig plays every GTA animation without manual validation.
 
 ## Halfped / head and separate hair
 
@@ -19,6 +25,9 @@ Open **Auto rig ped → Kepala / halfped & rambut**. Export a head, eyes/teeth a
 Fit the head to the male/female reference, or keep its prepared placement. Adjust scale, rotation and offsets. Surface transfer interpolates up to four weights per vertex from the GTA reference head, including its available facial bones; the rigid option binds to `SKEL_Head`. Check head/jaw pose, other diagnostic poses and the walk preview. A nearest-surface transfer cannot guarantee correct expressions for every stylized face. Correct mouth, eyelids, eyes and neck seams in the included Blender project as needed.
 
 Separate hair receives the head transform and optional hair offset/scale. It follows `SKEL_Head`; native hair uses a cutout shader. Hat squash bones, physics and automatic hat compatibility are not generated.
+
+The source/head preview now distinguishes opaque, cutout and blended materials. Hair, eyelashes and brows default to cutout in the bounded Blender preview, without treating black RGB as transparent. Native model preview reports unresolved diffuse/UV and explicitly missing normal/specular sampler images; absent unspecified samplers remain *unknown*, not falsely missing. Head/hair fitting now reports center distance and XY overlap as diagnostic warnings without changing the artist's hair placement. These checks do not rewrite YTD files or prove exact FiveM shader parity.
+
 
 The installed Muto engine supplies the default weight reference. Its NPZ reference does not include original freemode UVs. To export an **actual freemode UV reference SVG**, choose a `.blend` containing one GTA armature and a weighted mesh named `head` with its original UV layer. Source head UV SVG is exported when present; the head's UVs are preserved, not replaced with a guessed freemode layout.
 
@@ -39,3 +48,11 @@ Game-ready weapon bones, magazine/muzzle positions, animations and metadata requ
 - [illenium-appearance](https://github.com/iLLeniumStudios/illenium-appearance): component/hair/head appearance structure; this offline editor does not execute its FiveM natives.
 
 Tests use synthetic meshes/animation resources and the separately installed engine reference. Uploaded emote/head artwork is not committed or redistributed. The previously supplied RPEmotes pack was also checked privately for ZIP import and preservation across a complete local browser restart.
+
+## A3.1 Texture pairing and validation boundary
+
+The Character Maker selector pairs *dictionary files* (YDD with the appropriate YTD); the geometry's actual texture samplers are still resolved by name/hash at preview time. A filename match cannot prove that a YTD contains the DiffuseSampler texture used by the mesh. The existing native preview reports absent UV layers, unavailable diffuse images and, when referenced samplers are present, missing normal/specular images; absent optional samplers are **unknown**, not missing. Normal/specular images must not be substituted for a missing diffuse texture. Native preview alpha/cutout is an approximation, and server rendering requires a FiveM check. No source YTD/YDD bytes are changed by A3.1.
+
+## A3.2 Native material preview
+
+The Blender/Sollumz bridge now resolves the material's own DiffuseSampler/TextureSampler, BumpSampler/NormalSampler and SpecSampler/SpecularSampler (or supported Principled shader source links). Preview JSON carries separate color, normal and specular indices per material plus sampler names, UV layer, missing-map and mismatched-UV diagnostics. Normal and specular PNGs use non-color sampling in Three.js. A MeshPhong approximation renders specular maps when present; other models use MeshStandardMaterial. Transparent hair uses cutout, not black color-key removal. If a referenced sampler cannot be resolved, it is marked missing; samplers not declared stay unknown. The material inspector displays bounded per-mesh warnings. GTA shaders, palette behavior, compressed normal conventions and in-game material output are not claimed to be identical. The source YDD/YTD files remain unchanged.

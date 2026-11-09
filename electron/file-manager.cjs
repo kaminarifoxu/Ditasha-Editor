@@ -310,18 +310,11 @@ function createFileManager({
         );
       const handle = await source(entry);
       try {
-        const paired = /\.(ydd|ydr|yft)$/i.test(entry.name)
-          ? ready()
-              .files.filter(
-                (f) =>
-                  /\.ytd$/i.test(f.name) &&
-                  path.posix.dirname(f.relative) === path.posix.dirname(entry.relative) &&
-                  ((entry.group && f.group === entry.group && f.category === entry.category) ||
-                    f.name.toLowerCase() ===
-                      entry.name.toLowerCase().replace(/(?:_hi)?\.[^.]+$/, '.ytd')),
-              )
-              .sort((a, b) => a.name.localeCompare(b.name))[0]
-          : null;
+        // Reuse the same strict filename family grouping as the thumbnail grid.
+        const pairIds = /\.(ydd|ydr|yft)$/i.test(entry.name)
+          ? pairTextureGroups(ready().files).groups.get(entry.id) || []
+          : [];
+        const paired = pairIds[0] || null;
         return {
           name: entry.name,
           data: new Uint8Array(await handle.readFile()),

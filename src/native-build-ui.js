@@ -144,12 +144,35 @@ export function mountNativeBuild({
   });
   $('nbViewport').querySelector('p').textContent =
     'Pilih model di panel kiri, lalu buat preview rig. Periksa ukuran dan deformasi sebelum menyimpan hasil.';
+  // Available even if Blender crashes before writing report.json.
+  // The previous Save error report control was only rendered when a report existed.
+  const saveEngineLog = document.createElement('button');
+  saveEngineLog.type = 'button';
+  saveEngineLog.id = 'nbSaveEngineLog';
+  saveEngineLog.textContent = 'Simpan log error Blender';
+  saveEngineLog.onclick = () => download?.(
+    new TextEncoder().encode(JSON.stringify({
+      status: state.status,
+      message: state.message,
+      step: state.step,
+      elapsedSeconds: state.startedAt ? Math.max(0, Math.floor((Date.now() - state.startedAt) / 1000)) : null,
+      report: state.report,
+      log: state.log,
+    }, null, 2)),
+    'ditasha-blender-diagnostics.json',
+    'application/json',
+  );
+  $('nbLog').closest('details').after(saveEngineLog);
   const poseControls = document.createElement('div');
   poseControls.className = 'rig-pose-controls';
   poseControls.hidden = true;
   poseControls.innerHTML =
     '<label>Pose uji<select id="nbPedPose"><option value="rest">Pose awal</option></select></label><span class="muted">Pose statis untuk memeriksa deformasi weights. Periksa juga gerakan di FiveM.</span>';
   previewRoot.prepend(poseControls);
+  const previewPrompt = document.createElement('div');
+  previewPrompt.className = 'nb-ped-preview-prompt';
+  previewPrompt.innerHTML = '<strong>3D Ped Preview</strong><span class="muted">Select a GLB/FBX/OBJ, then preview it before rigging. Drag to rotate; scroll to zoom.</span><button type="button" id="nbPedPreviewAction">Preview selected model</button>';
+  previewRoot.prepend(previewPrompt);
   const poseSelect = $('nbPedPose');
   async function loadPreview(id, pose = 'rest', preserveCamera = false) {
     const serial = ++poseSerial;
@@ -275,7 +298,7 @@ export function mountNativeBuild({
     $('nbOutput').hidden = pedMode;
     preview.loadButton.hidden = pedMode;
     preview.setMode(pedMode ? 'ped' : value);
-    if (pedMode && state.previewId && matchesPreview()) centerPanel.prepend(previewRoot);
+    if (pedMode) centerPanel.prepend(previewRoot);
     else $('nbVehicle').after(previewRoot);
     syncTransform();
   }
@@ -283,7 +306,20 @@ export function mountNativeBuild({
     headSettings.querySelectorAll('input,select,button').forEach((control) => {
       control.disabled = requesting || state.running || !!state.stagedId;
     });
-    $('nbStatus').textContent = (state.message || 'Siap.').split(/Traceback|\r?\n/)[0];
+    const elapsed = state.running && state.startedAt
+      ? Math.max(0, Math.floor((Date.now() - state.startedAt) / 1000))
+      : 0;
+    const elapsedLabel = elapsed
+      ? ' · ' + Math.floor(elapsed / 60) + 'm ' + (elapsed % 60) + 's'
+      : '';
+    $('nbStatus').textContent =
+      (state.message || 'Siap.').split(/Traceback|\r?\n/)[0] + elapsedLabel;
+    if (state.running && $('nbMode').value === 'ped' && !state.previewId) {
+      const hint = $('nbViewport').querySelector('p');
+      if (hint) hint.textContent = 'Full ped rigging sedang berlangsung. Preview 3D hasil rig akan muncul setelah Blender/Muto selesai. ' +
+        'Tahap sekarang: ' + (state.step || 'memulai Blender') +
+        '. Log engine di panel kanan menampilkan detail; Batalkan build menghentikan proses.';
+    }
     $('nbLog').textContent = state.log || '';
     $('nbSetupProgress').hidden = !state.progress;
     if (state.progress)
@@ -324,8 +360,11 @@ export function mountNativeBuild({
     $('nbSave').disabled =
       state.running || requesting || !state.stagedId || !state.previewId || !previewReady;
     $('nbDiscard').disabled = state.running || requesting || !state.stagedId;
-    if (['ped', 'garment'].includes($('nbMode').value))
-      previewRoot.hidden = !state.previewId || !matchesPreview() || dialog.hidden;
+    if (['ped', 'garment'].includes($('nbMode').value)) {
+      previewRoot.hidden = dialog.hidden;
+      previewPrompt.hidden = Boolean(state.previewId && matchesPreview());
+      $('nbPedPreviewAction').disabled = state.running || requesting || !inputs.ped;
+    } else previewPrompt.hidden = true;
     $('nbReport').replaceChildren();
     const report = state.report;
     poseControls.hidden =
@@ -356,8 +395,8 @@ export function mountNativeBuild({
         (report.pedOptions.height ? report.pedOptions.height + ' m' : 'ukuran model');
       $('nbReport').append(p);
     }
-    if (report.sourceQuality) {
-      const q = report.sourceQuality,
+    if (report.sourceQuality || report.sourceMaterialAudit) {
+      const q = report.sourceQuality || report.sourceMaterialAudit,
         title = document.createElement('h3'),
         list = document.createElement('dl');
       title.textContent = 'Pemeriksaan model sumber';
@@ -429,6 +468,44 @@ export function mountNativeBuild({
       }
       details.append(summary, list);
       $('nbReport').append(details);
+    }
+    if (report.hairAlignment?.checked) {
+      const result = document.createElement('p');
+      result.className = report.hairAlignment.aligned ? 'muted' : 'warning';
+      result.textContent = 'Head/hair placement: ' +
+        (report.hairAlignment.aligned ? 'reasonable bounds' : 'review alignment') +
+        ' · center distance ' + Number(report.hairAlignment.centerDistanceMeters).toFixed(3) +
+        ' m · XY overlap ' + (report.hairAlignment.xyOverlap ? 'yes' : 'no') +
+        '. This is a bounds check, not an anatomical fit guarantee.';
+      $('nbReport').append(result);
+    }
+    if (report.nativeValidation) {
+      const native = report.nativeValidation;
+      const box = document.createElement('section');
+      const heading = document.createElement('h3');
+      heading.textContent = 'Native ped export · YDD/YFT/YTD';
+      const summary = document.createElement('p');
+      summary.textContent =
+        'Sollumz native YDD reimport: ' + (native.nativeYddRoundTrip ? 'Passed' : 'Not verified') +
+        ' · YFT Legacy RSC7: ' + (native.nativeYftSignatureVerified ? 'Passed' : 'Not verified') +
+        ' · YFT ragdoll physics: NOT VERIFIED';
+      const result = document.createElement('p');
+      const rigs = native.rigs || [];
+      const meshCount = rigs.reduce((sum, item) => sum + (item.meshes || 0), 0);
+      const vertices = rigs.reduce((sum, item) => sum + (item.weightedVertices || 0), 0);
+      result.textContent = 'Native meshes: ' + meshCount + ' · weighted vertices: ' + vertices +
+        ' · YDD files reimported: ' + rigs.length;
+      const alignment = document.createElement('p');
+      const hair = native.headHairAlignment;
+      alignment.textContent = hair?.checked
+        ? 'Head/hair alignment: ' + (hair.aligned ? 'checked' : 'failed') +
+          ' · center distance ' + Number(hair.centerDistanceMeters).toFixed(3) + ' m'
+        : 'Head/hair alignment: individual meshes were not identifiable; visual checking required.';
+      const warning = document.createElement('p');
+      warning.className = 'muted';
+      warning.textContent = 'This validates native files and skin weights, not real FiveM animations, facial rigs, ragdoll physics, or accurate hair UV mapping. Test in-game.';
+      box.append(heading, summary, result, alignment, warning);
+      $('nbReport').append(box);
     }
     if (report.quality) {
       const q = report.quality,
@@ -564,7 +641,6 @@ export function mountNativeBuild({
     if (
       state.previewId &&
       state.previewId !== loadedPreviewId &&
-      report.ok &&
       !state.running &&
       matchesPreview()
     ) {
@@ -603,6 +679,13 @@ export function mountNativeBuild({
   async function start(task) {
     if (!api()) return toast('Game build tersedia pada aplikasi desktop Windows.');
     if (requesting || state.running) return;
+    // Never start expensive Muto rigging with an empty middle viewport. Generate
+    // the read-only source scene first, then let the user review and start rig.
+    if (task === 'ped' && (!state.previewId || !previewReady || !matchesPreview())) {
+      toast('Memuat preview model sumber dulu. Setelah model tampil, klik Buat preview rig.');
+      await start('ped_preview');
+      return;
+    }
     if (state.stagedId) {
       toast('Simpan atau buang hasil preview sebelumnya sebelum memulai proses baru.');
       return;
@@ -717,6 +800,11 @@ export function mountNativeBuild({
             preview.clear();
             rigSettings.open = true;
             draw();
+            // A selected humanoid should appear in the center automatically,
+            // as in Weapon Studio. Blender builds this read-only preview;
+            // native ped export is a separate explicit action.
+            if (state.engine && !state.running && $('nbMode').value === 'ped')
+              await start('ped_preview');
           }
         } catch (e) {
           toast(e.message);
@@ -766,6 +854,7 @@ export function mountNativeBuild({
   $('nbAnalyze').onclick = () => start('debadge_analyze');
   $('nbRun').onclick = () => start($('nbMode').value);
   sourceButton.onclick = () => start('ped_preview');
+  $('nbPedPreviewAction').onclick = () => start('ped_preview');
   $('nbCancel').onclick = async () => {
     await api()?.cancel();
     await refresh();

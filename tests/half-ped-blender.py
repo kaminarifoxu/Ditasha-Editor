@@ -1,5 +1,5 @@
 """Real head/hair transfer on the installed reference, native YDD and GLB reimport."""
-import bpy,json,sys,tempfile
+import bpy,json,sys,tempfile,math
 from pathlib import Path
 from mathutils import Vector
 root=Path(__file__).resolve().parents[1];sys.path.insert(0,str(root/'electron'))
@@ -42,9 +42,38 @@ with tempfile.TemporaryDirectory() as directory:
     assert result['halfPed'] and result['referenceUvAvailable'] and len(result['nativeHead'])==2,result
     assert template.read_bytes()==reference_bytes and input_file.read_bytes()==input_bytes and hair_file.read_bytes()==hair_bytes
     assert (output/'uv-head-source.svg').is_file() and (output/'uv-freemode-reference.svg').is_file()
+    assert result['hairAlignment']['checked'], 'Hair placement was not inspected'
+    assert isinstance(result['hairAlignment']['centerDistanceMeters'],float)
     for item in result['nativeHead']:
-        assert (output/item['file']).read_bytes()[:4]==b'RSC7'
+        native_file=output/item['file']
+        assert native_file.read_bytes()[:4]==b'RSC7'
         assert item['verified']['lodMeshes']>=3,item
+        # Reimport EACH actual head/hair native YDD independently. Exporter-internal
+        # round-trip alone can miss swapped shader references or the wrong slot.
+        before=set(bpy.data.objects)
+        native_path=native_file.parent
+        loaded=bpy.ops.sollumz.import_assets(directory=str(native_path),
+            files=[{'name':native_file.name}],use_custom_settings=True,
+            textures_mode='PACK',dwd_import_external_skeleton='NO')
+        imported=[o for o in bpy.data.objects if o not in before and o.type=='MESH']
+        assert 'FINISHED' in loaded and imported,('Cannot reimport native YDD',native_file)
+        for obj in imported:
+            assert ped_review.armature_for(obj),('Missing native armature',obj.name)
+            for native_mesh in bridge.mesh_levels(obj):
+                if not native_mesh.vertices: continue
+                assert native_mesh.uv_layers,('Missing UV',native_file,obj.name)
+                uv_values=[tuple(point.uv) for point in native_mesh.uv_layers[0].data]
+                assert uv_values and all(all(math.isfinite(v) for v in pair) for pair in uv_values)
+                for vertex in native_mesh.vertices:
+                    weights=[g.weight for g in vertex.groups if g.weight>1e-6]
+                    assert weights and len(weights)<=4 and abs(sum(weights)-1)<.02,(native_file,obj.name)
+                for material in native_mesh.materials:
+                    diffuse=material.node_tree.nodes.get('DiffuseSampler') if material and material.node_tree else None
+                    if diffuse and diffuse.image: diffuse.image.pixels[:4]
+                    assert diffuse and diffuse.image and diffuse.image.has_data,('Missing embedded YDD diffuse',native_file,obj.name)
+                    assert all(math.isfinite(x) for x in diffuse.image.pixels[:4])
+        for obj in list(bpy.data.objects):
+            if obj not in before: bpy.data.objects.remove(obj,do_unlink=True)
     rest=json.loads((output/'preview.json').read_text());moved=json.loads((output/'preview-head.json').read_text())
     head_rest=[m['positions'] for m in rest['meshes'] if m['name']==source_name]
     head_moved=[m['positions'] for m in moved['meshes'] if m['name']==source_name]

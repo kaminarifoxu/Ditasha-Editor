@@ -52,12 +52,16 @@ app.whenReady().then(async () => {
     const { promisify } = require('node:util');
     const { execFile } = require('node:child_process');
     const failures = [];
+    const characterOnly = process.argv.includes('--character-only');
+    const logoOnly = process.argv.includes('--logo-only');
     await import(
       require('node:url').pathToFileURL(path.resolve('scripts/prepare-texture-roundtrip.mjs')).href
     );
-    await import(
-      require('node:url').pathToFileURL(path.resolve('scripts/prepare-logo-native.mjs')).href
-    );
+    if (!characterOnly) {
+      await import(
+        require('node:url').pathToFileURL(path.resolve('scripts/prepare-logo-native.mjs')).href
+      );
+    }
     const checks = [
       'scripts/smoke-native-preview.py',
       'tests/ped-review-blender.py',
@@ -66,9 +70,9 @@ app.whenReady().then(async () => {
       'tests/texture-allocation-blender.py',
       'tests/logo-native-blender.py',
     ];
-    for (const script of process.argv.includes('--character-only')
-      ? ['tests/clothing-native-blender.py', 'tests/half-ped-blender.py']
-      : process.argv.includes('--logo-only')
+    for (const script of characterOnly
+      ? ['tests/clothing-native-blender.py', 'tests/half-ped-blender.py', 'tests/texture-allocation-blender.py']
+      : logoOnly
         ? ['tests/logo-native-blender.py']
         : checks) {
       try {
@@ -97,6 +101,17 @@ app.whenReady().then(async () => {
       }
     }
     if (failures.length) throw Error(failures.join('\n'));
+    // Character-only checks use real Blender/Sollumz and native head/hair YDD
+    // reimport plus an independent standalone YTD fixture. No logo fixture is generated.
+    if (characterOnly) {
+      const { indexEditorYtd } = require('../electron/creators/ytd-compat.cjs');
+      const ytd = await fs.readFile('release/native-qa/native-repacked.ytd');
+      const parsed = indexEditorYtd(ytd);
+      assert(parsed.textureCount >= 2, 'Standalone YTD fixture contains no readable diffuse/alpha textures');
+      console.log('PASS_PED_NATIVE_HEAD_HAIR_YDD_AND_SEPARATE_YTD_ROUNDTRIP', parsed.textureCount);
+      app.exit(0);
+      return;
+    }
     // Exercise the actual trusted renderer IPC path as well as direct Python.
     const logoJob = JSON.parse(await fs.readFile('release/qa/logo-native-fixture.json', 'utf8'));
     const destination = await call('pick', 'output');

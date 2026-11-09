@@ -216,6 +216,8 @@ else {
       shell,
       trusted,
     });
+    require('./creators/creator-ipc.cjs').registerCreators({ ipcMain, trusted, app, dialog, win });
+    require('./creators/weapon-ipc.cjs').registerWeaponCreator({ ipcMain, trusted, app, dialog, win });
     require('./native-build.cjs').registerNativeBuild({
       app,
       ipcMain,

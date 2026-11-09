@@ -1,0 +1,126 @@
+/* Phase 3 — Dedicated Prop Creator. Scoped: no changes to Texture & Model. */
+body.workspace-shell > .prop-creator-workspace {
+  width: calc(100% - var(--rail-width));
+  margin-left: var(--rail-width);
+  height: calc(100dvh - var(--header-height));
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+}
+body.workspace-shell > .prop-creator-workspace[hidden] { display: none !important; }
+.prop-creator-workspace * { box-sizing: border-box; }
+.prop-creator-workspace .prop-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  flex: 0 0 auto; padding: 19px 24px;
+  border-bottom: 1px solid var(--line); background: var(--panel);
+}
+.prop-creator-workspace .prop-eyebrow {
+  color: #b89b59; font-size: 10px; font-weight: 700; letter-spacing: .13em;
+}
+.prop-creator-workspace .prop-header h1 { margin: 4px 0; font-size: 22px; line-height: 1.15; }
+.prop-creator-workspace .prop-header p { margin: 5px 0 0; font-size: 11px; color: var(--muted); }
+.prop-creator-workspace .prop-header-actions button { background: #dbaf64; color: #211b14; border: 0; border-radius: 8px; padding: 11px 16px; font-weight: 700; }
+.prop-creator-workspace .prop-layout {
+  display: grid; grid-template-columns: minmax(230px, 264px) minmax(0, 1fr) minmax(236px, 275px);
+  min-height: 0; flex: 1; gap: 0;
+}
+.prop-creator-workspace .prop-sidebar, .prop-creator-workspace .prop-right {
+  overflow-y: auto; padding: 17px 15px; background: var(--panel);
+}
+.prop-creator-workspace .prop-sidebar { border-right: 1px solid var(--line); }
+.prop-creator-workspace .prop-right { border-left: 1px solid var(--line); }
+.prop-creator-workspace h2 { margin: 4px 0 14px; font-size: 12px; font-weight: 750; }
+.prop-creator-workspace .prop-sidebar h2:not(:first-child),
+.prop-creator-workspace .prop-right h2:not(:first-child) { margin-top: 27px; }
+.prop-creator-workspace .prop-source, .prop-creator-workspace .prop-summary {
+  border: 1px solid var(--line); border-radius: 9px; padding: 12px;
+  background: var(--field); margin-bottom: 12px;
+}
+.prop-creator-workspace .prop-source strong { display: block; font-size: 12px; overflow-wrap: anywhere; }
+.prop-creator-workspace .prop-source small { display: block; margin-top: 6px; color: var(--muted); }
+.prop-creator-workspace button {
+  cursor: pointer; border: 1px solid var(--line); border-radius: 7px;
+  background: var(--raised); color: var(--text); padding: 8px 11px;
+}
+.prop-creator-workspace button:disabled { opacity: .45; cursor: not-allowed; }
+.prop-creator-workspace :is(input,select) {
+  display: block; width: 100%; min-width: 0; background: var(--field);
+  color: var(--text); border: 1px solid var(--line); border-radius: 6px;
+  padding: 8px; margin: 5px 0 9px;
+}
+.prop-creator-workspace .prop-sidebar label { display: block; color: var(--muted); margin: 8px 0; font-size: 11px; }
+.prop-creator-workspace .prop-sidebar label input,
+.prop-creator-workspace .prop-sidebar label select { color: var(--text); }
+.prop-creator-workspace .prop-sidebar .prop-preview-inspector { border: 0; padding: 0; }
+.prop-creator-workspace .prop-preview-inspector summary { font-size: 12px; font-weight: 700; margin: 9px 0; cursor: pointer; }
+.prop-creator-workspace .prop-preview-inspector button { margin: 4px 5px 5px 0; }
+.prop-creator-workspace .prop-viewport-card {
+  min-width: 0; min-height: 0; display: flex; flex-direction: column; background: #111720;
+}
+.prop-creator-workspace .prop-viewport-toolbar,
+.prop-creator-workspace .prop-viewport-footer {
+  display: flex; align-items: center; gap: 10px; padding: 12px 18px;
+  background: var(--panel); border-bottom: 1px solid var(--line);
+  flex: 0 0 auto;
+}
+.prop-creator-workspace .prop-viewport-toolbar strong { white-space: nowrap; }
+.prop-creator-workspace .prop-viewport-toolbar span {
+  min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; color: var(--muted);
+}
+.prop-creator-workspace .prop-viewport { flex: 1; min-height: 260px; position: relative; overflow: hidden; }
+.prop-creator-workspace .prop-canvas {
+  width: 100%; height: 100%; display: block; outline: none;
+}
+.prop-creator-workspace .prop-empty {
+  position: absolute; inset: 0; display: grid; place-content: center;
+  text-align: center; padding: 24px; pointer-events: none;
+  color: var(--muted); z-index: 1;
+}
+.prop-creator-workspace .prop-empty strong { color: var(--text); font-size: 18px; }
+.prop-creator-workspace .prop-empty p { max-width: 370px; }
+.prop-creator-workspace .prop-empty[hidden] { display: none; }
+.prop-creator-workspace .prop-viewport-footer {
+  border-bottom: 0; border-top: 1px solid var(--line);
+  color: var(--muted); font-size: 10px;
+}
+.prop-creator-workspace .prop-summary > div {
+  display: flex; justify-content: space-between; gap: 10px; margin: 9px 0;
+  font-size: 11px; color: var(--muted);
+}
+.prop-creator-workspace .prop-summary strong { color: var(--text); text-align: right; overflow-wrap: anywhere; }
+.prop-creator-workspace .prop-right p { font-size: 11px; line-height: 1.6; color: var(--muted); }
+.prop-creator-workspace .prop-warning {
+  border-left: 2px solid #d9ac62; padding: 8px 11px; background: var(--field);
+}
+.prop-creator-workspace .prop-native-build {
+  padding: 10px; border: 1px solid var(--line); border-radius: 8px; margin-top: 15px;
+}
+.prop-creator-workspace .prop-native-build summary { cursor: pointer; font-weight: 700; }
+.prop-creator-workspace .prop-native-build label { display: block; margin: 9px 0; }
+.prop-creator-workspace .prop-native-build button { display: block; margin: 10px 0; width: 100%; }
+.prop-creator-workspace .prop-status {
+  border-top: 1px solid var(--line); color: var(--muted);
+  padding: 10px 19px; margin: 0; background: var(--panel);
+  font-size: 11px; min-height: 35px;
+}
+@media (max-width: 1120px) {
+  .prop-creator-workspace .prop-layout { grid-template-columns: 220px minmax(0,1fr) 220px; }
+}
+@media (max-width: 870px) {
+  .prop-creator-workspace .prop-layout { grid-template-columns: 210px minmax(0,1fr); }
+  .prop-creator-workspace .prop-right { display: none; }
+}
+
+/* M1c: resize controls and always-visible export action */
+.prop-creator-workspace .prop-scale-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+.prop-creator-workspace .prop-scale-fields label { display: block; font-size: 11px; }
+.prop-creator-workspace .prop-scale-fields input { width: 100%; min-width: 0; }
+.prop-creator-workspace .prop-scale-lock { display: flex; align-items: center; gap: 7px; color: var(--muted); }
+.prop-creator-workspace .prop-scale-lock input { width: auto; margin: 0; }
+.prop-creator-workspace .prop-native-build [data-prop-build] { background: #d5b444; color: #161a1d; font-weight: 700; border-color: #d5b444; }
+.prop-creator-workspace .prop-native-build [data-prop-deps] { border-color: #647e95; }
+.prop-creator-workspace .prop-native-build small { display: block; margin: 6px 0 11px; color: var(--muted); }

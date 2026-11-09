@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { managePreview } from './performance.js';
+import { validateNativeMaterialReferences } from './native-material-report.js';
 export function nativeOffsetFromThree(position) {
   return [position.x, -position.z, position.y].map(
     (v) => Math.round(Math.max(-20, Math.min(20, v)) * 1000) / 1000,
@@ -27,6 +28,38 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
     motionPosition = 0,
     motionBuffer = null,
     motionRest = [];
+  const inspector = document.createElement('details');
+  inspector.className = 'native-preview-materials';
+  const inspectorTitle = document.createElement('summary');
+  inspectorTitle.textContent = 'Material & UV diagnostics';
+  const inspectorList = document.createElement('div');
+  inspector.append(inspectorTitle, inspectorList);
+  $('nbPreviewStatus').after(inspector);
+  function showDiagnostics(meshes) {
+    inspectorList.replaceChildren();
+    const issues = meshes.filter((item) => {
+      const info = item.materialInfo;
+      return info && ['uv', 'diffuse', 'normal', 'specular'].some(
+        (role) => !['present', 'unknown'].includes(info[role]),
+      );
+    });
+    for (const item of issues.slice(0, 100)) {
+      const info = item.materialInfo;
+      const line = document.createElement('p');
+      line.textContent = [item.name, info.material,
+        'UV layer: ' + (info.uvLayer || '(none)'),
+        ...['uv', 'diffuse', 'normal', 'specular'].map((r) =>
+          r + ': ' + info[r] + (info.samplers?.[r] ? ' (' + info.samplers[r] + ')' : '')
+        )].join(' · ');
+      inspectorList.append(line);
+    }
+    if (issues.length > 100) {
+      const extra = document.createElement('p');
+      extra.textContent = (issues.length - 100) + ' additional material warnings';
+      inspectorList.append(extra);
+    }
+    inspectorTitle.textContent = 'Material & UV diagnostics (' + issues.length + ')';
+  }
   const motionClock = createMotionClock();
   const scene = new THREE.Scene(),
     camera = new THREE.PerspectiveCamera(40, 1, 0.01, 1000);
@@ -39,6 +72,7 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
   light.position.set(3, 5, 4);
   scene.add(light);
   let maps = [],
+    secondaryMaps = [],
     down = null;
   const render = () => budget?.invalidate();
   function init() {
@@ -135,7 +169,10 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
       }
     }
     for (const m of maps) m.dispose();
+    for (const m of secondaryMaps) m.dispose();
+    secondaryMaps = [];
     maps = [];
+    showDiagnostics([]);
     gizmo?.detach();
     donorAnchor.set(0, 0, 0);
     donor.position.set(0, 0, 0);
@@ -251,11 +288,25 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
       textures.forEach((t) => t.dispose());
       return;
     }
+    // Reject out-of-range sampler indices and malformed UVs before uploading geometry.
+    validateNativeMaterialReferences(data.meshes, textures.length);
     maps = textures;
     maps.forEach((map) => {
       map.colorSpace = THREE.SRGBColorSpace;
       map.wrapS = map.wrapT = THREE.RepeatWrapping;
     });
+    // Data maps need linear sampling; do not interpret normal/specular RGB as sRGB.
+    const dataMaps = new Map();
+    const dataMap = (index) => {
+      if (!Number.isInteger(index) || !maps[index]) return null;
+      if (!dataMaps.has(index)) {
+        const map = maps[index].clone();
+        map.colorSpace = THREE.NoColorSpace;
+        map.needsUpdate = true;
+        dataMaps.set(index, map);
+      }
+      return dataMaps.get(index);
+    };
     let triangles = 0;
     for (const item of data.meshes) {
       if (
@@ -286,19 +337,37 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
             : item.kind === 'donor'
               ? 0x9d9dff
               : 0xb3bbc8;
-      const material = new THREE.MeshStandardMaterial({
+      const alphaMode = ['cutout', 'blend'].includes(item.alpha) ? item.alpha : 'opaque';
+      const normalMap = dataMap(item.normalTexture);
+      const specularMap = dataMap(item.specularTexture);
+      const common = {
         map: map || null,
+        normalMap,
         color,
         side: THREE.DoubleSide,
-        roughness: 0.7,
-        transparent: !!map && item.alpha === 'blend',
-        alphaTest: map && item.alpha === 'blend' ? 0.02 : 0,
-      });
+        transparent: alphaMode === 'blend',
+        alphaTest: alphaMode === 'cutout' ? 0.35 : alphaMode === 'blend' ? 0.02 : 0,
+        depthWrite: alphaMode !== 'blend',
+      };
+      const material = specularMap
+        ? new THREE.MeshPhongMaterial({
+            ...common,
+            specularMap,
+            shininess: 60,
+            specular: 0x777777,
+            normalScale: new THREE.Vector2(1, -1),
+          })
+        : new THREE.MeshStandardMaterial({
+            ...common,
+            roughness: 0.7,
+            normalScale: new THREE.Vector2(1, -1),
+          });
       const mesh = new THREE.Mesh(geometry, material);
       mesh.name = item.name;
       mesh.userData.candidate = item.candidate;
       (item.kind === 'donor' ? donor : base).add(mesh);
     }
+    secondaryMaps = [...dataMaps.values()];
     if (donor.children.length) {
       const box = new THREE.Box3();
       donor.children.forEach((mesh) => {
@@ -324,13 +393,18 @@ export function mountNativePreview({ container, toast, onPick, onTransform }) {
     setTransform([0, 0, 0], 1);
     showMode();
     if (!preserveCamera) fit();
+    showDiagnostics(data.meshes);
     $('nbPreviewStatus').textContent =
       triangles.toLocaleString() +
       (mode === 'ped' && sourcePreview
         ? ' triangles · model sumber, belum dirig.'
         : mode === 'ped'
           ? ' triangles · pose uji weights hasil Blender.'
-          : ' triangles · merah = badge dipilih · sumbu = posisi donor.');
+          : ' triangles · merah = badge dipilih · sumbu = posisi donor.') +
+      (data.meshes.some((m) => m.materialInfo?.diffuse === 'missing') ? ' · CHECK diffuse texture missing' : '') +
+      (data.meshes.some((m) => m.materialInfo?.uv === 'missing') ? ' · CHECK UV missing' : '') +
+      (data.meshes.some((m) => ['missing', 'uv-mismatch'].includes(m.materialInfo?.normal)) ? ' · CHECK normal map missing' : '') +
+      (data.meshes.some((m) => ['missing', 'uv-mismatch'].includes(m.materialInfo?.specular)) ? ' · CHECK specular map missing' : '');
   }
   function stopMotion() {
     if (motionFrame !== null) cancelAnimationFrame(motionFrame);

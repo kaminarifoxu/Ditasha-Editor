@@ -1,5 +1,7 @@
 import { extractHeadGeometry, makeMorphTarget } from './freemode-morph-generator.js';
 import { resolveCharacterBodyEntries } from './freemode-character-source.js';
+import { inspectFreemodeSources, inspectFreemodeUv, validatePedSettings } from './freemode-rig-audit.js';
+import { decodeResource } from './resource-client.js';
 import { toIlleniumAppearance, fromIlleniumAppearance, faceFeatureNames, overlayNames } from './character-appearance.js';
 import { createFilePreview } from './file-preview.js';
 import { resolveOutfitEntries, freemodeImportName } from './clothing-outfit-files.js';
@@ -17,7 +19,25 @@ export function mountCharacterMaker() {
         <label>Gender<select data-gender><option value="male">Cowok · mp_m_freemode_01</option><option value="female">Cewek · mp_f_freemode_01</option></select></label>
         <button data-import-freemode type="button">+ Simpan folder freemode ke aplikasi</button>
         <label>Model dasar freemode (YDD)<select data-base><option value="">Pilih model dasar</option></select></label>
-        <label>Outfit dari Clothing Library<select data-outfit><option value="">Tanpa outfit</option></select></label>
+        <label>Outfit dari Clothing Library<select data-outfit><option value="">Tanpa outfit</option></select></label> 
+        <details class="cm-advanced" data-ped-rig-settings>
+          <summary>Freemode skeleton, head &amp; hair UV</summary>
+          <label>Skeleton mode<select data-rig-mode>
+            <option value="auto">Auto — prefer matching imported YFT</option>
+            <option value="strict">Strict — require source YFT</option>
+          </select></label>
+          <button type="button" data-check-rig>Check matching skeleton &amp; head/hair UV</button>
+          <p class="muted" data-rig-status role="status">Check imported freemode source assets before rigging.</p>
+          <div class="cm-actions">
+            <label>Head UV X<input data-head-uv-x type="number" min="-1" max="1" step=".01" value="0"></label>
+            <label>Head UV Y<input data-head-uv-y type="number" min="-1" max="1" step=".01" value="0"></label>
+            <label>Head UV scale<input data-head-uv-scale type="number" min=".1" max="4" step=".01" value="1"></label>
+            <label>Hair UV X<input data-hair-uv-x type="number" min="-1" max="1" step=".01" value="0"></label>
+            <label>Hair UV Y<input data-hair-uv-y type="number" min="-1" max="1" step=".01" value="0"></label>
+            <label>Hair UV scale<input data-hair-uv-scale type="number" min=".1" max="4" step=".01" value="1"></label>
+          </div>
+          <small>UV atlas adjustments apply to the selected head/hair 3D preview and are saved with this character. They do not rewrite the original YDD/YTD UVs or alter GTA native rigs.</small>
+        </details>
         <div class="cm-actions"><button data-new>Baru</button><button data-save>Simpan karakter</button><button data-remove>Hapus</button><button data-export>Ekspor JSON FiveM</button><button data-import-json>Impor JSON FiveM</button><input data-json-file type="file" accept=".json,application/json" hidden></div>
       </aside>
       <main>
@@ -65,7 +85,12 @@ export function mountCharacterMaker() {
     const api={read:async id => id==='base'?{data:data.bytes,companion}: {
       data:(await window.ditashaClothing.previewRead(pack.id,related.relativePath)).bytes
     }};
-    const controller=await modelPreview.show(model,api,{facePreview:true,morphPack:activeMorphPack});
+    const uvSettings=readPedSettings();
+    const uvCalibration=entry.component==='head'?uvSettings.headUv:
+      entry.component==='hair'?uvSettings.hairUv:null;
+    const controller=await modelPreview.show(model,api,{
+      facePreview:true,morphPack:activeMorphPack,uvCalibration,
+    });
     if(version!==previewSerial)return;
     faceController=controller?.applyFace?controller:null;
     updateFace();
@@ -140,6 +165,64 @@ export function mountCharacterMaker() {
     wrapper.append(name,value,input); $('.cm-sliders').append(wrapper);sliders.set(key,input);
   }
   $('[data-live-face]').onchange=()=>{livePreviewEnabled=$('[data-live-face]').checked;updatePreview().catch(e=>{$('[data-preview]').textContent=e.message;});};
+  const uvAxes = ['head','hair'];
+  function readPedSettings(){
+    const settings={skeletonMode:$('[data-rig-mode]').value};
+    for(const part of uvAxes){
+      const get=suffix=>Number($('[data-'+part+'-uv-'+suffix+']').value);
+      settings[part+'Uv']=[get('x'),get('y'),get('scale'),get('scale')];
+    }
+    return validatePedSettings(settings);
+  }
+  function fillPedSettings(saved){
+    const settings=validatePedSettings(saved);
+    $('[data-rig-mode]').value=settings.skeletonMode;
+    for(const part of uvAxes){
+      const values=settings[part+'Uv'];
+      $('[data-'+part+'-uv-x]').value=values[0];
+      $('[data-'+part+'-uv-y]').value=values[1];
+      $('[data-'+part+'-uv-scale]').value=values[2];
+    }
+    $('[data-rig-status]').textContent='Rig and UV source check not run for this preset.';
+  }
+  for(const part of uvAxes)
+    for(const axis of ['x','y','scale']){
+      $('[data-'+part+'-uv-'+axis+']').onchange=()=>{
+        try {
+          readPedSettings();
+          const selected=baseRefs.get($('[data-base]').value);
+          if(selected?.relativePath.toLowerCase().includes(part))
+            updatePreview().catch(e=>{$('[data-rig-status]').textContent=e.message;});
+        }catch(e){$('[data-rig-status]').textContent=e.message;}
+      };
+    }
+  $('[data-check-rig]').onclick=async()=>{
+    const button=$('[data-check-rig]');button.disabled=true;
+    try {
+      const packs=await window.ditashaClothing.list();
+      const model=baseRefs.get($('[data-base]').value);
+      const report=inspectFreemodeSources(packs,model,$('[data-gender]').value);
+      const results=[report.skeleton==='source-yft'
+        ? 'Matching freemode YFT found: '+report.reference
+        : 'No source YFT available — native auto rig cannot be certified'];
+      for(const entry of report.components.filter(c=>['head','hair'].includes(c.component))){
+        const pack=packs.find(p=>p.id===model.packId);
+        const file=pack.files.find(f=>f.relativePath===entry.model);
+        const bytes=await window.ditashaClothing.previewRead(pack.id,file.relativePath);
+        const geometry=await decodeResource('ydd',new Uint8Array(bytes.bytes).buffer);
+        const audit=inspectFreemodeUv(geometry,entry.component);
+        results.push(entry.component.toUpperCase()+': '+audit.uvMeshes+
+          ' UV meshes, '+audit.missingUv+' missing; '+audit.warning+
+          (entry.textureCount?' · matching YTD found':' · no YTD'));
+      }
+      results.push(...report.issues);
+      if($('[data-rig-mode]').value==='strict' && report.skeleton!=='source-yft')
+        results.push('STRICT MODE: saving appearance is allowed, but native rigging requires a source YFT.');
+      results.push('Bone-weight retargeting, hair placement and GTA animation compatibility require a matched YFT and in-game validation.');
+      $('[data-rig-status]').textContent=results.join('\n');
+    }catch(e){$('[data-rig-status]').textContent='Freemode inspection: '+e.message;}
+    finally{button.disabled=false;}
+  };
   const read=()=>{
     const appearance={features:[],overlays:[]};
     for(const [key,input] of sliders) {
@@ -149,11 +232,13 @@ export function mountCharacterMaker() {
     }
     return {id,name:$('[data-name]').value,gender:$('[data-gender]').value,
       outfitId:$('[data-outfit]').value||null,
-      baseModel:baseRefs.get($('[data-base]').value)||null,morphPack:activeMorphPack,appearance};
+      baseModel:baseRefs.get($('[data-base]').value)||null,morphPack:activeMorphPack,
+      pedSettings:readPedSettings(),appearance};
   };
   const fill=preset=>{
     id=preset?.id||null;
     activeMorphPack=preset?.morphPack||null;
+    fillPedSettings(preset?.pedSettings);
     $('[data-clear-morph]').hidden=!activeMorphPack;
     $('[data-name]').value=preset?.name||'New Character';
     $('[data-gender]').value=preset?.gender||'male';
@@ -183,7 +268,7 @@ export function mountCharacterMaker() {
     baseSelect.replaceChildren(new Option('Pilih model kepala/tubuh YDD',''));
     for(const pack of packs) for(const file of pack.files) {
       if(file.gender!==$('[data-gender]').value || !/\.ydd$/i.test(file.name))continue;
-      if(!['head','uppr','jbib'].includes(file.component))continue;
+      if(!['head','hair','uppr','jbib'].includes(file.component))continue;
       const key=pack.id+'|'+file.relativePath;
       baseRefs.set(key,{packId:pack.id,relativePath:file.relativePath});
       baseSelect.add(new Option(pack.pack+' · '+file.name,key));
@@ -273,6 +358,11 @@ export function mountCharacterMaker() {
   };
   $('[data-send]').onclick=async()=>{
     try {
+      const settings=readPedSettings();
+      const source=baseRefs.get($('[data-base]').value);
+      const check=inspectFreemodeSources(await window.ditashaClothing.list(),source,$('[data-gender]').value);
+      if(settings.skeletonMode==='strict' && check.skeleton!=='source-yft')
+        throw Error('Strict rig: import the matching original freemode YFT skeleton before Photo Booth.');
       const preset=await window.ditashaCharacters.save(read());id=preset.id;
       const outfits=await window.ditashaClothing.listOutfits();
       const outfit=outfits.find(x=>x.id===preset.outfitId);

@@ -56,6 +56,26 @@ contextBridge.exposeInMainWorld('ditashaDesktop', {
   saveExport: (payload) => ipcRenderer.invoke('ditasha:save-export', payload),
 });
 
+contextBridge.exposeInMainWorld('ditashaCreators', Object.freeze({
+  state: () => ipcRenderer.invoke('ditasha:creators-state'),
+  pickProp: (kind) => ipcRenderer.invoke('ditasha:prop-pick', kind),
+  revokeProp: (token) => ipcRenderer.invoke('ditasha:prop-revoke', token),
+  checkPropDeps: () => ipcRenderer.invoke('ditasha:prop-deps'),
+  startProp: (request) => ipcRenderer.invoke('ditasha:prop-start', request),
+  propJob: (jobId) => ipcRenderer.invoke('ditasha:prop-job', jobId),
+  cancelProp: (jobId) => ipcRenderer.invoke('ditasha:prop-cancel', jobId),
+}));
+
+contextBridge.exposeInMainWorld('ditashaWeaponCreator', Object.freeze({
+  pick: (kind) => ipcRenderer.invoke('ditasha:weapon-pick', kind),
+  revoke: (token) => ipcRenderer.invoke('ditasha:weapon-revoke', token),
+  deps: () => ipcRenderer.invoke('ditasha:weapon-deps'),
+  start: (request) => ipcRenderer.invoke('ditasha:weapon-start', request),
+  startCustom: (request, glb) => ipcRenderer.invoke('ditasha:weapon-custom-start', request, glb),
+  job: (id) => ipcRenderer.invoke('ditasha:weapon-job', id),
+  cancel: (id) => ipcRenderer.invoke('ditasha:weapon-cancel', id),
+}));
+
 contextBridge.exposeInMainWorld('ditashaNative', {
   state: () => ipcRenderer.invoke('ditasha:native-state'),
   setup: () => ipcRenderer.invoke('ditasha:native-setup'),

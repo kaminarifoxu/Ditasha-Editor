@@ -1,0 +1,50 @@
+name: DITASHA Phase 3 Ped Native Windows Integration
+on:
+  push:
+    branches: [feature/phase3-creators]
+    paths:
+      - '.github/workflows/phase3-ped-native.yml'
+      - 'electron/half_ped.py'
+      - 'electron/native_bridge.py'
+      - 'electron/clothing_workflow.py'
+      - 'electron/garment_skin.py'
+      - 'electron/native-setup.cjs'
+      - 'electron/native-build.cjs'
+      - 'scripts/smoke-native-setup.cjs'
+      - 'scripts/prepare-texture-roundtrip.mjs'
+      - 'tests/half-ped-blender.py'
+      - 'tests/clothing-native-blender.py'
+      - 'tests/texture-allocation-blender.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ditasha-phase3-ped-native-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  ped-native-integration:
+    runs-on: windows-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Verify ped and native-material regressions
+        run: node --test tests/native-material-report.test.mjs tests/native-preview-material.test.mjs tests/freemode-texture-pairing.test.mjs tests/freemode-character-source.test.mjs
+      - name: Install and probe managed Blender Sollumz native provider and Muto; round-trip real head/hair YDD and YTD fixture
+        run: npx electron scripts/smoke-native-setup.cjs --character-only
+        timeout-minutes: 45
+      - name: Upload native YTD fixture and metadata for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: DITASHA-Phase3-Ped-Native-QA
+          path: |
+            release/native-qa/native-repacked.ytd
+            release/native-qa/expected.json
+          if-no-files-found: warn
+          retention-days: 7

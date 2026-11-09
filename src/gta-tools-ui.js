@@ -4,7 +4,7 @@ export function mountGtaTool({ nav, activate, viewers, toast, tool, download, co
   const icon = (name) =>
     `<i class="di-icon" aria-hidden="true" data-icon="${name}" data-glyph="${String.fromCodePoint(parseInt(ICON_CODES[name] || ICON_CODES.cube, 16))}"></i>`;
   const button = document.createElement('button');
-  const title = tool === 'moddrop' ? 'ModDropV' : 'AddonWeaponsBuilder';
+  const title = tool === 'moddrop' ? 'ModDropV' : 'Weapon Studio';
   button.dataset.page = tool;
   button.onclick = () => activate(tool);
   button.innerHTML = icon('cube') + '<span>' + title + '</span>';
@@ -12,9 +12,9 @@ export function mountGtaTool({ nav, activate, viewers, toast, tool, download, co
   const root = document.createElement('section');
   root.className = 'gta-tools-workspace';
   root.hidden = true;
-  root.innerHTML = `<div class="gt-heading"><div><span class="eyebrow">DITASHA / DESKTOP ENGINES</span><h1>${title}</h1><p class="muted">${tool === 'moddrop' ? 'Builder DLC kendaraan, ped, prop dan pakaian.' : 'Analisis, rencana nama dan build DLC senjata.'}</p></div><button id="gtRefresh">Periksa tools</button></div>
+  root.innerHTML = `<div class="gt-heading"><div><span class="eyebrow">DITASHA / DESKTOP ENGINES</span><h1>${title}</h1><p class="muted">${tool === 'moddrop' ? 'Builder DLC kendaraan, ped, prop dan pakaian.' : 'Desain senjata custom, impor GLB/prop serta YDR/YTD, periksa attachment, dan build DLC GTA/FiveM menggunakan engine terverifikasi.'}</p></div><button id="gtRefresh">Periksa tools</button></div>
   <div class="gt-cards" id="gtCards"></div>
-  <div class="gt-layout"><section class="gt-panel"><span class="eyebrow">BUILD WORKSPACE</span><h2>Siapkan add-on DLC</h2><div class="gt-fields"><label hidden>Engine<select id="gtTool"><option value="weapons">AddonWeaponsBuilder</option><option value="moddrop">ModDropV</option></select></label><label>Proses<select id="gtOperation"></select></label></div>
+  <div class="gt-layout"><section class="gt-panel"><span class="eyebrow">BUILD WORKSPACE</span><h2>AddonWeaponsBuilder · GTA DLC engine</h2><div class="gt-fields"><label hidden>Engine<select id="gtTool"><option value="weapons">AddonWeaponsBuilder</option><option value="moddrop">ModDropV</option></select></label><label>Proses<select id="gtOperation"></select></label></div>
   <div class="gt-path"><button id="gtSource">Pilih folder sumber</button><span id="gtSourcePath">Belum dipilih</span></div><p class="muted">Pilih folder mod yang sudah diekstrak. Gunakan aplikasi asli untuk instalasi dan pengelolaan mod di GTA V.</p>
   <div class="gt-path"><button id="gtOutput">Pilih folder hasil</button><span id="gtOutputPath">Belum dipilih</span></div>
   <div class="gt-fields"><label>Nama proyek<input id="gtName" maxlength="100" placeholder="Ditasha addon"></label><label>Nama model baru<input id="gtModel" maxlength="64" placeholder="ditasha_model"></label><label id="gtBaseField">Base kendaraan / ped<input id="gtBase" maxlength="64" placeholder="adder"></label><label id="gtPriceField">Harga senjata<input id="gtPrice" type="number" min="0" max="2147483647" value="5000"></label><label>Edisi<select id="gtEdition"><option value="legacy">GTA V Legacy</option><option value="enhanced">GTA V Enhanced</option></select></label><label id="gtFemaleField" class="check"><input id="gtFemale" type="checkbox">Fallback pakaian female</label></div>
@@ -46,7 +46,7 @@ export function mountGtaTool({ nav, activate, viewers, toast, tool, download, co
       'weapons',
       'AddonWeaponsBuilder',
       '2.0.0',
-      'Analisis model, rencana nama dan build senjata add-on lewat engine aslinya.',
+      'Engine DLC untuk Weapon Studio. Gunakan input GTA native yang siap dan diverifikasi; GLB tambahan di preview belum otomatis menjadi senjata.',
     ],
   ];
   function controls() {

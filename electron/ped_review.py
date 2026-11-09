@@ -119,6 +119,19 @@ def configure_muto(settings, options):
     return height
 
 
+def muto_failure_message(result):
+    """Keep Muto's actual failing operation in the user-visible error."""
+    if not isinstance(result, dict):
+        return 'Muto tidak mengembalikan laporan rigging yang valid.'
+    steps = result.get('steps') or {}
+    failed = next(((name, value) for name, value in steps.items()
+                   if value not in ('FINISHED', 'SKIPPED')), None)
+    last = failed or next(reversed(steps.items()), ('unknown', 'no steps recorded'))
+    error = str(result.get('error') or last[1]).strip().splitlines()
+    reason = error[-1][:500] if error else 'unknown error'
+    return 'Muto gagal pada tahap %s: %s. Periksa batch_report.json atau proyek .blend.' % (last[0], reason)
+
+
 def armature_for(obj):
     arm = obj.find_armature()
     if arm is not None:
@@ -131,19 +144,85 @@ def armature_for(obj):
     return None
 
 
-def run_muto(worker, bpy, arguments, options):
-    # The pinned batch worker imports the model before reading Scene.mpr. Apply
-    # settings after import too, in case a multi-scene GLB changes active scenes.
+def run_muto(worker, bpy, arguments, options, stage_callback=None, image_node=None):
+    # Muto imports before it reads Scene.mpr; preserve its own fitted rig.
     height = configure_muto(bpy.context.scene.mpr, options)
     original_import = worker._import
+    source_audit = None
     def configured_import(source):
         original_import(source)
         configure_muto(bpy.context.scene.mpr, options)
+        # Blender has bpy.data.objects; isolated Muto worker tests intentionally
+        # supply a minimal bpy context. Only count meshes when the scene exists.
+        objects = getattr(getattr(bpy, 'data', None), 'objects', ())
+        meshes = [o for o in objects
+                  if getattr(o, 'type', None) == 'MESH' and
+                  len(getattr(getattr(o, 'data', None), 'polygons', ())) > 0]
+        if objects:
+            vertices = sum(len(o.data.vertices) for o in meshes)
+            faces = sum(len(o.data.polygons) for o in meshes)
+            # Muto joins all imported meshes next. Report size before expensive fitting.
+            print('DITASHA_PED_STAGE Imported model: %s meshes, %s vertices, %s faces; preparing mesh join and auto markers' %
+                  (len(meshes), vertices, faces), flush=True)
+            if vertices > 2000000 or faces > 2000000 or len(meshes) > 500:
+                raise ValueError('Model terlalu berat untuk auto rig: %s meshes, %s vertices, %s faces. Decimate/merge in Blender first.' %
+                                 (len(meshes), vertices, faces))
+            if image_node is not None:
+                nonlocal source_audit
+                source_audit = audit_source(bpy, meshes, image_node)
+                missing = source_audit.get('missingTextures', [])
+                absent_uv = source_audit.get('missingUV', [])
+                solid = source_audit.get('solidMaterials', [])
+                if stage_callback is not None and (missing or absent_uv or solid):
+                    stage_callback('Source material audit: %d unreadable textures, %d missing UV meshes, %d untextured materials' %
+                                   (len(missing), len(absent_uv), len(solid)))
+    original_steps = getattr(worker, 'STEPS', None)
+    if original_steps is not None and stage_callback is not None:
+        # Muto's batch worker iterates STEPS for the full ped pipeline.
+        # A tuple-compatible wrapper emits the CURRENT operation without
+        # modifying operator functions, rig weights, or export logic.
+        class TrackedSteps(tuple):
+            def __iter__(self):
+                for stage in super().__iter__():
+                    stage_callback('Muto step: ' + str(stage[0])[:48])
+                    yield stage
+        worker.STEPS = TrackedSteps(original_steps)
     worker._import = configured_import
     try:
-        return worker.run({**arguments, 'height': height})
+        result = worker.run({**arguments, 'height': height})
+        if isinstance(result, dict) and source_audit is not None:
+            result['sourceMaterialAudit'] = source_audit
+        return result
     finally:
         worker._import = original_import
+        if original_steps is not None and stage_callback is not None:
+            worker.STEPS = original_steps
+
+
+
+def compatible_ped_armature(objects):
+    """Muto can export separate identical LOD armatures. Verify, do not count
+    duplicated 128-bone rigs as 256 different GTA bones.
+    """
+    rigs = {}
+    for obj in objects:
+        arm = armature_for(obj)
+        if arm is not None:
+            rigs[arm.name] = arm
+    if not rigs:
+        raise ValueError('No GTA rig is attached to exported ped drawable meshes')
+    def signature(arm):
+        bones = list(arm.data.bones)
+        names = [bone.name for bone in bones]
+        if len(names) < 30 or len(names) != len(set(names)) or 'SKEL_Head' not in names:
+            raise ValueError('Exported ped skeleton has missing or duplicated GTA bones')
+        return {bone.name: bone.parent.name if bone.parent else None for bone in bones}
+    arms = list(rigs.values())
+    expected = signature(arms[0])
+    for arm in arms[1:]:
+        if signature(arm) != expected:
+            raise ValueError('Native ped drawable meshes use incompatible skeleton hierarchies')
+    return arms[0], len(arms), len(expected)
 
 
 def audit_rig(objects, mesh_levels):
@@ -185,6 +264,17 @@ def audit_rig(objects, mesh_levels):
                 result['unnormalized'] += int(bool(positive) and abs(sum(positive) - 1) > .02)
     result['armatures'] = len(arms)
     result['bones'] = sum(len(a.data.bones) for a in arms.values())
+    result['compatibleSkeletons'] = False
+    if arms:
+        try:
+            primary, count, bones = compatible_ped_armature(objects)
+            result['armatures'] = count
+            result['compatibleSkeletons'] = True
+            result['bones'] = bones
+        except ValueError as error:
+            # Keep diagnostic reports usable for malformed source rigs.
+            # native_bridge.py will independently refuse native export.
+            result['skeletonWarning'] = str(error)
     result['missingTextures'] = sorted(missing_textures)[:64]
     result['missingUV'] = result['missingUV'][:64]
     result['missingLOD'] = result['missingLOD'][:64]

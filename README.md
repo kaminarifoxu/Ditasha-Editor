@@ -25,6 +25,24 @@ opacity, kuas, penghapus, urutan, duplikat, kunci, undo/redo dan tab.
 UV biru tidak ikut diekspor. Pengeditan mesh/ekspor YFT/YDD/YDR belum tersedia.
 Ekspor desain sebelum menutup; proyek tersimpan di memori selama aplikasi terbuka.
 
+## File Manager / Clothing Library V2 — FROZEN (5 November 2026)
+
+**Status: selesai untuk sementara, dikunci atas permintaan pemilik proyek.** Baseline kode: `fefb3fd22757a456c448b5a109efcd540910d569` pada branch `feature/phase3-creators`. Jangan mengubah perilaku, desain, tata letak, atau alur File Manager/Clothing Library V2 dalam pekerjaan modul berikutnya tanpa persetujuan eksplisit. Perbaikan darurat untuk keamanan atau kerusakan yang terbukti harus dibatasi dan disetujui terlebih dahulu; jangan melakukan refactor lintas-modul yang tidak diperlukan. Jangan merge perubahan ini ke `main` tanpa instruksi.
+
+Baseline yang dipertahankan:
+- Pemindaian folder/subfolder, pengurutan, filter, pagination, tampilan grid/list, thumbnail aset dan preview 3D kanan.
+- Pengelompokan YDD dengan YTD terkait, termasuk varian tekstur; pencocokan otomatis berdasarkan nama file/family, drawable, collection, dan folder yang sesuai.
+- Penerapan otomatis satu diffuse YTD yang tidak ambigu ketika referensi sampler YDD berbeda; **tanpa tombol Force YTD**. Model yang tidak mempunyai pasangan aman tetap ditampilkan tanpa memaksakan atlas yang tidak terkait.
+- Preview dan pemilihan varian YTD yang sudah ada, serta batas perlindungan saat membuka aset besar. File sumber YDD/YTD tidak ditulis ulang oleh pencocokan preview.
+
+**Pengecualian performa disetujui (5 November 2026):** pemilik proyek melaporkan File Manager lambat saat membuka ratusan model rambut meski GPU aktif. Optimalisasi terbatas dilakukan tanpa mengubah desain/UI, pengelompokan YDD/YTD, hasil sorting, atau format file: thumbnail hanya dirender ketika mendekati viewport, hasil gambar di-cache secara terbatas selama sesi, dan observer lama dilepas ketika pindah halaman. Optimalisasi tahap kedua: gunakan **satu WebGL renderer reusable untuk seluruh thumbnail statis**, alih-alih membuat dan menghancurkan konteks GPU per YDD; hilangkan OrbitControls/ResizeObserver dari snapshot, dan lakukan **prefetch decode YDD/YTD melalui pool dua worker terpisah** sambil renderer GPU menggambar thumbnail saat ini. Preview 3D interaktif tetap memiliki renderer sendiri, semua pasangan YTD serta alpha tetap dipertahankan. Status File Manager tetap frozen untuk perubahan fitur/desain lain. Mengaktifkan preferensi high-performance WebGL tidak menjamin angka utilisasi GPU tinggi karena parsing file, I/O, dan decoding tekstur juga menggunakan CPU. Verifikasi kecepatan harus membandingkan folder 787 aset nyata dan hasil CI; angka persentase GPU bukan indikator tunggal.
+
+**Perbaikan regresi thumbnail (6 November 2026):** setelah optimasi shared WebGL, beberapa thumbnail di grid menampilkan hanya potongan/sisi model meskipun preview kanan lengkap. Jalur snapshot kini menangkap **framebuffer WebGL berukuran tetap** melalui `readRenderTargetPixels`, dengan pembalikan baris OpenGL sebelum dikonversi ke PNG; tidak lagi mengambil gambar dari canvas DOM yang diposisikan jauh di luar viewport. Renderer GPU bersama, worker prefetch, cache, dan UI tetap dipertahankan. Pengujian regresi memastikan susunan piksel dan jalur snapshot; hasil visual pada aset rambut pengguna masih memerlukan pemeriksaan EXE Windows.
+
+**Perbaikan arah kamera thumbnail (6 November 2026):** keluhan model pada grid masih hanya menampilkan serpihan setelah framebuffer fix. Penyebab di jalur snapshot: setelah `OrbitControls` ditiadakan demi performa, kamera statis tidak lagi diputar menuju pusat bounding box model, sedangkan inspector kanan masih menggunakan `OrbitControls.update()` yang mengarahkannya. Tambahkan `camera.lookAt(center)` dan update matrix dunia untuk snapshot, plus pengujian proyeksi model dengan pusat jauh dari origin. Tidak mengubah framing inspector 3D, pengelompokan tekstur, atau desain File Manager. **Belum dinyatakan terverifikasi secara visual pada folder pengguna sampai EXE baru diuji.**
+
+**Batas verifikasi:** status frozen adalah keputusan ruang lingkup proyek, bukan klaim bahwa semua aset GTA/FiveM selalu tampil sempurna atau sebuah GitHub branch protection rule sudah terpasang. Perubahan terbaru telah melewati pemeriksaan yang tersedia pada branch; kecocokan materi untuk setiap aset asli dan build Windows akhir tetap perlu validasi tersendiri. Pekerjaan selanjutnya difokuskan pada modul lain.
+
 ## GTA V Explorer & editor kode
 
 Klik sekali YFT/YDD/YDR untuk preview 3D langsung di Explorer; daftar file tetap terlihat.
@@ -48,6 +66,18 @@ disertakan di assets aplikasi.
 Buka **Auto rig ped → Download & set up** untuk memasang engine dan add-on secara otomatis.
 Setelah selesai, pilih model humanoid GLB/FBX/OBJ dalam A/T-pose dan nama ped, lalu klik
 **Buat preview rig**. Periksa model 3D, kemudian **Simpan hasil ped** untuk memilih folder hasil. Panduan lengkap: [NATIVE_BUILD.md](docs/NATIVE_BUILD.md).
+
+## Ped Workshop / Auto Rig — ACTIVE REPAIR (5 November 2026)
+
+**Status: aktif diperbaiki, BELUM selesai atau terkunci.** Pemilik proyek mengklarifikasi bahwa hanya File Manager / Clothing Library V2 yang frozen. Fokus sekarang adalah memperbaiki **Full Ped Rig / Muto** yang macet atau mengeluarkan kode 1 setelah impor GLB, serta material/tekstur head, hair dan full ped yang salah atau hilang. Kerjakan hanya `feature/phase3-creators`; jangan merge `main`. Jaga UI utama, File Manager frozen, Weapon Studio, Prop & Collision Creator, dan modul lain tetap tidak berubah.
+
+Prioritas verifikasi:
+1. Bandingkan log dari model GLB nyata dan fixture Blender/Sollumz. Catat marker Muto, kompleksitas mesh, orientasi, skeleton, bobot tulang, dan penyebab akhir timeout; jangan samakan CI sintetis yang lulus dengan perbaikan runtime pada semua ped.
+2. Tinjau apakah ped memakai **skeleton freemode kompatibel**, bone hierarchy dan max empat bobot pengaruh per vertex. Periksa ekspor dan reimport YDD/YFT/YTD serta pose untuk mendeteksi T-pose.
+3. Resolusi diffuse/normal/specular per material; referensi YTD, alpha/cutout rambut, UV, dan penanganan atlas yang hilang. Jangan mengganti pixel hitam menjadi transparan atau memaksa atlas tidak relevan.
+4. Tambahkan tes regresi serta Windows native verification untuk tiap perbaikan; uji dalam FiveM dengan aset nyata sebelum menyebut modul selesai.
+
+**Known issues remain open:** full-ped Muto bisa timeout sesudah `glTF import finished`, rigging tertentu mengembalikan kode 1, dan sejumlah tekstur salah/abu-abu/hitam. Ped Workshop **tidak frozen** sampai pemilik proyek menyatakan selesai secara eksplisit.
 
 ## Update aplikasi
 

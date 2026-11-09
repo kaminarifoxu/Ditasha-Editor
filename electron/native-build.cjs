@@ -5,6 +5,7 @@ const fs = require('node:fs/promises'),
 const { spawn } = require('node:child_process');
 const { randomUUID } = require('node:crypto');
 const { setupNative, managedEnv } = require('./native-setup.cjs');
+const { verifyPedNativeArtifacts } = require('./ped-native-report.cjs');
 const PED_POSES = {
   rest: 'preview.json',
   arms: 'preview-arms.json',
@@ -507,6 +508,8 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
     running = true;
     let destination;
     try {
+      if (pending.kind === 'ped')
+        await verifyPedNativeArtifacts(pending.output, state.report);
       destination = await fs.mkdtemp(
         path.join(
           choice.filePaths[0],
@@ -598,7 +601,13 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
     if (job.mode === 'strobo')
       for (const kind of ['donor', 'carcols', 'variations', 'vehicles'])
         job[kind] = await get(kind);
-    if (sourcePreviewRoot) {
+    // Full-ped rigging must not delete the separately generated source preview.
+    // Keep its IPC id and JSON alive while Muto works (and on a failed build).
+    const keepPedSourcePreview =
+      job.mode === 'ped' && !!sourcePreviewRoot && !!preview &&
+      !!state.previewId && state.previewId === preview.id &&
+      preview.path.startsWith(path.join(sourcePreviewRoot, 'output') + path.sep);
+    if (sourcePreviewRoot && !keepPedSourcePreview) {
       await fs.rm(sourcePreviewRoot, { recursive: true, force: true }).catch(() => {});
       sourcePreviewRoot = null;
     }
@@ -631,16 +640,24 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
       'native_dds.py',
       'logo_prop.py',
       'half_ped.py',
+      'ped_native_verify.py',
     ])
       await fs.copyFile(path.join(__dirname, name), path.join(root, name));
     await fs.writeFile(spec, JSON.stringify(job));
-    preview = null;
+    const priorPreview = keepPedSourcePreview ? preview : null;
+    const priorReport = keepPedSourcePreview ? state.report : null;
+    if (!priorPreview) preview = null;
     reviewFile = null;
     state = {
       status: 'running',
-      message: 'Menjalankan Blender…',
+      message: job.mode === 'ped'
+        ? 'Blender dimulai. Preview sumber tetap tampil saat Muto melakukan rigging…'
+        : 'Menjalankan Blender…',
+      step: job.mode === 'ped' ? 'Starting Blender and loading the rigging engine' : null,
+      startedAt: Date.now(),
       log: '',
-      report: null,
+      report: priorReport,
+      ...(priorPreview ? { previewId: priorPreview.id, sourcePreviewActive: true } : {}),
       output: ['probe', 'ped', 'ped_preview', 'garment'].includes(job.mode)
         ? null
         : job.mode === 'logo'
@@ -665,23 +682,65 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
       throw e;
     }
     let settled = false;
-    const append = (chunk) => {
-      state.log = (state.log + chunk.toString()).slice(-24000);
+    let stageBuffer = '';
+    const append = (chunk, isStdout = false) => {
+      const text = chunk.toString();
+      state.log = (state.log + text).slice(-24000);
+      if (job.mode !== 'ped' || !isStdout) return;
+      stageBuffer += text;
+      // Events can be fragmented across stdout chunks. Keep a bounded line buffer.
+      const lines = stageBuffer.split(/\r?\n/);
+      stageBuffer = lines.pop().slice(-2048);
+      for (const line of lines) {
+        const match = /^DITASHA_PED_STAGE (.{1,300})$/.exec(line.trim());
+        if (!match) continue;
+        state.step = match[1];
+        state.message = match[1];
+      }
     };
-    child.stdout.on('data', append);
-    child.stderr.on('data', append);
+    child.stdout.on('data', (chunk) => append(chunk, true));
+    child.stderr.on('data', (chunk) => append(chunk, false));
+    const stagePath = job.mode === 'ped' ? path.join(job.output, 'ped-stage.json') : null;
+    const updateStageFromFile = async () => {
+      if (!stagePath || settled) return;
+      try {
+        const stat = await fs.stat(stagePath);
+        if (stat.size > 2048 || stat.size === 0) return;
+        const stage = JSON.parse(await fs.readFile(stagePath, 'utf8'));
+        if (typeof stage.step !== 'string' || stage.step.length > 300) return;
+        if (state.step !== stage.step) {
+          state.step = stage.step;
+          state.message = stage.step;
+        }
+      } catch {
+        // The first stage may not exist yet; atomic writer replaces the file.
+      }
+    };
+    const stagePoll = stagePath ? setInterval(updateStageFromFile, 800) : null;
+    stagePoll?.unref?.();
+    let timeoutReason = null;
     const timer = setTimeout(
       () => {
+        // The final atomic stage can arrive between polling ticks.
+        void updateStageFromFile();
+        timeoutReason =
+          'Blender/Muto melewati batas 15 menit pada tahap: ' +
+          (state.step || 'tidak diketahui') +
+          '. Proses dihentikan; coba periksa model atau matikan Face/Fingers detail.';
         state.cancelled = true;
-        state.message = 'Build melebihi 15 menit; dihentikan.';
+        state.message = timeoutReason;
+        state.log = (state.log + '\nDITASHA_TIMEOUT ' + timeoutReason + '\n').slice(-24000);
         cancel();
       },
       15 * 60 * 1000,
     );
     const finish = async (error) => {
       if (settled) return;
+      // Inspect the persisted marker once more before reporting a failed build.
+      await updateStageFromFile();
       settled = true;
       clearTimeout(timer);
+      if (stagePoll) clearInterval(stagePoll);
       child = null;
       try {
         const reportFile = path.join(job.output, 'report.json');
@@ -698,7 +757,10 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
             state.reviewId = reviewFile.id;
           }
         }
-        if (rep.ok && rep.preview && !error && !state.cancelled) {
+        // A failed native validation can still have a safely generated rest
+        // preview; make it inspectable without enabling save/export.
+        if (rep.preview && !state.cancelled && ['ped','ped_preview','garment'].includes(job.mode) &&
+            (!priorPreview || (rep.ok && !error))) {
           const previewPath = path.join(job.output, 'preview.json');
           if ((await fs.stat(previewPath)).size > 48 * 1024 * 1024)
             throw Error('Preview terlalu besar.');
@@ -712,14 +774,21 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
               : [],
           };
           state.previewId = preview.id;
+          delete state.sourcePreviewActive;
         }
         if (['ped', 'garment'].includes(job.mode) && rep.ok && !error && !state.cancelled) {
-          if (!state.previewId) throw Error('Engine tidak menghasilkan preview ped.');
+          if (!rep.preview || !state.previewId || state.sourcePreviewActive)
+            throw Error('Engine tidak menghasilkan preview rig yang baru.');
           stagedPed = { id: randomUUID(), root, output: job.output, kind: job.mode };
           state.stagedId = stagedPed.id;
         }
+        // A failed/cancelled native job retains the source preview, never an
+        // export-ready staged rig. The viewer must remain usable for inspection.
+        if (state.sourcePreviewActive && (!rep.ok || error || state.cancelled || !rep.preview)) {
+          state.report = priorReport;
+        }
         state.status = rep.ok && !error && !state.cancelled ? 'success' : 'error';
-        state.message = state.cancelled
+        state.message = timeoutReason || (state.cancelled
           ? 'Build dibatalkan; hasil parsial jangan dipakai.'
           : rep.error ||
             error ||
@@ -727,10 +796,21 @@ function registerNativeBuild({ app, ipcMain, dialog, shell, win, trusted, spawnP
               ? 'Model sumber siap diperiksa. Belum ada proses rig atau ekspor game.'
               : ['ped', 'garment'].includes(job.mode)
                 ? 'Preview rig siap. Periksa model 3D, lalu Simpan hasil ped.'
-                : 'Proses selesai. Periksa report dan hasil sebelum dipakai di game.');
-      } catch {
+                : 'Proses selesai. Periksa report dan hasil sebelum dipakai di game.'));
+      } catch (reportError) {
+        if (priorPreview) {
+          preview = priorPreview;
+          state.previewId = priorPreview.id;
+          state.sourcePreviewActive = true;
+          state.report = priorReport;
+        }
         state.status = 'error';
-        state.message = error || 'Engine tidak menghasilkan report. Periksa log.';
+        state.message = timeoutReason || (job.mode === 'ped'
+          ? (error ? String(error) + ' · Tahap terakhir: ' + (state.step || 'unknown') +
+              '; ' + (reportError?.message || 'tidak ada report') :
+              'Blender tidak menghasilkan report yang bisa dibaca: ' +
+              (reportError?.message || 'report.json tidak tersedia'))
+          : error || 'Engine tidak menghasilkan report. Periksa log.');
       }
       if (job.mode === 'probe') await fs.rm(root, { recursive: true, force: true }).catch(() => {});
       running = false;
