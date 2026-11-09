@@ -1,10 +1,12 @@
 # Phase 3 M1 — Prop & Collision Creator implementation plan
 
-Status: **prepared, not implemented**. Target integration branch: `feature/phase3-creators`. The existing DITASHA UI must remain unchanged until optional tool controls are explicitly enabled. Main branch is out of scope.
+Status: **partially implemented; native Windows and FiveM acceptance pending**. Target integration branch: `feature/phase3-creators`. The existing DITASHA UI must remain unchanged outside the optional Prop Creator workspace. Main branch is out of scope.
+
+Implementation note (2026-11-09): the branch now contains the prop request schema, trusted asset grants, managed Blender/Sollumz probe, native worker, staged export validation, resource packaging, and optional Prop Creator UI. `scripts/smoke-prop-native.cjs` now generates a real GLB 2.0 cube fixture with UVs and a PBR base-color material; `tests/prop-glb-fixture.test.cjs` validates its GLB container. These checks validate the fixture and code structure, **not** a successful native YDR/YTD/YBN/YTYP export. Run the Windows native smoke and a real FiveM in-game test before treating the converter as production-ready.
 
 ## Verified M0 baseline
 
-GitHub Actions [run 41734813148](https://github.com/kaminarifoxu/Ditasha-Editor/actions/runs/41734813148) completed successfully: `npm ci`, clothing-library test, `npm test`, `npm run build:ui`. This does **not** prove Windows packaging or in-game behavior. M0 code adds disabled creators, read-only trusted IPC, a bounded internal cooperative queue, artifact validation, and staged non-overwriting export. No creator native handler is enabled.
+GitHub Actions [run 41734813148](https://github.com/kaminarifoxu/Ditasha-Editor/actions/runs/41734813148) completed successfully: `npm ci`, clothing-library test, `npm test`, `npm run build:ui`. This does **not** prove Windows packaging or in-game behavior. M0 foundations include trusted IPC, a bounded internal cooperative queue, artifact validation, and staged non-overwriting export. The prop handler is now registered behind managed-engine checks; no claim of production-ready native export is made until the real Windows round-trip and FiveM acceptance gates pass.
 
 ## Existing code to reuse
 
