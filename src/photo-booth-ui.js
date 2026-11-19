@@ -1498,7 +1498,11 @@ export function mountPhotoBooth({ nav, activate, download, toast }) {
         ? `${assets.length} aset · ${new Set(warnings).size} hal perlu diperiksa. Klik Lihat masalah.`
         : `${assets.length} aset · siap foto. File sumber tetap utuh.`,
     );
+    // Rebuilding without fitting is used for texture overrides and other material
+    // changes. Always draw the rebuilt scene; otherwise the WebGL canvas keeps
+    // showing the previous framebuffer even though the selected texture changed.
     if (fitCamera) fit();
+    else render();
   }
   function clipsFor(actor) {
     return [
