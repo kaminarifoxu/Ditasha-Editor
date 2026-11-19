@@ -546,15 +546,28 @@ module.exports = async function checkPhotoBooth(fixtures) {
   );
   $('pbPose').value = 'rest';
   $('pbPose').dispatchEvent(new Event('change'));
+  // This texture regression must isolate the model from the Loft/Neon studios
+  // selected by earlier scenarios. A studio-sized camera fit can make the tiny
+  // native fixture invisible or too small to affect a full-canvas pixel check.
+  const beforeStudioReset = canvas().toDataURL();
+  $('pbStudio').value = 'plain';
+  $('pbStudio').dispatchEvent(new Event('change'));
+  await wait(
+    () => canvas().toDataURL() !== beforeStudioReset,
+    'Plain studio reset before texture override',
+  );
   $('pbFit').click();
   const beforeReplacement = canvas().toDataURL();
   const replace = $('pbAssets').querySelector('[data-preview-texture]');
-  replace.selectedIndex = 1;
+  const replacementOption = [...replace.options].find((option) =>
+    option.textContent.includes('preview_repair'),
+  );
+  assert(replacementOption, 'Replacement YTD preview_repair texture is missing from the selector');
+  replace.value = replacementOption.value;
   replace.dispatchEvent(new Event('change'));
-  // The render loop may update the WebGL canvas on the next frame after
-  // rebuilding materials. Assert the selected replacement and wait for pixels,
-  // rather than sampling the previous framebuffer synchronously.
-  assert(replace.selectedIndex === 1, 'Replacement texture was not selected');
+  // Confirm the requested map (not just an arbitrary second option) is active,
+  // then wait for the rendered WebGL pixels to change.
+  assert(replace.value === replacementOption.value, 'Replacement texture was not selected');
   await wait(
     () => canvas().toDataURL() !== beforeReplacement,
     'Texture override did not change native preview',
