@@ -788,23 +788,35 @@ function markSaved(t, revision) {
 }
 async function imageTexture(file) {
   const bitmap = await createImageBitmap(file);
-  if (bitmap.width * bitmap.height > 16777216) {
+  if (!validSize(bitmap.width, bitmap.height)) {
+    const { width, height } = bitmap;
     bitmap.close();
-    throw Error('Gambar terlalu besar (maksimum 16 megapixel).');
+    throw Error(
+      `Ukuran gambar tidak didukung: ${width}×${height} px. Maksimum 8192×8192 px (67,1 megapiksel).`,
+    );
   }
   const c = document.createElement('canvas');
   c.width = bitmap.width;
   c.height = bitmap.height;
-  c.getContext('2d').drawImage(bitmap, 0, 0);
-  bitmap.close();
-  return {
-    name: file.name,
-    w: c.width,
-    h: c.height,
-    canvas: c,
-    out: c.getContext('2d').getImageData(0, 0, c.width, c.height).data,
-    format: 'IMAGE',
-  };
+  const imageContext = c.getContext('2d', { willReadFrequently: true });
+  if (!imageContext) {
+    bitmap.close();
+    throw Error('Browser tidak dapat membuat canvas untuk gambar ini.');
+  }
+  try {
+    imageContext.drawImage(bitmap, 0, 0);
+    const pixels = imageContext.getImageData(0, 0, c.width, c.height).data;
+    return {
+      name: file.name,
+      w: c.width,
+      h: c.height,
+      canvas: c,
+      out: pixels,
+      format: 'IMAGE',
+    };
+  } finally {
+    bitmap.close();
+  }
 }
 const reusablePreviews = new WeakMap();
 async function loadFiles(list, { reuse = false } = {}) {
@@ -1665,7 +1677,7 @@ $('confirmSize').onclick = () => {
   const w = Number($('canvasW').value),
     h = Number($('canvasH').value);
   if (!validSize(w, h)) {
-    $('sizeError').textContent = 'Gunakan 1–8192 px, maksimum 16 megapixel.';
+    $('sizeError').textContent = 'Gunakan 1–8192 px per sisi, maksimum 8192×8192 px (67,1 megapiksel).';
     return;
   }
   remember();
