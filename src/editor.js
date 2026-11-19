@@ -7,8 +7,7 @@ export function validSize(w, h) {
     w > 0 &&
     h > 0 &&
     w <= 8192 &&
-    h <= 8192 &&
-    w * h <= 16777216
+    h <= 8192
   );
 }
 export function makeLayer(source, name, w = source.width, h = source.height) {
